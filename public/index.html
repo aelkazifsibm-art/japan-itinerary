@@ -3,229 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mon Voyage au Japon - IA Itinerary</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>Japon 2026 - Itinéraire</title>
     <style>
-        :root {
-            --primary: #e63946;
-            --bg: #f1faee;
-            --card: #ffffff;
-            --text: #1d3557;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .container {
-            max-width: 600px;
-            width: 100%;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .nav-buttons {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        button {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: opacity 0.3s;
-        }
+        :root { --primary: #e63946; --bg: #f8fdf9; --card: #ffffff; --text: #1d3557; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { max-width: 600px; width: 100%; }
+        .day-card { background: var(--card); border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .nav-buttons { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
         button:disabled { opacity: 0.3; }
-        .day-card {
-            background: var(--card);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        .step {
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            padding-left: 30px;
-            margin-bottom: 20px;
-        }
-        .step::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 5px;
-            width: 12px;
-            height: 12px;
-            background: var(--primary);
-            border-radius: 50%;
-        }
-        .travel-info {
-            background: #f8f9fa;
-            border-left: 3px dashed #cbd5e0;
-            margin: 10px 0 20px 5px;
-            padding: 10px 15px;
-            font-size: 0.9em;
-            color: #666;
-        }
+        .step { padding-left: 20px; border-left: 3px solid var(--primary); margin-bottom: 20px; position: relative; }
+        .travel-info { background: #f1f3f5; border-radius: 8px; padding: 10px; margin: 10px 0; font-size: 0.9em; color: #555; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
-        <h1>🇯🇵 Japon 2026</h1>
-        <h2 id="day-title">Chargement...</h2>
-    </div>
+    <h1 style="text-align:center">🇯🇵 Japon 2026</h1>
+    <h2 id="day-title" style="text-align:center; color: var(--primary);">Chargement...</h2>
 
     <div class="nav-buttons">
-        <button id="prevBtn" onclick="changeDay(-1)">← Jour Précédent</button>
-        <button id="nextBtn" onclick="changeDay(1)">Jour Suivant →</button>
+        <button id="prevBtn" onclick="changeDay(-1)">← Précédent</button>
+        <button id="nextBtn" onclick="changeDay(1)">Suivant →</button>
     </div>
 
-    <div id="itinerary-content" class="day-card">
-        </div>
+    <div id="itinerary-content" class="day-card"></div>
 </div>
 
 <script>
-    // --- 1. TES DONNÉES (À PERSONNALISER) ---
     const DATA = [
-        {
-            city: "Tokyo",
-            title: "Arrivée & Shibuya",
-            steps: [
-                { title: "Aéroport de Narita", desc: "Arrivée et récupération du JR Pass" },
-                { title: "Statue de Hachiko", desc: "RDV incontournable à Shibuya" },
-                { title: "Shibuya Sky", desc: "Vue panoramique sur la ville" }
-            ]
-        },
-        {
-            city: "Tokyo",
-            title: "Culture & Geek",
-            steps: [
-                { title: "Temple Senso-ji", desc: "Le plus vieux temple de Tokyo" },
-                { title: "Akihabara Electric Town", desc: "Shopping manga et électronique" },
-                { title: "Roppongi Hills", desc: "Diner avec vue sur la Tokyo Tower" }
-            ]
-        }
+        { city: "Tokyo", title: "Arrivée & Shibuya", steps: [{title: "Aéroport de Narita", desc: "Arrivée"}, {title: "Shinjuku Station", desc: "Pose bagages"}, {title: "Shibuya Crossing", desc: "Soirée"}] },
+        { city: "Tokyo", title: "Culture", steps: [{title: "Senso-ji", desc: "Temple"}, {title: "Akihabara", desc: "Geek"}, {title: "Tokyo Tower", desc: "Vue"}] }
     ];
 
     let currentIndex = 0;
-    const CACHE_KEY = "japan_travel_cache_v1";
 
-    // --- 2. APPELS API (VIA VERCEL) ---
-
-async function getAiPreciseAddress(lieu, ville) {
-  try {
-    // On demande un format "Nom du lieu, Quartier, Ville"
-    const prompt = `Donne-moi uniquement l'adresse de recherche Google Maps la plus pertinente pour : "${lieu}" à ${ville}, Japon. 
-    Format attendu : Nom du lieu ou station, Ville. 
-    Exemple : Shibuya Station, Tokyo.
-    RÈGLE : PAS DE PHRASES. JUSTE L'ADRESSE.`;
-
-    const response = await fetch(`/api/claude?prompt=${encodeURIComponent(prompt)}`);
-    const data = await response.json();
-    
-    return data.result || lieu;
-  } catch (e) {
-    return lieu;
-  }
-}
-    async function getDistance(origin, destination) {
-        const url = `/api/distance?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
-        const response = await fetch(url);
-        return await response.json();
+    async function getAiAddress(lieu, ville) {
+        try {
+            const res = await fetch(`/api/claude?prompt=${encodeURIComponent(lieu + " " + ville)}`);
+            const data = await res.json();
+            return data.result || lieu; // Utilise .result défini dans l'API
+        } catch { return lieu; }
     }
 
-    // --- 3. MOTEUR DE CALCUL ---
+    async function calculTrajets() {
+        const day = DATA[currentIndex];
+        renderInitial(day);
 
-    async function calculTrajetsJour(force = false) {
-        const dayData = DATA[currentIndex];
-        const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
-        
-        if (!force && cache[currentIndex]) {
-            renderDay(cache[currentIndex].results);
-            return;
-        }
-
-        renderDay(); // Premier affichage avec squelette
-
-        const results = [];
-        const steps = dayData.steps;
-
-        for (let i = 0; i < steps.length - 1; i++) {
+        for (let i = 0; i < day.steps.length - 1; i++) {
             const infoDiv = document.getElementById(`travel-${i}`);
-            infoDiv.innerHTML = "✨ L'IA cherche le meilleur trajet...";
-
             try {
-                const dep = await getAiPreciseAddress(steps[i].title, dayData.city);
-                const arr = await getAiPreciseAddress(steps[i+1].title, dayData.city);
+                const dep = await getAiAddress(day.steps[i].title, day.city);
+                const arr = await getAiAddress(day.steps[i+1].title, day.city);
                 
-                const distData = await getDistance(`${dep}, Japan`, `${arr}, Japan`);
-                const element = distData?.rows?.[0]?.elements?.[0];
-
-                if (element && element.status === "OK") {
+                const res = await fetch(`/api/distance?origin=${encodeURIComponent(dep + ", Japan")}&destination=${encodeURIComponent(arr + ", Japan")}`);
+                const d = await res.json();
+                
+                const element = d.rows[0].elements[0];
+                if (element.status === "OK") {
                     const mins = Math.round(element.duration.value / 60);
-                    results.push({ min: mins, ok: true });
                     infoDiv.innerHTML = `🚇 <strong>${mins} min</strong> via transports publics`;
-                } else {
-                    throw new Error();
-                }
-            } catch (e) {
-                results.push({ ok: false });
-                infoDiv.innerHTML = "⚠️ Trajet à pied ou à vérifier sur place";
+                } else { throw new Error(); }
+            } catch {
+                infoDiv.innerHTML = "⚠️ Trajet à vérifier sur Google Maps";
             }
-            await new Promise(r => setTimeout(r, 500));
         }
-
-        cache[currentIndex] = { results };
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
     }
 
-    // --- 4. AFFICHAGE ---
-
-    function renderDay(cachedResults = null) {
-        const dayData = DATA[currentIndex];
-        document.getElementById('day-title').innerText = `Jour ${currentIndex + 1}: ${dayData.title}`;
-        
+    function renderInitial(day) {
+        document.getElementById('day-title').innerText = `Jour ${currentIndex + 1}: ${day.title}`;
         let html = "";
-        dayData.steps.forEach((step, i) => {
-            html += `
-                <div class="step">
-                    <strong>${step.title}</strong>
-                    <span>${step.desc}</span>
-                </div>
-            `;
-            if (i < dayData.steps.length - 1) {
-                const travelContent = cachedResults ? 
-                    `🚇 <strong>${cachedResults[i].min} min</strong> via transports` : 
-                    "⏳ Calcul du trajet...";
-                html += `<div id="travel-${i}" class="travel-info">${travelContent}</div>`;
-            }
+        day.steps.forEach((s, i) => {
+            html += `<div class="step"><strong>${s.title}</strong><br><small>${s.desc}</small></div>`;
+            if (i < day.steps.length - 1) html += `<div id="travel-${i}" class="travel-info">⏳ Calcul du temps...</div>`;
         });
-
         document.getElementById('itinerary-content').innerHTML = html;
-        document.getElementById('prevBtn').disabled = (currentIndex === 0);
-        document.getElementById('nextBtn').disabled = (currentIndex === DATA.length - 1);
+        document.getElementById('prevBtn').disabled = currentIndex === 0;
+        document.getElementById('nextBtn').disabled = currentIndex === DATA.length - 1;
     }
 
-    function changeDay(dir) {
-        currentIndex += dir;
-        calculTrajetsJour();
-    }
-
-    // Lancement au démarrage
-    calculTrajetsJour();
-
+    function changeDay(n) { currentIndex += n; calculTrajets(); }
+    calculTrajets();
 </script>
 </body>
 </html>
