@@ -112,7 +112,12 @@ async function calculTrajetsJour(force = false) {
         targetDiv.innerHTML = "⏳ Calcul en cours...";
         
         try {
-            const data = await getDistance(steps[i].title + " " + dayData.city, steps[i+1].title + " " + dayData.city);
+        // On crée des adresses ultra-précises pour Google
+        const adresseDepart = `${steps[i].title}, ${dayData.city}, Japan`;
+        const adresseArrivee = `${steps[i+1].title}, ${dayData.city}, Japan`;
+
+        const data = await getDistance(adresseDepart, adresseArrivee);
+        const element = data?.rows?.[0]?.elements?.[0];
             const element = data?.rows?.[0]?.elements?.[0];
             
             if (element && element.status === "OK") {
