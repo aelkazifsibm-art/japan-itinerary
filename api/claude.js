@@ -1,34 +1,33 @@
 export default async function handler(req, res) {
   try {
     const { prompt } = req.query;
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
+    if (!prompt) return res.status(400).json({ error: "missing prompt" });
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
       headers: {
-        'x-api-key': process.env.CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
+        "x-api-key": process.env.CLAUDE_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
       },
       body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 20, 
-        // Le secret est ici : on lui donne un rôle de base de données
-        system: "Tu es une API de géolocalisation. Tu ne parles pas. Tu réponds UNIQUEMENT par : Nom du lieu, Ville, Code Postal, Japan. Si tu fais une phrase, le système plante.",
+        model: "claude-opus-4-6",
+        max_tokens: 60,
+        system:
+          "Tu es un robot de géolocalisation. Tu ne parles pas. Tu réponds UNIQUEMENT par UNE ligne au format : Nom Officiel du Lieu, Code Postal, Quartier, Ville, Japan. AUCUNE phrase.",
         messages: [
-          { role: "user", content: `Lieu: ${prompt}` },
-          { role: "assistant", content: "Résultat:" } // On pré-remplit le début de sa réponse pour le guider
+          { role: "user", content: "Trouve l'adresse exacte pour Maps de : " + prompt },
+          { role: "assistant", content: "Résultat:" }
         ]
       })
     });
 
     const data = await response.json();
-    let text = data.content[0].text.trim();
-    
-    // On nettoie tout ce qui n'est pas l'adresse
-    text = text.split('\n')[0].replace("Résultat:", "").trim();
+    const text = (data?.content?.[0]?.text || "").replace("Résultat:", "").trim();
+    const clean = text.split("\n")[0].trim();
 
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json({ result: text });
-  } catch (err) {
-    return res.status(500).json({ error: "Erreur serveur" });
+    return res.status(200).json({ result: clean });
+  } catch (e) {
+    return res.status(500).json({ error: "server error", details: String(e) });
   }
 }

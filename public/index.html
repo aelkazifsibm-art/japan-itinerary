@@ -200,5 +200,44 @@
     };
 </script>
 
+function formatHHMM(dateObj) {
+  const hh = String(dateObj.getHours()).padStart(2, "0");
+  const mm = String(dateObj.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function sumSeconds(steps, travelMode) {
+  return steps
+    .filter(s => s.travel_mode === travelMode)
+    .reduce((acc, s) => acc + (s.duration?.value || 0), 0);
+}
+
+function countTransfers(steps) {
+  const transitLegs = steps.filter(s => s.travel_mode === "TRANSIT");
+  return Math.max(0, transitLegs.length - 1);
+}
+
+function formatSegmentFromDirections(data, departDate) {
+  const leg = data?.routes?.[0]?.legs?.[0];
+  if (!leg) return "⚠️ Trajet indisponible\n✅";
+
+  const steps = leg.steps || [];
+  const walkSec = sumSeconds(steps, "WALKING");
+  const transitSec = sumSeconds(steps, "TRANSIT");
+  const transfers = countTransfers(steps);
+
+  const walkMin = Math.round(walkSec / 60);
+  const transitMin = Math.round(transitSec / 60);
+
+  const arrival = new Date(departDate.getTime() + (leg.duration?.value || 0) * 1000);
+
+  return `🚇 ${transitMin} min (${transfers} corresp.)
+🚶 ${walkMin} min marche
+⏱️ Arrivée:
+${formatHHMM(arrival)}
+✅`;
+}
+
+
 </body>
 </html>
