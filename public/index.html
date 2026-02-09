@@ -132,6 +132,11 @@
                 infoDiv.innerHTML = `<span class="loading">🤖 Recherche adresses exactes...</span>`;
                 const origin = await getSmartAddress(day.steps[i].title, day.city);
                 const destination = await getSmartAddress(day.steps[i+1].title, day.city);
+if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+  return res.status(400).json({ error: "Missing prompt (empty)" });
+}
+
+
 
                 // Étape B : On demande le temps à Google Maps (Transit)
                 infoDiv.innerHTML = `<span class="loading">🚇 Calcul itinéraire Google...</span>`;
