@@ -1,203 +1,226 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Itinéraire Japon — Offline</title>
-<style>
-:root{
-  --bg:#0D1520; --card:#1A2332; --card2:#212D40; --accent:#4B93FF; --accent2:#7DB3FF;
-  --text:#FFFFFF; --muted:#D1D9E8; --muted2:#9BA8C0; --border: rgba(255,255,255,.12);
-  --shadow: 0 10px 30px rgba(0,0,0,.4); --maxw: 520px; --green: #22c55e;
-}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,sans-serif; display:flex; justify-content:center;}
-#app{width:100%; max-width:var(--maxw); min-height:100vh; padding:20px 20px 120px;}
-
-/* Header */
-header{padding:40px 0 20px; border-bottom:1px solid var(--border); margin-bottom:20px;}
-h1{margin:0; font-size:26px; font-weight:900;}
-.city-badge{display:inline-block; padding:4px 12px; background:var(--accent); border-radius:100px; font-size:12px; font-weight:800; margin-top:8px;}
-
-/* Cards */
-.step-card{background:var(--card); border-radius:20px; padding:18px; margin-bottom:12px; border:1px solid var(--border); box-shadow:var(--shadow);}
-.step-time{color:var(--accent2); font-weight:800; font-size:14px; margin-bottom:4px;}
-.step-title{font-size:17px; font-weight:800; margin-bottom:6px;}
-
-/* Trajets (Calculated) */
-.calculated-travel{
-  margin: 10px 0 20px 20px; padding: 12px; border-left: 2px dashed var(--accent);
-  background: rgba(75,147,255,0.05); border-radius: 0 12px 12px 0;
-}
-.travel-box{ font-size: 14px; line-height: 1.5; font-weight: 800; }
-
-/* Popups */
-.popup-alert{
-  position:fixed; bottom:110px; left:20px; right:20px; background:var(--card2); 
-  border:2px solid var(--accent); padding:20px; border-radius:20px; z-index:10000; box-shadow:var(--shadow);
-}
-.btn-row{display:flex; gap:10px; margin-top:15px;}
-.btn{flex:1; padding:12px; border-radius:12px; border:none; font-weight:800; cursor:pointer;}
-.btn-p{background:var(--accent); color:white;}
-.btn-s{background:var(--card); color:var(--text); border:1px solid var(--border);}
-
-/* Navigation */
-nav{
-  position:fixed; bottom:0; width:100%; max-width:var(--maxw); background:rgba(26,35,50,0.9);
-  backdrop-filter:blur(10px); display:flex; justify-content:space-around; padding:15px 10px 30px;
-  border-top:1px solid var(--border);
-}
-.nav-item{color:var(--muted2); font-size:12px; font-weight:800; cursor:pointer;}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Voyage au Japon - IA Itinerary</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #e63946;
+            --bg: #f1faee;
+            --card: #ffffff;
+            --text: #1d3557;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.3s;
+        }
+        button:disabled { opacity: 0.3; }
+        .day-card {
+            background: var(--card);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .step {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 20px;
+        }
+        .step::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+        }
+        .travel-info {
+            background: #f8f9fa;
+            border-left: 3px dashed #cbd5e0;
+            margin: 10px 0 20px 5px;
+            padding: 10px 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
 </head>
 <body>
 
-<div id="app">
-    <header id="header-ui"></header>
-    <div id="main-content"></div>
-    <nav>
-        <div class="nav-item" onclick="changeDay(-1)">◀ J. Précédent</div>
-        <div class="nav-item" onclick="changeDay(1)">J. Suivant ▶</div>
-    </nav>
+<div class="container">
+    <div class="header">
+        <h1>🇯🇵 Japon 2026</h1>
+        <h2 id="day-title">Chargement...</h2>
+    </div>
+
+    <div class="nav-buttons">
+        <button id="prevBtn" onclick="changeDay(-1)">← Jour Précédent</button>
+        <button id="nextBtn" onclick="changeDay(1)">Jour Suivant →</button>
+    </div>
+
+    <div id="itinerary-content" class="day-card">
+        </div>
 </div>
 
 <script>
-// --- DONNÉES ITINÉRAIRE ---
-const DATA = [
-    { day: "J1", city: "Tokyo", steps: [{time:"09:00", title:"Narita"}, {time:"12:00", title:"Shinjuku"}, {time:"15:00", title:"Shibuya"}] },
-    { day: "J2", city: "Tokyo", steps: [{time:"10:00", title:"Asakusa"}, {time:"14:00", title:"Ueno"}] }
-];
-
-let currentIndex = 0;
-const CACHE_KEY = 'japon_v3_cache';
-
-// --- MOTEUR API (FICHIER 2 DEMANDÉ) ---
-
-async function getDistance(origin, destination) {
-  const url = `/api/distance?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=transit`;
-  const response = await fetch(url);
-  return await response.json();
-}
-
-// --- LOGIQUE SÉQUENTIELLE & CACHE ---
-
-function getFingerprint(dayData) {
-    return dayData.steps.map(s => s.title).join('|');
-}
-
-async function calculTrajetsJour(force = false) {
-    const dayData = DATA[currentIndex];
-    const fingerprint = getFingerprint(dayData);
-    
-    // Check Cache
-    const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
-    const dayCache = cache[currentIndex];
-
-    if (!force && dayCache) {
-        if (dayCache.fingerprint === fingerprint) {
-            renderStoredTravels(dayCache.results);
-            return;
-        } else {
-            showRecomputePopup();
-            return;
+    // --- 1. TES DONNÉES (À PERSONNALISER) ---
+    const DATA = [
+        {
+            city: "Tokyo",
+            title: "Arrivée & Shibuya",
+            steps: [
+                { title: "Aéroport de Narita", desc: "Arrivée et récupération du JR Pass" },
+                { title: "Statue de Hachiko", desc: "RDV incontournable à Shibuya" },
+                { title: "Shibuya Sky", desc: "Vue panoramique sur la ville" }
+            ]
+        },
+        {
+            city: "Tokyo",
+            title: "Culture & Geek",
+            steps: [
+                { title: "Temple Senso-ji", desc: "Le plus vieux temple de Tokyo" },
+                { title: "Akihabara Electric Town", desc: "Shopping manga et électronique" },
+                { title: "Roppongi Hills", desc: "Diner avec vue sur la Tokyo Tower" }
+            ]
         }
-    }
+    ];
 
-    // Calcul Séquentiel
-    const results = [];
-    const steps = dayData.steps;
+    let currentIndex = 0;
+    const CACHE_KEY = "japan_travel_cache_v1";
 
-    for (let i = 0; i < steps.length - 1; i++) {
-        const targetDiv = document.getElementById(`travel-${i}`);
-        targetDiv.innerHTML = "⏳ Calcul en cours...";
-        
+    // --- 2. APPELS API (VIA VERCEL) ---
+
+    async function getAiPreciseAddress(lieu, ville) {
         try {
-        // On crée des adresses ultra-précises pour Google
-        const adresseDepart = `${steps[i].title}, ${dayData.city}, Japan`;
-        const adresseArrivee = `${steps[i+1].title}, ${dayData.city}, Japan`;
-
-        const data = await getDistance(adresseDepart, adresseArrivee);
-        const element = data?.rows?.[0]?.elements?.[0];
-            const element = data?.rows?.[0]?.elements?.[0];
-            
-            if (element && element.status === "OK") {
-                const minutes = Math.round(element.duration.value / 60);
-                const resObj = { min: minutes, ok: true };
-                results.push(resObj);
-                targetDiv.innerHTML = formatTravelHTML(minutes);
-            } else {
-                throw new Error();
-            }
+            const prompt = `Donne-moi uniquement le nom de la station ou du lieu exact pour Google Maps pour : "${lieu}" à ${ville}, Japon. Réponds juste le nom court.`;
+            const response = await fetch(`/api/claude?prompt=${encodeURIComponent(prompt)}`);
+            const data = await response.json();
+            return data.content[0].text.trim();
         } catch (e) {
-            results.push({ ok: false });
-            targetDiv.innerHTML = "⚠️ Trajet indisponible";
+            return lieu;
         }
-        await new Promise(r => setTimeout(r, 400)); // Pause visuelle
     }
 
-    // Sauvegarde
-    cache[currentIndex] = { fingerprint, results };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-    showToast("Itinéraire calculé ✅");
-}
+    async function getDistance(origin, destination) {
+        const url = `/api/distance?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+        const response = await fetch(url);
+        return await response.json();
+    }
 
-// --- RENDU UI ---
+    // --- 3. MOTEUR DE CALCUL ---
 
-function renderApp() {
-    const day = DATA[currentIndex];
-    document.getElementById('header-ui').innerHTML = `<h1>${day.day}</h1><div class="city-badge">${day.city}</div>`;
-    
-    let html = '';
-    day.steps.forEach((s, i) => {
-        html += `<div class="step-card"><div class="step-time">${s.time}</div><div class="step-title">${s.title}</div></div>`;
-        if (i < day.steps.length - 1) html += `<div id="travel-${i}" class="calculated-travel"></div>`;
-    });
-    document.getElementById('main-content').innerHTML = html;
-    
-    setTimeout(() => calculTrajetsJour(), 100);
-}
+    async function calculTrajetsJour(force = false) {
+        const dayData = DATA[currentIndex];
+        const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+        
+        if (!force && cache[currentIndex]) {
+            renderDay(cache[currentIndex].results);
+            return;
+        }
 
-function formatTravelHTML(min) {
-    return `<div class="travel-box">🚇 ${min} min (1 corresp.)<br>🚶 5 min marche<br><span style="color:var(--accent2)">⏱️ Arrivée: Calculée</span><br><span style="color:var(--green)">✅</span></div>`;
-}
+        renderDay(); // Premier affichage avec squelette
 
-function renderStoredTravels(results) {
-    results.forEach((r, i) => {
-        const div = document.getElementById(`travel-${i}`);
-        if (div) div.innerHTML = r.ok ? formatTravelHTML(r.min) : "⚠️ Indisponible";
-    });
-}
+        const results = [];
+        const steps = dayData.steps;
 
-function showRecomputePopup() {
-    if (document.getElementById('pop')) return;
-    const pop = document.createElement('div');
-    pop.id = 'pop'; pop.className = 'popup-alert';
-    pop.innerHTML = `<b>Les activités ont changé.</b><br>Recalculer les trajets ?
-        <div class="btn-row">
-            <button class="btn btn-p" onclick="confirmRecalc(true)">Oui</button>
-            <button class="btn btn-s" onclick="confirmRecalc(false)">Non</button>
-        </div>`;
-    document.body.appendChild(pop);
-}
+        for (let i = 0; i < steps.length - 1; i++) {
+            const infoDiv = document.getElementById(`travel-${i}`);
+            infoDiv.innerHTML = "✨ L'IA cherche le meilleur trajet...";
 
-function confirmRecalc(choice) {
-    document.getElementById('pop').remove();
-    if (choice) calculTrajetsJour(true);
-}
+            try {
+                const dep = await getAiPreciseAddress(steps[i].title, dayData.city);
+                const arr = await getAiPreciseAddress(steps[i+1].title, dayData.city);
+                
+                const distData = await getDistance(`${dep}, Japan`, `${arr}, Japan`);
+                const element = distData?.rows?.[0]?.elements?.[0];
 
-function changeDay(dir) {
-    let n = currentIndex + dir;
-    if (n >= 0 && n < DATA.length) { currentIndex = n; renderApp(); }
-}
+                if (element && element.status === "OK") {
+                    const mins = Math.round(element.duration.value / 60);
+                    results.push({ min: mins, ok: true });
+                    infoDiv.innerHTML = `🚇 <strong>${mins} min</strong> via transports publics`;
+                } else {
+                    throw new Error();
+                }
+            } catch (e) {
+                results.push({ ok: false });
+                infoDiv.innerHTML = "⚠️ Trajet à pied ou à vérifier sur place";
+            }
+            await new Promise(r => setTimeout(r, 500));
+        }
 
-function showToast(txt) {
-    const t = document.createElement('div');
-    t.style = "position:fixed; top:20px; background:var(--card2); padding:12px 20px; border-radius:12px; border:1px solid var(--green); z-index:10001; font-weight:800;";
-    t.innerText = txt; document.body.appendChild(t);
-    setTimeout(() => t.remove(), 2500);
-}
+        cache[currentIndex] = { results };
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    }
 
-renderApp();
+    // --- 4. AFFICHAGE ---
+
+    function renderDay(cachedResults = null) {
+        const dayData = DATA[currentIndex];
+        document.getElementById('day-title').innerText = `Jour ${currentIndex + 1}: ${dayData.title}`;
+        
+        let html = "";
+        dayData.steps.forEach((step, i) => {
+            html += `
+                <div class="step">
+                    <strong>${step.title}</strong>
+                    <span>${step.desc}</span>
+                </div>
+            `;
+            if (i < dayData.steps.length - 1) {
+                const travelContent = cachedResults ? 
+                    `🚇 <strong>${cachedResults[i].min} min</strong> via transports` : 
+                    "⏳ Calcul du trajet...";
+                html += `<div id="travel-${i}" class="travel-info">${travelContent}</div>`;
+            }
+        });
+
+        document.getElementById('itinerary-content').innerHTML = html;
+        document.getElementById('prevBtn').disabled = (currentIndex === 0);
+        document.getElementById('nextBtn').disabled = (currentIndex === DATA.length - 1);
+    }
+
+    function changeDay(dir) {
+        currentIndex += dir;
+        calculTrajetsJour();
+    }
+
+    // Lancement au démarrage
+    calculTrajetsJour();
+
 </script>
 </body>
 </html>
