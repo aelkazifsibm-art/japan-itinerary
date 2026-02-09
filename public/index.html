@@ -1,19 +1,104 @@
-async function calculerTrajet(activite, ville) {
-    const response = await fetch('/api/trip-engine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activity: activite, city: ville })
-    });
-    
-    const result = await response.json();
-    
-    if (result.status === "success") {
-        const d = result.data;
-        console.log(`Arrivée à ${d.arrivalTime}, Durée: ${d.duration}`);
-        // Mise à jour de ton HTML ici
-        document.getElementById('ton-element').innerHTML = `
-            🚇 ${d.duration} (${d.transfers} corresp.)<br>
-            🚶 ${d.walkingTime} de marche
-        `;
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japon 2026 - Itinéraire</title>
+    <style>
+        :root { --primary: #E63946; --dark: #1D3557; --light: #F1FAEE; --accent: #A8DADC; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--light); color: var(--dark); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .app-container { max-width: 500px; width: 100%; }
+        
+        /* Style des Cartes */
+        .day-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .day-title { color: var(--primary); font-size: 1.5rem; margin-bottom: 15px; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+        
+        /* Étapes de l'itinéraire */
+        .step { position: relative; padding-left: 30px; margin-bottom: 20px; }
+        .step::before { content: ''; position: absolute; left: 0; top: 5px; width: 12px; height: 12px; background: var(--primary); border-radius: 50%; }
+        .step-title { font-weight: bold; font-size: 1.1rem; }
+        
+        /* LE VISUEL DU TRAJET (Le fameux résultat précis) */
+        .travel-box { 
+            background: #F8F9FA; border-left: 4px solid var(--dark); 
+            padding: 15px; margin: 10px 0 20px 10px; border-radius: 0 10px 10px 0;
+            font-size: 0.95rem; line-height: 1.4;
+        }
+        .travel-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .highlight { font-weight: bold; color: var(--primary); }
+        .loading-pulse { animation: pulse 1.5s infinite; color: #666; font-style: italic; }
+        
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div id="itinerary" class="day-card">
+        <h2 id="day-label" class="day-title">Chargement...</h2>
+        <div id="steps-container"></div>
+    </div>
+</div>
+
+<script>
+    // Tes données (exemple)
+    const travelData = {
+        city: "Nara",
+        steps: [
+            { title: "Gare de Kyoto", desc: "Départ quai 8" },
+            { title: "Voir les daims", desc: "Parc de Nara" },
+            { title: "Temple Todai-ji", desc: "Grand Bouddha" }
+        ]
+    };
+
+    async function initApp() {
+        const container = document.getElementById('steps-container');
+        document.getElementById('day-label').innerText = `Destination : ${travelData.city}`;
+
+        for (let i = 0; i < travelData.steps.length; i++) {
+            // Afficher l'étape
+            container.innerHTML += `
+                <div class="step">
+                    <div class="step-title">${travelData.steps[i].title}</div>
+                    <div style="font-size:0.8rem; color:#666">${travelData.steps[i].desc}</div>
+                </div>
+            `;
+
+            // Si ce n'est pas la dernière étape, on calcule le trajet vers la suivante
+            if (i < travelData.steps.length - 1) {
+                const travelDivId = `travel-${i}`;
+                container.innerHTML += `<div id="${travelDivId}" class="travel-box loading-pulse">⏳ Calcul du trajet...</div>`;
+                
+                // APPEL AU TRIP-ENGINE (La nouvelle logique blindée)
+                fetchTravelDetails(travelData.steps[i].title, travelData.steps[i+1].title, travelData.city, travelDivId);
+            }
+        }
     }
-}
+
+    async function fetchTravelDetails(from, to, city, elementId) {
+        try {
+            const response = await fetch('/api/trip-engine', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ activity: to, city: city, originStation: from })
+            });
+            const result = await response.json();
+
+            if (result.status === "success") {
+                const d = result.data;
+                document.getElementById(elementId).classList.remove('loading-pulse');
+                document.getElementById(elementId).innerHTML = `
+                    <div class="travel-row">🚇 <span class="highlight">${d.duration}</span> (${d.transfers} corresp.)</div>
+                    <div class="travel-row">🚶 ${d.walkingTime} de marche</div>
+                    <div class="travel-row" style="font-size:0.8rem; color:#666">⏱️ Arrivée prévue : ${d.arrivalTime}</div>
+                `;
+            }
+        } catch (err) {
+            document.getElementById(elementId).innerText = "❌ Erreur de calcul";
+        }
+    }
+
+    window.onload = initApp;
+</script>
+</body>
+</html>
