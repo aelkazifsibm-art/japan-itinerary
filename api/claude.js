@@ -1,11 +1,6 @@
 export default async function handler(req, res) {
   try {
     const { prompt } = req.query;
-
-    if (!process.env.CLAUDE_API_KEY) {
-      throw new Error("Clé API manquante");
-    }
-
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -15,36 +10,25 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-3-haiku-20240307",
-        max_tokens: 40, // On coupe la parole si c'est trop long
-        system: `Tu es un moteur de recherche d'adresses pour le Japon.
-        MISSION : Convertir une activité ou un lieu vague en l'ADRESSE EXACTE ou la GARE la plus proche pour Google Maps.
-        
-        RÈGLES ABSOLUES :
-        1. Réponds UNIQUEMENT le lieu précis + Ville + Japon.
-        2. PAS de phrases, PAS de politesse.
-        3. Si c'est une activité (ex: "Voir les daims"), donne le lieu (ex: "Nara Park").
-        4. Si c'est un déplacement, donne la GARE (ex: "Shinjuku Station").
-
-        EXEMPLES :
-        Input: "Voir les daims à Nara" -> Output: Nara Park, Nara, Japan
-        Input: "Manger au marché à Osaka" -> Output: Kuromon Ichiba Market, Osaka, Japan
-        Input: "Prendre le train à Saitama" -> Output: Saitama-Shintoshin Station, Saitama, Japan
-        Input: "Aller à Shibuya" -> Output: Shibuya Station, Tokyo, Japan`,
-        messages: [{ role: "user", content: `Convertis en adresse de recherche : ${prompt}` }]
+        max_tokens: 20, 
+        // Le secret est ici : on lui donne un rôle de base de données
+        system: "Tu es une API de géolocalisation. Tu ne parles pas. Tu réponds UNIQUEMENT par : Nom du lieu, Ville, Code Postal, Japan. Si tu fais une phrase, le système plante.",
+        messages: [
+          { role: "user", content: `Lieu: ${prompt}` },
+          { role: "assistant", content: "Résultat:" } // On pré-remplit le début de sa réponse pour le guider
+        ]
       })
     });
 
     const data = await response.json();
+    let text = data.content[0].text.trim();
     
-    // NETTOYAGE CHIRURGICAL : On garde uniquement la première ligne
-    // On enlève les points finaux et les guillemets éventuels
-    let cleanAddress = data.content[0].text.split('\n')[0].replace(/[".]/g, "").trim();
-    
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json({ result: cleanAddress });
+    // On nettoie tout ce qui n'est pas l'adresse
+    text = text.split('\n')[0].replace("Résultat:", "").trim();
 
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({ result: text });
   } catch (err) {
-    console.error("Erreur API Claude:", err);
-    return res.status(500).json({ error: "Erreur interne IA" });
+    return res.status(500).json({ error: "Erreur serveur" });
   }
 }
