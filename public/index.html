@@ -124,17 +124,17 @@
 
     // --- 2. APPELS API (VIA VERCEL) ---
 
-    async function getAiPreciseAddress(lieu, ville) {
-        try {
-            const prompt = `Donne-moi uniquement le nom de la station ou du lieu exact pour Google Maps pour : "${lieu}" à ${ville}, Japon. Réponds juste le nom court.`;
-            const response = await fetch(`/api/claude?prompt=${encodeURIComponent(prompt)}`);
-            const data = await response.json();
-            return data.content[0].text.trim();
-        } catch (e) {
-            return lieu;
-        }
-    }
-
+async function getAiPreciseAddress(lieu, ville) {
+  try {
+    const prompt = `Donne-moi uniquement le nom du lieu exact au Japon pour Google Maps : "${lieu}" à ${ville}. Pas de phrases, juste le nom.`;
+    const response = await fetch(`/api/claude?prompt=${encodeURIComponent(prompt)}`);
+    const data = await response.json();
+    // On utilise .result car c'est ce qu'on a défini dans l'API au-dessus
+    return data.result || lieu;
+  } catch (e) {
+    return lieu;
+  }
+}
     async function getDistance(origin, destination) {
         const url = `/api/distance?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
         const response = await fetch(url);
