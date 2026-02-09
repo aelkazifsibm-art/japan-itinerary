@@ -10,17 +10,18 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-3-haiku-20240307",
-        max_tokens: 50,
+        max_tokens: 20, // Très court
         messages: [{ role: "user", content: prompt }]
       })
     });
 
     const data = await response.json();
-    // On extrait uniquement le texte de la réponse de Claude
-    const textClean = data.content[0].text.replace(/[".]/g, "").trim();
+    
+    // On nettoie pour ne garder qu'une seule ligne, sans ponctuation inutile
+    let text = data.content[0].text.split('\n')[0].replace(/[".]/g, "").trim();
     
     res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json({ result: textClean });
+    return res.status(200).json({ result: text });
   } catch (err) {
     return res.status(500).json({ error: String(err) });
   }
