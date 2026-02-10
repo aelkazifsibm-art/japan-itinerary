@@ -84,6 +84,8 @@ app.get("/api/health", async (req, res) => {
         dirUrl.searchParams.set("origin", "place_id:ChIJ51cu8IcbXWARiRtXIothAS4");
         dirUrl.searchParams.set("destination", "place_id:ChIJyZB3m7uMGGARvGd2dF5QdU0");
         dirUrl.searchParams.set("mode", "transit");
+        dirUrl.searchParams.set("region", "jp");
+        dirUrl.searchParams.set("language", "fr");
         dirUrl.searchParams.set("key", serverKey);
         const d = await fetchJson(dirUrl.toString());
 
@@ -92,8 +94,17 @@ app.get("/api/health", async (req, res) => {
                 GOOGLE_MAPS_BROWSER_KEY: !!process.env.GOOGLE_MAPS_BROWSER_KEY,
                 GOOGLE_MAPS_SERVER_KEY: !!process.env.GOOGLE_MAPS_SERVER_KEY
             },
-            places: { ok: p.json?.status === "OK", status: p.json?.status },
-            directions: { ok: d.json?.status === "OK", status: d.json?.status }
+            places: { 
+                ok: p.json?.status === "OK", 
+                status: p.json?.status,
+                error_message: p.json?.error_message 
+            },
+            directions: { 
+                ok: d.json?.status === "OK", 
+                status: d.json?.status,
+                error_message: d.json?.error_message,
+                debug_url: dirUrl.toString().replace(serverKey, "AIza...REDACTED") // Pour vérifier la structure sans exposer la clé
+            }
         };
         res.json(out);
     } catch (e) {
@@ -173,7 +184,24 @@ app.post('/api/route', async (req, res) => {
         dirUrl.searchParams.set("key", serverKey);
 
         const d = await fetchJson(dirUrl.toString());
-        if (d.json?.status !== "OK") throw new Error(`Directions API error: ${d.json?.status}`);
+        
+        // Si NOT_FOUND, on tente une recherche par texte au lieu de place_id en dernier recours
+        if (d.json?.status === "NOT_FOUND") {
+            dirUrl.searchParams.set("origin", p1.json.result.formatted_address);
+            dirUrl.searchParams.set("destination", p2.json.result.formatted_address);
+            const dRetry = await fetchJson(dirUrl.toString());
+            if (dRetry.json?.status === "OK") {
+                d.json = dRetry.json;
+            }
+        }
+
+        if (d.json?.status !== "OK") {
+            return res.status(422).json({ 
+                success: false, 
+                error: `Google Directions: ${d.json?.status}`,
+                message: d.json?.error_message || "Impossible de trouver un itinéraire entre ces deux points."
+            });
+        }
 
         const leg = d.json.routes[0].legs[0];
         const totalMinutes = Math.round((leg.duration?.value || 0) / 60);
