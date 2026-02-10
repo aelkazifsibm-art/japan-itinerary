@@ -36,10 +36,12 @@
     <div class="card">
         <label>DÉPART</label>
         <input type="text" id="from" placeholder="Ex: Tokyo Station" value="Tokyo Station">
-        
-        <label>ARRIVÉE</label>
-<input type="text" id="to" placeholder="Ex: Nara Park" value="">
 
+        <label>ARRIVÉE</label>
+        <input type="text" id="to" placeholder="Ex: Shinjuku Station">
+        
+        <label>INTENTION (IA - Optionnel si arrivée remplie)</label>
+        <input type="text" id="intent" placeholder="Ex: voir les daims">
         
         <button id="btn-calc" onclick="calculate()">CALCULER L'ITINÉRAIRE</button>
         
@@ -72,10 +74,9 @@
     }
 
     function initAutocomplete() {
-    new google.maps.places.Autocomplete(document.getElementById('from'));
-    new google.maps.places.Autocomplete(document.getElementById('to'));
-}
-
+        new google.maps.places.Autocomplete(document.getElementById('from'));
+        new google.maps.places.Autocomplete(document.getElementById('to'));
+    }
 
     function switchTab(tab) {
         document.getElementById('tab-search').className = 'tab' + (tab==='search'?' active':'');
@@ -87,31 +88,41 @@
 
     async function calculate() {
         const from = document.getElementById('from').value;
-       const to = document.getElementById('to').value;
+        const to = document.getElementById('to').value;
+        const intent = document.getElementById('intent').value;
+        const btn = document.getElementById('btn-calc');
+        const resBox = document.getElementById('result-box');
+        
+        if(!from || (!to && !intent)) return alert("Veuillez remplir le départ et soit une arrivée, soit une intention.");
+        
+        const cacheKey = `route_${from}_${to}_${intent}`.toLowerCase().replace(/\s+/g, '_');
+        const cached = localStorage.getItem(cacheKey);
+        if(cached) {
+            showResult(JSON.parse(cached), true);
+            return;
+        }
 
-if(!from || !to) return alert("Veuillez remplir les deux champs.");
+        btn.disabled = true;
+        btn.innerText = "IA EN TRAIN DE RÉFLÉCHIR...";
+        resBox.style.display = 'block';
+        document.getElementById('res-0').innerText = "⏳ Recherche du lieu...";
+        document.getElementById('res-1').innerText = "";
+        document.getElementById('res-2').innerText = "";
 
-const cacheKey = `route_${from}_${to}`.toLowerCase().replace(/\s+/g, '_');
-
-...
-btn.innerText = "CALCUL EN COURS...";
-document.getElementById('res-0').innerText = "⏳ Calcul de l'itinéraire...";
-document.getElementById('res-1').innerText = "";
-document.getElementById('res-2').innerText = "";
-
-const resp = await fetch('/api/route', {
-  method: 'POST',
-  headers: {'Content-Type': 'application/json'},
-  body: JSON.stringify({ from, to })
-});
-
+        try {
+            // 1. Demander à l'IA de trouver le lieu ou utiliser l'arrivée directe
+            const resp = await fetch('/api/route', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({from, to, intent})
+            });
             const data = await resp.json();
             
             if(data.lines) {
                 localStorage.setItem(cacheKey, JSON.stringify(data.lines));
                 showResult(data.lines, false);
             } else {
-                document.getElementById('res-0').innerText = "❌ Itinéraire introuvable";
+                document.getElementById('res-0').innerText = "❌ Lieu introuvable par l'IA";
             }
         } catch(e) {
             document.getElementById('res-0').innerText = "❌ Erreur de connexion";
