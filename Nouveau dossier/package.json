@@ -1,0 +1,12 @@
+{
+  "name": "japon-trip-engine",
+  "version": "1.0.0",
+  "description": "Moteur d'itinéraire intelligent pour le Japon",
+  "main": "api/trip-engine.js",
+  "dependencies": {
+    "node-fetch": "^3.3.0"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
