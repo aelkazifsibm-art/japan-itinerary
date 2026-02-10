@@ -102,9 +102,16 @@ export default async function handler(req, res) {
 
     const from = clampText(payload.from);
     const intent = clampText(payload.intent);
+    
+    // Si departureTime n'est pas fourni, on utilise l'heure actuelle au Japon
+    // Le Japon est à UTC+9
+    const now = new Date();
+    const jstOffset = 9 * 60 * 60 * 1000;
+    const defaultDeparture = Math.floor((now.getTime() + jstOffset) / 1000);
+
     const departureTime = payload.departureTime
       ? Number(payload.departureTime)
-      : Math.floor(Date.now() / 1000);
+      : defaultDeparture;
 
     if (!from || !intent) return json(res, 400, { error: "Missing from/intent" });
     if (!process.env.OPENAI_API_KEY) return json(res, 500, { error: "Missing OPENAI_API_KEY" });

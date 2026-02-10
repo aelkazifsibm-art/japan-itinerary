@@ -6,8 +6,14 @@
     <title>Japon 2026 - Itinéraire</title>
     <style>
         :root { --primary: #E63946; --dark: #1D3557; --light: #F1FAEE; --accent: #A8DADC; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--light); color: var(--dark); margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .app-container { max-width: 500px; width: 100%; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--light); color: var(--dark); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
+        
+        /* Navigation par onglets en haut */
+        .tabs { width: 100%; background: white; display: flex; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        .tab { flex: 1; padding: 15px; text-align: center; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.3s; }
+        .tab.active { border-bottom-color: var(--primary); color: var(--primary); }
+
+        .app-container { max-width: 500px; width: 100%; padding: 20px; box-sizing: border-box; }
         
         /* Style des Cartes */
         .day-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); margin-bottom: 20px; }
@@ -18,7 +24,7 @@
         .step::before { content: ''; position: absolute; left: 0; top: 5px; width: 12px; height: 12px; background: var(--primary); border-radius: 50%; }
         .step-title { font-weight: bold; font-size: 1.1rem; }
         
-        /* LE VISUEL DU TRAJET (Le fameux résultat précis) */
+        /* LE VISUEL DU TRAJET */
         .travel-box { 
             background: #F8F9FA; border-left: 4px solid var(--dark); 
             padding: 15px; margin: 10px 0 20px 10px; border-radius: 0 10px 10px 0;
@@ -27,21 +33,35 @@
         .travel-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
         .highlight { font-weight: bold; color: var(--primary); }
         .loading-pulse { animation: pulse 1.5s infinite; color: #666; font-style: italic; }
+        .cache-badge { font-size: 0.7rem; background: #eee; padding: 2px 6px; border-radius: 4px; margin-left: 10px; color: #666; vertical-align: middle; }
         
         @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
     </style>
 </head>
 <body>
 
+<div class="tabs">
+    <div class="tab active" onclick="showTab('itinerary')">ITINÉRAIRE</div>
+    <div class="tab" onclick="showTab('history')">HISTORIQUE</div>
+</div>
+
 <div class="app-container">
-    <div id="itinerary" class="day-card">
-        <h2 id="day-label" class="day-title">Chargement...</h2>
-        <div id="steps-container"></div>
+    <div id="itinerary-view">
+        <div class="day-card">
+            <h2 id="day-label" class="day-title">Chargement...</h2>
+            <div id="steps-container"></div>
+        </div>
+    </div>
+    
+    <div id="history-view" style="display:none;">
+        <div class="day-card">
+            <h2 class="day-title">Trajets en cache</h2>
+            <div id="history-container">Aucun trajet enregistré.</div>
+        </div>
     </div>
 </div>
 
 <script>
-    // Tes données (exemple)
     const travelData = {
         city: "Nara",
         steps: [
@@ -51,12 +71,26 @@
         ]
     };
 
+    function showTab(tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        if (tab === 'itinerary') {
+            document.querySelector('.tab:nth-child(1)').classList.add('active');
+            document.getElementById('itinerary-view').style.display = 'block';
+            document.getElementById('history-view').style.display = 'none';
+        } else {
+            document.querySelector('.tab:nth-child(2)').classList.add('active');
+            document.getElementById('itinerary-view').style.display = 'none';
+            document.getElementById('history-view').style.display = 'block';
+            loadHistory();
+        }
+    }
+
     async function initApp() {
         const container = document.getElementById('steps-container');
         document.getElementById('day-label').innerText = `Destination : ${travelData.city}`;
+        container.innerHTML = '';
 
         for (let i = 0; i < travelData.steps.length; i++) {
-            // Afficher l'étape
             container.innerHTML += `
                 <div class="step">
                     <div class="step-title">${travelData.steps[i].title}</div>
@@ -64,38 +98,76 @@
                 </div>
             `;
 
-            // Si ce n'est pas la dernière étape, on calcule le trajet vers la suivante
             if (i < travelData.steps.length - 1) {
                 const travelDivId = `travel-${i}`;
                 container.innerHTML += `<div id="${travelDivId}" class="travel-box loading-pulse">⏳ Calcul du trajet...</div>`;
-                
-                // APPEL AU TRIP-ENGINE (La nouvelle logique blindée)
-                fetchTravelDetails(travelData.steps[i].title, travelData.steps[i+1].title, travelData.city, travelDivId);
+                fetchTravelDetails(travelData.steps[i].title, travelData.steps[i+1].title, travelDivId);
             }
         }
     }
 
-    async function fetchTravelDetails(from, to, city, elementId) {
+    async function fetchTravelDetails(from, intent, elementId) {
+        const cacheKey = `route_${from}_${intent}`.replace(/\s+/g, '_');
+        const cached = localStorage.getItem(cacheKey);
+
+        if (cached) {
+            const data = JSON.parse(cached);
+            displayResult(elementId, data.lines, true);
+            return;
+        }
+
         try {
-            const response = await fetch('/api/trip-engine', {
+            const response = await fetch('/api/route', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ activity: to, city: city, originStation: from })
+                body: JSON.stringify({ from, intent })
             });
             const result = await response.json();
 
-            if (result.status === "success") {
-                const d = result.data;
-                document.getElementById(elementId).classList.remove('loading-pulse');
-                document.getElementById(elementId).innerHTML = `
-                    <div class="travel-row">🚇 <span class="highlight">${d.duration}</span> (${d.transfers} corresp.)</div>
-                    <div class="travel-row">🚶 ${d.walkingTime} de marche</div>
-                    <div class="travel-row" style="font-size:0.8rem; color:#666">⏱️ Arrivée prévue : ${d.arrivalTime}</div>
-                `;
+            if (result.lines) {
+                localStorage.setItem(cacheKey, JSON.stringify({ lines: result.lines, date: Date.now() }));
+                displayResult(elementId, result.lines, false);
+            } else {
+                document.getElementById(elementId).innerText = "❌ " + (result.error || "Erreur");
             }
         } catch (err) {
-            document.getElementById(elementId).innerText = "❌ Erreur de calcul";
+            document.getElementById(elementId).innerText = "❌ Erreur de connexion";
         }
+    }
+
+    function displayResult(elementId, lines, isFromCache) {
+        const el = document.getElementById(elementId);
+        el.classList.remove('loading-pulse');
+        const cacheBadge = isFromCache ? '<span class="cache-badge">CACHÉ</span>' : '';
+        
+        // Formatage des lignes reçues du backend
+        // Ligne 0: 🚇 ... | Ligne 1: 🚶 ... | Ligne 2: ⏱️ ...
+        el.innerHTML = `
+            <div class="travel-row">${lines[0]}${cacheBadge}</div>
+            <div class="travel-row">${lines[1]}</div>
+            <div class="travel-row" style="font-size:0.85rem; color:#666">${lines[2].replace('\n', '<br>')}</div>
+        `;
+    }
+
+    function loadHistory() {
+        const container = document.getElementById('history-container');
+        container.innerHTML = '';
+        let count = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith('route_')) {
+                const data = JSON.parse(localStorage.getItem(key));
+                const title = key.replace('route_', '').replace(/_/g, ' ');
+                container.innerHTML += `
+                    <div class="travel-box">
+                        <div style="font-weight:bold; margin-bottom:5px;">${title}</div>
+                        <div style="font-size:0.8rem;">${data.lines[0]} | ${data.lines[1]}</div>
+                    </div>
+                `;
+                count++;
+            }
+        }
+        if (count === 0) container.innerHTML = 'Aucun trajet en cache.';
     }
 
     window.onload = initApp;

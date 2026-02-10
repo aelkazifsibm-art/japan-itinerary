@@ -1,9 +1,12 @@
 {
-  "name": "japon-route-app",
+  "name": "japon-trip-engine",
   "version": "1.0.0",
-  "private": true,
-  "type": "module",
+  "description": "Moteur d'itinéraire intelligent pour le Japon",
+  "main": "api/trip-engine.js",
   "dependencies": {
-    "openai": "^4.0.0"
+    "node-fetch": "^3.3.0"
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
