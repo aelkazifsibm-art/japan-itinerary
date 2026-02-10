@@ -54,61 +54,7 @@ app.post('/api/route', async (req, res) => {
         }
 
         // Mode OPTIMAL (Hybride IA + Google Maps)
-        // Priorité 1: utiliser Google Maps pour les directions de transit
-        const now = Math.floor(Date.now() / 1000);
-        let googleMapsTransitUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(finalDest)}&mode=transit&departure_time=${now}&language=fr&region=JP&key=${googleKey}`;
-        
-        let directionData = await fetch(googleMapsTransitUrl);
-        let directionResponse = await directionData.json();
-
-        if (directionResponse.status === "OK" && directionResponse.routes && directionResponse.routes.length > 0) {
-            const route = directionResponse.routes[0];
-            const leg = route.legs[0];
-            
-            let stepsDescription = "";
-            if (leg.steps && leg.steps.length > 0) {
-                stepsDescription = leg.steps.map((step, index) => {
-                    if (step.transit_details) {
-                        const transit = step.transit_details;
-                        const lineName = transit.line.short_name || transit.line.name || "Ligne";
-                        const departure = transit.departure_stop.name;
-                        const arrival = transit.arrival_stop.name;
-                        const duration = step.duration.text;
-                        return `${index + 1}. Prendre ${lineName} de ${departure} à ${arrival} (${duration})`;
-                    } else {
-                        return `${index + 1}. Marcher vers ${step.html_instructions.replace(/<[^>]*>/g, '')} (${step.duration.text})`;
-                    }
-                }).join('\n');
-            }
-
-            return res.json({
-                success: true,
-                summary: `🚇 ${leg.duration.text}`,
-                details: stepsDescription || leg.summary,
-                arrival: new Date(Date.now() + leg.duration.value * 1000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})
-            });
-        }
-
-        // Priorité 2: Si Google Maps transit échoue, essayer Google Maps walking
-        console.log(`Google Maps transit échoué (${directionResponse.status}), tentative de marche...`);
-        let googleMapsWalkingUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(finalDest)}&mode=walking&language=fr&key=${googleKey}`;
-        
-        directionData = await fetch(googleMapsWalkingUrl);
-        directionResponse = await directionData.json();
-
-        if (directionResponse.status === "OK" && directionResponse.routes && directionResponse.routes.length > 0) {
-            const leg = directionResponse.routes[0].legs[0];
-            return res.json({
-                success: true,
-                summary: `🚶 ${leg.duration.text} de marche`,
-                details: `Itinéraire direct à pied de ${leg.start_address} à ${leg.end_address}.`,
-                arrival: new Date(Date.now() + leg.duration.value * 1000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})
-            });
-        }
-
-        // Fallback: Si Google Maps (transit et marche) échoue, utiliser l'IA pour générer un itinéraire
-        console.log(`Google Maps marche échoué (${directionResponse.status}), utilisation de l'IA comme fallback...`);
-        
+        // L'IA génère le plan de transport
         const aiRoute = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
@@ -150,7 +96,7 @@ app.post('/api/route', async (req, res) => {
         
         res.json({
             success: true,
-            summary: `🚇 ${totalTime} min (Hybride IA - Fallback)`,
+            summary: `🚇 ${totalTime} min (Hybride IA)`,
             details: `${routeData.steps}\n\n(Marche estimée via Google Maps : ${totalWalkingMinutes} min)`,
             arrival: new Date(Date.now() + totalTime * 60000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})
         });
