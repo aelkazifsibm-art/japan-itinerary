@@ -20,14 +20,15 @@
         .mode-selector { display: flex; gap: 10px; margin-bottom: 20px; }
         .mode-option { flex: 1; padding: 10px; border: 2px solid #f0f0f0; border-radius: 12px; text-align: center; cursor: pointer; font-weight: bold; transition: 0.3s; background: #f9f9f9; }
         .mode-option.active { border-color: var(--primary); color: var(--primary); background: #fff; }
-        button { width: 100%; padding: 15px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1em; transition: 0.2s; }
+        button { width: 100%; padding: 15px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1em; transition: 0.2s; margin-bottom: 10px; }
         button:active { transform: scale(0.98); }
+        button.secondary { background: #747d8c; }
         .result-box { margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 15px; border-left: 5px solid var(--primary); display: none; animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .result-row { margin-bottom: 12px; font-size: 1.1em; font-weight: 600; color: var(--dark); display: flex; align-items: center; gap: 12px; }
-        .result-details { font-size: 0.9em; font-weight: normal; color: #666; margin-left: 30px; margin-bottom: 10px; line-height: 1.4; }
-        .cache-badge { background: #e1e1e1; font-size: 0.6em; padding: 3px 6px; border-radius: 4px; color: #555; font-weight: bold; }
+        .result-details { font-size: 0.9em; font-weight: normal; color: #666; margin-left: 30px; margin-bottom: 10px; line-height: 1.4; white-space: pre-wrap; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .history-item { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid #ddd; }
+        #health-out { font-size: 0.8em; background: #000; color: #0f0; padding: 10px; border-radius: 8px; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
@@ -39,10 +40,13 @@
 
 <div id="view-search" class="container">
     <div class="card">
+        <button class="secondary" onclick="checkHealth()">VÉRIFIER ÉTAT APIS</button>
+        <pre id="health-out"></pre>
+
         <div class="input-group">
             <label>DÉPART</label>
             <i>📍</i>
-            <input type="text" id="from" placeholder="D'où partez-vous ?" value="Tokyo Station">
+            <input type="text" id="from" placeholder="D'où partez-vous ?">
         </div>
 
         <div id="arrival-group" class="input-group">
@@ -78,37 +82,56 @@
 </div>
 
 <script>
-    let googleMapsApiKey = "";
-    let fromPlaceId = "";
-    let toPlaceId = "";
+    let fromToken = null;
+    let toToken = null;
     let selectedMode = "best";
 
     async function loadConfig() {
         const r = await fetch('/api/config');
         const config = await r.json();
-        googleMapsApiKey = config.googleKey;
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places&language=fr&region=JP`;
-        script.onload = initAutocomplete;
-        document.head.appendChild(script);
+        if (config.googleBrowserKey) {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleBrowserKey}&libraries=places&language=fr&region=JP`;
+            script.onload = initAutocomplete;
+            document.head.appendChild(script);
+        }
     }
 
     function initAutocomplete() {
-        const fromAuto = new google.maps.places.Autocomplete(document.getElementById('from'));
-        const toAuto = new google.maps.places.Autocomplete(document.getElementById('to'));
+        const fromInput = document.getElementById('from');
+        const toInput = document.getElementById('to');
+        
+        const fromAuto = new google.maps.places.Autocomplete(fromInput, {
+            fields: ["place_id", "name"],
+            componentRestrictions: { country: ["jp"] }
+        });
+        const toAuto = new google.maps.places.Autocomplete(toInput, {
+            fields: ["place_id", "name"],
+            componentRestrictions: { country: ["jp"] }
+        });
 
         fromAuto.addListener('place_changed', () => {
-            const place = fromAuto.getPlace();
-            fromPlaceId = place.place_id || "";
+            const p = fromAuto.getPlace();
+            fromToken = p && p.place_id ? "gpid:" + p.place_id : null;
         });
 
         toAuto.addListener('place_changed', () => {
-            const place = toAuto.getPlace();
-            toPlaceId = place.place_id || "";
+            const p = toAuto.getPlace();
+            toToken = p && p.place_id ? "gpid:" + p.place_id : null;
         });
+    }
 
-        document.getElementById('from').addEventListener('input', () => { fromPlaceId = ""; });
-        document.getElementById('to').addEventListener('input', () => { toPlaceId = ""; });
+    async function checkHealth() {
+        const out = document.getElementById('health-out');
+        out.style.display = 'block';
+        out.innerText = "Vérification...";
+        try {
+            const r = await fetch('/api/health');
+            const j = await r.json();
+            out.innerText = JSON.stringify(j, null, 2);
+        } catch(e) {
+            out.innerText = "Erreur: " + e.message;
+        }
     }
 
     function setMode(mode) {
@@ -126,38 +149,39 @@
     }
 
     async function calculate() {
-        const from = document.getElementById('from').value;
-        const to = document.getElementById('to').value;
         const intent = document.getElementById('intent').value;
         const btn = document.getElementById('btn-calc');
         const resBox = document.getElementById('result-box');
         
-        if(!from || (!to && !intent)) return alert("Veuillez remplir le départ et soit une arrivée, soit une intention.");
+        if(!fromToken) return alert("Veuillez sélectionner un départ dans la liste.");
+        if(!toToken && !intent) return alert("Veuillez sélectionner une arrivée ou saisir une intention.");
         
         btn.disabled = true;
-        btn.innerText = "IA EN TRAIN DE RÉFLÉCHIR...";
+        btn.innerText = "CALCUL EN COURS...";
         resBox.style.display = 'block';
-        document.getElementById('res-main').innerText = "⏳ Recherche de l'itinéraire...";
+        document.getElementById('res-main').innerText = "⏳ Recherche...";
         document.getElementById('res-steps').innerText = "";
-        document.getElementById('res-footer').innerText = "";
 
         try {
             const resp = await fetch('/api/route', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    from, to, intent, fromPlaceId, toPlaceId,
+                    from_token: fromToken,
+                    to_token: toToken,
+                    intent,
                     mode: selectedMode
                 })
             });
             const data = await resp.json();
             
             if(data.success) {
-                showResult(data);
-                saveToHistory(from, to || intent, data);
+                document.getElementById('res-main').innerHTML = data.summary;
+                document.getElementById('res-steps').innerText = data.details;
+                document.getElementById('res-footer').innerText = `⏱️ Arrivée: ${data.arrival} ✅`;
+                saveToHistory(document.getElementById('from').value, document.getElementById('to').value || intent, data);
             } else {
                 document.getElementById('res-main').innerText = `❌ ${data.error || "Erreur"}`;
-                document.getElementById('res-steps').innerText = data.message || "";
             }
         } catch(e) {
             document.getElementById('res-main').innerText = "❌ Erreur de connexion";
@@ -165,13 +189,6 @@
             btn.disabled = false;
             btn.innerText = "CALCULER L'ITINÉRAIRE";
         }
-    }
-
-    function showResult(data) {
-        document.getElementById('result-box').style.display = 'block';
-        document.getElementById('res-main').innerHTML = data.summary;
-        document.getElementById('res-steps').innerHTML = data.details.replace(/\n/g, '<br>');
-        document.getElementById('res-footer').innerText = `⏱️ Arrivée estimée: ${data.arrival} ✅`;
     }
 
     function saveToHistory(from, to, data) {
@@ -184,19 +201,17 @@
         const list = document.getElementById('history-list');
         list.innerHTML = '';
         const keys = Object.keys(localStorage).filter(k => k.startsWith('route_')).sort().reverse();
-        
         if(keys.length === 0) {
-            list.innerHTML = "<div style='text-align:center; color:#999; margin-top:40px;'>Aucun historique pour le moment.</div>";
+            list.innerHTML = "<div style='text-align:center; color:#999; margin-top:40px;'>Aucun historique.</div>";
             return;
         }
-
         keys.forEach(key => {
             const item = JSON.parse(localStorage.getItem(key));
             list.innerHTML += `
                 <div class="history-item">
-                    <div style="font-weight:bold; color:var(--primary); margin-bottom:5px;">${item.from} ➔ ${item.to}</div>
-                    <div style="font-size:0.9em;">${item.summary}</div>
-                    <div style="font-size:0.8em; color:#999; margin-top:5px;">${item.timestamp}</div>
+                    <div style="font-weight:bold; color:var(--primary);">${item.from} ➔ ${item.to}</div>
+                    <div>${item.summary}</div>
+                    <div style="font-size:0.8em; color:#999;">${item.timestamp}</div>
                 </div>`;
         });
     }

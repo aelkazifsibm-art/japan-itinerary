@@ -1,20 +1,26 @@
-# Japan Route Engine — Standalone Version
+# Japan Route Engine — Pro (Google & OSRM Hybrid)
 
-Cette version est conçue pour être lancée très simplement sur votre ordinateur ou n'importe quel serveur Node.js.
+Cette version utilise un système de validation strict pour les adresses Google et intègre OSRM pour les calculs de distance à pied gratuits.
 
-## 🚀 Lancement Rapide
-1. Installez Node.js sur votre machine.
-2. Ouvrez un terminal dans ce dossier.
-3. Installez les dépendances : `npm install`
-4. Créez un fichier `.env` avec vos clés API (voir `.env.example`).
-5. Lancez le serveur : `npm start`
-6. Ouvrez votre navigateur sur : `http://localhost:3000`
+## 🚀 Configuration des Clés Google (Important)
+Pour que le système fonctionne, vous devez configurer **deux clés API** différentes dans votre fichier `.env` :
 
-## 📱 Usage Mobile
-- L'interface utilise des onglets en haut (Recherche / Historique).
-- Les trajets sont enregistrés automatiquement dans votre téléphone après le premier calcul.
-- Fonctionne parfaitement sur navigateur mobile.
+1.  **GOOGLE_MAPS_BROWSER_KEY** :
+    - Utilisée pour l'Autocomplete dans le navigateur.
+    - **APIs à activer** : Maps JavaScript API, Places API.
+    - **Restriction recommandée** : Referrers HTTP (votre domaine).
+2.  **GOOGLE_MAPS_SERVER_KEY** :
+    - Utilisée par le serveur pour valider les lieux et calculer les itinéraires Transit.
+    - **APIs à activer** : Places API, Directions API.
+    - **Restriction recommandée** : Aucune ou restriction par IP du serveur.
 
-## ✨ Nouveautés
-- **Suggestions d'adresses pour l'arrivée** : Vous pouvez désormais saisir une adresse précise pour l'arrivée avec l'autocomplétion Google Maps.
-- **Flexibilité** : Vous pouvez utiliser soit l'adresse d'arrivée directe, soit laisser l'IA deviner votre destination à partir de votre intention (ex: "voir les daims").
+## 🛠️ Installation
+1. `npm install`
+2. Créez votre fichier `.env` à partir de `.env.example`.
+3. `npm start`
+
+## ✨ Fonctionnalités
+- **Validation Strict GPID** : Le front envoie uniquement des tokens `gpid:<place_id>` pour garantir la précision.
+- **Vérification Santé API** : Un bouton "VÉRIFIER ÉTAT APIS" permet de tester instantanément si vos clés Google sont bien configurées et actives.
+- **OSRM Hybride** : Utilise OSRM pour les trajets en mode "PIED" (gratuit) et Google Directions pour le mode "OPTIMAL" (Transit).
+- **Intention IA** : Si vous ne connaissez pas l'adresse, décrivez votre intention (ex: "voir les daims à Nara") et l'IA trouvera le lieu pour vous.
