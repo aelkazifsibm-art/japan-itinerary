@@ -20,7 +20,8 @@ Pour que le système fonctionne, vous devez configurer **deux clés API** diffé
 3. `npm start`
 
 ## ✨ Fonctionnalités
-- **Validation Strict GPID** : Le front envoie uniquement des tokens `gpid:<place_id>` pour garantir la précision.
-- **Vérification Santé API** : Un bouton "VÉRIFIER ÉTAT APIS" permet de tester instantanément si vos clés Google sont bien configurées et actives.
-- **OSRM Hybride** : Utilise OSRM pour les trajets en mode "PIED" (gratuit) et Google Directions pour le mode "OPTIMAL" (Transit).
-- **Intention IA** : Si vous ne connaissez pas l'adresse, décrivez votre intention (ex: "voir les daims à Nara") et l'IA trouvera le lieu pour vous.
+- **Moteur Hybride Indépendant** : Cette version ne dépend plus du mode "Transit" de Google (souvent bloqué sur les comptes gratuits au Japon). Elle combine l'IA pour la logique de transport et OSRM pour les distances à pied.
+- **Validation Strict GPID** : Utilise Google Places (qui fonctionne sur tous les comptes) pour garantir la précision des lieux.
+- **Vérification Santé API** : Un bouton "VÉRIFIER ÉTAT APIS" permet de valider que votre clé Google Places est bien active.
+- **OSRM Gratuit** : Utilise OSRM pour tous les calculs de marche à pied, économisant vos crédits Google.
+- **Intention IA** : Décrivez votre intention (ex: "voir les daims à Nara") et l'IA trouvera le lieu et l'itinéraire pour vous.
