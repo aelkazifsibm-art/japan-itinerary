@@ -122,7 +122,10 @@
                 localStorage.setItem(cacheKey, JSON.stringify(data.lines));
                 showResult(data.lines, false);
             } else {
-                document.getElementById('res-0').innerText = "❌ Lieu introuvable par l'IA";
+                const errorMsg = data.error || "Lieu introuvable";
+                const details = data.details ? ` (${data.details})` : "";
+                document.getElementById('res-0').innerText = `❌ ${errorMsg}${details}`;
+                if(data.place) document.getElementById('res-1').innerText = `Cible: ${data.place}`;
             }
         } catch(e) {
             document.getElementById('res-0').innerText = "❌ Erreur de connexion";

@@ -51,8 +51,13 @@ app.post('/api/route', async (req, res) => {
         const dirData = await dirResp.json();
 
         if (dirData.status !== "OK" || !dirData.routes[0]) {
-            console.error("Erreur Google Directions:", dirData.status, dirData.error_message);
-            return res.status(404).json({ error: "Aucun itinéraire trouvé" });
+            console.error("Erreur Google Directions:", dirData.status, dirData.error_message || "Aucune route trouvée");
+            // Si transit échoue, on peut essayer en mode conduite ou simplement renvoyer une erreur plus précise
+            return res.status(404).json({ 
+                error: "Aucun itinéraire trouvé", 
+                details: dirData.status,
+                place: placeQuery 
+            });
         }
 
         const leg = dirData.routes[0].legs[0];
@@ -64,9 +69,14 @@ app.post('/api/route', async (req, res) => {
             .filter(s => s.travel_mode === "WALKING")
             .reduce((acc, s) => acc + s.duration.value, 0);
 
+        // Si aucun transport en commun n'est trouvé dans les étapes, on l'indique
+        const transitInfo = transitSteps.length > 0 
+            ? `🚇 ${totalMinutes} min (${Math.max(0, transitSteps.length - 1)} corresp.)`
+            : `🚗 ${totalMinutes} min (Pas de transit direct)`;
+
         const result = {
             lines: [
-                `🚇 ${totalMinutes} min (${Math.max(0, transitSteps.length - 1)} corresp.)`,
+                transitInfo,
                 `🚶 ${Math.round(walkSeconds / 60)} min marche`,
                 `⏱️ Arrivée: ${arrival} ✅`
             ]
