@@ -2,11 +2,12 @@
   "name": "japon-trip-engine",
   "version": "1.0.0",
   "description": "Moteur d'itinéraire intelligent pour le Japon",
-  "main": "api/trip-engine.js",
+  "type": "module",
   "dependencies": {
-    "node-fetch": "^3.3.0"
+    "openai": "^4.0.0",
+    "firebase-admin": "^11.0.0"
   },
   "engines": {
-    "node": "18.x"
+    "node": "20.x"
   }
 }
