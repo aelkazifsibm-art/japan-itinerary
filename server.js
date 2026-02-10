@@ -13,122 +13,98 @@ app.use(express.static('public'));
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Route pour donner la clé Google au frontend (pour Autocomplete)
 app.get('/api/config', (req, res) => {
     res.json({ googleKey: process.env.GOOGLE_MAPS_API_KEY });
 });
 
 app.post('/api/route', async (req, res) => {
     try {
-        const { from, to, intent, fromPlaceId, toPlaceId } = req.body;
-        if (!from || (!to && !intent)) return res.status(400).json({ error: "Manque l'origine, l'arrivée ou l'intention" });
+        const { from, to, intent, fromPlaceId, toPlaceId, mode } = req.body;
+        const googleKey = process.env.GOOGLE_MAPS_API_KEY;
 
-        // On garde les noms textuels bruts pour le fallback
-        const rawFrom = from;
-        let rawTo = to;
-
-        // 1. IA : Si l'arrivée n'est pas précisée (ni texte ni Place ID), on utilise l'intention
-        if (!to && !toPlaceId && intent) {
-            const aiResponse = await openai.chat.completions.create({
+        // 1. Déterminer la destination finale
+        let finalDest = to;
+        if (!to && intent) {
+            const aiDest = await openai.chat.completions.create({
                 model: "gpt-4o-mini",
                 messages: [
-                    { 
-                        role: "system", 
-                        content: "Tu es un expert du Japon. Convertis l'intention de l'utilisateur en un lieu réel, précis et connu par Google Maps (nom du lieu + ville + Japon). Réponds UNIQUEMENT le nom du lieu le plus pertinent." 
-                    },
+                    { role: "system", content: "Tu es un expert du Japon. Convertis l'intention en un lieu précis (Nom + Ville + Japon). Réponds uniquement le nom." },
                     { role: "user", content: intent }
                 ]
             });
-            rawTo = aiResponse.choices[0].message.content.trim();
-            console.log(`Intention: "${intent}" -> Lieu trouvé: "${rawTo}"`);
+            finalDest = aiDest.choices[0].message.content.trim();
         }
 
-        let origin = fromPlaceId ? `place_id:${fromPlaceId}` : rawFrom;
-        let destination = toPlaceId ? `place_id:${toPlaceId}` : rawTo;
-
-        // 2. Google Directions
-        const googleKey = process.env.GOOGLE_MAPS_API_KEY;
-        const now = Math.floor(Date.now() / 1000);
-        
-        const getDirections = async (orig, dest, mode = 'transit') => {
-            const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(orig)}&destination=${encodeURIComponent(dest)}&mode=${mode}&departure_time=${now}&language=fr&region=JP&key=${googleKey}`;
+        // 2. Logique selon le mode
+        if (mode === 'walk') {
+            // Mode PIED uniquement via Google Maps
+            const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(finalDest)}&mode=walking&language=fr&key=${googleKey}`;
             const resp = await fetch(url);
-            return await resp.json();
-        };
+            const data = await resp.json();
 
-        // Première tentative : Transit avec Place IDs (si disponibles)
-        let dirData = await getDirections(origin, destination, 'transit');
-        console.log(`Tentative 1 (Transit, PlaceID): ${dirData.status}`);
-
-        // STRATÉGIE DE REPLI (FALLBACK)
-        
-        // Étape A : Si échec avec Place ID (ZERO_RESULTS, NOT_FOUND, etc.), on tente avec le texte brut
-        const hasPlaceId = origin.startsWith('place_id:') || destination.startsWith('place_id:');
-        if (dirData.status !== "OK" && hasPlaceId) {
-            console.log(`Échec avec Place ID (${dirData.status}), basculement vers texte brut...`);
-            origin = rawFrom;
-            destination = rawTo;
-            dirData = await getDirections(origin, destination, 'transit');
-            console.log(`Tentative 2 (Transit, Texte): ${dirData.status}`);
-        }
-
-        // Étape B : Si toujours ZERO_RESULTS (limitation transit au Japon), on tente Driving
-        if (dirData.status === "ZERO_RESULTS") {
-            console.log("Transit non disponible (ZERO_RESULTS), tentative en mode Driving...");
-            dirData = await getDirections(origin, destination, 'driving');
-            console.log(`Tentative 3 (Driving): ${dirData.status}`);
-            
-            if (dirData.status === "OK") {
-                dirData.is_fallback_driving = true;
+            if (data.status === "OK") {
+                const leg = data.routes[0].legs[0];
+                return res.json({
+                    success: true,
+                    summary: `🚶 ${leg.duration.text} de marche`,
+                    details: `Itinéraire direct à pied de ${leg.start_address} à ${leg.end_address}.`,
+                    arrival: new Date(Date.now() + leg.duration.value * 1000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})
+                });
             }
         }
 
-        // Vérification finale
-        if (dirData.status !== "OK" || !dirData.routes[0]) {
-            console.error("Erreur Google Directions finale:", dirData.status);
-            return res.status(404).json({ 
-                error: "Aucun itinéraire trouvé", 
-                details: dirData.status,
-                message: "L'API Google Maps n'a pas pu trouver de route. Essayez d'être plus précis (ex: 'Tokyo Station' au lieu de 'Tokyo')."
-            });
-        }
+        // Mode OPTIMAL (Hybride IA + Google Maps)
+        // L'IA génère le plan de transport
+        const aiRoute = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                { 
+                    role: "system", 
+                    content: `Tu es un expert en transports au Japon. 
+                    Calcule un itinéraire optimal entre le départ et l'arrivée.
+                    Format de réponse JSON strict :
+                    {
+                        "summary": "Résumé court (ex: 🚇 45 min, 1 corresp.)",
+                        "steps": "Liste détaillée des étapes (ex: Prendre la ligne Yamanote de X à Y...)",
+                        "total_transit_minutes": nombre,
+                        "walking_segments": [{"from": "...", "to": "..."}]
+                    }`
+                },
+                { role: "user", content: `De : ${from} À : ${finalDest}. Privilégie le métro et le train.` }
+            ],
+            response_format: { type: "json_object" }
+        });
 
-        const leg = dirData.routes[0].legs[0];
-        const totalMinutes = Math.round(leg.duration.value / 60);
-        const arrival = leg.arrival_time ? leg.arrival_time.text : "Calculée via durée";
+        const routeData = JSON.parse(aiRoute.choices[0].message.content);
         
-        const transitSteps = leg.steps.filter(s => s.travel_mode === "TRANSIT");
-        const walkSeconds = leg.steps
-            .filter(s => s.travel_mode === "WALKING")
-            .reduce((acc, s) => acc + s.duration.value, 0);
-
-        // Construction de la réponse
-        let transitInfo;
-        if (dirData.is_fallback_driving) {
-            transitInfo = `🚗 ~${totalMinutes} min (Mode voiture - Transit API indisponible)`;
-        } else {
-            transitInfo = `🚇 ${totalMinutes} min (${Math.max(0, transitSteps.length - 1)} corresp.)`;
+        // Calculer le temps de marche réel pour les segments identifiés par l'IA
+        let totalWalkingMinutes = 0;
+        if (routeData.walking_segments && routeData.walking_segments.length > 0) {
+            for (const segment of routeData.walking_segments) {
+                const walkUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(segment.from)}&destination=${encodeURIComponent(segment.to)}&mode=walking&key=${googleKey}`;
+                const wResp = await fetch(walkUrl);
+                const wData = await wResp.json();
+                if (wData.status === "OK") {
+                    totalWalkingMinutes += Math.round(wData.routes[0].legs[0].duration.value / 60);
+                } else {
+                    totalWalkingMinutes += 10; // Fallback
+                }
+            }
         }
 
-        const result = {
-            lines: [
-                transitInfo,
-                `🚶 ${Math.round(walkSeconds / 60)} min marche estimée`,
-                `⏱️ Arrivée estimée: ${arrival} ✅`
-            ]
-        };
-
-        res.json(result);
+        const totalTime = routeData.total_transit_minutes + totalWalkingMinutes;
+        
+        res.json({
+            success: true,
+            summary: `🚇 ${totalTime} min (Hybride IA)`,
+            details: `${routeData.steps}\n\n(Marche estimée via Google Maps : ${totalWalkingMinutes} min)`,
+            arrival: new Date(Date.now() + totalTime * 60000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})
+        });
 
     } catch (error) {
-        console.error("Erreur Serveur:", error);
-        res.status(500).json({ 
-            error: "Erreur interne du serveur", 
-            message: error.message
-        });
+        console.error(error);
+        res.status(500).json({ success: false, error: "Erreur serveur", message: error.message });
     }
 });
 
-app.listen(port, () => {
-    console.log(`✅ Serveur Japan Route Engine lancé sur http://localhost:${port}`);
-});
+app.listen(port, () => console.log(`✅ Serveur prêt sur http://localhost:${port}`));

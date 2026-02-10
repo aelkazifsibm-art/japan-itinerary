@@ -15,14 +15,17 @@
         .input-group { position: relative; margin-bottom: 20px; }
         .input-group i { position: absolute; left: 15px; top: 42px; color: var(--primary); }
         label { display: block; margin-bottom: 8px; font-size: 0.85em; color: #555; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        input { width: 100%; padding: 14px 14px 14px 45px; border: 2px solid #f0f0f0; border-radius: 12px; box-sizing: border-box; font-size: 1em; outline: none; transition: all 0.3s ease; background: #f9f9f9; }
-        input:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(255, 71, 87, 0.1); }
+        input, select { width: 100%; padding: 14px 14px 14px 45px; border: 2px solid #f0f0f0; border-radius: 12px; box-sizing: border-box; font-size: 1em; outline: none; transition: all 0.3s ease; background: #f9f9f9; -webkit-appearance: none; }
+        input:focus, select:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(255, 71, 87, 0.1); }
+        .mode-selector { display: flex; gap: 10px; margin-bottom: 20px; }
+        .mode-option { flex: 1; padding: 10px; border: 2px solid #f0f0f0; border-radius: 12px; text-align: center; cursor: pointer; font-weight: bold; transition: 0.3s; background: #f9f9f9; }
+        .mode-option.active { border-color: var(--primary); color: var(--primary); background: #fff; }
         button { width: 100%; padding: 15px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1em; transition: 0.2s; }
         button:active { transform: scale(0.98); }
         .result-box { margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 15px; border-left: 5px solid var(--primary); display: none; animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .result-row { margin-bottom: 12px; font-size: 1.1em; font-weight: 600; color: var(--dark); display: flex; align-items: center; gap: 12px; }
+        .result-details { font-size: 0.9em; font-weight: normal; color: #666; margin-left: 30px; margin-bottom: 10px; line-height: 1.4; }
         .cache-badge { background: #e1e1e1; font-size: 0.6em; padding: 3px 6px; border-radius: 4px; color: #555; font-weight: bold; }
-        #map { width: 100%; height: 200px; border-radius: 12px; margin-top: 15px; display: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .history-item { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid #ddd; }
     </style>
@@ -42,7 +45,7 @@
             <input type="text" id="from" placeholder="D'où partez-vous ?" value="Tokyo Station">
         </div>
 
-        <div class="input-group">
+        <div id="arrival-group" class="input-group">
             <label>ARRIVÉE</label>
             <i>🏁</i>
             <input type="text" id="to" placeholder="Où allez-vous ?">
@@ -53,14 +56,19 @@
             <i>✨</i>
             <input type="text" id="intent" placeholder="Ex: voir les daims, manger des sushi...">
         </div>
+
+        <label>MODE DE TRANSPORT</label>
+        <div class="mode-selector">
+            <div id="mode-best" class="mode-option active" onclick="setMode('best')">⚡ OPTIMAL</div>
+            <div id="mode-walk" class="mode-option" onclick="setMode('walk')">🚶 PIED</div>
+        </div>
         
         <button id="btn-calc" onclick="calculate()">CALCULER L'ITINÉRAIRE</button>
         
         <div id="result-box" class="result-box">
-            <div id="res-0" class="result-row"></div>
-            <div id="res-1" class="result-row"></div>
-            <div id="res-2" class="result-row"></div>
-            <div id="map"></div>
+            <div id="res-main" class="result-row"></div>
+            <div id="res-steps" class="result-details"></div>
+            <div id="res-footer" class="result-row" style="font-size: 0.9em; color: #666;"></div>
         </div>
     </div>
 </div>
@@ -69,13 +77,12 @@
     <div id="history-list"></div>
 </div>
 
-<!-- Chargement de l'API Google Maps avec Places Library -->
 <script>
     let googleMapsApiKey = "";
     let fromPlaceId = "";
     let toPlaceId = "";
+    let selectedMode = "best";
 
-    // On récupère la clé API via une petite route config
     async function loadConfig() {
         const r = await fetch('/api/config');
         const config = await r.json();
@@ -100,9 +107,14 @@
             toPlaceId = place.place_id || "";
         });
 
-        // Reset Place IDs if user types manually
         document.getElementById('from').addEventListener('input', () => { fromPlaceId = ""; });
         document.getElementById('to').addEventListener('input', () => { toPlaceId = ""; });
+    }
+
+    function setMode(mode) {
+        selectedMode = mode;
+        document.getElementById('mode-best').className = 'mode-option' + (mode==='best'?' active':'');
+        document.getElementById('mode-walk').className = 'mode-option' + (mode==='walk'?' active':'');
     }
 
     function switchTab(tab) {
@@ -122,81 +134,71 @@
         
         if(!from || (!to && !intent)) return alert("Veuillez remplir le départ et soit une arrivée, soit une intention.");
         
-        const cacheKey = `route_${from}_${to}_${intent}`.toLowerCase().replace(/\s+/g, '_');
-        const cached = localStorage.getItem(cacheKey);
-        if(cached) {
-            showResult(JSON.parse(cached), true);
-            return;
-        }
-
         btn.disabled = true;
         btn.innerText = "IA EN TRAIN DE RÉFLÉCHIR...";
         resBox.style.display = 'block';
-        document.getElementById('res-0').innerText = "⏳ Recherche du lieu...";
-        document.getElementById('res-1').innerText = "";
-        document.getElementById('res-2').innerText = "";
+        document.getElementById('res-main').innerText = "⏳ Recherche de l'itinéraire...";
+        document.getElementById('res-steps').innerText = "";
+        document.getElementById('res-footer').innerText = "";
 
         try {
-            // 1. Demander à l'IA de trouver le lieu ou utiliser l'arrivée directe
             const resp = await fetch('/api/route', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    from, 
-                    to, 
-                    intent,
-                    fromPlaceId,
-                    toPlaceId
+                    from, to, intent, fromPlaceId, toPlaceId,
+                    mode: selectedMode
                 })
             });
             const data = await resp.json();
             
-            if(data.lines) {
-                localStorage.setItem(cacheKey, JSON.stringify(data.lines));
-                showResult(data.lines, false);
+            if(data.success) {
+                showResult(data);
+                saveToHistory(from, to || intent, data);
             } else {
-                const errorMsg = data.error || "Lieu introuvable";
-                const details = data.details ? ` (${data.details})` : "";
-document.getElementById('res-0').innerText = `❌ ${errorMsg}${details}`;
-	                document.getElementById('res-1').style.fontSize = "0.9em";
-	                document.getElementById('res-1').style.fontWeight = "normal";
-	                document.getElementById('res-1').innerText = data.message || "";
-	                document.getElementById('res-2').innerText = "Conseil: Utilisez des noms de gares précis.";
+                document.getElementById('res-main').innerText = `❌ ${data.error || "Erreur"}`;
+                document.getElementById('res-steps').innerText = data.message || "";
             }
         } catch(e) {
-            document.getElementById('res-0').innerText = "❌ Erreur de connexion";
+            document.getElementById('res-main').innerText = "❌ Erreur de connexion";
         } finally {
             btn.disabled = false;
             btn.innerText = "CALCULER L'ITINÉRAIRE";
         }
     }
 
-    function showResult(lines, isCache) {
+    function showResult(data) {
         document.getElementById('result-box').style.display = 'block';
-        document.getElementById('res-0').innerHTML = lines[0] + (isCache ? ' <span class="cache-badge">CACHÉ</span>' : '');
-        document.getElementById('res-1').innerText = lines[1];
-        document.getElementById('res-2').innerText = lines[2];
+        document.getElementById('res-main').innerHTML = data.summary;
+        document.getElementById('res-steps').innerHTML = data.details.replace(/\n/g, '<br>');
+        document.getElementById('res-footer').innerText = `⏱️ Arrivée estimée: ${data.arrival} ✅`;
+    }
+
+    function saveToHistory(from, to, data) {
+        const key = `route_${Date.now()}`;
+        const item = { from, to, summary: data.summary, arrival: data.arrival, timestamp: new Date().toLocaleString() };
+        localStorage.setItem(key, JSON.stringify(item));
     }
 
     function loadHistory() {
         const list = document.getElementById('history-list');
         list.innerHTML = '';
-        let found = false;
-        for (let i = 0; i < localStorage.length; i++){
-            const key = localStorage.key(i);
-            if(key.startsWith('route_')) {
-                found = true;
-                const data = JSON.parse(localStorage.getItem(key));
-                const title = key.replace('route_','').replace(/_/g,' ').toUpperCase();
-                list.innerHTML += `
-                    <div class="history-item">
-                        <div style="font-weight:bold; color:var(--primary); margin-bottom:5px;">${title}</div>
-                        <div>${data[0]}</div>
-                        <div style="font-size:0.9em; color:#666">${data[2]}</div>
-                    </div>`;
-            }
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('route_')).sort().reverse();
+        
+        if(keys.length === 0) {
+            list.innerHTML = "<div style='text-align:center; color:#999; margin-top:40px;'>Aucun historique pour le moment.</div>";
+            return;
         }
-        if(!found) list.innerHTML = "<div style='text-align:center; color:#999; margin-top:40px;'>Aucun historique pour le moment.</div>";
+
+        keys.forEach(key => {
+            const item = JSON.parse(localStorage.getItem(key));
+            list.innerHTML += `
+                <div class="history-item">
+                    <div style="font-weight:bold; color:var(--primary); margin-bottom:5px;">${item.from} ➔ ${item.to}</div>
+                    <div style="font-size:0.9em;">${item.summary}</div>
+                    <div style="font-size:0.8em; color:#999; margin-top:5px;">${item.timestamp}</div>
+                </div>`;
+        });
     }
 
     window.onload = loadConfig;
