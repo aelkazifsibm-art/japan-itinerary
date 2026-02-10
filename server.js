@@ -39,10 +39,6 @@ async function fetchJson(url, options) {
     return { ok: r.ok, status: r.status, json: j };
 }
 
-app.get('/api/config', (req, res) => {
-    res.json({ googleBrowserKey: process.env.GOOGLE_MAPS_BROWSER_KEY || "" });
-});
-
 /**
  * Calcule la distance et la durée à pied via OSRM (Gratuit)
  */
@@ -62,41 +58,44 @@ async function getWalkingDirections(fromCoords, toCoords) {
         }
         return { success: false, error: data.code };
     } catch (error) {
-        console.error("Erreur OSRM:", error);
         return { success: false, error: error.message };
     }
 }
 
 /**
- * Trouve les stations à proximité via Google Places (Nearby Search)
+ * Trouve les stations et arrêts de bus à proximité via Google Places
  */
-async function getNearbyStations(coords, serverKey) {
+async function getNearbyTransit(coords, serverKey) {
     try {
         const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
         url.searchParams.set("location", `${coords.lat},${coords.lng}`);
-        url.searchParams.set("radius", "1500"); // 1.5km
+        url.searchParams.set("radius", "1000"); // 1km pour être précis
         url.searchParams.set("type", "transit_station");
         url.searchParams.set("key", serverKey);
         
         const resp = await fetchJson(url.toString());
         if (resp.json?.status === "OK") {
-            return resp.json.results.slice(0, 5).map(r => ({
+            return resp.json.results.slice(0, 8).map(r => ({
                 name: r.name,
                 coords: r.geometry.location,
+                vicinity: r.vicinity,
                 types: r.types
             }));
         }
         return [];
     } catch (e) {
-        console.error("Erreur Nearby Search:", e);
         return [];
     }
 }
 
+app.get('/api/config', (req, res) => {
+    res.json({ googleBrowserKey: process.env.GOOGLE_MAPS_BROWSER_KEY || "" });
+});
+
 app.get("/api/health", async (req, res) => {
     try {
         const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
-        const testPlaceId = "ChIJ51cu8IcbXWARiRtXIothAS4"; // Tokyo Station
+        const testPlaceId = "ChIJ51cu8IcbXWARiRtXIothAS4";
         const placeUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
         placeUrl.searchParams.set("place_id", testPlaceId);
         placeUrl.searchParams.set("fields", "place_id,name,geometry");
@@ -109,7 +108,7 @@ app.get("/api/health", async (req, res) => {
                 GOOGLE_MAPS_SERVER_KEY: !!process.env.GOOGLE_MAPS_SERVER_KEY
             },
             places: { ok: p.json?.status === "OK", status: p.json?.status },
-            engine: "Fact-Based Hybrid (IA + Google Places + OSRM)"
+            engine: "Protocol V4 Hybrid (Scan -> Matrix -> Assembly)"
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -124,12 +123,12 @@ app.post('/api/route', async (req, res) => {
         const from = parseToken(from_token);
         let to = parseToken(to_token);
 
-        // 1. Résolution destination via IA si intention
+        // 1. Résolution destination
         if (!to && intent) {
             const aiDest = await openai.chat.completions.create({
                 model: "gpt-4o-mini",
                 messages: [
-                    { role: "system", content: "Expert Japon. Convertis l'intention en un lieu précis (Nom + Ville + Japon). Réponds uniquement le nom." },
+                    { role: "system", content: "Expert Japon. Convertis l'intention en un lieu précis. Réponds uniquement le nom." },
                     { role: "user", content: intent }
                 ]
             });
@@ -162,59 +161,54 @@ app.post('/api/route', async (req, res) => {
         const fromCoords = p1.json.result.geometry.location;
         const toCoords = p2.json.result.geometry.location;
 
-        // 3. Recherche des stations réelles à proximité (FACT-CHECKING)
-        const [stationsFrom, stationsTo] = await Promise.all([
-            getNearbyStations(fromCoords, serverKey),
-            getNearbyStations(toCoords, serverKey)
+        // 3. PROTOCOLE ÉTAPE 1 : SCAN DE PROXIMITÉ
+        const [rawStationsFrom, rawStationsTo] = await Promise.all([
+            getNearbyTransit(fromCoords, serverKey),
+            getNearbyTransit(toCoords, serverKey)
         ]);
 
-        // Calculer le temps de marche réel vers la station la plus proche via OSRM
-        let walkingContext = "";
-        if (stationsFrom.length > 0) {
-            const w = await getWalkingDirections(fromCoords, stationsFrom[0].coords);
-            if (w.success) {
-                walkingContext = `Station de départ la plus proche : ${stationsFrom[0].name} (${w.duration} min à pied, ${w.distance}m).`;
-            }
-        }
+        // 4. PROTOCOLE ÉTAPE 2 : MATRICE DE MARCHE (OSRM)
+        const matrixFrom = await Promise.all(rawStationsFrom.map(async s => {
+            const w = await getWalkingDirections(fromCoords, s.coords);
+            return { ...s, walk_min: w.success ? w.duration : 999 };
+        }));
+        const matrixTo = await Promise.all(rawStationsTo.map(async s => {
+            const w = await getWalkingDirections(toCoords, s.coords);
+            return { ...s, walk_min: w.success ? w.duration : 999 };
+        }));
 
-        // 4. Mode Marche (OSRM Gratuit)
-        if (mode === 'walk') {
-            const walkData = await getWalkingDirections(fromCoords, toCoords);
-            if (walkData.success) {
-                return res.json({
-                    success: true,
-                    summary: `🚶 ${walkData.duration} min de marche`,
-                    details: `Itinéraire direct à pied (via OSRM).\nDe : ${p1.json.result.name}\nÀ : ${p2.json.result.name}\nDistance : ${(walkData.distance/1000).toFixed(2)} km.`,
-                    arrival: new Date(Date.now() + walkData.duration * 60000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})
-                });
-            }
-        }
+        // Trier par proximité réelle
+        matrixFrom.sort((a, b) => a.walk_min - b.walk_min);
+        matrixTo.sort((a, b) => a.walk_min - b.walk_min);
 
-        // 5. Mode OPTIMAL (IA guidée par les faits)
+        // 5. PROTOCOLE ÉTAPE 3 : ASSEMBLAGE LOGIQUE (IA SOUS CONTRAINTE)
         const aiRoute = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
                 { 
                     role: "system", 
                     content: `Tu es un expert en transports au Japon. 
-                    Calcule un itinéraire optimal en utilisant UNIQUEMENT des stations réelles.
-                    Voici les stations réelles détectées par Google à proximité :
-                    DÉPART : ${stationsFrom.map(s => s.name).join(', ')}
-                    ARRIVÉE : ${stationsTo.map(s => s.name).join(', ')}
+                    Tu dois calculer un itinéraire en respectant strictement les données de proximité fournies.
                     
-                    Règles strictes :
-                    1. Ne pas inventer de stations.
-                    2. Utilise les lignes réelles (JR, Métro, Bus).
-                    3. Si une station de bus est plus proche, privilégie-la.
+                    DONNÉES RÉELLES DE DÉPART (Triées par marche à pied) :
+                    ${matrixFrom.map(s => `- ${s.name} : ${s.walk_min} min de marche`).join('\n')}
+                    
+                    DONNÉES RÉELLES D'ARRIVÉE :
+                    ${matrixTo.map(s => `- ${s.name} : ${s.walk_min} min de marche`).join('\n')}
+                    
+                    CONSIGNES :
+                    1. Choisis le point de départ le plus proche et le plus logique (souvent un arrêt de bus si l'adresse est excentrée).
+                    2. Utilise les lignes réelles (ex: Bus South 2 à Kyoto, Ligne Yamanote à Tokyo).
+                    3. Calcule le temps total incluant la marche.
                     
                     Format JSON :
                     {
-                        "summary": "🚇 45 min (1 corresp.)",
-                        "steps": "1. Marcher vers [Station]...\n2. Prendre la ligne...",
-                        "total_minutes": 45
+                        "summary": "🚇 52 min (1 corresp.)",
+                        "steps": "1. Marcher vers [Nom Station] ([X] min)\n2. Prendre [Ligne] vers...",
+                        "total_minutes": 52
                     }`
                 },
-                { role: "user", content: `De : ${p1.json.result.name} À : ${p2.json.result.name}. ${walkingContext}` }
+                { role: "user", content: `De : ${p1.json.result.name} À : ${p2.json.result.name}.` }
             ],
             response_format: { type: "json_object" }
         });
@@ -223,8 +217,8 @@ app.post('/api/route', async (req, res) => {
         
         res.json({
             success: true,
-            summary: routeData.summary + " (Fact-Based Hybrid)",
-            details: routeData.steps + "\n\n(Vérifié avec les stations réelles à proximité)",
+            summary: routeData.summary + " (Protocol V4 Hybrid)",
+            details: routeData.steps + "\n\n(Vérifié par scan de proximité Google + OSRM)",
             arrival: new Date(Date.now() + routeData.total_minutes * 60000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})
         });
 
