@@ -47,17 +47,32 @@ app.post('/api/route', async (req, res) => {
 
         // 2. Google Directions (Transit)
         const googleKey = process.env.GOOGLE_MAPS_API_KEY;
-        const dirUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=transit&language=fr&region=JP&key=${googleKey}`;
+        const now = Math.floor(Date.now() / 1000); // Temps actuel en secondes (requis pour transit)
         
-        const dirResp = await fetch(dirUrl);
-        const dirData = await dirResp.json();
+        const getDirections = async (orig, dest) => {
+            const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(orig)}&destination=${encodeURIComponent(dest)}&mode=transit&departure_time=${now}&language=fr&region=JP&key=${googleKey}`;
+            const resp = await fetch(url);
+            return await resp.json();
+        };
+
+        let dirData = await getDirections(origin, destination);
+
+        // STRATÉGIE DE REPLI (FALLBACK)
+        // Si le Place ID échoue (ZERO_RESULTS ou NOT_FOUND), on essaie avec le texte brut
+        if (dirData.status !== "OK" && (origin.startsWith('place_id:') || destination.startsWith('place_id:'))) {
+            console.log(`Échec avec Place ID (${dirData.status}), tentative avec texte brut...`);
+            const fallbackOrigin = from;
+            const fallbackDestination = to || destination.replace('place_id:', '');
+            dirData = await getDirections(fallbackOrigin, fallbackDestination);
+        }
 
         if (dirData.status !== "OK" || !dirData.routes[0]) {
-            console.error("Erreur Google Directions:", dirData.status, dirData.error_message || "Aucune route trouvée");
+            console.error("Erreur Google Directions finale:", dirData.status, dirData.error_message || "Aucune route trouvée");
             return res.status(404).json({ 
                 error: "Aucun itinéraire trouvé", 
                 details: dirData.status,
-                place: destination 
+                place: destination,
+                message: "Essayez d'être plus précis ou de changer l'heure (si le dernier train est passé)."
             });
         }
 
