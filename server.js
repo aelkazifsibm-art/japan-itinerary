@@ -81,11 +81,11 @@ app.get("/api/health", async (req, res) => {
         const p = await fetchJson(placeUrl.toString());
 
         const dirUrl = new URL("https://maps.googleapis.com/maps/api/directions/json");
-        dirUrl.searchParams.set("origin", "place_id:ChIJ51cu8IcbXWARiRtXIothAS4");
-        dirUrl.searchParams.set("destination", "place_id:ChIJyZB3m7uMGGARvGd2dF5QdU0");
+        // Test ultra-simple : Tokyo vers Osaka avec heure de départ (crucial pour Transit)
+        dirUrl.searchParams.set("origin", "Tokyo Station");
+        dirUrl.searchParams.set("destination", "Shinjuku Station");
         dirUrl.searchParams.set("mode", "transit");
-        dirUrl.searchParams.set("region", "jp");
-        dirUrl.searchParams.set("language", "fr");
+        dirUrl.searchParams.set("departure_time", Math.floor(Date.now() / 1000).toString());
         dirUrl.searchParams.set("key", serverKey);
         const d = await fetchJson(dirUrl.toString());
 
@@ -180,18 +180,20 @@ app.post('/api/route', async (req, res) => {
         dirUrl.searchParams.set("origin", `place_id:${from.id}`);
         dirUrl.searchParams.set("destination", `place_id:${to.id}`);
         dirUrl.searchParams.set("mode", "transit");
+        dirUrl.searchParams.set("departure_time", Math.floor(Date.now() / 1000).toString());
         dirUrl.searchParams.set("language", "fr");
+        dirUrl.searchParams.set("region", "jp");
         dirUrl.searchParams.set("key", serverKey);
 
-        const d = await fetchJson(dirUrl.toString());
+        let d = await fetchJson(dirUrl.toString());
         
         // Si NOT_FOUND, on tente une recherche par texte au lieu de place_id en dernier recours
-        if (d.json?.status === "NOT_FOUND") {
-            dirUrl.searchParams.set("origin", p1.json.result.formatted_address);
-            dirUrl.searchParams.set("destination", p2.json.result.formatted_address);
+        if (d.json?.status === "NOT_FOUND" || d.json?.status === "ZERO_RESULTS") {
+            dirUrl.searchParams.set("origin", p1.json.result.name + ", Japan");
+            dirUrl.searchParams.set("destination", p2.json.result.name + ", Japan");
             const dRetry = await fetchJson(dirUrl.toString());
             if (dRetry.json?.status === "OK") {
-                d.json = dRetry.json;
+                d = dRetry;
             }
         }
 
