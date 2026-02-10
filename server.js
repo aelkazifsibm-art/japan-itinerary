@@ -54,11 +54,10 @@ app.post('/api/route', async (req, res) => {
 
         if (dirData.status !== "OK" || !dirData.routes[0]) {
             console.error("Erreur Google Directions:", dirData.status, dirData.error_message || "Aucune route trouvée");
-            // Si transit échoue, on peut essayer en mode conduite ou simplement renvoyer une erreur plus précise
             return res.status(404).json({ 
                 error: "Aucun itinéraire trouvé", 
                 details: dirData.status,
-                place: placeQuery 
+                place: destination 
             });
         }
 
@@ -88,7 +87,11 @@ app.post('/api/route', async (req, res) => {
 
     } catch (error) {
         console.error("Erreur Serveur:", error);
-        res.status(500).json({ error: "Erreur interne du serveur" });
+        res.status(500).json({ 
+            error: "Erreur interne du serveur", 
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
