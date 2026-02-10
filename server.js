@@ -20,32 +20,34 @@ app.get('/api/config', (req, res) => {
 
 app.post('/api/route', async (req, res) => {
     try {
-        const { from, to, intent } = req.body;
+        const { from, to, intent, fromPlaceId, toPlaceId } = req.body;
         if (!from || (!to && !intent)) return res.status(400).json({ error: "Manque l'origine, l'arrivée ou l'intention" });
 
-        let placeQuery = to;
+        let origin = fromPlaceId ? `place_id:${fromPlaceId}` : from;
+        let destination = toPlaceId ? `place_id:${toPlaceId}` : to;
 
-        // 1. IA : Si l'arrivée n'est pas précisée, on utilise l'intention
-        if (!placeQuery && intent) {
+        // 1. IA : Si l'arrivée n'est pas précisée (ni texte ni Place ID), on utilise l'intention
+        if (!destination && intent) {
             const aiResponse = await openai.chat.completions.create({
                 model: "gpt-4o-mini",
                 messages: [
                     { 
                         role: "system", 
-                        content: "Tu es un expert du Japon. Convertis l'intention de l'utilisateur en un lieu réel et précis (nom du lieu + ville + Japon). Réponds UNIQUEMENT le nom du lieu." 
+                        content: "Tu es un expert du Japon. Convertis l'intention de l'utilisateur en un lieu réel, précis et connu par Google Maps (nom du lieu + ville + Japon). Réponds UNIQUEMENT le nom du lieu le plus pertinent." 
                     },
                     { role: "user", content: intent }
                 ]
             });
-            placeQuery = aiResponse.choices[0].message.content.trim();
+            const placeQuery = aiResponse.choices[0].message.content.trim();
+            destination = placeQuery;
             console.log(`Intention: "${intent}" -> Lieu trouvé: "${placeQuery}"`);
         } else {
-            console.log(`Utilisation de l'arrivée directe: "${placeQuery}"`);
+            console.log(`Utilisation de la destination fournie: "${destination}"`);
         }
 
         // 2. Google Directions (Transit)
         const googleKey = process.env.GOOGLE_MAPS_API_KEY;
-        const dirUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(placeQuery)}&mode=transit&language=fr&region=JP&key=${googleKey}`;
+        const dirUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=transit&language=fr&region=JP&key=${googleKey}`;
         
         const dirResp = await fetch(dirUrl);
         const dirData = await dirResp.json();

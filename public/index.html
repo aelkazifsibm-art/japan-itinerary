@@ -61,6 +61,8 @@
 <!-- Chargement de l'API Google Maps avec Places Library -->
 <script>
     let googleMapsApiKey = "";
+    let fromPlaceId = "";
+    let toPlaceId = "";
 
     // On récupère la clé API via une petite route config
     async function loadConfig() {
@@ -74,8 +76,22 @@
     }
 
     function initAutocomplete() {
-        new google.maps.places.Autocomplete(document.getElementById('from'));
-        new google.maps.places.Autocomplete(document.getElementById('to'));
+        const fromAuto = new google.maps.places.Autocomplete(document.getElementById('from'));
+        const toAuto = new google.maps.places.Autocomplete(document.getElementById('to'));
+
+        fromAuto.addListener('place_changed', () => {
+            const place = fromAuto.getPlace();
+            fromPlaceId = place.place_id || "";
+        });
+
+        toAuto.addListener('place_changed', () => {
+            const place = toAuto.getPlace();
+            toPlaceId = place.place_id || "";
+        });
+
+        // Reset Place IDs if user types manually
+        document.getElementById('from').addEventListener('input', () => { fromPlaceId = ""; });
+        document.getElementById('to').addEventListener('input', () => { toPlaceId = ""; });
     }
 
     function switchTab(tab) {
@@ -114,7 +130,13 @@
             const resp = await fetch('/api/route', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({from, to, intent})
+                body: JSON.stringify({
+                    from, 
+                    to, 
+                    intent,
+                    fromPlaceId,
+                    toPlaceId
+                })
             });
             const data = await resp.json();
             
