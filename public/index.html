@@ -157,9 +157,11 @@
             } else {
                 const errorMsg = data.error || "Lieu introuvable";
                 const details = data.details ? ` (${data.details})` : "";
-                document.getElementById('res-0').innerText = `❌ ${errorMsg}${details}`;
-                document.getElementById('res-1').innerText = data.message || (data.place ? `Cible: ${data.place}` : "");
-                document.getElementById('res-2').innerText = "";
+document.getElementById('res-0').innerText = `❌ ${errorMsg}${details}`;
+	                document.getElementById('res-1').style.fontSize = "0.9em";
+	                document.getElementById('res-1').style.fontWeight = "normal";
+	                document.getElementById('res-1').innerText = data.message || "";
+	                document.getElementById('res-2').innerText = "Conseil: Utilisez des noms de gares précis.";
             }
         } catch(e) {
             document.getElementById('res-0').innerText = "❌ Erreur de connexion";
