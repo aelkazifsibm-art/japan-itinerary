@@ -1,0 +1,80 @@
+import fetch from 'node-fetch';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const googleKey = process.env.GOOGLE_MAPS_API_KEY;
+const now = Math.floor(Date.now() / 1000);
+
+async function testNewLogic(from, to) {
+    console.log(`\n--- TEST DE LA NOUVELLE LOGIQUE ---`);
+    console.log(`De: ${from}`);
+    console.log(`À: ${to}`);
+
+    if (!googleKey) {
+        console.log("ERREUR: Pas de clé API Google.");
+        return;
+    }
+
+    // Test du mode transit
+    let transitUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&mode=transit&departure_time=${now}&language=fr&region=JP&key=${googleKey}`;
+    
+    try {
+        let resp = await fetch(transitUrl);
+        let data = await resp.json();
+
+        if (data.status === "OK" && data.routes && data.routes.length > 0) {
+            const leg = data.routes[0].legs[0];
+            console.log(`\n✅ SUCCÈS GOOGLE MAPS (TRANSIT)`);
+            console.log(`Résumé: 🚇 ${leg.duration.text}`);
+            console.log(`Départ: ${leg.start_address}`);
+            console.log(`Arrivée: ${leg.end_address}`);
+            
+            console.log(`\nÉtapes détaillées:`);
+            leg.steps.forEach((step, index) => {
+                if (step.transit_details) {
+                    const transit = step.transit_details;
+                    const lineName = transit.line.short_name || transit.line.name || "Ligne";
+                    const departure = transit.departure_stop.name;
+                    const arrival = transit.arrival_stop.name;
+                    const duration = step.duration.text;
+                    console.log(`${index + 1}. Prendre ${lineName} de ${departure} à ${arrival} (${duration})`);
+                } else {
+                    console.log(`${index + 1}. Marcher vers ${step.html_instructions.replace(/<[^>]*>/g, '')} (${step.duration.text})`);
+                }
+            });
+            return;
+        } else {
+            console.log(`❌ ÉCHEC GOOGLE MAPS (TRANSIT): ${data.status}`);
+            if (data.error_message) console.log(`Message: ${data.error_message}`);
+        }
+
+        // Fallback au mode marche si le transit échoue
+        console.log(`Tentative de fallback au mode marche...`);
+        let walkingUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&mode=walking&language=fr&key=${googleKey}`;
+        
+        resp = await fetch(walkingUrl);
+        data = await resp.json();
+
+        if (data.status === "OK" && data.routes && data.routes.length > 0) {
+            const leg = data.routes[0].legs[0];
+            console.log(`\n✅ SUCCÈS GOOGLE MAPS (MARCHE)`);
+            console.log(`Résumé: 🚶 ${leg.duration.text} de marche`);
+            console.log(`Départ: ${leg.start_address}`);
+            console.log(`Arrivée: ${leg.end_address}`);
+            console.log(`Détails: Itinéraire direct à pied de ${leg.start_address} à ${leg.end_address}.`);
+        } else {
+            console.log(`❌ ÉCHEC GOOGLE MAPS (MARCHE): ${data.status}`);
+            if (data.error_message) console.log(`Message: ${data.error_message}`);
+        }
+
+    } catch (e) {
+        console.error("Erreur pendant le test:", e.message);
+    }
+}
+
+// Test avec les adresses de l'utilisateur
+testNewLogic(
+    "Setagaya Literary Museum, 1 Chome-10-10 Minamikar",
+    "1 Chome-30-27 Naritanishi, Suginami, Tokyo"
+);
