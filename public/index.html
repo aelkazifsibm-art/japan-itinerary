@@ -3,174 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Japon 2026 - Itinéraire</title>
+    <title>Japan Route Engine — Pro</title>
     <style>
-        :root { --primary: #E63946; --dark: #1D3557; --light: #F1FAEE; --accent: #A8DADC; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--light); color: var(--dark); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
-        
-        /* Navigation par onglets en haut */
-        .tabs { width: 100%; background: white; display: flex; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
-        .tab { flex: 1; padding: 15px; text-align: center; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.3s; }
+        :root { --primary: #ff4757; --dark: #2f3542; --light: #f1f2f6; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--light); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
+        .tabs { width: 100%; background: #fff; display: flex; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        .tab { flex: 1; padding: 15px; text-align: center; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; color: #777; }
         .tab.active { border-bottom-color: var(--primary); color: var(--primary); }
-
-        .app-container { max-width: 500px; width: 100%; padding: 20px; box-sizing: border-box; }
-        
-        /* Style des Cartes */
-        .day-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); margin-bottom: 20px; }
-        .day-title { color: var(--primary); font-size: 1.5rem; margin-bottom: 15px; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
-        
-        /* Étapes de l'itinéraire */
-        .step { position: relative; padding-left: 30px; margin-bottom: 20px; }
-        .step::before { content: ''; position: absolute; left: 0; top: 5px; width: 12px; height: 12px; background: var(--primary); border-radius: 50%; }
-        .step-title { font-weight: bold; font-size: 1.1rem; }
-        
-        /* LE VISUEL DU TRAJET */
-        .travel-box { 
-            background: #F8F9FA; border-left: 4px solid var(--dark); 
-            padding: 15px; margin: 10px 0 20px 10px; border-radius: 0 10px 10px 0;
-            font-size: 0.95rem; line-height: 1.4;
-        }
-        .travel-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
-        .highlight { font-weight: bold; color: var(--primary); }
-        .loading-pulse { animation: pulse 1.5s infinite; color: #666; font-style: italic; }
-        .cache-badge { font-size: 0.7rem; background: #eee; padding: 2px 6px; border-radius: 4px; margin-left: 10px; color: #666; vertical-align: middle; }
-        
-        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        .container { max-width: 500px; width: 90%; margin-top: 20px; padding-bottom: 40px; }
+        .card { background: #fff; padding: 20px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-size: 0.8em; color: #888; font-weight: bold; }
+        input { width: 100%; padding: 14px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 1em; outline: none; }
+        input:focus { border-color: var(--primary); }
+        button { width: 100%; padding: 15px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1em; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        .result-box { margin-top: 20px; border-left: 4px solid var(--dark); padding-left: 15px; display: none; animation: fadeIn 0.3s; }
+        .result-row { margin-bottom: 10px; font-size: 1.1em; display: flex; align-items: center; gap: 10px; }
+        .cache-badge { background: #e1e1e1; font-size: 0.6em; padding: 3px 6px; border-radius: 4px; color: #555; font-weight: bold; }
+        #map { width: 100%; height: 200px; border-radius: 12px; margin-top: 15px; display: none; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .history-item { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid #ddd; }
     </style>
 </head>
 <body>
 
 <div class="tabs">
-    <div class="tab active" onclick="showTab('itinerary')">ITINÉRAIRE</div>
-    <div class="tab" onclick="showTab('history')">HISTORIQUE</div>
+    <div id="tab-search" class="tab active" onclick="switchTab('search')">RECHERCHE</div>
+    <div id="tab-history" class="tab" onclick="switchTab('history')">HISTORIQUE</div>
 </div>
 
-<div class="app-container">
-    <div id="itinerary-view">
-        <div class="day-card">
-            <h2 id="day-label" class="day-title">Chargement...</h2>
-            <div id="steps-container"></div>
-        </div>
-    </div>
-    
-    <div id="history-view" style="display:none;">
-        <div class="day-card">
-            <h2 class="day-title">Trajets en cache</h2>
-            <div id="history-container">Aucun trajet enregistré.</div>
+<div id="view-search" class="container">
+    <div class="card">
+        <label>DÉPART</label>
+        <input type="text" id="from" placeholder="Ex: Tokyo Station" value="Tokyo Station">
+        
+        <label>INTENTION (IA)</label>
+        <input type="text" id="intent" placeholder="Ex: voir les daims">
+        
+        <button id="btn-calc" onclick="calculate()">CALCULER L'ITINÉRAIRE</button>
+        
+        <div id="result-box" class="result-box">
+            <div id="res-0" class="result-row"></div>
+            <div id="res-1" class="result-row"></div>
+            <div id="res-2" class="result-row"></div>
+            <div id="map"></div>
         </div>
     </div>
 </div>
 
+<div id="view-history" class="container" style="display:none;">
+    <div id="history-list"></div>
+</div>
+
+<!-- Chargement de l'API Google Maps avec Places Library -->
 <script>
-    const travelData = {
-        city: "Nara",
-        steps: [
-            { title: "Gare de Kyoto", desc: "Départ quai 8" },
-            { title: "Voir les daims", desc: "Parc de Nara" },
-            { title: "Temple Todai-ji", desc: "Grand Bouddha" }
-        ]
-    };
+    let googleMapsApiKey = "";
 
-    function showTab(tab) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        if (tab === 'itinerary') {
-            document.querySelector('.tab:nth-child(1)').classList.add('active');
-            document.getElementById('itinerary-view').style.display = 'block';
-            document.getElementById('history-view').style.display = 'none';
-        } else {
-            document.querySelector('.tab:nth-child(2)').classList.add('active');
-            document.getElementById('itinerary-view').style.display = 'none';
-            document.getElementById('history-view').style.display = 'block';
-            loadHistory();
-        }
+    // On récupère la clé API via une petite route config
+    async function loadConfig() {
+        const r = await fetch('/api/config');
+        const config = await r.json();
+        googleMapsApiKey = config.googleKey;
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places&language=fr&region=JP`;
+        script.onload = initAutocomplete;
+        document.head.appendChild(script);
     }
 
-    async function initApp() {
-        const container = document.getElementById('steps-container');
-        document.getElementById('day-label').innerText = `Destination : ${travelData.city}`;
-        container.innerHTML = '';
-
-        for (let i = 0; i < travelData.steps.length; i++) {
-            container.innerHTML += `
-                <div class="step">
-                    <div class="step-title">${travelData.steps[i].title}</div>
-                    <div style="font-size:0.8rem; color:#666">${travelData.steps[i].desc}</div>
-                </div>
-            `;
-
-            if (i < travelData.steps.length - 1) {
-                const travelDivId = `travel-${i}`;
-                container.innerHTML += `<div id="${travelDivId}" class="travel-box loading-pulse">⏳ Calcul du trajet...</div>`;
-                fetchTravelDetails(travelData.steps[i].title, travelData.steps[i+1].title, travelDivId);
-            }
-        }
+    function initAutocomplete() {
+        new google.maps.places.Autocomplete(document.getElementById('from'));
     }
 
-    async function fetchTravelDetails(from, intent, elementId) {
-        const cacheKey = `route_${from}_${intent}`.replace(/\s+/g, '_');
+    function switchTab(tab) {
+        document.getElementById('tab-search').className = 'tab' + (tab==='search'?' active':'');
+        document.getElementById('tab-history').className = 'tab' + (tab==='history'?' active':'');
+        document.getElementById('view-search').style.display = tab==='search'?'block':'none';
+        document.getElementById('view-history').style.display = tab==='history'?'block':'none';
+        if(tab==='history') loadHistory();
+    }
+
+    async function calculate() {
+        const from = document.getElementById('from').value;
+        const intent = document.getElementById('intent').value;
+        const btn = document.getElementById('btn-calc');
+        const resBox = document.getElementById('result-box');
+        
+        if(!from || !intent) return alert("Veuillez remplir les deux champs.");
+        
+        const cacheKey = `route_${from}_${intent}`.toLowerCase().replace(/\s+/g, '_');
         const cached = localStorage.getItem(cacheKey);
-
-        if (cached) {
-            const data = JSON.parse(cached);
-            displayResult(elementId, data.lines, true);
+        if(cached) {
+            showResult(JSON.parse(cached), true);
             return;
         }
 
-        try {
-            const response = await fetch('/api/route', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ from, intent })
-            });
-            const result = await response.json();
+        btn.disabled = true;
+        btn.innerText = "IA EN TRAIN DE RÉFLÉCHIR...";
+        resBox.style.display = 'block';
+        document.getElementById('res-0').innerText = "⏳ Recherche du lieu...";
+        document.getElementById('res-1').innerText = "";
+        document.getElementById('res-2').innerText = "";
 
-            if (result.lines) {
-                localStorage.setItem(cacheKey, JSON.stringify({ lines: result.lines, date: Date.now() }));
-                displayResult(elementId, result.lines, false);
+        try {
+            // 1. Demander à l'IA de trouver le lieu
+            const resp = await fetch('/api/route', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({from, intent})
+            });
+            const data = await resp.json();
+            
+            if(data.lines) {
+                localStorage.setItem(cacheKey, JSON.stringify(data.lines));
+                showResult(data.lines, false);
             } else {
-                document.getElementById(elementId).innerText = "❌ " + (result.error || "Erreur");
+                document.getElementById('res-0').innerText = "❌ Lieu introuvable par l'IA";
             }
-        } catch (err) {
-            document.getElementById(elementId).innerText = "❌ Erreur de connexion";
+        } catch(e) {
+            document.getElementById('res-0').innerText = "❌ Erreur de connexion";
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "CALCULER L'ITINÉRAIRE";
         }
     }
 
-    function displayResult(elementId, lines, isFromCache) {
-        const el = document.getElementById(elementId);
-        el.classList.remove('loading-pulse');
-        const cacheBadge = isFromCache ? '<span class="cache-badge">CACHÉ</span>' : '';
-        
-        // Formatage des lignes reçues du backend
-        // Ligne 0: 🚇 ... | Ligne 1: 🚶 ... | Ligne 2: ⏱️ ...
-        el.innerHTML = `
-            <div class="travel-row">${lines[0]}${cacheBadge}</div>
-            <div class="travel-row">${lines[1]}</div>
-            <div class="travel-row" style="font-size:0.85rem; color:#666">${lines[2].replace('\n', '<br>')}</div>
-        `;
+    function showResult(lines, isCache) {
+        document.getElementById('result-box').style.display = 'block';
+        document.getElementById('res-0').innerHTML = lines[0] + (isCache ? ' <span class="cache-badge">CACHÉ</span>' : '');
+        document.getElementById('res-1').innerText = lines[1];
+        document.getElementById('res-2').innerText = lines[2];
     }
 
     function loadHistory() {
-        const container = document.getElementById('history-container');
-        container.innerHTML = '';
-        let count = 0;
-        for (let i = 0; i < localStorage.length; i++) {
+        const list = document.getElementById('history-list');
+        list.innerHTML = '';
+        let found = false;
+        for (let i = 0; i < localStorage.length; i++){
             const key = localStorage.key(i);
-            if (key.startsWith('route_')) {
+            if(key.startsWith('route_')) {
+                found = true;
                 const data = JSON.parse(localStorage.getItem(key));
-                const title = key.replace('route_', '').replace(/_/g, ' ');
-                container.innerHTML += `
-                    <div class="travel-box">
-                        <div style="font-weight:bold; margin-bottom:5px;">${title}</div>
-                        <div style="font-size:0.8rem;">${data.lines[0]} | ${data.lines[1]}</div>
-                    </div>
-                `;
-                count++;
+                const title = key.replace('route_','').replace(/_/g,' ').toUpperCase();
+                list.innerHTML += `
+                    <div class="history-item">
+                        <div style="font-weight:bold; color:var(--primary); margin-bottom:5px;">${title}</div>
+                        <div>${data[0]}</div>
+                        <div style="font-size:0.9em; color:#666">${data[2]}</div>
+                    </div>`;
             }
         }
-        if (count === 0) container.innerHTML = 'Aucun trajet en cache.';
+        if(!found) list.innerHTML = "<div style='text-align:center; color:#999; margin-top:40px;'>Aucun historique pour le moment.</div>";
     }
 
-    window.onload = initApp;
+    window.onload = loadConfig;
 </script>
 </body>
 </html>

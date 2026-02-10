@@ -1,13 +1,15 @@
 {
-  "name": "japon-trip-engine",
+  "name": "japan-route-standalone",
   "version": "1.0.0",
-  "description": "Moteur d'itinéraire intelligent pour le Japon",
   "type": "module",
-  "dependencies": {
-    "openai": "^4.0.0",
-    "firebase-admin": "^11.0.0"
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
   },
-  "engines": {
-    "node": "20.x"
+  "dependencies": {
+    "express": "^4.18.2",
+    "openai": "^4.20.0",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.0"
   }
 }

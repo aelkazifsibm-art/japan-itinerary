@@ -1,22 +1,16 @@
-# Japon Route App 🇯🇵 — Version Mobile
+# Japan Route Engine — Standalone Version
 
-Application optimisée pour le terrain au Japon, transformant une intention floue en itinéraire réel avec gestion du cache local.
+Cette version est conçue pour être lancée très simplement sur votre ordinateur ou n'importe quel serveur Node.js.
 
-## 🚀 Fonctionnalités Mobiles
-- **Navigation par Onglets** : Accès rapide entre l'itinéraire du jour et l'historique des trajets.
-- **Stratégie de Cache Local** : Chaque trajet calculé est enregistré dans le `localStorage`.
-- **Mode Offline Partiel** : Les trajets déjà consultés restent accessibles même sans connexion internet.
-- **Affichage Minimaliste** : Focus sur l'essentiel (Temps de transport, marche, heure d'arrivée).
+## 🚀 Lancement Rapide
+1. Installez Node.js sur votre machine.
+2. Ouvrez un terminal dans ce dossier.
+3. Installez les dépendances : `npm install`
+4. Créez un fichier `.env` avec vos clés API (voir `.env.example`).
+5. Lancez le serveur : `npm start`
+6. Ouvrez votre navigateur sur : `http://localhost:3000`
 
-## 🛠️ Installation & Lancement
-1. `npm install`
-2. Configurez votre `.env` (OpenAI + Google Maps API Key).
-3. `vercel dev` pour le développement local.
-
-## 🏗️ Architecture
-- **Frontend** : HTML/JS pur avec navigation par onglets et gestion du `localStorage`.
-- **Backend** : Vercel Serverless Function (`/api/route`) gérant l'IA et les API Google.
-- **Sécurité** : Clés API protégées côté serveur.
-
-## 📱 Utilisation Mobile
-Une fois l'application chargée, effectuez vos recherches. Les résultats s'afficheront avec un badge "CACHÉ" s'ils proviennent du stockage local, garantissant une fluidité totale lors de vos déplacements.
+## 📱 Usage Mobile
+- L'interface utilise des onglets en haut (Recherche / Historique).
+- Les trajets sont enregistrés automatiquement dans votre téléphone après le premier calcul.
+- Fonctionne parfaitement sur navigateur mobile.
