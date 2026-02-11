@@ -21,16 +21,17 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Configuration OSRM (Gratuit)
 const OSRM_BASE_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1';
 
+// PROTOCOLE TRANSIT SAFE TIME V1
+const CONFIG_SAFE_TIME = {
+    BUFFER_DEPART_MIN: 7,
+    COEFF_REALITE_JAPON: 1.25,
+    ARRONDI_MULTIPLE: 5
+};
+
 function mustEnv(name) {
     const v = process.env[name];
     if (!v) throw new Error(`Missing env: ${name}`);
     return v;
-}
-
-function parseToken(token) {
-    if (!token || typeof token !== "string") return null;
-    if (token.startsWith("gpid:")) return { type: "gpid", id: token.slice(5) };
-    return null;
 }
 
 async function fetchJson(url, options) {
@@ -47,14 +48,9 @@ async function getWalkingDirections(fromCoords, toCoords) {
         const url = `${OSRM_BASE_URL}/foot/${fromCoords.lng},${fromCoords.lat};${toCoords.lng},${toCoords.lat}?overview=false`;
         const resp = await fetch(url);
         const data = await resp.json();
-
         if (data.code === "Ok") {
             const route = data.routes[0];
-            return {
-                distance: route.distance,
-                duration: Math.round(route.duration / 60),
-                success: true
-            };
+            return { distance: route.distance, duration: Math.round(route.duration / 60), success: true };
         }
         return { success: false, error: data.code };
     } catch (error) {
@@ -69,16 +65,14 @@ async function getNearbyTransit(coords, serverKey) {
     try {
         const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
         url.searchParams.set("location", `${coords.lat},${coords.lng}`);
-        url.searchParams.set("radius", "1000"); // 1km pour être précis
+        url.searchParams.set("radius", "1000");
         url.searchParams.set("type", "transit_station");
         url.searchParams.set("key", serverKey);
-        
         const resp = await fetchJson(url.toString());
         if (resp.json?.status === "OK") {
             return resp.json.results.slice(0, 8).map(r => ({
                 name: r.name,
                 coords: r.geometry.location,
-                vicinity: r.vicinity,
                 types: r.types
             }));
         }
@@ -88,86 +82,79 @@ async function getNearbyTransit(coords, serverKey) {
     }
 }
 
-app.get('/api/config', (req, res) => {
-    res.json({ googleBrowserKey: process.env.GOOGLE_MAPS_BROWSER_KEY || "" });
+// --- ENDPOINTS PLACES (PIPELINE FIABILITÉ) ---
+
+app.get("/api/places/autocomplete", async (req, res) => {
+    try {
+        const key = mustEnv("GOOGLE_MAPS_SERVER_KEY");
+        const q = String(req.query.q || "").trim();
+        if (q.length < 2) return res.json({ predictions: [] });
+
+        const u = new URL("https://maps.googleapis.com/maps/api/place/autocomplete/json");
+        u.searchParams.set("input", q);
+        u.searchParams.set("region", "jp");
+        u.searchParams.set("language", "fr");
+        u.searchParams.set("key", key);
+
+        const r = await fetchJson(u.toString());
+        res.json({ status: r.json.status, predictions: r.json.predictions || [] });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
-app.get("/api/health", async (req, res) => {
+app.get("/api/places/details", async (req, res) => {
     try {
-        const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
-        const testPlaceId = "ChIJ51cu8IcbXWARiRtXIothAS4";
-        const placeUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
-        placeUrl.searchParams.set("place_id", testPlaceId);
-        placeUrl.searchParams.set("fields", "place_id,name,geometry");
-        placeUrl.searchParams.set("key", serverKey);
-        const p = await fetchJson(placeUrl.toString());
+        const key = mustEnv("GOOGLE_MAPS_SERVER_KEY");
+        const placeId = String(req.query.place_id || "").trim();
+        if (!placeId) return res.status(400).json({ ok: false, error: "missing place_id" });
 
+        const u = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+        u.searchParams.set("place_id", placeId);
+        u.searchParams.set("fields", "place_id,name,formatted_address,geometry");
+        u.searchParams.set("language", "fr");
+        u.searchParams.set("key", key);
+
+        const r = await fetchJson(u.toString());
+        if (r.json.status !== "OK") return res.json({ ok: false, status: r.json.status });
+
+        const p = r.json.result;
         res.json({
-            env: {
-                GOOGLE_MAPS_BROWSER_KEY: !!process.env.GOOGLE_MAPS_BROWSER_KEY,
-                GOOGLE_MAPS_SERVER_KEY: !!process.env.GOOGLE_MAPS_SERVER_KEY
-            },
-            places: { ok: p.json?.status === "OK", status: p.json?.status },
-            engine: "Protocol V4 Hybrid (Scan -> Matrix -> Assembly)"
+            ok: true,
+            place: {
+                place_id: p.place_id,
+                name: p.name,
+                formatted_address: p.formatted_address,
+                lat: p.geometry?.location?.lat,
+                lng: p.geometry?.location?.lng
+            }
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
+// --- MOTEUR DE ROUTAGE HYBRIDE ---
+
 app.post('/api/route', async (req, res) => {
     try {
         const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
-        const { from_token, to_token, intent, mode } = req.body;
+        const { from_place, to_place, mode } = req.body;
 
-        const from = parseToken(from_token);
-        let to = parseToken(to_token);
-
-        // 1. Résolution destination
-        if (!to && intent) {
-            const aiDest = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: [
-                    { role: "system", content: "Expert Japon. Convertis l'intention en un lieu précis. Réponds uniquement le nom." },
-                    { role: "user", content: intent }
-                ]
-            });
-            const placeName = aiDest.choices[0].message.content.trim();
-            const findUrl = new URL("https://maps.googleapis.com/maps/api/place/findplacefromtext/json");
-            findUrl.searchParams.set("input", placeName);
-            findUrl.searchParams.set("inputtype", "textquery");
-            findUrl.searchParams.set("fields", "place_id");
-            findUrl.searchParams.set("key", serverKey);
-            const f = await fetchJson(findUrl.toString());
-            if (f.json?.candidates?.[0]?.place_id) {
-                to = { type: "gpid", id: f.json.candidates[0].place_id };
-            }
+        if (!from_place?.place_id || !to_place?.place_id) {
+            throw new Error("Données de lieu (Place ID) manquantes.");
         }
 
-        if (!from || !to) throw new Error("Départ ou arrivée non valide.");
+        const fromCoords = { lat: from_place.lat, lng: from_place.lng };
+        const toCoords = { lat: to_place.lat, lng: to_place.lng };
 
-        // 2. Détails des lieux
-        const getDetails = async (placeId) => {
-            const u = new URL("https://maps.googleapis.com/maps/api/place/details/json");
-            u.searchParams.set("place_id", placeId);
-            u.searchParams.set("fields", "geometry,name,formatted_address");
-            u.searchParams.set("key", serverKey);
-            return fetchJson(u.toString());
-        };
-
-        const [p1, p2] = await Promise.all([getDetails(from.id), getDetails(to.id)]);
-        if (p1.json?.status !== "OK" || p2.json?.status !== "OK") throw new Error("Erreur Places API.");
-
-        const fromCoords = p1.json.result.geometry.location;
-        const toCoords = p2.json.result.geometry.location;
-
-        // 3. PROTOCOLE ÉTAPE 1 : SCAN DE PROXIMITÉ
+        // 1. SCAN DE PROXIMITÉ
         const [rawStationsFrom, rawStationsTo] = await Promise.all([
             getNearbyTransit(fromCoords, serverKey),
             getNearbyTransit(toCoords, serverKey)
         ]);
 
-        // 4. PROTOCOLE ÉTAPE 2 : MATRICE DE MARCHE (OSRM)
+        // 2. MATRICE DE MARCHE (OSRM)
         const matrixFrom = await Promise.all(rawStationsFrom.map(async s => {
             const w = await getWalkingDirections(fromCoords, s.coords);
             return { ...s, walk_min: w.success ? w.duration : 999 };
@@ -177,38 +164,30 @@ app.post('/api/route', async (req, res) => {
             return { ...s, walk_min: w.success ? w.duration : 999 };
         }));
 
-        // Trier par proximité réelle
         matrixFrom.sort((a, b) => a.walk_min - b.walk_min);
         matrixTo.sort((a, b) => a.walk_min - b.walk_min);
 
-        // 5. PROTOCOLE ÉTAPE 3 : ASSEMBLAGE LOGIQUE (IA SOUS CONTRAINTE)
+        // 3. ASSEMBLAGE LOGIQUE (IA + SAFE TIME)
         const aiRoute = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
                 { 
                     role: "system", 
                     content: `Tu es un expert en transports au Japon. 
-                    Tu dois calculer un itinéraire en respectant strictement les données de proximité fournies.
+                    Calcule un itinéraire réaliste (Protocol Transit Safe Time v1).
                     
-                    DONNÉES RÉELLES DE DÉPART (Triées par marche à pied) :
-                    ${matrixFrom.map(s => `- ${s.name} : ${s.walk_min} min de marche`).join('\n')}
+                    DÉPART : ${from_place.name} (${from_place.formatted_address})
+                    STATIONS PROCHES DÉPART : ${matrixFrom.map(s => `${s.name} (${s.walk_min}m)`).join(', ')}
                     
-                    DONNÉES RÉELLES D'ARRIVÉE :
-                    ${matrixTo.map(s => `- ${s.name} : ${s.walk_min} min de marche`).join('\n')}
+                    ARRIVÉE : ${to_place.name} (${to_place.formatted_address})
+                    STATIONS PROCHES ARRIVÉE : ${matrixTo.map(s => `${s.name} (${s.walk_min}m)`).join(', ')}
                     
                     CONSIGNES :
-                    1. Choisis le point de départ le plus proche et le plus logique (souvent un arrêt de bus si l'adresse est excentrée).
-                    2. Utilise les lignes réelles (ex: Bus South 2 à Kyoto, Ligne Yamanote à Tokyo).
-                    3. Calcule le temps total incluant la marche.
-                    
-                    Format JSON :
-                    {
-                        "summary": "🚇 52 min (1 corresp.)",
-                        "steps": "1. Marcher vers [Nom Station] ([X] min)\n2. Prendre [Ligne] vers...",
-                        "total_minutes": 52
-                    }`
+                    1. Applique Coeff 1.25 sur transport + Buffer 7 min.
+                    2. Arrondis au multiple de 5 min supérieur.
+                    3. Format JSON : {"summary": "🚇 X min", "steps": "...", "total_minutes": X}`
                 },
-                { role: "user", content: `De : ${p1.json.result.name} À : ${p2.json.result.name}.` }
+                { role: "user", content: `Trajet de ${from_place.name} à ${to_place.name}.` }
             ],
             response_format: { type: "json_object" }
         });
@@ -217,15 +196,26 @@ app.post('/api/route', async (req, res) => {
         
         res.json({
             success: true,
-            summary: routeData.summary + " (Protocol V4 Hybrid)",
-            details: routeData.steps + "\n\n(Vérifié par scan de proximité Google + OSRM)",
+            summary: routeData.summary + " (Safe Time v1)",
+            details: routeData.steps + "\n\n(Validé par Place ID + Scan Proximité)",
             arrival: new Date(Date.now() + routeData.total_minutes * 60000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})
         });
 
     } catch (error) {
-        console.error(error);
         res.status(500).json({ success: false, error: error.message });
     }
+});
+
+app.get("/api/health", async (req, res) => {
+    try {
+        const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
+        const testPlaceId = "ChIJ51cu8IcbXWARiRtXIothAS4";
+        const u = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+        u.searchParams.set("place_id", testPlaceId);
+        u.searchParams.set("key", serverKey);
+        const p = await fetchJson(u.toString());
+        res.json({ env_ok: !!serverKey, places_ok: p.json?.status === "OK", engine: "PRO Pipeline V4" });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.listen(port, () => console.log(`✅ Serveur prêt sur http://localhost:${port}`));

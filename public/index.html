@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Japan Route Engine — Pro</title>
+    <title>Japan Route Engine — Pro V4</title>
     <style>
         :root { --primary: #ff4757; --dark: #2f3542; --light: #f1f2f6; }
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--light); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
@@ -17,6 +17,15 @@
         label { display: block; margin-bottom: 8px; font-size: 0.85em; color: #555; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         input, select { width: 100%; padding: 14px 14px 14px 45px; border: 2px solid #f0f0f0; border-radius: 12px; box-sizing: border-box; font-size: 1em; outline: none; transition: all 0.3s ease; background: #f9f9f9; -webkit-appearance: none; }
         input:focus, select:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(255, 71, 87, 0.1); }
+        
+        /* Suggestions Styles */
+        .suggestions-list { position: absolute; width: 100%; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 1000; margin-top: 5px; max-height: 250px; overflow-y: auto; display: none; border: 1px solid #eee; }
+        .suggestion-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f5f5f5; font-size: 0.9em; color: #333; }
+        .suggestion-item:hover { background: #f8f9fa; color: var(--primary); }
+        .status-msg { font-size: 0.75em; margin-top: 5px; font-weight: 600; }
+        .status-ok { color: #2ed573; }
+        .status-err { color: #ff4757; }
+
         .mode-selector { display: flex; gap: 10px; margin-bottom: 20px; }
         .mode-option { flex: 1; padding: 10px; border: 2px solid #f0f0f0; border-radius: 12px; text-align: center; cursor: pointer; font-weight: bold; transition: 0.3s; background: #f9f9f9; }
         .mode-option.active { border-color: var(--primary); color: var(--primary); background: #fff; }
@@ -46,19 +55,17 @@
         <div class="input-group">
             <label>DÉPART</label>
             <i>📍</i>
-            <input type="text" id="from" placeholder="D'où partez-vous ?">
+            <input type="text" id="fromInput" placeholder="D'où partez-vous ?" autocomplete="off">
+            <div id="fromSuggestions" class="suggestions-list"></div>
+            <div id="fromStatus" class="status-msg"></div>
         </div>
 
-        <div id="arrival-group" class="input-group">
-            <label>ARRIVÉE</label>
-            <i>🏁</i>
-            <input type="text" id="to" placeholder="Où allez-vous ?">
-        </div>
-        
         <div class="input-group">
-            <label>INTENTION (IA)</label>
-            <i>✨</i>
-            <input type="text" id="intent" placeholder="Ex: voir les daims, manger des sushi...">
+            <label>ARRIVÉE (DESTINATION)</label>
+            <i>🏁</i>
+            <input type="text" id="toInput" placeholder="Où allez-vous ?" autocomplete="off">
+            <div id="toSuggestions" class="suggestions-list"></div>
+            <div id="toStatus" class="status-msg"></div>
         </div>
 
         <label>MODE DE TRANSPORT</label>
@@ -82,44 +89,56 @@
 </div>
 
 <script>
-    let fromToken = null;
-    let toToken = null;
+    let fromPlace = null;
+    let toPlace = null;
     let selectedMode = "best";
 
-    async function loadConfig() {
-        const r = await fetch('/api/config');
-        const config = await r.json();
-        if (config.googleBrowserKey) {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleBrowserKey}&libraries=places&language=fr&region=JP`;
-            script.onload = initAutocomplete;
-            document.head.appendChild(script);
-        }
+    function setupAutocomplete(inputId, suggestionsId, statusId, setter) {
+        const input = document.getElementById(inputId);
+        const list = document.getElementById(suggestionsId);
+        const status = document.getElementById(statusId);
+        let timer = null;
+
+        input.addEventListener('input', () => {
+            clearTimeout(timer);
+            const q = input.value.trim();
+            if (q.length < 2) { list.style.display = 'none'; return; }
+
+            timer = setTimeout(async () => {
+                const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`);
+                const j = await r.json();
+                list.innerHTML = '';
+                if (j.predictions && j.predictions.length > 0) {
+                    list.style.display = 'block';
+                    j.predictions.slice(0, 6).forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'suggestion-item';
+                        div.textContent = p.description;
+                        div.onclick = async () => {
+                            const d = await fetch(`/api/places/details?place_id=${p.place_id}`);
+                            const dj = await d.json();
+                            if (dj.ok) {
+                                setter(dj.place);
+                                input.value = dj.place.name;
+                                status.textContent = '✅ Validé : ' + dj.place.formatted_address;
+                                status.className = 'status-msg status-ok';
+                                list.style.display = 'none';
+                            }
+                        };
+                        list.appendChild(div);
+                    });
+                }
+            }, 300);
+        });
+
+        // Fermer la liste si on clique ailleurs
+        document.addEventListener('click', (e) => {
+            if (e.target !== input) list.style.display = 'none';
+        });
     }
 
-    function initAutocomplete() {
-        const fromInput = document.getElementById('from');
-        const toInput = document.getElementById('to');
-        
-        const fromAuto = new google.maps.places.Autocomplete(fromInput, {
-            fields: ["place_id", "name"],
-            componentRestrictions: { country: ["jp"] }
-        });
-        const toAuto = new google.maps.places.Autocomplete(toInput, {
-            fields: ["place_id", "name"],
-            componentRestrictions: { country: ["jp"] }
-        });
-
-        fromAuto.addListener('place_changed', () => {
-            const p = fromAuto.getPlace();
-            fromToken = p && p.place_id ? "gpid:" + p.place_id : null;
-        });
-
-        toAuto.addListener('place_changed', () => {
-            const p = toAuto.getPlace();
-            toToken = p && p.place_id ? "gpid:" + p.place_id : null;
-        });
-    }
+    setupAutocomplete('fromInput', 'fromSuggestions', 'fromStatus', (p) => fromPlace = p);
+    setupAutocomplete('toInput', 'toSuggestions', 'toStatus', (p) => toPlace = p);
 
     async function checkHealth() {
         const out = document.getElementById('health-out');
@@ -149,12 +168,12 @@
     }
 
     async function calculate() {
-        const intent = document.getElementById('intent').value;
         const btn = document.getElementById('btn-calc');
         const resBox = document.getElementById('result-box');
         
-        if(!fromToken) return alert("Veuillez sélectionner un départ dans la liste.");
-        if(!toToken && !intent) return alert("Veuillez sélectionner une arrivée ou saisir une intention.");
+        if(!fromPlace || !toPlace) {
+            return alert("Veuillez sélectionner un départ et une arrivée dans les suggestions pour valider les lieux.");
+        }
         
         btn.disabled = true;
         btn.innerText = "CALCUL EN COURS...";
@@ -167,9 +186,8 @@
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    from_token: fromToken,
-                    to_token: toToken,
-                    intent,
+                    from_place: fromPlace,
+                    to_place: toPlace,
                     mode: selectedMode
                 })
             });
@@ -179,7 +197,7 @@
                 document.getElementById('res-main').innerHTML = data.summary;
                 document.getElementById('res-steps').innerText = data.details;
                 document.getElementById('res-footer').innerText = `⏱️ Arrivée: ${data.arrival} ✅`;
-                saveToHistory(document.getElementById('from').value, document.getElementById('to').value || intent, data);
+                saveToHistory(fromPlace.name, toPlace.name, data);
             } else {
                 document.getElementById('res-main').innerText = `❌ ${data.error || "Erreur"}`;
             }
@@ -215,8 +233,6 @@
                 </div>`;
         });
     }
-
-    window.onload = loadConfig;
 </script>
 </body>
 </html>
