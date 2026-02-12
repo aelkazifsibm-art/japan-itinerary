@@ -82,8 +82,37 @@ async function getNearbyTransit(coords, serverKey) {
     }
 }
 
-// --- ENDPOINTS PLACES (PIPELINE FIABILITÉ) ---
+// --- 1️⃣ PHASE IA : NORMALISATION TEXTE ---
+app.post("/api/normalize-text", async (req, res) => {
+    try {
+        const { text } = req.body;
+        if (!text) return res.status(400).json({ error: "Texte manquant" });
 
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                { 
+                    role: "system", 
+                    content: `Tu es un expert en voyages au Japon. 
+                    Normalise l'entrée utilisateur pour en faire un titre propre et suggérer un lieu Google Maps.
+                    Format JSON strict :
+                    {
+                        "title_clean": "Nom Propre — description courte",
+                        "suggested_location": "Nom du lieu, Ville, Japan"
+                    }`
+                },
+                { role: "user", content: text }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        res.json(JSON.parse(completion.choices[0].message.content));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- 2️⃣ PHASE VALIDATION GOOGLE PLACES ---
 app.get("/api/places/autocomplete", async (req, res) => {
     try {
         const key = mustEnv("GOOGLE_MAPS_SERVER_KEY");
@@ -134,27 +163,25 @@ app.get("/api/places/details", async (req, res) => {
     }
 });
 
-// --- MOTEUR DE ROUTAGE HYBRIDE ---
-
+// --- 3️⃣ GÉNÉRATION NAVIGATION (ENTRE ACTIVITÉS) ---
 app.post('/api/route', async (req, res) => {
     try {
         const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
-        const { from_place, to_place, mode } = req.body;
+        const { from_place, to_place } = req.body;
 
         if (!from_place?.place_id || !to_place?.place_id) {
-            throw new Error("Données de lieu (Place ID) manquantes.");
+            throw new Error("Place IDs manquants pour le calcul.");
         }
 
         const fromCoords = { lat: from_place.lat, lng: from_place.lng };
         const toCoords = { lat: to_place.lat, lng: to_place.lng };
 
-        // 1. SCAN DE PROXIMITÉ
+        // SCAN & MATRICE
         const [rawStationsFrom, rawStationsTo] = await Promise.all([
             getNearbyTransit(fromCoords, serverKey),
             getNearbyTransit(toCoords, serverKey)
         ]);
 
-        // 2. MATRICE DE MARCHE (OSRM)
         const matrixFrom = await Promise.all(rawStationsFrom.map(async s => {
             const w = await getWalkingDirections(fromCoords, s.coords);
             return { ...s, walk_min: w.success ? w.duration : 999 };
@@ -167,7 +194,7 @@ app.post('/api/route', async (req, res) => {
         matrixFrom.sort((a, b) => a.walk_min - b.walk_min);
         matrixTo.sort((a, b) => a.walk_min - b.walk_min);
 
-        // 3. ASSEMBLAGE LOGIQUE (IA + SAFE TIME)
+        // IA ASSEMBLAGE
         const aiRoute = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
@@ -176,10 +203,10 @@ app.post('/api/route', async (req, res) => {
                     content: `Tu es un expert en transports au Japon. 
                     Calcule un itinéraire réaliste (Protocol Transit Safe Time v1).
                     
-                    DÉPART : ${from_place.name} (${from_place.formatted_address})
+                    DÉPART : ${from_place.name}
                     STATIONS PROCHES DÉPART : ${matrixFrom.map(s => `${s.name} (${s.walk_min}m)`).join(', ')}
                     
-                    ARRIVÉE : ${to_place.name} (${to_place.formatted_address})
+                    ARRIVÉE : ${to_place.name}
                     STATIONS PROCHES ARRIVÉE : ${matrixTo.map(s => `${s.name} (${s.walk_min}m)`).join(', ')}
                     
                     CONSIGNES :
@@ -196,8 +223,9 @@ app.post('/api/route', async (req, res) => {
         
         res.json({
             success: true,
-            summary: routeData.summary + " (Safe Time v1)",
-            details: routeData.steps + "\n\n(Validé par Place ID + Scan Proximité)",
+            summary: routeData.summary,
+            details: routeData.steps,
+            total_minutes: routeData.total_minutes,
             arrival: new Date(Date.now() + routeData.total_minutes * 60000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})
         });
 
@@ -214,7 +242,7 @@ app.get("/api/health", async (req, res) => {
         u.searchParams.set("place_id", testPlaceId);
         u.searchParams.set("key", serverKey);
         const p = await fetchJson(u.toString());
-        res.json({ env_ok: !!serverKey, places_ok: p.json?.status === "OK", engine: "PRO Pipeline V4" });
+        res.json({ env_ok: !!serverKey, places_ok: p.json?.status === "OK", engine: "Master Pipeline V4" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

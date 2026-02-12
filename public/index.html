@@ -3,236 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Japan Route Engine — Pro V4</title>
+    <title>JapanRouteEngine — Planning Intelligent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --primary: #ff4757; --dark: #2f3542; --light: #f1f2f6; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--light); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
-        .tabs { width: 100%; background: #fff; display: flex; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
-        .tab { flex: 1; padding: 15px; text-align: center; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; color: #777; }
-        .tab.active { border-bottom-color: var(--primary); color: var(--primary); }
-        .container { max-width: 500px; width: 90%; margin-top: 20px; padding-bottom: 40px; }
-        .card { background: #fff; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .input-group { position: relative; margin-bottom: 20px; }
-        .input-group i { position: absolute; left: 15px; top: 42px; color: var(--primary); }
-        label { display: block; margin-bottom: 8px; font-size: 0.85em; color: #555; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        input, select { width: 100%; padding: 14px 14px 14px 45px; border: 2px solid #f0f0f0; border-radius: 12px; box-sizing: border-box; font-size: 1em; outline: none; transition: all 0.3s ease; background: #f9f9f9; -webkit-appearance: none; }
-        input:focus, select:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(255, 71, 87, 0.1); }
-        
-        /* Suggestions Styles */
-        .suggestions-list { position: absolute; width: 100%; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 1000; margin-top: 5px; max-height: 250px; overflow-y: auto; display: none; border: 1px solid #eee; }
-        .suggestion-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f5f5f5; font-size: 0.9em; color: #333; }
+        :root { --primary: #ff4757; --blue-nav: #3498db; }
+        .bg-primary { background-color: var(--primary); }
+        .text-primary { color: var(--primary); }
+        .bg-nav { background-color: var(--blue-nav); }
+        .suggestion-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 0.9em; }
         .suggestion-item:hover { background: #f8f9fa; color: var(--primary); }
-        .status-msg { font-size: 0.75em; margin-top: 5px; font-weight: 600; }
-        .status-ok { color: #2ed573; }
-        .status-err { color: #ff4757; }
-
-        .mode-selector { display: flex; gap: 10px; margin-bottom: 20px; }
-        .mode-option { flex: 1; padding: 10px; border: 2px solid #f0f0f0; border-radius: 12px; text-align: center; cursor: pointer; font-weight: bold; transition: 0.3s; background: #f9f9f9; }
-        .mode-option.active { border-color: var(--primary); color: var(--primary); background: #fff; }
-        button { width: 100%; padding: 15px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1em; transition: 0.2s; margin-bottom: 10px; }
-        button:active { transform: scale(0.98); }
-        button.secondary { background: #747d8c; }
-        .result-box { margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 15px; border-left: 5px solid var(--primary); display: none; animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .result-row { margin-bottom: 12px; font-size: 1.1em; font-weight: 600; color: var(--dark); display: flex; align-items: center; gap: 12px; }
-        .result-details { font-size: 0.9em; font-weight: normal; color: #666; margin-left: 30px; margin-bottom: 10px; line-height: 1.4; white-space: pre-wrap; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .history-item { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid #ddd; }
-        #health-out { font-size: 0.8em; background: #000; color: #0f0; padding: 10px; border-radius: 8px; margin-top: 10px; display: none; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen pb-20">
 
-<div class="tabs">
-    <div id="tab-search" class="tab active" onclick="switchTab('search')">RECHERCHE</div>
-    <div id="tab-history" class="tab" onclick="switchTab('history')">HISTORIQUE</div>
-</div>
-
-<div id="view-search" class="container">
-    <div class="card">
-        <button class="secondary" onclick="checkHealth()">VÉRIFIER ÉTAT APIS</button>
-        <pre id="health-out"></pre>
-
-        <div class="input-group">
-            <label>DÉPART</label>
-            <i>📍</i>
-            <input type="text" id="fromInput" placeholder="D'où partez-vous ?" autocomplete="off">
-            <div id="fromSuggestions" class="suggestions-list"></div>
-            <div id="fromStatus" class="status-msg"></div>
+    <!-- HEADER -->
+    <header class="bg-white shadow-sm p-4 sticky top-0 z-50">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold text-primary">JapanRouteEngine</h1>
+            <button onclick="openModal()" class="bg-primary text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">+ ACTIVITÉ</button>
         </div>
+    </header>
 
-        <div class="input-group">
-            <label>ARRIVÉE (DESTINATION)</label>
-            <i>🏁</i>
-            <input type="text" id="toInput" placeholder="Où allez-vous ?" autocomplete="off">
-            <div id="toSuggestions" class="suggestions-list"></div>
-            <div id="toStatus" class="status-msg"></div>
-        </div>
+    <!-- PLANNING -->
+    <main class="max-w-md mx-auto p-4 space-y-4" id="planning-list">
+        <!-- Les activités et blocs navigation seront injectés ici -->
+    </main>
 
-        <label>MODE DE TRANSPORT</label>
-        <div class="mode-selector">
-            <div id="mode-best" class="mode-option active" onclick="setMode('best')">⚡ OPTIMAL</div>
-            <div id="mode-walk" class="mode-option" onclick="setMode('walk')">🚶 PIED</div>
-        </div>
-        
-        <button id="btn-calc" onclick="calculate()">CALCULER L'ITINÉRAIRE</button>
-        
-        <div id="result-box" class="result-box">
-            <div id="res-main" class="result-row"></div>
-            <div id="res-steps" class="result-details"></div>
-            <div id="res-footer" class="result-row" style="font-size: 0.9em; color: #666;"></div>
+    <!-- MODAL AJOUT ACTIVITÉ -->
+    <div id="activity-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 overflow-y-auto max-h-[90vh]">
+            <h2 class="text-xl font-bold">Ajouter une activité</h2>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Heure</label>
+                    <input type="time" id="modal-time" class="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary">
+                </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Titre (Saisie libre)</label>
+                    <div class="flex space-x-2">
+                        <input type="text" id="modal-title-raw" placeholder="Ex: nara cerf" class="flex-1 border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary">
+                        <button onclick="normalizeText()" class="bg-gray-100 text-gray-600 px-3 rounded-xl text-xs font-bold hover:bg-gray-200">✨ IA</button>
+                    </div>
+                </div>
+
+                <div id="ia-suggestions" class="hidden bg-indigo-50 p-3 rounded-xl border border-indigo-100 space-y-2">
+                    <div class="text-xs font-bold text-indigo-600">SUGGESTION IA :</div>
+                    <div id="ia-title-clean" class="text-sm font-bold"></div>
+                    <button onclick="applyIASuggestion()" class="text-xs bg-indigo-600 text-white px-2 py-1 rounded">Appliquer</button>
+                </div>
+
+                <div class="relative">
+                    <label class="text-xs font-bold text-gray-500 uppercase">Destination (Validation Google)</label>
+                    <input type="text" id="modal-dest-search" placeholder="Rechercher le lieu..." class="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary" autocomplete="off">
+                    <div id="dest-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[110] border"></div>
+                    <div id="dest-status" class="text-[10px] mt-1 font-bold"></div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Description</label>
+                    <textarea id="modal-desc" class="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary h-20"></textarea>
+                </div>
+            </div>
+
+            <div class="flex space-x-3 pt-4">
+                <button onclick="closeModal()" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">ANNULER</button>
+                <button onclick="saveActivity()" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold shadow-lg">ENREGISTRER</button>
+            </div>
         </div>
     </div>
-</div>
 
-<div id="view-history" class="container" style="display:none;">
-    <div id="history-list"></div>
-</div>
+    <script>
+        let activities = JSON.parse(localStorage.getItem('japan_trip_v4') || '[]');
+        let selectedPlace = null;
+        let iaSuggestedLocation = "";
 
-<script>
-    let fromPlace = null;
-    let toPlace = null;
-    let selectedMode = "best";
+        function openModal() {
+            document.getElementById('activity-modal').classList.remove('hidden');
+            resetModal();
+        }
 
-    function setupAutocomplete(inputId, suggestionsId, statusId, setter) {
-        const input = document.getElementById(inputId);
-        const list = document.getElementById(suggestionsId);
-        const status = document.getElementById(statusId);
-        let timer = null;
+        function closeModal() {
+            document.getElementById('activity-modal').classList.add('hidden');
+        }
 
-        input.addEventListener('input', () => {
-            clearTimeout(timer);
-            const q = input.value.trim();
-            if (q.length < 2) { list.style.display = 'none'; return; }
+        function resetModal() {
+            document.getElementById('modal-time').value = "09:00";
+            document.getElementById('modal-title-raw').value = "";
+            document.getElementById('modal-dest-search').value = "";
+            document.getElementById('modal-desc').value = "";
+            document.getElementById('ia-suggestions').classList.add('hidden');
+            document.getElementById('dest-status').textContent = "";
+            selectedPlace = null;
+        }
 
-            timer = setTimeout(async () => {
+        // 1️⃣ PHASE IA : NORMALISATION
+        async function normalizeText() {
+            const text = document.getElementById('modal-title-raw').value;
+            if (!text) return;
+            
+            const btn = event.target;
+            btn.textContent = "⏳...";
+            
+            try {
+                const r = await fetch('/api/normalize-text', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text })
+                });
+                const j = await r.json();
+                
+                document.getElementById('ia-title-clean').textContent = j.title_clean;
+                iaSuggestedLocation = j.suggested_location;
+                document.getElementById('ia-suggestions').classList.remove('hidden');
+            } catch (e) { alert("Erreur IA"); }
+            finally { btn.textContent = "✨ IA"; }
+        }
+
+        function applyIASuggestion() {
+            document.getElementById('modal-title-raw').value = document.getElementById('ia-title-clean').textContent;
+            document.getElementById('modal-dest-search').value = iaSuggestedLocation;
+            triggerAutocomplete(iaSuggestedLocation);
+            document.getElementById('ia-suggestions').classList.add('hidden');
+        }
+
+        // 2️⃣ PHASE VALIDATION GOOGLE
+        const destInput = document.getElementById('modal-dest-search');
+        const destList = document.getElementById('dest-suggestions');
+        let autoTimer = null;
+
+        destInput.addEventListener('input', () => triggerAutocomplete(destInput.value));
+
+        function triggerAutocomplete(q) {
+            clearTimeout(autoTimer);
+            if (q.length < 2) { destList.classList.add('hidden'); return; }
+            
+            autoTimer = setTimeout(async () => {
                 const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`);
                 const j = await r.json();
-                list.innerHTML = '';
-                if (j.predictions && j.predictions.length > 0) {
-                    list.style.display = 'block';
-                    j.predictions.slice(0, 6).forEach(p => {
+                destList.innerHTML = '';
+                if (j.predictions?.length > 0) {
+                    destList.classList.remove('hidden');
+                    j.predictions.slice(0, 5).forEach(p => {
                         const div = document.createElement('div');
                         div.className = 'suggestion-item';
                         div.textContent = p.description;
-                        div.onclick = async () => {
-                            const d = await fetch(`/api/places/details?place_id=${p.place_id}`);
-                            const dj = await d.json();
-                            if (dj.ok) {
-                                setter(dj.place);
-                                input.value = dj.place.name;
-                                status.textContent = '✅ Validé : ' + dj.place.formatted_address;
-                                status.className = 'status-msg status-ok';
-                                list.style.display = 'none';
-                            }
-                        };
-                        list.appendChild(div);
+                        div.onclick = () => selectPlace(p.place_id);
+                        destList.appendChild(div);
                     });
                 }
             }, 300);
-        });
+        }
 
-        // Fermer la liste si on clique ailleurs
-        document.addEventListener('click', (e) => {
-            if (e.target !== input) list.style.display = 'none';
-        });
-    }
-
-    setupAutocomplete('fromInput', 'fromSuggestions', 'fromStatus', (p) => fromPlace = p);
-    setupAutocomplete('toInput', 'toSuggestions', 'toStatus', (p) => toPlace = p);
-
-    async function checkHealth() {
-        const out = document.getElementById('health-out');
-        out.style.display = 'block';
-        out.innerText = "Vérification...";
-        try {
-            const r = await fetch('/api/health');
+        async function selectPlace(placeId) {
+            const r = await fetch(`/api/places/details?place_id=${placeId}`);
             const j = await r.json();
-            out.innerText = JSON.stringify(j, null, 2);
-        } catch(e) {
-            out.innerText = "Erreur: " + e.message;
-        }
-    }
-
-    function setMode(mode) {
-        selectedMode = mode;
-        document.getElementById('mode-best').className = 'mode-option' + (mode==='best'?' active':'');
-        document.getElementById('mode-walk').className = 'mode-option' + (mode==='walk'?' active':'');
-    }
-
-    function switchTab(tab) {
-        document.getElementById('tab-search').className = 'tab' + (tab==='search'?' active':'');
-        document.getElementById('tab-history').className = 'tab' + (tab==='history'?' active':'');
-        document.getElementById('view-search').style.display = tab==='search'?'block':'none';
-        document.getElementById('view-history').style.display = tab==='history'?'block':'none';
-        if(tab==='history') loadHistory();
-    }
-
-    async function calculate() {
-        const btn = document.getElementById('btn-calc');
-        const resBox = document.getElementById('result-box');
-        
-        if(!fromPlace || !toPlace) {
-            return alert("Veuillez sélectionner un départ et une arrivée dans les suggestions pour valider les lieux.");
-        }
-        
-        btn.disabled = true;
-        btn.innerText = "CALCUL EN COURS...";
-        resBox.style.display = 'block';
-        document.getElementById('res-main').innerText = "⏳ Recherche...";
-        document.getElementById('res-steps').innerText = "";
-
-        try {
-            const resp = await fetch('/api/route', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    from_place: fromPlace,
-                    to_place: toPlace,
-                    mode: selectedMode
-                })
-            });
-            const data = await resp.json();
-            
-            if(data.success) {
-                document.getElementById('res-main').innerHTML = data.summary;
-                document.getElementById('res-steps').innerText = data.details;
-                document.getElementById('res-footer').innerText = `⏱️ Arrivée: ${data.arrival} ✅`;
-                saveToHistory(fromPlace.name, toPlace.name, data);
-            } else {
-                document.getElementById('res-main').innerText = `❌ ${data.error || "Erreur"}`;
+            if (j.ok) {
+                selectedPlace = j.place;
+                destInput.value = j.place.name;
+                destList.classList.add('hidden');
+                document.getElementById('dest-status').innerHTML = `<span class="text-green-600">✅ DESTINATION VALIDÉE : ${j.place.formatted_address}</span>`;
             }
-        } catch(e) {
-            document.getElementById('res-main').innerText = "❌ Erreur de connexion";
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "CALCULER L'ITINÉRAIRE";
         }
-    }
 
-    function saveToHistory(from, to, data) {
-        const key = `route_${Date.now()}`;
-        const item = { from, to, summary: data.summary, arrival: data.arrival, timestamp: new Date().toLocaleString() };
-        localStorage.setItem(key, JSON.stringify(item));
-    }
+        // 3️⃣ ENREGISTREMENT & PLANNING
+        function saveActivity() {
+            if (!selectedPlace) return alert("Veuillez valider une destination via les suggestions Google.");
+            
+            const activity = {
+                id: Date.now(),
+                time: document.getElementById('modal-time').value,
+                title: document.getElementById('modal-title-raw').value,
+                description: document.getElementById('modal-desc').value,
+                place: selectedPlace
+            };
 
-    function loadHistory() {
-        const list = document.getElementById('history-list');
-        list.innerHTML = '';
-        const keys = Object.keys(localStorage).filter(k => k.startsWith('route_')).sort().reverse();
-        if(keys.length === 0) {
-            list.innerHTML = "<div style='text-align:center; color:#999; margin-top:40px;'>Aucun historique.</div>";
-            return;
+            activities.push(activity);
+            activities.sort((a, b) => a.time.localeCompare(b.time));
+            localStorage.setItem('japan_trip_v4', JSON.stringify(activities));
+            closeModal();
+            renderPlanning();
         }
-        keys.forEach(key => {
-            const item = JSON.parse(localStorage.getItem(key));
-            list.innerHTML += `
-                <div class="history-item">
-                    <div style="font-weight:bold; color:var(--primary);">${item.from} ➔ ${item.to}</div>
-                    <div>${item.summary}</div>
-                    <div style="font-size:0.8em; color:#999;">${item.timestamp}</div>
-                </div>`;
-        });
-    }
-</script>
+
+        async function renderPlanning() {
+            const list = document.getElementById('planning-list');
+            list.innerHTML = '';
+
+            for (let i = 0; i < activities.length; i++) {
+                const act = activities[i];
+                
+                // Carte Activité
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl p-5 shadow-sm border-l-4 border-primary relative";
+                card.innerHTML = `
+                    <div class="text-xs font-bold text-gray-400 mb-1">${act.time}</div>
+                    <div class="text-lg font-bold text-gray-800">${act.title}</div>
+                    <div class="text-sm text-gray-500 mt-1">${act.description}</div>
+                    <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold">📍 ${act.place.name}</div>
+                    <button onclick="deleteActivity(${act.id})" class="absolute top-4 right-4 text-gray-300 hover:text-red-500">✕</button>
+                `;
+                list.appendChild(card);
+
+                // Bloc Navigation (si activité suivante)
+                if (i < activities.length - 1) {
+                    const nextAct = activities[i+1];
+                    const navId = `nav-${act.id}-${nextAct.id}`;
+                    const navBlock = document.createElement('div');
+                    navBlock.id = navId;
+                    navBlock.className = "bg-nav text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md";
+                    navBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet...</div>`;
+                    list.appendChild(navBlock);
+                    
+                    calculateNav(act.place, nextAct.place, navId);
+                }
+            }
+        }
+
+        async function calculateNav(from, to, elementId) {
+            try {
+                const r = await fetch('/api/route', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ from_place: from, to_place: to })
+                });
+                const j = await r.json();
+                const el = document.getElementById(elementId);
+                if (j.success) {
+                    el.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="font-bold text-sm">${j.summary}</div>
+                            <div class="text-[10px] bg-white bg-opacity-20 px-2 py-0.5 rounded">✅ VÉRIFIÉ</div>
+                        </div>
+                        <div class="text-[11px] leading-relaxed opacity-90 whitespace-pre-line">${j.details}</div>
+                        <div class="mt-2 pt-2 border-t border-white border-opacity-20 text-[10px] font-bold">
+                            ⏱️ ARRIVÉE ESTIMÉE : ${j.arrival}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById(elementId).innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
+                }
+            } catch (e) {
+                document.getElementById(elementId).innerHTML = `<div class="text-xs text-red-200">Erreur réseau</div>`;
+            }
+        }
+
+        function deleteActivity(id) {
+            activities = activities.filter(a => a.id !== id);
+            localStorage.setItem('japan_trip_v4', JSON.stringify(activities));
+            renderPlanning();
+        }
+
+        window.onload = renderPlanning;
+    </script>
 </body>
 </html>
