@@ -49,28 +49,6 @@
         .animate-fade-out {
             animation: fadeOut 0.5s ease-out forwards;
         }
-
-        /* FAB Menu Arc Animation */
-        .fab-bubble {
-            position: absolute;
-            opacity: 0;
-            transform: scale(0);
-            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-        
-        .fab-bubble.show {
-            opacity: 1;
-            transform: scale(1);
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        #fab-button.pulsing {
-            animation: pulse 0.5s ease-in-out;
-        }
         
         /* Japanese aesthetic touches */
         .torii-accent::before {
@@ -333,51 +311,6 @@
                         </div>
                     </div>
 
-                    <!-- Options intelligentes -->
-                    <div class="space-y-3 border-t-4 border-gray-200 pt-6">
-                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🎯 Options intelligentes</h3>
-                        
-                        <!-- Mode Fatigue -->
-                        <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border-2 border-blue-200">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-2xl">😴</span>
-                                    <div>
-                                        <div class="font-bold text-blue-700">Mode Fatigue</div>
-                                        <div class="text-xs text-blue-600">Activités plus relaxantes</div>
-                                    </div>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="fatigue-mode-toggle" onchange="toggleFatigueMode()" class="sr-only peer">
-                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                </label>
-                            </div>
-                            <div id="fatigue-status" class="text-xs text-gray-500">
-                                Désactivé
-                            </div>
-                        </div>
-
-                        <!-- Adaptation Météo -->
-                        <div class="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-4 border-2 border-sky-200">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-2xl">🌦️</span>
-                                    <div>
-                                        <div class="font-bold text-sky-700">Adaptation Météo</div>
-                                        <div class="text-xs text-sky-600">Ajuste selon la pluie</div>
-                                    </div>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="weather-mode-toggle" onchange="toggleWeatherMode()" class="sr-only peer">
-                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
-                                </label>
-                            </div>
-                            <div id="weather-info" class="text-xs text-gray-500">
-                                Désactivé
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Hôtel du jour -->
                     <div class="space-y-3 border-t-4 border-gray-200 pt-6">
                         <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🏨 Hébergement</h3>
@@ -480,44 +413,80 @@
     <!-- MODAL AJOUT ACTIVITÉ -->
     <div id="activity-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 overflow-y-auto max-h-[90vh]">
-            <h2 class="text-xl font-bold">Ajouter une activité</h2>
-            
-            <div class="space-y-3">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold">Ajouter une activité</h2>
+                <button onclick="closeModal()" class="text-2xl text-gray-400">×</button>
+            </div>
+
+            <!-- MODE RAPIDE (par défaut) -->
+            <div id="quick-add-mode">
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4 mb-4">
+                    <div class="text-sm font-bold text-blue-700 mb-1">✨ Ajout Rapide IA</div>
+                    <div class="text-xs text-blue-600">Décrivez simplement l'activité, l'IA s'occupe du reste !</div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-gray-600 uppercase block mb-2">Que voulez-vous faire ?</label>
+                        <textarea 
+                            id="quick-activity-input" 
+                            placeholder="Ex: temple doré kyoto&#10;skytree tokyo&#10;restaurant ramen shibuya..."
+                            class="w-full border-2 border-gray-200 rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none"
+                            rows="3"
+                        ></textarea>
+                    </div>
+
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="checkbox" id="time-flexible" checked class="w-4 h-4">
+                            <label for="time-flexible" class="text-sm font-bold text-gray-700">Horaire flexible (recommandé)</label>
+                        </div>
+                        <div class="text-xs text-gray-600">L'IA optimisera l'heure selon l'affluence et les horaires d'ouverture</div>
+                    </div>
+
+                    <div id="fixed-time-section" class="hidden">
+                        <label class="text-xs font-bold text-gray-600 uppercase block mb-2">🔒 Horaire fixe</label>
+                        <input type="time" id="quick-fixed-time" class="w-full border-2 border-orange-200 rounded-xl p-3">
+                    </div>
+
+                    <button onclick="quickAddActivity()" class="w-full bg-gradient-to-r from-primary to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">
+                        ✨ Analyser et Ajouter
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lien mode manuel -->
+            <button onclick="toggleManualMode()" class="w-full text-xs text-gray-400 hover:text-gray-600 py-2">
+                <span id="manual-toggle-text">Mode manuel →</span>
+            </button>
+
+            <!-- MODE MANUEL (caché) -->
+            <div id="manual-add-mode" class="hidden space-y-3">
                 <div>
                     <label class="text-xs font-bold text-gray-500 uppercase">Heure</label>
-                    <input type="time" id="modal-time" class="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary">
+                    <input type="time" id="modal-time" class="w-full border-2 border-gray-100 rounded-xl p-3">
                 </div>
                 
                 <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase">Titre (Saisie libre)</label>
-                    <div class="flex space-x-2">
-                        <input type="text" id="modal-title-raw" placeholder="Ex: nara cerf" class="flex-1 border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary">
-                        <button onclick="normalizeText()" class="bg-gray-100 text-gray-600 px-3 rounded-xl text-xs font-bold hover:bg-gray-200">✨ IA</button>
-                    </div>
-                </div>
-
-                <div id="ia-suggestions" class="hidden bg-indigo-50 p-3 rounded-xl border border-indigo-100 space-y-2">
-                    <div class="text-xs font-bold text-indigo-600">SUGGESTION IA :</div>
-                    <div id="ia-title-clean" class="text-sm font-bold"></div>
-                    <button onclick="applyIASuggestion()" class="text-xs bg-indigo-600 text-white px-2 py-1 rounded">Appliquer</button>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Titre</label>
+                    <input type="text" id="modal-title-raw" placeholder="Ex: Visite temple" class="w-full border-2 border-gray-100 rounded-xl p-3">
                 </div>
 
                 <div class="relative">
-                    <label class="text-xs font-bold text-gray-500 uppercase">Destination (Validation Google)</label>
-                    <input type="text" id="modal-dest-search" placeholder="Rechercher le lieu..." class="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary" autocomplete="off">
+                    <label class="text-xs font-bold text-gray-500 uppercase">Destination</label>
+                    <input type="text" id="modal-dest-search" placeholder="Rechercher..." class="w-full border-2 border-gray-100 rounded-xl p-3" autocomplete="off">
                     <div id="dest-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[110] border"></div>
-                    <div id="dest-status" class="text-[10px] mt-1 font-bold"></div>
                 </div>
 
                 <div>
                     <label class="text-xs font-bold text-gray-500 uppercase">Description</label>
-                    <textarea id="modal-desc" class="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary h-20"></textarea>
+                    <textarea id="modal-desc" class="w-full border-2 border-gray-100 rounded-xl p-3 h-20"></textarea>
                 </div>
-            </div>
 
-            <div class="flex space-x-3 pt-4">
-                <button onclick="closeModal()" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">ANNULER</button>
-                <button onclick="saveActivity()" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold shadow-lg">ENREGISTRER</button>
+                <div class="flex space-x-3">
+                    <button onclick="closeModal()" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">ANNULER</button>
+                    <button onclick="saveActivity()" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold">ENREGISTRER</button>
+                </div>
             </div>
         </div>
     </div>
@@ -535,48 +504,6 @@
                     <div class="loader mx-auto"></div>
                     <div class="text-sm text-gray-500 mt-2">Chargement des informations...</div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- BOUTON FLOTTANT (FAB) -->
-    <div id="fab-button" class="fixed bottom-20 right-6 w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-2xl flex items-center justify-center text-2xl cursor-move z-[90] transition-all hover:scale-110 active:scale-95">
-        🎯
-    </div>
-
-    <!-- MENU RADIAL EN ARC -->
-    <div id="fab-menu" class="fixed hidden z-[85]">
-        <div class="relative">
-            <!-- Backdrop -->
-            <div id="fab-backdrop" class="fixed inset-0 bg-black bg-opacity-30 -z-10" onclick="closeFabMenu()"></div>
-            
-            <!-- Bulles du menu -->
-            <div id="fab-bubble-1" class="fab-bubble" data-action="options">
-                <div class="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-transform cursor-pointer">
-                    ⚙️
-                </div>
-                <div class="text-xs font-bold text-white mt-1 text-center whitespace-nowrap">Options</div>
-            </div>
-            
-            <div id="fab-bubble-2" class="fab-bubble" data-action="ai">
-                <div class="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-transform cursor-pointer">
-                    🤖
-                </div>
-                <div class="text-xs font-bold text-white mt-1 text-center whitespace-nowrap">Modes IA</div>
-            </div>
-            
-            <div id="fab-bubble-3" class="fab-bubble" data-action="suggestions">
-                <div class="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-transform cursor-pointer">
-                    💡
-                </div>
-                <div class="text-xs font-bold text-white mt-1 text-center whitespace-nowrap">Suggestions</div>
-            </div>
-            
-            <div id="fab-bubble-4" class="fab-bubble" data-action="budget">
-                <div class="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-transform cursor-pointer">
-                    💰
-                </div>
-                <div class="text-xs font-bold text-white mt-1 text-center whitespace-nowrap">Budget</div>
             </div>
         </div>
     </div>
@@ -1234,6 +1161,39 @@
         });
 
         // ========== MODAL ACTIVITÉ ==========
+        // ========== CALCUL HEURE DISPONIBLE ==========
+        function calculateNextAvailableTime() {
+            const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
+            
+            if (dayActivities.length === 0) {
+                return "09:00";
+            }
+            
+            dayActivities.sort((a, b) => a.time.localeCompare(b.time));
+            const lastActivity = dayActivities[dayActivities.length - 1];
+            
+            const [hours, minutes] = lastActivity.time.split(':').map(Number);
+            let endTime = new Date();
+            endTime.setHours(hours, minutes, 0);
+            
+            // Ajouter 90 min pour l'activité
+            endTime.setMinutes(endTime.getMinutes() + 90);
+            
+            // Ajouter le temps de trajet si disponible en cache
+            if (dayActivities.length >= 2) {
+                const secondLast = dayActivities[dayActivities.length - 2];
+                const cacheKey = `${secondLast.place.place_id}-${lastActivity.place.place_id}`;
+                if (routeCache[cacheKey]) {
+                    endTime.setMinutes(endTime.getMinutes() + routeCache[cacheKey].total_minutes);
+                }
+            }
+            
+            const nextHours = String(endTime.getHours()).padStart(2, '0');
+            const nextMinutes = String(endTime.getMinutes()).padStart(2, '0');
+            
+            return `${nextHours}:${nextMinutes}`;
+        }
+
         function openModal() {
             document.getElementById('activity-modal').classList.remove('hidden');
             resetModal();
@@ -1241,10 +1201,253 @@
 
         function closeModal() {
             document.getElementById('activity-modal').classList.add('hidden');
+            // Reset au mode rapide
+            document.getElementById('quick-add-mode').classList.remove('hidden');
+            document.getElementById('manual-add-mode').classList.add('hidden');
+            document.getElementById('manual-toggle-text').textContent = 'Mode manuel →';
+            document.getElementById('quick-activity-input').value = '';
+        }
+
+        function toggleManualMode() {
+            const quickMode = document.getElementById('quick-add-mode');
+            const manualMode = document.getElementById('manual-add-mode');
+            const toggleText = document.getElementById('manual-toggle-text');
+            
+            if (quickMode.classList.contains('hidden')) {
+                quickMode.classList.remove('hidden');
+                manualMode.classList.add('hidden');
+                toggleText.textContent = 'Mode manuel →';
+            } else {
+                quickMode.classList.add('hidden');
+                manualMode.classList.remove('hidden');
+                toggleText.textContent = '← Mode rapide';
+            }
+        }
+
+        // Toggle horaire fixe/flexible
+        document.addEventListener('DOMContentLoaded', () => {
+            const flexCheckbox = document.getElementById('time-flexible');
+            const fixedSection = document.getElementById('fixed-time-section');
+            
+            if (flexCheckbox) {
+                flexCheckbox.addEventListener('change', () => {
+                    if (flexCheckbox.checked) {
+                        fixedSection.classList.add('hidden');
+                    } else {
+                        fixedSection.classList.remove('hidden');
+                    }
+                });
+            }
+        });
+
+        // ========== AJOUT RAPIDE IA ==========
+        async function quickAddActivity() {
+            const input = document.getElementById('quick-activity-input').value.trim();
+            const isFlexible = document.getElementById('time-flexible').checked;
+            const fixedTime = document.getElementById('quick-fixed-time').value;
+            
+            if (!input) {
+                alert('Veuillez décrire une activité');
+                return;
+            }
+            
+            // Afficher un loading
+            const btn = event.target;
+            btn.innerHTML = '<div class="inline-block animate-spin rounded-full h-5 w-5 border-4 border-white border-t-transparent"></div> Analyse IA...';
+            btn.disabled = true;
+            
+            try {
+                // Appeler l'IA pour analyser et créer l'activité
+                const response = await fetch('/api/quick-add-activity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: input,
+                        day_index: currentDayIndex,
+                        time_flexible: isFlexible,
+                        fixed_time: isFlexible ? null : fixedTime
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Ajouter l'activité au planning
+                    const activity = {
+                        id: Date.now(),
+                        dayIndex: currentDayIndex,
+                        time: data.activity.suggested_time || '00:00',
+                        time_flexible: isFlexible,
+                        title: data.activity.title,
+                        description: data.activity.description || '',
+                        place: data.activity.place,
+                        needs_optimization: isFlexible
+                    };
+                    
+                    activities.push(activity);
+                    activities.sort((a, b) => {
+                        if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                        // Les flexibles en bas
+                        if (a.time_flexible && !b.time_flexible) return 1;
+                        if (!a.time_flexible && b.time_flexible) return -1;
+                        return a.time.localeCompare(b.time);
+                    });
+                    
+                    localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                    closeModal();
+                    renderPlanning();
+                    
+                    // Si des activités flexibles existent, proposer l'optimisation
+                    const flexibleCount = activities.filter(a => a.dayIndex === currentDayIndex && a.time_flexible).length;
+                    if (flexibleCount > 0) {
+                        setTimeout(() => {
+                            if (confirm(`✨ Vous avez ${flexibleCount} activité(s) flexible(s).\n\nVoulez-vous optimiser la journée maintenant ?`)) {
+                                optimizeDaySchedule();
+                            }
+                        }, 500);
+                    }
+                } else {
+                    alert('Erreur: ' + (data.error || 'Impossible d\'analyser l\'activité'));
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur réseau. Vérifiez votre connexion.');
+            } finally {
+                btn.innerHTML = '✨ Analyser et Ajouter';
+                btn.disabled = false;
+            }
+        }
+
+        // ========== OPTIMISATION DU PLANNING ==========
+        async function optimizeDaySchedule() {
+            const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
+            
+            if (dayActivities.length === 0) {
+                alert('Aucune activité à optimiser');
+                return;
+            }
+            
+            // Afficher modal de chargement
+            const loadingHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-70 z-[300] flex items-center justify-center">
+                    <div class="bg-white rounded-2xl p-8 max-w-sm mx-4 text-center">
+                        <div class="text-6xl mb-4 animate-bounce">🤖</div>
+                        <div class="text-xl font-bold mb-2">Optimisation IA</div>
+                        <div class="text-sm text-gray-600 mb-4">Analyse des horaires, affluence, trajets...</div>
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', loadingHTML);
+            
+            try {
+                const response = await fetch('/api/optimize-day', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        activities: dayActivities,
+                        day_index: currentDayIndex,
+                        hotel: dayHotels[currentDayIndex] || null
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Supprimer le loading
+                    document.querySelector('.fixed.inset-0.bg-black').remove();
+                    
+                    // Afficher la proposition
+                    showOptimizationProposal(data.optimized_activities, data.explanation);
+                } else {
+                    alert('Erreur: ' + (data.error || 'Impossible d\'optimiser'));
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur réseau');
+            }
+        }
+
+        function showOptimizationProposal(optimizedActivities, explanation) {
+            // Créer un modal de proposition
+            const modalHTML = `
+                <div id="optimization-modal" class="fixed inset-0 bg-black bg-opacity-70 z-[300] flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <h2 class="text-2xl font-bold mb-4">✨ Planning Optimisé</h2>
+                        
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                            <div class="text-sm font-bold text-blue-700 mb-2">💡 Explications</div>
+                            <div class="text-xs text-blue-600">${explanation}</div>
+                        </div>
+                        
+                        <div class="space-y-3 mb-6">
+                            ${optimizedActivities.map(act => `
+                                <div class="bg-white border-2 border-green-200 rounded-xl p-4">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="font-bold text-lg">${act.time}</div>
+                                        ${act.time_changed ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Modifié</span>' : '<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">OK</span>'}
+                                    </div>
+                                    <div class="font-bold">${act.title}</div>
+                                    <div class="text-xs text-gray-500 mt-1">📍 ${act.place.name}</div>
+                                    ${act.reason ? `<div class="text-xs text-blue-600 mt-2">💡 ${act.reason}</div>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="closeOptimizationModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">
+                                Annuler
+                            </button>
+                            <button onclick="applyOptimization(${JSON.stringify(optimizedActivities).replace(/"/g, '&quot;')})" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold">
+                                ✅ Valider
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        function closeOptimizationModal() {
+            const modal = document.getElementById('optimization-modal');
+            if (modal) modal.remove();
+        }
+
+        function applyOptimization(optimizedActivities) {
+            // Remplacer les activités du jour par les optimisées
+            activities = activities.filter(a => a.dayIndex !== currentDayIndex);
+            
+            optimizedActivities.forEach(opt => {
+                const existing = activities.find(a => a.id === opt.id);
+                if (existing) {
+                    existing.time = opt.time;
+                    existing.time_flexible = false;
+                    existing.needs_optimization = false;
+                }
+            });
+            
+            activities.push(...optimizedActivities.map(opt => ({
+                ...opt,
+                time_flexible: false,
+                needs_optimization: false
+            })));
+            
+            activities.sort((a, b) => {
+                if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                return a.time.localeCompare(b.time);
+            });
+            
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            closeOptimizationModal();
+            renderPlanning();
+            
+            alert('✅ Planning optimisé appliqué !');
         }
 
         function resetModal() {
-            document.getElementById('modal-time').value = "09:00";
+            const suggestedTime = calculateNextAvailableTime();
+            document.getElementById('modal-time').value = suggestedTime;
             document.getElementById('modal-title-raw').value = "";
             document.getElementById('modal-dest-search').value = "";
             document.getElementById('modal-desc').value = "";
@@ -1499,14 +1702,16 @@
                 const cached = routeCache[cacheKey];
                 const el = document.getElementById(elementId);
                 if (el) {
+                    const timeDisplay = formatTravelTime(cached.total_minutes);
                     el.innerHTML = `
                         <div class="flex justify-between items-start mb-2">
                             <div class="font-bold text-sm">${cached.summary}</div>
                             <div class="text-[10px] bg-white bg-opacity-20 px-2 py-0.5 rounded">✅ CACHE</div>
                         </div>
                         <div class="text-[11px] leading-relaxed opacity-90 whitespace-pre-line">${cached.details}</div>
-                        <div class="mt-2 pt-2 border-t border-white border-opacity-20 text-[10px] font-bold">
-                            ⏱️ ARRIVÉE ESTIMÉE : ${cached.arrival}
+                        <div class="mt-2 pt-2 border-t border-white border-opacity-20 flex justify-between items-center">
+                            <div class="text-[11px] font-bold">⏱️ Durée: ${timeDisplay}</div>
+                            <div class="text-[11px] font-bold">🏁 Arrivée: ${cached.arrival}</div>
                         </div>
                     `;
                 }
@@ -1534,14 +1739,16 @@
                     localStorage.setItem('japan_route_cache', JSON.stringify(routeCache));
                     
                     if (el) {
+                        const timeDisplay = formatTravelTime(j.total_minutes);
                         el.innerHTML = `
                             <div class="flex justify-between items-start mb-2">
                                 <div class="font-bold text-sm">${j.summary}</div>
                                 <div class="text-[10px] bg-white bg-opacity-20 px-2 py-0.5 rounded">✅ VÉRIFIÉ</div>
                             </div>
                             <div class="text-[11px] leading-relaxed opacity-90 whitespace-pre-line">${j.details}</div>
-                            <div class="mt-2 pt-2 border-t border-white border-opacity-20 text-[10px] font-bold">
-                                ⏱️ ARRIVÉE ESTIMÉE : ${j.arrival}
+                            <div class="mt-2 pt-2 border-t border-white border-opacity-20 flex justify-between items-center">
+                                <div class="text-[11px] font-bold">⏱️ Durée: ${timeDisplay}</div>
+                                <div class="text-[11px] font-bold">🏁 Arrivée: ${j.arrival}</div>
                             </div>
                         `;
                     }
@@ -1552,6 +1759,18 @@
                 const el = document.getElementById(elementId);
                 if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur réseau</div>`;
             }
+        }
+
+        function formatTravelTime(minutes) {
+            if (minutes < 60) {
+                return `${minutes} min`;
+            }
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            if (mins === 0) {
+                return `${hours}h`;
+            }
+            return `${hours}h${mins}`;
         }
 
         function deleteActivity(id) {
@@ -1695,168 +1914,6 @@
                 arrow.style.transform = 'rotate(0deg)';
             }
         }
-
-        // ========== BOUTON FLOTTANT (FAB) ==========
-        let fabPosition = JSON.parse(localStorage.getItem('fab_position') || '{"x": null, "y": null}');
-        let isDraggingFab = false;
-        let fabStartX, fabStartY, fabCurrentX, fabCurrentY;
-        let longPressTimer = null;
-        let fabMenuOpen = false;
-
-        const fab = document.getElementById('fab-button');
-        const fabMenu = document.getElementById('fab-menu');
-
-        // Initialiser la position du FAB
-        function initFabPosition() {
-            if (fabPosition.x && fabPosition.y) {
-                fab.style.left = fabPosition.x + 'px';
-                fab.style.top = fabPosition.y + 'px';
-                fab.style.right = 'auto';
-                fab.style.bottom = 'auto';
-            }
-        }
-
-        // Touch events pour le drag
-        fab.addEventListener('touchstart', (e) => {
-            const touch = e.touches[0];
-            fabStartX = touch.clientX - fab.offsetLeft;
-            fabStartY = touch.clientY - fab.offsetTop;
-            
-            // Long press pour ouvrir le menu
-            longPressTimer = setTimeout(() => {
-                if (!isDraggingFab) {
-                    openFabMenu();
-                    fab.classList.add('pulsing');
-                    setTimeout(() => fab.classList.remove('pulsing'), 500);
-                }
-            }, 500);
-        });
-
-        fab.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            isDraggingFab = true;
-            clearTimeout(longPressTimer);
-            
-            const touch = e.touches[0];
-            fabCurrentX = touch.clientX - fabStartX;
-            fabCurrentY = touch.clientY - fabStartY;
-            
-            // Garder dans les limites de l'écran
-            const maxX = window.innerWidth - fab.offsetWidth;
-            const maxY = window.innerHeight - fab.offsetHeight;
-            
-            fabCurrentX = Math.max(0, Math.min(fabCurrentX, maxX));
-            fabCurrentY = Math.max(0, Math.min(fabCurrentY, maxY));
-            
-            fab.style.left = fabCurrentX + 'px';
-            fab.style.top = fabCurrentY + 'px';
-            fab.style.right = 'auto';
-            fab.style.bottom = 'auto';
-        });
-
-        fab.addEventListener('touchend', (e) => {
-            clearTimeout(longPressTimer);
-            
-            if (isDraggingFab) {
-                // Sauvegarder la position
-                fabPosition = { x: fabCurrentX, y: fabCurrentY };
-                localStorage.setItem('fab_position', JSON.stringify(fabPosition));
-                isDraggingFab = false;
-            } else if (!fabMenuOpen) {
-                // Clic simple → Ouvrir options
-                openSidebar();
-            }
-        });
-
-        // Ouvrir le menu en arc
-        function openFabMenu() {
-            if (fabMenuOpen) return;
-            fabMenuOpen = true;
-            
-            const fabRect = fab.getBoundingClientRect();
-            const centerX = fabRect.left + fabRect.width / 2;
-            const centerY = fabRect.top + fabRect.height / 2;
-            
-            fabMenu.classList.remove('hidden');
-            fabMenu.style.left = centerX + 'px';
-            fabMenu.style.top = centerY + 'px';
-            
-            // Positionner les bulles en arc au-dessus
-            const radius = 100;
-            const startAngle = -150; // Début à gauche
-            const endAngle = -30;    // Fin à droite
-            const bubbles = [
-                document.getElementById('fab-bubble-1'),
-                document.getElementById('fab-bubble-2'),
-                document.getElementById('fab-bubble-3'),
-                document.getElementById('fab-bubble-4')
-            ];
-            
-            const angleStep = (endAngle - startAngle) / (bubbles.length - 1);
-            
-            bubbles.forEach((bubble, index) => {
-                const angle = (startAngle + angleStep * index) * Math.PI / 180;
-                const x = Math.cos(angle) * radius;
-                const y = Math.sin(angle) * radius;
-                
-                bubble.style.left = x + 'px';
-                bubble.style.top = y + 'px';
-                
-                // Animation décalée
-                setTimeout(() => {
-                    bubble.classList.add('show');
-                }, index * 50);
-                
-                // Ajouter le clic
-                bubble.onclick = () => handleFabAction(bubble.dataset.action);
-            });
-        }
-
-        // Fermer le menu
-        function closeFabMenu() {
-            const bubbles = document.querySelectorAll('.fab-bubble');
-            bubbles.forEach(bubble => bubble.classList.remove('show'));
-            
-            setTimeout(() => {
-                fabMenu.classList.add('hidden');
-                fabMenuOpen = false;
-            }, 300);
-        }
-
-        // Gérer les actions du menu
-        function handleFabAction(action) {
-            closeFabMenu();
-            
-            switch(action) {
-                case 'options':
-                    openSidebar();
-                    break;
-                case 'ai':
-                    // Ouvrir sidebar sur la section IA
-                    openSidebar();
-                    setTimeout(() => {
-                        document.querySelector('[id*="fatigue"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 400);
-                    break;
-                case 'suggestions':
-                    // Toggle les suggestions si elles existent
-                    const suggestionsBtn = document.querySelector('[onclick="toggleSuggestionsDropdown()"]');
-                    if (suggestionsBtn) {
-                        toggleSuggestionsDropdown();
-                    }
-                    break;
-                case 'budget':
-                    // Ouvrir sidebar sur le résumé
-                    openSidebar();
-                    setTimeout(() => {
-                        document.getElementById('cities-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 400);
-                    break;
-            }
-        }
-
-        // Initialiser au chargement
-        initFabPosition();
 
         // ========== GESTION DES ONGLETS ==========
         function switchTab(tabName) {

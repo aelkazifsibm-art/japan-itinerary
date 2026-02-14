@@ -294,4 +294,145 @@ app.post("/api/activity-info", async (req, res) => {
     }
 });
 
+// --- AJOUT RAPIDE IA ---
+app.post("/api/quick-add-activity", async (req, res) => {
+    try {
+        const { description, day_index, time_flexible, fixed_time } = req.body;
+        
+        // Analyser avec l'IA
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                {
+                    role: "system",
+                    content: `Tu es un assistant de voyage expert du Japon. Analyse la description d'activité et retourne un JSON:
+                    {
+                        "title": "Titre propre de l'activité",
+                        "description": "Description courte",
+                        "search_query": "Requête Google Places pour trouver le lieu exact",
+                        "suggested_time": "09:00"
+                    }`
+                },
+                {
+                    role: "user",
+                    content: `Activité décrite par l'utilisateur: "${description}"\n\nCrée une activité structurée.`
+                }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        const parsed = JSON.parse(completion.choices[0].message.content);
+        
+        // Rechercher le lieu sur Google Places
+        const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
+        const searchUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
+        searchUrl.searchParams.set("query", parsed.search_query);
+        searchUrl.searchParams.set("key", serverKey);
+        
+        const placesRes = await fetchJson(searchUrl.toString());
+        
+        if (!placesRes.json?.results?.[0]) {
+            return res.json({ success: false, error: "Lieu non trouvé" });
+        }
+        
+        const firstResult = placesRes.json.results[0];
+        
+        // Obtenir les détails
+        const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+        detailsUrl.searchParams.set("place_id", firstResult.place_id);
+        detailsUrl.searchParams.set("key", serverKey);
+        
+        const detailsRes = await fetchJson(detailsUrl.toString());
+        const place = detailsRes.json?.result;
+        
+        if (!place) {
+            return res.json({ success: false, error: "Détails du lieu non disponibles" });
+        }
+        
+        res.json({
+            success: true,
+            activity: {
+                title: parsed.title,
+                description: parsed.description,
+                suggested_time: time_flexible ? null : (fixed_time || parsed.suggested_time),
+                place: {
+                    place_id: place.place_id,
+                    name: place.name,
+                    formatted_address: place.formatted_address,
+                    lat: place.geometry.location.lat,
+                    lng: place.geometry.location.lng
+                }
+            }
+        });
+        
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// --- OPTIMISATION JOURNÉE ---
+app.post("/api/optimize-day", async (req, res) => {
+    try {
+        const { activities, day_index, hotel } = req.body;
+        
+        // Préparer le contexte pour l'IA
+        const activitiesContext = activities.map(a => ({
+            id: a.id,
+            title: a.title,
+            place: a.place.name,
+            current_time: a.time,
+            is_flexible: a.time_flexible || false
+        }));
+        
+        const prompt = `Tu es un expert en optimisation d'itinéraires au Japon.
+
+Activités à optimiser:
+${JSON.stringify(activitiesContext, null, 2)}
+
+${hotel ? `Hôtel: ${hotel.place.name}` : 'Pas d\'hôtel défini'}
+
+Tâches:
+1. Vérifier les horaires d'ouverture
+2. Éviter les heures d'affluence
+3. Optimiser les trajets
+4. Respecter les horaires fixes (is_flexible: false)
+5. Proposer des horaires réalistes
+
+Retourne un JSON:
+{
+    "optimized_activities": [
+        {
+            "id": 123,
+            "time": "09:00",
+            "title": "...",
+            "place": {...},
+            "reason": "Ouverture + peu de monde",
+            "time_changed": true
+        }
+    ],
+    "explanation": "Le planning a été optimisé pour..."
+}`;
+
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                { role: "system", content: "Tu es un expert en optimisation d'itinéraires au Japon." },
+                { role: "user", content: prompt }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        const result = JSON.parse(completion.choices[0].message.content);
+        
+        res.json({
+            success: true,
+            optimized_activities: result.optimized_activities,
+            explanation: result.explanation
+        });
+        
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.listen(port, () => console.log(`✅ Serveur prêt sur http://localhost:${port}`));

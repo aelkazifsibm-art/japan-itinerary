@@ -1,337 +1,414 @@
-# 🗾 My Japan Trip - Version 5.2
+# 🗾 My Japan Trip - Version 6.0 Final
 
 Application web intelligente avec IA pour planifier votre voyage au Japon.
 
-![Version](https://img.shields.io/badge/version-5.2-blue)
+![Version](https://img.shields.io/badge/version-6.0-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D18-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-## ✨ Fonctionnalités
+## 🆕 Version 6.0 - Révolution IA
 
-### 🎯 Dernières Nouveautés (v5.2)
+### ✨ Ajout Rapide Intelligent
 
-#### Bouton Flottant (FAB)
-- **Déplaçable** : Positionnez-le où vous voulez
-- **Menu en arc** : Long press → 4 options en demi-cercle
-- **Accès rapide** : Options, IA, Suggestions, Budget
+**Fini la saisie fastidieuse !**
 
-#### Organisation par Onglets
-- **🗺️ Route** : Planning et ajout d'activités
-- **🎯 IA** : Modes Fatigue & Météo (accès direct)
-- **⚙️ Config** : Paramètres et modification des dates
+```
+Vous tapez: "temple doré kyoto"
+   ↓
+IA analyse et corrige: "Kinkaku-ji Temple"
+   ↓
+Géolocalisation automatique
+   ↓
+Activité ajoutée ✅
+```
+
+**Fonctionnalités** :
+- ✅ Saisie libre avec fautes acceptées
+- ✅ Correction automatique par IA
+- ✅ Recherche Google Places automatique
+- ✅ Horaire flexible ou fixe au choix
+
+### 🤖 Optimisation Automatique
+
+**L'IA organise votre journée parfaite**
+
+**Analyse** :
+- ⏰ Horaires d'ouverture
+- 👥 Niveaux d'affluence
+- 🗺️ Distances et trajets
+- 🌦️ Conditions météo
+- 🔒 Respect des horaires fixés
+
+**Résultat** :
+```
+Planning avant:
+- Temple (flexible)
+- Skytree (flexible)  
+- Restaurant 14h (fixé)
+- Shopping (flexible)
+
+Planning après optimisation:
+✅ 06:30 Temple (lever soleil, 0 foule)
+✅ 09:00 Skytree (ouverture, peu de monde)
+✅ 14:00 Restaurant (respecté)
+✅ 18:00 Shopping (meilleur moment)
+```
+
+### 📋 Système de Planning Intelligent
+
+**2 Types d'Activités** :
+
+1. **Flexible** (⏰ jaune)
+   - Horaire défini par l'IA
+   - Optimisé automatiquement
+   - Modifiable
+
+2. **Fixé** (🔒 vert)
+   - Horaire choisi par vous
+   - Jamais modifié par l'IA
+   - Prioritaire
+
+## 🚀 Fonctionnalités Complètes
+
+### Interface Moderne
+
+#### Header à Onglets
+- **🗺️ Route** : Planning + Ajout rapide
+- **🎯 IA** : Modes Fatigue/Météo
+- **⚙️ Config** : Paramètres
 
 #### Suggestions Intelligentes
-- **Menu déroulant** : Clic pour afficher/masquer
-- **50+ activités** par ville
-- **10 villes japonaises**
+- Menu déroulant par ville
+- 50+ activités pré-configurées
+- 10 villes japonaises
 
-### 🤖 Intelligence Artificielle
-
-#### Activités Cliquables
-- **Clic sur activité** → Analyse complète :
-  - 👥 Niveau d'affluence en temps réel
-  - ⏰ Horaires recommandés (moins de foule)
-  - ⚠️ Règles à respecter
-  - 💡 Conseils personnalisés
-- **Lien Google Maps** direct
-
-#### Modes IA par Jour
-- **😴 Mode Fatigue** : Activités plus relaxantes
-- **🌦️ Adaptation Météo** : Suggestions selon la pluie
-
-### 🏨 Gestion Complète
+### Gestion Avancée
 
 #### Hébergements
-- Recherche avec Google Places
-- Prix par nuit (¥, €, $)
-- **Budget total** calculé automatiquement
-- **Trajet optimisé** depuis l'hôtel
+- Recherche automatique
+- Prix avec budget total
+- Trajet depuis l'hôtel optimisé
 
-#### Villes & Suggestions
-- 10 villes : Tokyo, Kyoto, Osaka, Nara, Hiroshima, Hakone, Nikko, Kamakura, Takayama, Kanazawa
-- 50+ suggestions d'activités pré-configurées
-- Tuiles visuelles avec émojis
+#### Activités Cliquables
+- **Clic** → Infos IA complètes
+- Affluence en temps réel
+- Horaires recommandés
+- Règles à respecter
+- Lien Google Maps
 
-### ⚡ Performance
+### Performance
 
 #### Cache Intelligent
-- **Trajets sauvegardés** : Même origine + destination = instantané
-- Badge "CACHE" sur trajets déjà calculés
-- **90% plus rapide** sur visites répétées
+- Trajets sauvegardés
+- Chargement instantané
+- 90% plus rapide
 
-#### Navigation Optimisée
-- Swipe horizontal entre jours
-- Calcul hybride : Google Places + OSRM
-- Temps de trajet réalistes
+#### Temps de Trajet
+```
+⏱️ Durée: 1h15    🏁 Arrivée: 14:30
+```
 
-## 🚀 Installation & Déploiement
+## 📱 Installation
 
 ### Prérequis
 
 - Node.js ≥ 18
 - npm ou yarn
-- 3 clés API (voir ci-dessous)
+- 3 clés API
 
 ### Installation Locale
 
 ```bash
-# 1. Cloner le repo
+# 1. Cloner
 git clone https://github.com/VOTRE_USERNAME/my-japan-trip.git
 cd my-japan-trip
 
-# 2. Installer les dépendances
+# 2. Installer
 npm install
 
-# 3. Configurer les variables d'environnement
+# 3. Configurer
 cp .env.example .env
-# Éditer .env avec vos clés API
+# Éditer .env avec vos clés
 
-# 4. Lancer l'application
+# 4. Lancer
 npm start
 
-# L'app sera disponible sur http://localhost:3000
+# → http://localhost:3000
 ```
 
-### Déploiement sur Render.com
+## 🔑 Clés API Requises
 
-#### 1. Préparer GitHub
+### OpenAI (NOUVELLE UTILISATION)
+
+**Utilisée pour** :
+- Ajout rapide (correction + analyse)
+- Optimisation du planning
+- Infos sur les activités
+
+**Obtenir** :
+1. [platform.openai.com](https://platform.openai.com)
+2. API Keys → Create new
+3. Budget : 10$/mois recommandé
+
+### Google Maps (2 clés)
+
+**Browser Key** (Frontend) :
+- Maps JavaScript API
+- Places API
+- Restriction : HTTP referrers
+
+**Server Key** (Backend) :
+- Places API  
+- Directions API
+- Pas de restriction
+
+## 🌐 Déploiement Render.com
+
+### Configuration
 
 ```bash
-git add .
-git commit -m "Initial commit"
-git push origin main
+Build Command: npm install
+Start Command: npm start
+Instance Type: Free
 ```
 
-#### 2. Configurer Render.com
-
-1. Créer un compte sur [render.com](https://render.com)
-2. **New Web Service** → Connecter votre repo GitHub
-3. Configuration :
-   - **Build Command** : `npm install`
-   - **Start Command** : `npm start`
-   - **Instance Type** : Free
-
-#### 3. Variables d'Environnement
-
-Dans Render → Environment, ajouter :
+### Variables d'Environnement
 
 ```env
-OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxx
-GOOGLE_MAPS_BROWSER_KEY=AIzaSyxxxxxxxxxxxxxxxxxx
-GOOGLE_MAPS_SERVER_KEY=AIzaSyxxxxxxxxxxxxxxxxxx
+OPENAI_API_KEY=sk-proj-xxxxx
+GOOGLE_MAPS_BROWSER_KEY=AIzaSyxxxxx
+GOOGLE_MAPS_SERVER_KEY=AIzaSyxxxxx
 ```
 
-#### 4. Déployer
+### URL
 
-Cliquer sur **"Create Web Service"**
-
-⏱️ Temps de déploiement : ~2-3 minutes
-
-✅ URL de votre app : `https://VOTRE_APP.onrender.com`
-
-## 🔑 Obtenir les Clés API
-
-### OpenAI API Key
-
-1. Aller sur [platform.openai.com](https://platform.openai.com)
-2. Créer un compte
-3. **API Keys** → **Create new secret key**
-4. Copier la clé (commence par `sk-proj-`)
-5. Budget conseillé : 5$/mois
-
-**Coût** : ~0.50$ pour 1000 analyses d'activités
-
-### Google Maps API Keys
-
-⚠️ **2 clés différentes requises**
-
-#### Clé 1 : Browser Key (Frontend)
-
-1. [Google Cloud Console](https://console.cloud.google.com)
-2. Créer un projet
-3. **APIs & Services** → **Enable APIs** :
-   - Maps JavaScript API
-   - Places API
-4. **Credentials** → **Create API Key**
-5. **Restrict Key** → **HTTP referrers**
-   - Ajouter : `*.onrender.com/*`
-   - Ajouter : `localhost:*` (pour dev local)
-
-#### Clé 2 : Server Key (Backend)
-
-1. Même projet Google Cloud
-2. **Create API Key** (nouvelle clé)
-3. **Enable APIs** :
-   - Places API
-   - Directions API
-4. **Pas de restriction** OU restriction par IP
-
-⚠️ **Activer la facturation** Google Cloud (carte requise mais reste gratuit dans les limites)
+`https://VOTRE_APP.onrender.com`
 
 ## 📊 Architecture
 
 ### Backend (Node.js + Express)
 
-```
-server.js
-├─ /api/normalize-text      → Normalisation IA des titres
-├─ /api/places/autocomplete → Suggestions de lieux
-├─ /api/places/details      → Détails d'un lieu
-├─ /api/route               → Calcul d'itinéraire hybride
-└─ /api/activity-info       → Analyse IA d'activité
-```
-
-### Frontend (HTML + Tailwind + Vanilla JS)
-
-```
-public/index.html
-├─ Header avec onglets (Route, IA, Config)
-├─ Planning (activités + trajets)
-├─ Sidebar Options (plein écran)
-├─ FAB (bouton flottant déplaçable)
-├─ Modal activités
-└─ Modal infos IA
-```
-
-### Stockage (LocalStorage - 7 clés)
+**Nouveaux Endpoints** :
 
 ```javascript
-japan_trip_info_v5         // Infos voyage (vols, dates)
-japan_trip_v5              // Activités
-japan_day_cities_v5        // Villes par jour
-japan_day_hotels_v5        // Hébergements
-japan_day_modes_v5         // Modes (Fatigue/Météo)
-japan_route_cache          // Cache des trajets
-fab_position               // Position du FAB
+POST /api/quick-add-activity
+// Analyse description libre
+// Retourne activité structurée
+
+POST /api/optimize-day  
+// Optimise planning du jour
+// Retourne proposition IA
+
+POST /api/activity-info
+// Infos détaillées lieu
+// Affluence, horaires, règles
+
+POST /api/route
+// Calcul itinéraire hybride
+// Google Places + OSRM
 ```
 
-## 🎨 Technologies
+### Frontend
 
-- **Backend** : Node.js 18+, Express 4.21
-- **IA** : OpenAI GPT-4o-mini
-- **Maps** : Google Places API + OSRM (gratuit)
-- **Frontend** : HTML5, Tailwind CSS, Vanilla JS
-- **Storage** : LocalStorage + Cache intelligent
-- **Fonts** : Google Fonts (Poppins)
+**Structure** :
+```
+index.html
+├─ Header (onglets)
+├─ Planning (activités + trajets)
+├─ Modal Ajout Rapide ✨
+├─ Modal Optimisation 🤖
+├─ Sidebar Options
+└─ Modals Infos
+```
 
-## 📱 Fonctionnalités Détaillées
+### Stockage (LocalStorage)
 
-### Interface
+```javascript
+japan_trip_v5           // Activités
+japan_day_cities_v5     // Villes
+japan_day_hotels_v5     // Hôtels
+japan_day_modes_v5      // Modes IA
+japan_route_cache       // Cache trajets
+```
 
-#### Header à Onglets
-- **Route** : Planning + Ajout activité
-- **IA** : Toggles Fatigue/Météo
-- **Config** : Paramètres
+## 🎮 Guide d'Utilisation
 
-#### Bouton Flottant (FAB)
-- Déplaçable (drag & drop)
-- Long press → Menu en arc
-- 4 raccourcis rapides
+### Scénario Complet
 
-#### Suggestions Déroulantes
-- Clic pour ouvrir/fermer
-- Économie d'espace
-- Animation fluide
+**Jour 1 : Kyoto**
 
-### Planning
+1. **Ajout Rapide**
+```
+Taper:
+- "temple doré"
+- "bambouseraie"
+- "restaurant ramen 12h30" (fixé)
+- "quartier geishas"
 
-#### Activités Intelligentes
-- **Clic** → Modal avec infos IA
-- Lien Google Maps
-- Badge "Itinéraire" + "Plus d'infos"
+→ 4 activités ajoutées en 2 min
+```
 
-#### Trajets Optimisés
-- Cache automatique
-- Calcul depuis l'hôtel
-- Temps réalistes
+2. **Optimisation**
+```
+Message: "Optimiser la journée ?"
+→ Cliquer Oui
 
-### Options (Sidebar)
+IA propose:
+✅ 06:30 Bambouseraie Arashiyama
+   💡 Lever soleil, pas de touristes
+   
+✅ 09:00 Kinkaku-ji (Temple doré)
+   💡 Ouverture, peu de foule
+   
+✅ 12:30 Restaurant Ramen
+   ✅ Respecté (fixé par vous)
+   
+✅ 18:30 Gion (Quartier geishas)
+   💡 Meilleure ambiance le soir
+```
 
-#### Organisation par Sections
-1. 📍 Ville du jour
-2. 🎯 Options intelligentes (Fatigue/Météo)
-3. 🏨 Hébergement (nom, adresse, prix)
-4. 📅 Résumé + Budget total
+3. **Validation**
+```
+Vérifier les propositions
+→ Cliquer "✅ Valider"
+→ Planning optimisé appliqué
+```
 
-#### Navigation
-- Boutons ← → (pas de swipe)
-- Pas de décalage horizontal
-- Contenu scrollable
+4. **Résultat**
+```
+Planning final:
+- Trajets calculés
+- Heures optimales
+- Budget hôtel affiché
+- Mode hors-ligne prêt
+```
 
-## 💰 Coûts Estimés
+## 💡 Astuces
 
-### Render.com
-- **Free tier** : Gratuit
-- Limites : App dort après 15 min d'inactivité
+### Ajout Ultra-Rapide
 
-### OpenAI
-- **GPT-4o-mini** : $0.150 / 1M tokens
-- Usage typique : ~5$/mois
+```
+Au lieu de remplir 5 champs:
+→ Juste écrire l'activité
+→ IA fait le reste
+```
 
-### Google Maps
-- **Free tier** : $200 crédit/mois
-- Largement suffisant usage personnel
+### Horaires Mixtes
 
-**Total** : ~5$/mois (principalement OpenAI)
+```
+Shopping flexible ✓
+Dîner 19h fixé ✓
+→ IA optimise autour du dîner
+```
+
+### Optimisation Partielle
+
+```
+Matin flexible
+14h Rendez-vous fixé
+Soir flexible
+→ IA optimise matin + soir
+```
 
 ## 🐛 Dépannage
 
-### "Missing env variables"
-→ Vérifier les 3 clés dans Render → Environment
+### "Quick add failed"
+→ Vérifier clé OpenAI + crédit
 
-### Modal infos ne s'ouvre pas
-→ Vérifier crédit OpenAI sur platform.openai.com
+### Optimisation ne se lance pas
+→ Au moins 1 activité flexible requise
 
-### Swipe ne fonctionne pas
-→ Tester sur mobile (pas desktop avec souris)
+### Activité mal géolocalisée
+→ Utiliser mode manuel + recherche précise
 
-### Trajets ne se cachent pas
-→ Vider LocalStorage : `localStorage.clear()`
+## 💰 Coûts
+
+### Render.com
+- Free : Gratuit (dort après 15min)
+- Hobby : 7$/mois (toujours actif)
+
+### OpenAI
+- Ajout rapide : ~0.01$ / activité
+- Optimisation : ~0.10$ / jour
+- **Budget** : 10$/mois confortable
+
+### Google Maps
+- Free tier : $200/mois crédit
+- Usage typique : <$5/mois
+
+**Total estimé** : 10-15$/mois
+
+## 📈 Nouveautés v6.0
+
+### Ajoutées
+- ✨ Ajout rapide IA
+- 🤖 Optimisation planning
+- ⏰ Activités flexibles/fixes
+- 📊 Affichage durée + arrivée
+- 🎯 Suggestion horaire intelligente
+- 🧹 Nettoyage interface (FAB retiré)
+
+### Améliorées
+- Modal ajout (2 modes)
+- Calcul temps de trajet
+- Gestion des horaires
+- Backend (3 endpoints)
+
+### Corrigées
+- Swipe dans Options
+- Doublons IA dans sidebar
+- Cache des trajets
+- Format temps (min + heures)
 
 ## 📄 Changelog
 
+### v6.0 (Février 2026)
+- 🚀 Ajout rapide intelligent
+- 🤖 Optimisation automatique IA
+- ⏰ Système flexible/fixe
+- 📊 Temps de trajet amélioré
+
 ### v5.2 (Février 2026)
-- ✨ Bouton flottant (FAB) déplaçable avec menu en arc
-- ✨ Header à onglets (Route, IA, Config)
-- ✨ Suggestions en menu déroulant
-- 🐛 Fix swipe dans Options (retiré)
-- 🐛 Fix overflow horizontal
+- Onglets header
+- Suggestions déroulantes
+- Fix swipe Options
 
 ### v5.1 (Février 2026)
-- ✨ Cache intelligent des trajets
-- ✨ Activités cliquables avec infos IA
-- ✨ Optimisation horaires selon affluence
-- 🐛 Fix swipe dans Options
+- Cache trajets
+- Activités cliquables
+- Infos IA détaillées
 
 ### v5.0 (Février 2026)
-- 🎉 Version initiale
-- Configuration voyage (vols)
-- 10 villes + 50+ suggestions
-- Hébergements avec budget
-- Modes Fatigue & Météo
-
-## 📝 Licence
-
-MIT License - Libre d'utilisation
+- Version initiale
+- Configuration voyage
+- 10 villes + 50 suggestions
+- Hébergements + budget
 
 ## 🤝 Contribution
 
 Les contributions sont bienvenues !
 
-1. Fork le projet
-2. Créer une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit (`git commit -m 'Add AmazingFeature'`)
-4. Push (`git push origin feature/AmazingFeature`)
-5. Ouvrir une Pull Request
+```bash
+git checkout -b feature/AmazingFeature
+git commit -m 'Add AmazingFeature'
+git push origin feature/AmazingFeature
+```
 
-## 📞 Support
+Puis ouvrir une Pull Request.
 
-Pour toute question :
-- Ouvrir une issue sur GitHub
-- Email : [votre-email]
+## 📝 Licence
+
+MIT License - Libre d'utilisation
+
+## 🙏 Remerciements
+
+- OpenAI pour GPT-4o-mini
+- Google Maps Platform
+- OSRM (Open Source Routing)
+- Tailwind CSS
 
 ---
 
 **Bon voyage au Japon !** 🗾🌸
 
-Développé avec ❤️ pour les voyageurs
+Créé avec ❤️ pour simplifier la vie des voyageurs
