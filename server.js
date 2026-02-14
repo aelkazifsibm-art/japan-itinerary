@@ -246,4 +246,52 @@ app.get("/api/health", async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- INFOS ACTIVITÉ AVEC IA ---
+app.post("/api/activity-info", async (req, res) => {
+    try {
+        const { place_name, place_address, visit_time } = req.body;
+        
+        if (!place_name) {
+            return res.status(400).json({ error: "Nom du lieu manquant" });
+        }
+
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                { 
+                    role: "system", 
+                    content: `Tu es un expert du tourisme au Japon. 
+                    Analyse le lieu demandé et fournis des informations pratiques.
+                    Format JSON strict :
+                    {
+                        "crowd_level": "low|medium|high",
+                        "best_times": ["09:00-10:00", "15:00-16:00"],
+                        "rules": ["Règle 1", "Règle 2"],
+                        "tips": "Conseil pratique pour profiter au mieux"
+                    }`
+                },
+                { 
+                    role: "user", 
+                    content: `Lieu: ${place_name}
+                    Adresse: ${place_address || 'Non spécifiée'}
+                    Heure de visite prévue: ${visit_time || 'Non spécifiée'}
+                    
+                    Donne-moi:
+                    1. Le niveau d'affluence à cette heure (low/medium/high)
+                    2. Les meilleures heures pour éviter la foule (2-3 créneaux)
+                    3. Les règles importantes à respecter (dress code, photos, comportement)
+                    4. Un conseil pratique`
+                }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        const info = JSON.parse(completion.choices[0].message.content);
+        res.json({ success: true, info });
+
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.listen(port, () => console.log(`✅ Serveur prêt sur http://localhost:${port}`));

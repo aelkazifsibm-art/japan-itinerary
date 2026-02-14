@@ -1,263 +1,210 @@
-# 🗾 My Japan Trip - Application de Planning de Voyage
+# 🗾 My Japan Trip - Application Intelligente de Planning de Voyage
 
-Application web complète pour planifier votre voyage au Japon avec intelligence artificielle.
+Application web complète avec IA pour planifier votre voyage au Japon.
 
-## 🌟 Fonctionnalités
+## 🆕 Nouvelles Fonctionnalités
 
-### ✈️ Gestion du Voyage
-- Configuration des vols (aller/retour)
-- Calcul automatique du nombre de jours
-- Navigation par jour avec swipe horizontal
+### 🎯 Activités Intelligentes (OpenAI)
+- **Clic sur activité** → Analyse complète :
+  - 👥 Niveau d'affluence à l'heure prévue
+  - ⏰ Horaires recommandés (moins de monde)
+  - ⚠️ Règles à respecter
+  - 💡 Conseils personnalisés
+- **Lien Google Maps** direct pour navigation
+- Optimisation automatique des horaires
+
+### ⚡ Performance
+- **Cache des trajets** : Les itinéraires sont sauvegardés
+- Si même origine + destination → Chargement instantané
+- Badge "CACHE" sur les trajets déjà calculés
+
+### 📱 UX Améliorée
+- **Swipe dans Options** corrigé (plus de décalage)
+- Navigation fluide entre les jours
+- Prévention du scroll horizontal indésirable
+
+## 🌟 Fonctionnalités Complètes
+
+### ✈️ Configuration Voyage
+- Formulaire de vol simplifié
+- Calcul automatique de la durée
+- Navigation par jour avec swipe
 
 ### 📍 Organisation par Ville
-- Sélection de ville par jour
-- 10 villes disponibles (Tokyo, Kyoto, Osaka, Nara, etc.)
-- Suggestions d'activités personnalisées par ville (50+ activités)
+- 10 villes japonaises
+- 50+ suggestions d'activités
+- Tuiles visuelles par ville
 
-### 🏨 Gestion des Hébergements
-- Recherche d'hôtel avec validation Google Places
-- Prix par nuit avec conversion de devises
-- Calcul du budget total
-- Optimisation des trajets depuis l'hôtel
-
-### 🎯 Options Intelligentes
-- **Mode Fatigue** : Adaptation pour des activités plus relaxantes
-- **Adaptation Météo** : Suggestions selon les conditions météo
-- Activable/désactivable par jour
-
-### 🗺️ Calcul d'Itinéraires
-- Hybride Google Places + OSRM (gratuit)
-- Calcul précis des temps de trajet
-- Stations de transit à proximité
-- Navigation optimisée
+### 🏨 Hébergements
+- Recherche avec Google Places
+- Prix + Budget total
+- Optimisation trajets depuis l'hôtel
 
 ### 🤖 Intelligence Artificielle
-- Normalisation des titres d'activités
-- Suggestions automatiques de lieux
-- Validation stricte avec Google Place ID
+- **GPT-4o-mini** pour analyse des activités
+- Normalisation des titres
+- Suggestions contextuelles
+- Optimisation horaires selon affluence
 
-## 🚀 Déploiement sur Render.com
+### 🗺️ Calcul d'Itinéraires
+- Cache intelligent
+- Google Places + OSRM
+- Temps de trajet réalistes
+- Navigation optimisée
 
-### Prérequis
-1. Compte GitHub
-2. Compte Render.com
-3. Clés API :
-   - OpenAI API Key
-   - Google Maps Browser Key
-   - Google Maps Server Key
+### 🎯 Options Intelligentes
+- Mode Fatigue (activités relaxantes)
+- Adaptation Météo
+- Configurable par jour
 
-### Étapes de Déploiement
+## 🚀 Déploiement Render.com
 
-#### 1. Créer un Repository GitHub
-```bash
-git init
-git add .
-git commit -m "Initial commit - My Japan Trip"
-git branch -M main
-git remote add origin https://github.com/VOTRE_USERNAME/my-japan-trip.git
-git push -u origin main
-```
+### Variables d'Environnement Requises
 
-#### 2. Configurer Render.com
-
-1. Connectez-vous sur [Render.com](https://render.com)
-2. Cliquez sur "New +" → "Web Service"
-3. Connectez votre repository GitHub
-4. Configuration :
-   - **Name** : `my-japan-trip`
-   - **Region** : Choisir la plus proche
-   - **Branch** : `main`
-   - **Runtime** : `Node`
-   - **Build Command** : `npm install`
-   - **Start Command** : `npm start`
-   - **Instance Type** : `Free`
-
-#### 3. Variables d'Environnement
-
-Dans Render.com, allez dans "Environment" et ajoutez :
-
-```
+```env
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxx
 GOOGLE_MAPS_BROWSER_KEY=AIzaSyxxxxxxxxxxxxxxxxxx
 GOOGLE_MAPS_SERVER_KEY=AIzaSyxxxxxxxxxxxxxxxxxx
 PORT=3000
 ```
 
-#### 4. Déployer
-Cliquez sur "Create Web Service" et attendez le déploiement (2-3 minutes).
-
-Votre app sera disponible sur : `https://my-japan-trip.onrender.com`
-
-## 🔑 Obtenir les Clés API
-
-### OpenAI API Key
-1. Allez sur [platform.openai.com](https://platform.openai.com)
-2. Créez un compte
-3. Allez dans "API Keys"
-4. Créez une nouvelle clé
-
-### Google Maps API Keys
-
-#### Google Maps Browser Key (pour le frontend)
-1. Allez sur [Google Cloud Console](https://console.cloud.google.com)
-2. Créez un projet
-3. Activez les APIs :
-   - Maps JavaScript API
-   - Places API
-4. Créez une clé API
-5. **Restrictions** : HTTP referrers (votre domaine Render)
-
-#### Google Maps Server Key (pour le backend)
-1. Même projet Google Cloud
-2. Créez une **autre** clé API
-3. Activez les APIs :
-   - Places API
-   - Directions API
-4. **Restrictions** : Aucune ou IP du serveur
-
-## 📦 Installation Locale
+### Commandes
 
 ```bash
-# 1. Cloner le projet
-git clone https://github.com/VOTRE_USERNAME/my-japan-trip.git
-cd my-japan-trip
-
-# 2. Installer les dépendances
+# Build
 npm install
 
-# 3. Configurer les variables d'environnement
-cp .env.example .env
-# Éditer .env avec vos clés
-
-# 4. Lancer l'application
+# Start
 npm start
 
-# L'app sera disponible sur http://localhost:3000
+# Dev (local)
+node server.js
 ```
 
-## 🛠️ Technologies Utilisées
+### Étapes Render.com
 
-### Backend
-- **Node.js** + Express
-- **OpenAI API** (GPT-4o-mini)
-- **Google Places API**
-- **OSRM** (calcul de distance gratuit)
+1. **New Web Service** → Connecter GitHub
+2. **Build Command** : `npm install`
+3. **Start Command** : `npm start`
+4. **Environment** : Ajouter les 3 clés API
+5. Deploy → ~2-3 minutes
 
-### Frontend
-- **HTML5** + **TailwindCSS**
-- **Vanilla JavaScript**
-- **LocalStorage** pour la persistance
-- **Google Fonts** (Poppins)
+## 🔑 APIs Utilisées
 
-## 📱 Fonctionnement
+### OpenAI API
+- **Usage** : Analyse des activités, affluence, règles
+- **Modèle** : gpt-4o-mini
+- **Endpoint** : `/api/activity-info`
 
-### Structure des Données (LocalStorage)
+### Google Maps API
+- **Browser Key** : Autocomplete, validation frontend
+- **Server Key** : Places API, calculs backend
 
+### OSRM
+- **Usage** : Calcul de distance (gratuit)
+- **Public** : router.project-osrm.org
+
+## 📊 Endpoints Backend
+
+### POST `/api/normalize-text`
+Normalise les titres d'activités via IA
+
+### POST `/api/places/autocomplete`
+Suggestions de lieux (Google Places)
+
+### POST `/api/places/details`
+Détails d'un lieu (coordonnées, adresse)
+
+### POST `/api/route`
+Calcul d'itinéraire hybride
+
+### POST `/api/activity-info` ✨ NOUVEAU
+Analyse complète d'une activité :
+```json
+{
+  "place_name": "Senso-ji Temple",
+  "place_address": "2 Chome-3-1 Asakusa, Tokyo",
+  "visit_time": "09:00"
+}
+```
+
+Retourne :
+```json
+{
+  "crowd_level": "low|medium|high",
+  "best_times": ["09:00-10:00", "15:00-16:00"],
+  "rules": ["Pas de photos flash", "Tenue respectueuse"],
+  "tips": "Arrivez tôt pour éviter la foule"
+}
+```
+
+## 💾 Cache & Performance
+
+### Cache des Trajets
 ```javascript
-// Informations de voyage
-japan_trip_info_v5 = {
-  outbound: {
-    departureDate: "2024-03-15",
-    departureTime: "08:00",
-    arrivalAirport: "NRT"
-  },
-  return: {
-    departureAirport: "KIX",
-    departureDate: "2024-03-25",
-    departureTime: "18:00"
-  },
-  totalDays: 10
-}
-
-// Activités
-japan_trip_v5 = [{
-  id: 1234567890,
-  dayIndex: 0,
-  time: "09:00",
-  title: "Temple Senso-ji",
-  description: "Visite du temple",
-  place: { place_id, name, lat, lng }
-}]
-
-// Villes par jour
-japan_day_cities_v5 = {
-  "0": "tokyo",
-  "1": "kyoto"
-}
-
-// Hôtels par jour
-japan_day_hotels_v5 = {
-  "0": {
-    name: "Hotel Gracery",
-    place: {...},
-    price: 15000,
-    currency: "JPY"
-  }
-}
-
-// Modes par jour
-japan_day_modes_v5 = {
-  "0": {
-    fatigue: false,
-    weather: true
+// Clé : "place_id_origine-place_id_destination"
+routeCache = {
+  "ChIJxxx-ChIJyyy": {
+    summary: "15 min à pied",
+    details: "Instructions...",
+    arrival: "10:15",
+    total_minutes: 15
   }
 }
 ```
+
+### LocalStorage (6 clés)
+- `japan_trip_info_v5` - Infos voyage
+- `japan_trip_v5` - Activités
+- `japan_day_cities_v5` - Villes par jour
+- `japan_day_hotels_v5` - Hôtels
+- `japan_day_modes_v5` - Modes (Fatigue/Météo)
+- `japan_route_cache` - Cache trajets
 
 ## 🎨 Interface
 
-### Écran d'accueil
-- Logo animé (splash screen 1.5s)
-- Formulaire de vol simplifié
-- Calcul automatique du nombre de jours
+### Activités Cliquables
+- **Hover** : Ombre + curseur pointer
+- **Clic** : Modal avec infos IA
+- **Badges** :
+  - 🗺️ Itinéraire (lien Google Maps)
+  - ℹ️ Plus d'infos (modal)
 
-### Header
-- Logo 🗾 My Japan Trip
-- Bouton Options (⚙️)
-- Bouton Ajouter Activité
+### Modal Informations
+- 👥 Affluence (vert/jaune/rouge)
+- ⏰ Horaires recommandés
+- ⚠️ Règles à respecter
+- 💡 Conseil personnalisé
+- 🗺️ Bouton Google Maps
 
-### Planning
-- Tuiles de suggestions par ville
-- Cartes d'activités
-- Blocs de navigation (temps de trajet)
-- Trajet depuis l'hôtel
+## 🛠️ Technologies
 
-### Options (Sidebar plein écran)
-- Sélection de ville
-- Gestion d'hébergement
-- Mode Fatigue / Météo
-- Résumé du voyage avec budget
+- **Backend** : Node.js + Express
+- **IA** : OpenAI GPT-4o-mini
+- **Maps** : Google Places API + OSRM
+- **Frontend** : HTML5 + Tailwind + Vanilla JS
+- **Storage** : LocalStorage + Cache intelligent
 
-### Navigation (Barre du bas)
-- Boutons ← →
-- Jour X/Y + Date
-- Cliquable + Swipe horizontal
+## 📱 Mobile-First
 
-## 🐛 Dépannage
+- Design responsive
+- Swipe gestures optimisés
+- Touch-friendly
+- Prévention scroll horizontal
 
-### Erreur "Missing env"
-- Vérifiez que toutes les variables d'environnement sont définies dans Render
+## 🐛 Corrections V5.1
 
-### Erreur Google Places
-- Vérifiez que les APIs sont activées dans Google Cloud Console
-- Vérifiez que la facturation est activée
-
-### L'app ne démarre pas
-- Vérifiez les logs dans Render.com
-- Vérifiez que `npm install` s'est bien exécuté
+✅ Cache des trajets implémenté
+✅ Swipe Options corrigé (pas de décalage)
+✅ Activités cliquables avec infos IA
+✅ Optimisation horaires selon affluence
+✅ Lien Google Maps direct
 
 ## 📄 Licence
 
-MIT License - Libre d'utilisation
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou une pull request.
-
-## 📞 Support
-
-Pour toute question, ouvrez une issue sur GitHub.
+MIT - Libre d'utilisation
 
 ---
 
-Bon voyage au Japon ! 🗾🌸
+**Version** : 5.1 - Intelligent Edition
+**Date** : Février 2026

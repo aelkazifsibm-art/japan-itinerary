@@ -459,6 +459,23 @@
         </div>
     </div>
 
+    <!-- MODAL INFOS ACTIVITÉ -->
+    <div id="activity-info-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start">
+                <h2 class="text-xl font-bold" id="info-modal-title">Informations</h2>
+                <button onclick="closeActivityInfoModal()" class="text-2xl text-gray-400 hover:text-gray-600">×</button>
+            </div>
+            
+            <div id="info-modal-content" class="space-y-4">
+                <div class="text-center py-8">
+                    <div class="loader mx-auto"></div>
+                    <div class="text-sm text-gray-500 mt-2">Chargement des informations...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ========== DONNÉES GLOBALES ==========
         let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
@@ -470,6 +487,7 @@
         let dayHotels = JSON.parse(localStorage.getItem('japan_day_hotels_v5') || '{}');
         let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
         let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '{}');
+        let routeCache = JSON.parse(localStorage.getItem('japan_route_cache') || '{}');
 
         // ========== BASE DE DONNÉES SUGGESTIONS ==========
         const citySuggestions = {
@@ -1084,10 +1102,25 @@
         // Swipe dans les options
         let optionsTouchStartX = 0;
         let optionsTouchEndX = 0;
+        let optionsTouchStartY = 0;
 
         document.getElementById('sidebar').addEventListener('touchstart', e => {
             optionsTouchStartX = e.changedTouches[0].screenX;
+            optionsTouchStartY = e.changedTouches[0].screenY;
         });
+
+        document.getElementById('sidebar').addEventListener('touchmove', e => {
+            // Empêcher le scroll horizontal non désiré
+            const touchMoveX = e.changedTouches[0].screenX;
+            const touchMoveY = e.changedTouches[0].screenY;
+            const diffX = Math.abs(touchMoveX - optionsTouchStartX);
+            const diffY = Math.abs(touchMoveY - optionsTouchStartY);
+            
+            // Si le mouvement est plus horizontal que vertical, empêcher le comportement par défaut
+            if (diffX > diffY && diffX > 10) {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         document.getElementById('sidebar').addEventListener('touchend', e => {
             optionsTouchEndX = e.changedTouches[0].screenX;
@@ -1348,13 +1381,25 @@
                 }
                 
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl p-5 shadow-sm border-l-4 border-primary relative";
+                card.className = "bg-white rounded-2xl p-5 shadow-sm border-l-4 border-primary relative cursor-pointer hover:shadow-lg transition-shadow";
+                card.onclick = () => showActivityInfo(act);
                 card.innerHTML = `
                     <div class="text-xs font-bold text-gray-400 mb-1">${act.time}</div>
                     <div class="text-lg font-bold text-gray-800">${act.title}</div>
                     <div class="text-sm text-gray-500 mt-1">${act.description}</div>
                     <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold">📍 ${act.place.name}</div>
-                    <button onclick="deleteActivity(${act.id})" class="absolute top-4 right-4 text-gray-300 hover:text-red-500">✕</button>
+                    <div class="mt-2 flex gap-2">
+                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}" 
+                           target="_blank" 
+                           onclick="event.stopPropagation()"
+                           class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">
+                            🗺️ Itinéraire
+                        </a>
+                        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                            ℹ️ Cliquez pour + d'infos
+                        </span>
+                    </div>
+                    <button onclick="event.stopPropagation(); deleteActivity(${act.id})" class="absolute top-4 right-4 text-gray-300 hover:text-red-500">✕</button>
                 `;
                 list.appendChild(card);
 
@@ -1373,6 +1418,29 @@
         }
 
         async function calculateNav(from, to, elementId) {
+            // Créer une clé de cache unique
+            const cacheKey = `${from.place_id}-${to.place_id}`;
+            
+            // Vérifier si on a déjà calculé ce trajet
+            if (routeCache[cacheKey]) {
+                const cached = routeCache[cacheKey];
+                const el = document.getElementById(elementId);
+                if (el) {
+                    el.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="font-bold text-sm">${cached.summary}</div>
+                            <div class="text-[10px] bg-white bg-opacity-20 px-2 py-0.5 rounded">✅ CACHE</div>
+                        </div>
+                        <div class="text-[11px] leading-relaxed opacity-90 whitespace-pre-line">${cached.details}</div>
+                        <div class="mt-2 pt-2 border-t border-white border-opacity-20 text-[10px] font-bold">
+                            ⏱️ ARRIVÉE ESTIMÉE : ${cached.arrival}
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
+            // Sinon, calculer le trajet
             try {
                 const r = await fetch('/api/route', {
                     method: 'POST',
@@ -1381,22 +1449,35 @@
                 });
                 const j = await r.json();
                 const el = document.getElementById(elementId);
+                
                 if (j.success) {
-                    el.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="font-bold text-sm">${j.summary}</div>
-                            <div class="text-[10px] bg-white bg-opacity-20 px-2 py-0.5 rounded">✅ VÉRIFIÉ</div>
-                        </div>
-                        <div class="text-[11px] leading-relaxed opacity-90 whitespace-pre-line">${j.details}</div>
-                        <div class="mt-2 pt-2 border-t border-white border-opacity-20 text-[10px] font-bold">
-                            ⏱️ ARRIVÉE ESTIMÉE : ${j.arrival}
-                        </div>
-                    `;
+                    // Sauvegarder dans le cache
+                    routeCache[cacheKey] = {
+                        summary: j.summary,
+                        details: j.details,
+                        arrival: j.arrival,
+                        total_minutes: j.total_minutes
+                    };
+                    localStorage.setItem('japan_route_cache', JSON.stringify(routeCache));
+                    
+                    if (el) {
+                        el.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="font-bold text-sm">${j.summary}</div>
+                                <div class="text-[10px] bg-white bg-opacity-20 px-2 py-0.5 rounded">✅ VÉRIFIÉ</div>
+                            </div>
+                            <div class="text-[11px] leading-relaxed opacity-90 whitespace-pre-line">${j.details}</div>
+                            <div class="mt-2 pt-2 border-t border-white border-opacity-20 text-[10px] font-bold">
+                                ⏱️ ARRIVÉE ESTIMÉE : ${j.arrival}
+                            </div>
+                        `;
+                    }
                 } else {
-                    el.innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
+                    if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
                 }
             } catch (e) {
-                el.innerHTML = `<div class="text-xs text-red-200">Erreur réseau</div>`;
+                const el = document.getElementById(elementId);
+                if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur réseau</div>`;
             }
         }
 
@@ -1404,6 +1485,129 @@
             activities = activities.filter(a => a.id !== id);
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
             renderPlanning();
+        }
+
+        // ========== MODAL INFOS ACTIVITÉ ==========
+        async function showActivityInfo(activity) {
+            const modal = document.getElementById('activity-info-modal');
+            const title = document.getElementById('info-modal-title');
+            const content = document.getElementById('info-modal-content');
+            
+            title.textContent = activity.title;
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-primary"></div>
+                    <div class="text-sm text-gray-500 mt-2">Analyse en cours...</div>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+            
+            // Appeler l'API pour obtenir les infos
+            try {
+                const response = await fetch('/api/activity-info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        place_name: activity.place.name,
+                        place_address: activity.place.formatted_address,
+                        visit_time: activity.time
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const info = data.info;
+                    
+                    // Niveau d'affluence
+                    const crowdColors = {
+                        'low': 'green',
+                        'medium': 'yellow',
+                        'high': 'red'
+                    };
+                    const crowdLabels = {
+                        'low': 'Faible affluence',
+                        'medium': 'Affluence modérée',
+                        'high': 'Forte affluence'
+                    };
+                    const crowdColor = crowdColors[info.crowd_level] || 'gray';
+                    const crowdLabel = crowdLabels[info.crowd_level] || 'Inconnue';
+                    
+                    content.innerHTML = `
+                        <!-- Affluence -->
+                        <div class="bg-${crowdColor}-50 border-2 border-${crowdColor}-200 rounded-xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">👥</span>
+                                <div class="font-bold text-${crowdColor}-700">Affluence à ${activity.time}</div>
+                            </div>
+                            <div class="text-sm text-${crowdColor}-600">${crowdLabel}</div>
+                        </div>
+                        
+                        <!-- Meilleurs horaires -->
+                        <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">⏰</span>
+                                <div class="font-bold text-blue-700">Horaires recommandés</div>
+                            </div>
+                            <div class="space-y-1">
+                                ${info.best_times.map(time => `
+                                    <div class="text-sm bg-white px-3 py-2 rounded border border-blue-100">
+                                        ${time} - Moins de monde
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <!-- Règles -->
+                        ${info.rules && info.rules.length > 0 ? `
+                        <div class="bg-orange-50 border-2 border-orange-200 rounded-xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">⚠️</span>
+                                <div class="font-bold text-orange-700">Règles à respecter</div>
+                            </div>
+                            <ul class="space-y-1 text-sm text-orange-700">
+                                ${info.rules.map(rule => `<li>• ${rule}</li>`).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                        
+                        <!-- Conseil -->
+                        <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">💡</span>
+                                <div class="font-bold text-purple-700">Conseil</div>
+                            </div>
+                            <div class="text-sm text-purple-700">${info.tips}</div>
+                        </div>
+                        
+                        <!-- Lien Google Maps -->
+                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.place.name)}&query_place_id=${activity.place.place_id}" 
+                           target="_blank"
+                           class="block w-full bg-blue-600 text-white text-center py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors">
+                            🗺️ Ouvrir dans Google Maps
+                        </a>
+                    `;
+                } else {
+                    content.innerHTML = `
+                        <div class="text-center py-8 text-red-500">
+                            <div class="text-4xl mb-2">⚠️</div>
+                            <div>Erreur lors du chargement des informations</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="text-center py-8 text-red-500">
+                        <div class="text-4xl mb-2">⚠️</div>
+                        <div>Erreur réseau</div>
+                    </div>
+                `;
+            }
+        }
+
+        function closeActivityInfoModal() {
+            document.getElementById('activity-info-modal').classList.add('hidden');
         }
 
         // ========== INITIALISATION ==========
