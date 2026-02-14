@@ -199,6 +199,9 @@
                 <button onclick="switchTab('ai')" id="tab-ai" class="tab-button flex-1 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">
                     🎯 IA
                 </button>
+                <button onclick="switchTab('budget')" id="tab-budget" class="tab-button flex-1 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">
+                    💰 Budget
+                </button>
                 <button onclick="switchTab('settings')" id="tab-settings" class="tab-button flex-1 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">
                     ⚙️ Config
                 </button>
@@ -239,6 +242,153 @@
                                 <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
                             </label>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-content-budget" class="tab-content hidden p-4 space-y-4">
+                <!-- Budget Total -->
+                <div class="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl p-4 shadow-lg">
+                    <div class="text-sm opacity-90">Budget Total</div>
+                    <div class="text-3xl font-bold" id="total-budget-display">0 €</div>
+                    <div class="text-xs opacity-75 mt-1" id="budget-per-day">0 € / jour</div>
+                </div>
+
+                <!-- Catégories de dépenses -->
+                <div class="space-y-3">
+                    <!-- Vols -->
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-2xl">✈️</span>
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800">Vols</div>
+                                <div class="text-xs text-gray-500">Aller-retour</div>
+                            </div>
+                            <input type="number" id="budget-flight" onchange="calculateBudget()" placeholder="800" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€</span>
+                        </div>
+                    </div>
+
+                    <!-- Hébergement -->
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-2xl">🏨</span>
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800">Hébergement</div>
+                                <div class="text-xs text-gray-500">Total séjour</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-green-600" id="budget-hotel-total">0 €</div>
+                                <div class="text-xs text-gray-400">Auto-calculé</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- JR Pass -->
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-2xl">🚄</span>
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800">JR Pass</div>
+                                <div class="text-xs text-gray-500">7 ou 14 jours</div>
+                            </div>
+                            <select id="budget-jrpass" onchange="calculateBudget()" class="border-2 border-gray-200 rounded-lg p-2">
+                                <option value="0">Pas de pass</option>
+                                <option value="280">7 jours (280€)</option>
+                                <option value="450">14 jours (450€)</option>
+                                <option value="570">21 jours (570€)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Transports locaux -->
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-2xl">🚇</span>
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800">Transports locaux</div>
+                                <div class="text-xs text-gray-500">Métro, bus, taxi par jour</div>
+                            </div>
+                            <input type="number" id="budget-transport" onchange="calculateBudget()" placeholder="15" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€/j</span>
+                        </div>
+                    </div>
+
+                    <!-- Repas -->
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-2xl">🍜</span>
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800">Repas</div>
+                                <div class="text-xs text-gray-500">Budget quotidien</div>
+                            </div>
+                            <select id="budget-meals" onchange="calculateBudget()" class="border-2 border-gray-200 rounded-lg p-2">
+                                <option value="25">Économique (25€/j)</option>
+                                <option value="50" selected>Moyen (50€/j)</option>
+                                <option value="80">Confort (80€/j)</option>
+                                <option value="120">Luxe (120€/j)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Activités & Visites -->
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-2xl">🎫</span>
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800">Activités & Visites</div>
+                                <div class="text-xs text-gray-500">Temples, musées, expériences</div>
+                            </div>
+                            <input type="number" id="budget-activities" onchange="calculateBudget()" placeholder="20" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€/j</span>
+                        </div>
+                    </div>
+
+                    <!-- Shopping & Souvenirs -->
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-2xl">🛍️</span>
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800">Shopping</div>
+                                <div class="text-xs text-gray-500">Souvenirs, vêtements</div>
+                            </div>
+                            <input type="number" id="budget-shopping" onchange="calculateBudget()" placeholder="30" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€/j</span>
+                        </div>
+                    </div>
+
+                    <!-- Assurance -->
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-2xl">🏥</span>
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800">Assurance voyage</div>
+                                <div class="text-xs text-gray-500">Santé, annulation</div>
+                            </div>
+                            <input type="number" id="budget-insurance" onchange="calculateBudget()" placeholder="50" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€</span>
+                        </div>
+                    </div>
+
+                    <!-- Divers -->
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-2xl">💳</span>
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800">Divers</div>
+                                <div class="text-xs text-gray-500">Imprévus, extras</div>
+                            </div>
+                            <input type="number" id="budget-misc" onchange="calculateBudget()" placeholder="100" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Résumé par catégorie -->
+                <div class="bg-gray-50 rounded-xl p-4 space-y-2">
+                    <div class="font-bold text-gray-800 mb-3">Répartition</div>
+                    <div id="budget-breakdown" class="space-y-2 text-sm">
+                        <!-- Rempli par JS -->
                     </div>
                 </div>
             </div>
@@ -420,38 +570,43 @@
 
             <!-- MODE RAPIDE (par défaut) -->
             <div id="quick-add-mode">
-                <div class="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4 mb-4">
-                    <div class="text-sm font-bold text-blue-700 mb-1">✨ Ajout Rapide IA</div>
-                    <div class="text-xs text-blue-600">L'activité est pré-remplie, vérifiez et cliquez sur "Analyser" !</div>
-                </div>
-
                 <div class="space-y-4">
                     <div>
-                        <label class="text-xs font-bold text-gray-600 uppercase block mb-2">Activité suggérée</label>
-                        <textarea 
+                        <label class="text-sm font-bold text-gray-700 block mb-2">Activité</label>
+                        <input
+                            type="text"
                             id="quick-activity-input" 
-                            placeholder="Ex: temple doré kyoto&#10;skytree tokyo&#10;restaurant ramen shibuya..."
-                            class="w-full border-2 border-gray-200 rounded-xl p-3 outline-none focus:border-primary transition-colors resize-none"
-                            rows="3"
-                        ></textarea>
-                        <div class="text-xs text-gray-500 mt-1">💡 Vous pouvez modifier ou ajouter des détails</div>
+                            placeholder="Ex: temple doré kyoto"
+                            class="w-full border-2 border-gray-200 rounded-xl p-3 outline-none focus:border-primary transition-colors text-base"
+                        />
                     </div>
 
-                    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
-                        <div class="flex items-center gap-2 mb-2">
-                            <input type="checkbox" id="time-flexible" checked class="w-4 h-4">
-                            <label for="time-flexible" class="text-sm font-bold text-gray-700">Horaire flexible (recommandé)</label>
-                        </div>
-                        <div class="text-xs text-gray-600">L'IA optimisera l'heure selon l'affluence et les horaires d'ouverture</div>
+                    <div class="flex gap-3">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="time-mode" value="flexible" checked class="sr-only peer">
+                            <div class="border-2 border-gray-200 rounded-xl p-3 peer-checked:border-primary peer-checked:bg-blue-50 transition-all text-center">
+                                <div class="text-2xl mb-1">⏰</div>
+                                <div class="text-sm font-bold">Flexible</div>
+                                <div class="text-xs text-gray-500">IA décide</div>
+                            </div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="time-mode" value="fixed" class="sr-only peer">
+                            <div class="border-2 border-gray-200 rounded-xl p-3 peer-checked:border-orange-500 peer-checked:bg-orange-50 transition-all text-center">
+                                <div class="text-2xl mb-1">🔒</div>
+                                <div class="text-sm font-bold">Fixé</div>
+                                <div class="text-xs text-gray-500">Je choisis</div>
+                            </div>
+                        </label>
                     </div>
 
                     <div id="fixed-time-section" class="hidden">
-                        <label class="text-xs font-bold text-gray-600 uppercase block mb-2">🔒 Horaire fixe</label>
-                        <input type="time" id="quick-fixed-time" class="w-full border-2 border-orange-200 rounded-xl p-3">
+                        <label class="text-sm font-bold text-gray-700 block mb-2">Heure</label>
+                        <input type="time" id="quick-fixed-time" class="w-full border-2 border-gray-200 rounded-xl p-3">
                     </div>
 
-                    <button onclick="quickAddActivity()" class="w-full bg-gradient-to-r from-primary to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">
-                        ✨ Analyser et Ajouter
+                    <button onclick="quickAddActivity()" class="w-full bg-primary text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">
+                        ✅ Ajouter
                     </button>
                 </div>
             </div>
@@ -1237,30 +1392,31 @@
             }
         }
 
-        // Toggle horaire fixe/flexible
+        // Toggle horaire fixe/flexible avec radio buttons
         document.addEventListener('DOMContentLoaded', () => {
-            const flexCheckbox = document.getElementById('time-flexible');
+            const radios = document.querySelectorAll('input[name="time-mode"]');
             const fixedSection = document.getElementById('fixed-time-section');
             
-            if (flexCheckbox) {
-                flexCheckbox.addEventListener('change', () => {
-                    if (flexCheckbox.checked) {
-                        fixedSection.classList.add('hidden');
-                    } else {
+            radios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.value === 'fixed' && radio.checked) {
                         fixedSection.classList.remove('hidden');
+                    } else {
+                        fixedSection.classList.add('hidden');
                     }
                 });
-            }
+            });
         });
 
         // ========== AJOUT RAPIDE IA ==========
         async function quickAddActivity() {
             const input = document.getElementById('quick-activity-input').value.trim();
-            const isFlexible = document.getElementById('time-flexible').checked;
+            const timeMode = document.querySelector('input[name="time-mode"]:checked').value;
+            const isFlexible = timeMode === 'flexible';
             const fixedTime = document.getElementById('quick-fixed-time').value;
             
             if (!input) {
-                alert('Veuillez décrire une activité');
+                alert('Veuillez saisir une activité');
                 return;
             }
             
@@ -1272,7 +1428,7 @@
             }
             
             const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<div class="inline-block animate-spin rounded-full h-5 w-5 border-4 border-white border-t-transparent"></div> Analyse IA...';
+            btn.innerHTML = '<div class="inline-block animate-spin rounded-full h-5 w-5 border-4 border-white border-t-transparent"></div> Analyse...';
             btn.disabled = true;
             
             try {
@@ -2018,6 +2174,135 @@
             if (fatigueToggleTab) fatigueToggleTab.checked = modes.fatigue;
             if (weatherToggleTab) weatherToggleTab.checked = modes.weather;
         }
+
+        // ========== GESTION BUDGET ==========
+        let budgetData = JSON.parse(localStorage.getItem('japan_budget_v1') || '{}');
+
+        function calculateBudget() {
+            if (!tripData) return;
+            
+            const totalDays = tripData.totalDays;
+            
+            // Récupérer toutes les valeurs
+            const flight = parseFloat(document.getElementById('budget-flight')?.value || 0);
+            const jrpass = parseFloat(document.getElementById('budget-jrpass')?.value || 0);
+            const transportPerDay = parseFloat(document.getElementById('budget-transport')?.value || 0);
+            const mealsPerDay = parseFloat(document.getElementById('budget-meals')?.value || 0);
+            const activitiesPerDay = parseFloat(document.getElementById('budget-activities')?.value || 0);
+            const shoppingPerDay = parseFloat(document.getElementById('budget-shopping')?.value || 0);
+            const insurance = parseFloat(document.getElementById('budget-insurance')?.value || 0);
+            const misc = parseFloat(document.getElementById('budget-misc')?.value || 0);
+            
+            // Calculer hébergements depuis dayHotels
+            let hotelTotal = 0;
+            Object.values(dayHotels).forEach(hotel => {
+                if (hotel && hotel.price) {
+                    let priceInEur = hotel.price;
+                    if (hotel.currency === 'JPY') priceInEur = hotel.price / 160;
+                    if (hotel.currency === 'USD') priceInEur = hotel.price * 0.92;
+                    hotelTotal += priceInEur;
+                }
+            });
+            
+            // Calculer totaux par catégorie
+            const transportTotal = (transportPerDay * totalDays);
+            const mealsTotal = (mealsPerDay * totalDays);
+            const activitiesTotal = (activitiesPerDay * totalDays);
+            const shoppingTotal = (shoppingPerDay * totalDays);
+            
+            // Total général
+            const grandTotal = flight + hotelTotal + jrpass + transportTotal + mealsTotal + activitiesTotal + shoppingTotal + insurance + misc;
+            
+            // Afficher le total
+            document.getElementById('total-budget-display').textContent = grandTotal.toFixed(0) + ' €';
+            document.getElementById('budget-per-day').textContent = (grandTotal / totalDays).toFixed(0) + ' € / jour';
+            document.getElementById('budget-hotel-total').textContent = hotelTotal.toFixed(0) + ' €';
+            
+            // Afficher le breakdown
+            const breakdown = document.getElementById('budget-breakdown');
+            if (breakdown) {
+                breakdown.innerHTML = `
+                    <div class="flex justify-between">
+                        <span>✈️ Vols</span>
+                        <span class="font-bold">${flight.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🏨 Hébergement</span>
+                        <span class="font-bold">${hotelTotal.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🚄 JR Pass</span>
+                        <span class="font-bold">${jrpass.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🚇 Transports</span>
+                        <span class="font-bold">${transportTotal.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🍜 Repas</span>
+                        <span class="font-bold">${mealsTotal.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🎫 Activités</span>
+                        <span class="font-bold">${activitiesTotal.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🛍️ Shopping</span>
+                        <span class="font-bold">${shoppingTotal.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🏥 Assurance</span>
+                        <span class="font-bold">${insurance.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>💳 Divers</span>
+                        <span class="font-bold">${misc.toFixed(0)} €</span>
+                    </div>
+                    <div class="border-t-2 border-gray-300 mt-2 pt-2 flex justify-between">
+                        <span class="font-bold">TOTAL</span>
+                        <span class="font-bold text-green-600">${grandTotal.toFixed(0)} €</span>
+                    </div>
+                `;
+            }
+            
+            // Sauvegarder
+            budgetData = {
+                flight, jrpass, transportPerDay, mealsPerDay,
+                activitiesPerDay, shoppingPerDay, insurance, misc
+            };
+            localStorage.setItem('japan_budget_v1', JSON.stringify(budgetData));
+        }
+
+        // Charger le budget sauvegardé
+        function loadBudget() {
+            if (!budgetData || Object.keys(budgetData).length === 0) return;
+            
+            if (document.getElementById('budget-flight')) {
+                document.getElementById('budget-flight').value = budgetData.flight || '';
+                document.getElementById('budget-transport').value = budgetData.transportPerDay || '';
+                document.getElementById('budget-activities').value = budgetData.activitiesPerDay || '';
+                document.getElementById('budget-shopping').value = budgetData.shoppingPerDay || '';
+                document.getElementById('budget-insurance').value = budgetData.insurance || '';
+                document.getElementById('budget-misc').value = budgetData.misc || '';
+                
+                if (budgetData.jrpass) document.getElementById('budget-jrpass').value = budgetData.jrpass;
+                if (budgetData.mealsPerDay) document.getElementById('budget-meals').value = budgetData.mealsPerDay;
+                
+                calculateBudget();
+            }
+        }
+
+        // Appeler calculateBudget quand on switch vers l'onglet budget
+        const originalSwitchTab = switchTab;
+        switchTab = function(tabName) {
+            originalSwitchTab(tabName);
+            if (tabName === 'budget') {
+                setTimeout(() => {
+                    loadBudget();
+                    calculateBudget();
+                }, 100);
+            }
+        };
 
         // ========== INITIALISATION ==========
         window.onload = function() {
