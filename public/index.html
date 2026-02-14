@@ -3,33 +3,416 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JapanRouteEngine — Planning Intelligent</title>
+    <title>My Japan Trip — Planning Intelligent</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #ff4757; --blue-nav: #3498db; }
+        :root { 
+            --primary: #ff4757; 
+            --blue-nav: #3498db; 
+            --sakura: #FFB7C5;
+            --night-blue: #1a1f36;
+        }
+        * { font-family: 'Poppins', sans-serif; }
         .bg-primary { background-color: var(--primary); }
         .text-primary { color: var(--primary); }
         .bg-nav { background-color: var(--blue-nav); }
+        .bg-sakura { background: linear-gradient(135deg, #FFB7C5 0%, #FF6B9D 100%); }
+        .bg-japan-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); }
         .suggestion-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 0.9em; }
         .suggestion-item:hover { background: #f8f9fa; color: var(--primary); }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Swipe gesture animations */
+        .swipe-container { 
+            touch-action: pan-y; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .day-indicator {
+            transition: all 0.3s ease;
+        }
+        
+        /* Welcome screen animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .animate-fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+        
+        /* Japanese aesthetic touches */
+        .torii-accent::before {
+            content: '⛩️';
+            margin-right: 8px;
+        }
+        
+        .fuji-pattern {
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(255, 183, 197, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(102, 126, 234, 0.2) 0%, transparent 50%);
+        }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen pb-20">
+<body class="bg-gray-100 min-h-screen pb-32 fuji-pattern">
 
-    <!-- HEADER -->
-    <header class="bg-white shadow-sm p-4 sticky top-0 z-50">
-        <div class="max-w-md mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold text-primary">JapanRouteEngine</h1>
-            <button onclick="openModal()" class="bg-primary text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">+ ACTIVITÉ</button>
+    <!-- SPLASH SCREEN -->
+    <div id="splash-screen" class="fixed inset-0 bg-gradient-to-br from-purple-500 via-pink-500 to-red-400 z-[300] flex items-center justify-center">
+        <div class="text-center animate-fade-in-up">
+            <div class="text-7xl mb-4 animate-pulse">🗾</div>
+            <h1 class="text-4xl font-black text-white drop-shadow-lg">My Japan Trip</h1>
+        </div>
+    </div>
+
+    <!-- ÉCRAN DE BIENVENUE / CONFIGURATION VOYAGE -->
+    <div id="welcome-screen" class="fixed inset-0 bg-white z-[200] hidden flex items-center justify-center p-4">
+        <div class="max-w-md w-full space-y-6 animate-fade-in-up">
+            <!-- Formulaire -->
+            <div class="bg-white rounded-3xl shadow-2xl p-8 space-y-5 border-2 border-gray-100">
+                <h2 class="text-xl font-bold text-gray-800 torii-accent">Informations de voyage</h2>
+                
+                <!-- VOL ALLER -->
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 space-y-3 border border-blue-100">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-2xl">🛫</span>
+                        <h3 class="text-sm font-bold text-blue-700 uppercase tracking-wide">Vol Aller</h3>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Date</label>
+                                <input type="date" id="departure-date" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors" required>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Heure</label>
+                                <input type="time" id="departure-time" value="08:00" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Aéroport d'arrivée au Japon</label>
+                            <select id="arrival-airport-japan" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors bg-white text-sm">
+                                <option value="">Sélectionnez un aéroport</option>
+                                <optgroup label="🗾 Tokyo">
+                                    <option value="NRT">Tokyo - Narita (NRT)</option>
+                                    <option value="HND">Tokyo - Haneda (HND)</option>
+                                </optgroup>
+                                <optgroup label="🏯 Osaka / Kansai">
+                                    <option value="KIX">Osaka - Kansai (KIX)</option>
+                                    <option value="ITM">Osaka - Itami (ITM)</option>
+                                </optgroup>
+                                <optgroup label="🗼 Autres villes">
+                                    <option value="NGO">Nagoya - Chūbu Centrair (NGO)</option>
+                                    <option value="FUK">Fukuoka (FUK)</option>
+                                    <option value="CTS">Sapporo - New Chitose (CTS)</option>
+                                    <option value="OKA">Naha/Okinawa (OKA)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VOL RETOUR -->
+                <div class="bg-gradient-to-br from-pink-50 to-purple-50 rounded-2xl p-5 space-y-3 border border-pink-100">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-2xl">🛬</span>
+                        <h3 class="text-sm font-bold text-pink-700 uppercase tracking-wide">Vol Retour</h3>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Aéroport de départ du Japon</label>
+                            <select id="departure-airport-japan" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors bg-white text-sm">
+                                <option value="">Sélectionnez un aéroport</option>
+                                <optgroup label="🗾 Tokyo">
+                                    <option value="NRT">Tokyo - Narita (NRT)</option>
+                                    <option value="HND">Tokyo - Haneda (HND)</option>
+                                </optgroup>
+                                <optgroup label="🏯 Osaka / Kansai">
+                                    <option value="KIX">Osaka - Kansai (KIX)</option>
+                                    <option value="ITM">Osaka - Itami (ITM)</option>
+                                </optgroup>
+                                <optgroup label="🗼 Autres villes">
+                                    <option value="NGO">Nagoya - Chūbu Centrair (NGO)</option>
+                                    <option value="FUK">Fukuoka (FUK)</option>
+                                    <option value="CTS">Sapporo - New Chitose (CTS)</option>
+                                    <option value="OKA">Naha/Okinawa (OKA)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Date</label>
+                                <input type="date" id="return-date" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors" required>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Heure</label>
+                                <input type="time" id="return-time" value="18:00" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Résumé durée -->
+                <div id="trip-summary" class="hidden bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-100">
+                    <div class="text-center">
+                        <div class="text-3xl font-black text-transparent bg-clip-text bg-japan-gradient" id="days-count">0</div>
+                        <div class="text-xs font-bold text-gray-500 uppercase">Jours au Japon</div>
+                    </div>
+                </div>
+
+                <!-- Bouton de validation -->
+                <button onclick="startTrip()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all">
+                    Commencer mon planning 🌸
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER (simplifié) -->
+    <header id="main-header" class="bg-white shadow-sm p-4 sticky top-0 z-50 hidden">
+        <div class="max-w-md mx-auto space-y-3">
+            <!-- Info voyage + Boutons -->
+            <div class="flex justify-between items-center">
+                <h1 class="text-lg font-bold text-primary flex items-center gap-2">
+                    <span class="text-2xl">🗾</span>
+                    My Japan Trip
+                </h1>
+                <div class="flex gap-2">
+                    <button onclick="openSidebar()" class="text-xl text-gray-400 hover:text-primary transition-colors">⚙️</button>
+                    <button onclick="editTrip()" class="text-xs text-gray-400 hover:text-primary transition-colors">✏️ Modifier</button>
+                </div>
+            </div>
+
+            <!-- Bouton ajouter activité -->
+            <button onclick="openModal()" class="w-full bg-primary text-white py-3 rounded-full text-sm font-bold shadow-lg hover:shadow-xl transition-all">
+                + AJOUTER UNE ACTIVITÉ
+            </button>
         </div>
     </header>
 
-    <!-- PLANNING -->
-    <main class="max-w-md mx-auto p-4 space-y-4" id="planning-list">
+    <!-- PLANNING (avec support swipe) -->
+    <main class="max-w-md mx-auto p-4 space-y-4 swipe-container hidden pb-24" id="planning-list">
         <!-- Les activités et blocs navigation seront injectés ici -->
     </main>
+
+    <!-- SIDEBAR - OPTIONS DE VOYAGE (PLEIN ÉCRAN) -->
+    <div id="sidebar" class="fixed inset-0 bg-white z-[200] transform translate-x-full transition-transform duration-300 overflow-y-auto">
+        <div class="flex flex-col h-full">
+            <!-- Header fixe -->
+            <div class="bg-white border-b sticky top-0 z-10 shadow-sm">
+                <div class="max-w-md mx-auto p-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            ⚙️ Options de voyage
+                        </h2>
+                        <button onclick="closeSidebar()" class="text-3xl text-gray-400 hover:text-primary transition-colors">×</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation des jours avec swipe -->
+            <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4">
+                <div class="max-w-md mx-auto">
+                    <div class="flex items-center justify-between text-white">
+                        <button onclick="optionsPreviousDay()" id="options-prev-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">←</button>
+                        <div class="text-center flex-1">
+                            <div class="text-xs font-bold opacity-80" id="options-day-counter">JOUR 1/1</div>
+                            <div class="text-lg font-black" id="options-day-date">Chargement...</div>
+                        </div>
+                        <button onclick="optionsNextDay()" id="options-next-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">→</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenu scrollable -->
+            <div class="flex-1 overflow-y-auto pb-20">
+                <div class="max-w-md mx-auto p-6 space-y-6">
+                    <!-- Ville du jour -->
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">📍 Ville de la journée</h3>
+                        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-5 border-2 border-purple-200">
+                            <select id="day-city-selector" onchange="handleCityChange()" class="w-full border-2 border-purple-300 rounded-xl p-4 outline-none focus:border-purple-500 transition-colors bg-white text-base font-bold shadow-sm">
+                                <option value="">Choisir une ville...</option>
+                                <option value="tokyo">🗼 Tokyo</option>
+                                <option value="kyoto">⛩️ Kyoto</option>
+                                <option value="osaka">🏯 Osaka</option>
+                                <option value="nara">🦌 Nara</option>
+                                <option value="hiroshima">☮️ Hiroshima</option>
+                                <option value="hakone">🗻 Hakone</option>
+                                <option value="nikko">🏔️ Nikko</option>
+                                <option value="kamakura">🌊 Kamakura</option>
+                                <option value="takayama">🏘️ Takayama</option>
+                                <option value="kanazawa">🎨 Kanazawa</option>
+                            </select>
+                            <div class="mt-3 text-xs text-purple-600 text-center font-bold">
+                                Swipez pour changer de jour ←→
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hôtel du jour -->
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🏨 Hébergement</h3>
+                        <div class="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-5 border-2 border-orange-200 space-y-3">
+                            <div>
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Nom de l'hôtel</label>
+                                <input 
+                                    type="text" 
+                                    id="hotel-name-input" 
+                                    placeholder="Ex: Hotel Gracery Shinjuku" 
+                                    class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors"
+                                >
+                            </div>
+
+                            <div class="relative">
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Adresse de l'hôtel</label>
+                                <input 
+                                    type="text" 
+                                    id="hotel-address-input" 
+                                    placeholder="Rechercher l'adresse..." 
+                                    class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors"
+                                    autocomplete="off"
+                                >
+                                <div id="hotel-address-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[110] border max-h-48 overflow-y-auto"></div>
+                                <div id="hotel-address-status" class="text-xs mt-1 font-bold"></div>
+                            </div>
+                            
+                            <div>
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">💰 Prix par nuit (optionnel)</label>
+                                <div class="flex gap-2">
+                                    <input 
+                                        type="number" 
+                                        id="hotel-price-input" 
+                                        placeholder="150"
+                                        class="flex-1 border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors"
+                                    >
+                                    <select id="hotel-currency-input" class="border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors bg-white">
+                                        <option value="EUR">€</option>
+                                        <option value="USD">$</option>
+                                        <option value="JPY" selected>¥</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button onclick="saveHotelInfo()" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition-colors">
+                                💾 Enregistrer l'hébergement
+                            </button>
+
+                            <!-- Affichage de l'hôtel enregistré -->
+                            <div id="hotel-display" class="hidden bg-white rounded-xl p-4 border-2 border-green-200">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="font-bold text-green-700">✅ Hébergement enregistré</div>
+                                    <button onclick="clearHotelInfo()" class="text-red-400 hover:text-red-600">✕</button>
+                                </div>
+                                <div class="text-sm text-gray-700" id="hotel-display-name"></div>
+                                <div class="text-xs text-gray-500 mt-1" id="hotel-display-address"></div>
+                                <div class="text-xs text-orange-600 font-bold mt-2" id="hotel-display-price"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Résumé des villes -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">📅 Résumé du voyage</h3>
+                            <div class="text-sm font-bold text-orange-600" id="total-budget">Total: 0¥</div>
+                        </div>
+                        <div id="cities-summary" class="space-y-2">
+                            <!-- Les villes par jour seront affichées ici -->
+                        </div>
+                    </div>
+
+                    <!-- Options intelligentes -->
+                    <div class="space-y-3 border-t pt-6">
+                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🎯 Options intelligentes</h3>
+                        
+                        <!-- Mode Fatigue -->
+                        <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border-2 border-blue-200">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl">😴</span>
+                                    <div>
+                                        <div class="font-bold text-blue-700">Mode Fatigue</div>
+                                        <div class="text-xs text-blue-600">Activités plus relaxantes</div>
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="fatigue-mode-toggle" onchange="toggleFatigueMode()" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                            <div id="fatigue-status" class="text-xs text-gray-500">
+                                Désactivé
+                            </div>
+                        </div>
+
+                        <!-- Adaptation Météo -->
+                        <div class="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-4 border-2 border-sky-200">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl">🌦️</span>
+                                    <div>
+                                        <div class="font-bold text-sky-700">Adaptation Météo</div>
+                                        <div class="text-xs text-sky-600">Ajuste selon la pluie</div>
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="weather-mode-toggle" onchange="toggleWeatherMode()" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                                </label>
+                            </div>
+                            <div id="weather-info" class="text-xs text-gray-500">
+                                Désactivé
+                            </div>
+                        </div>
+
+                        <!-- Export PDF -->
+                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <div class="font-bold text-gray-700 flex items-center gap-2">
+                                📤 Export PDF
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">Prochainement disponible</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bouton de validation en bas -->
+            <div class="bg-white border-t p-4 sticky bottom-0">
+                <div class="max-w-md mx-auto">
+                    <button onclick="closeSidebar()" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all">
+                        Valider et retourner au planning
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NAVIGATION DES JOURS (en bas, fixe) -->
+    <div id="day-navigation" class="fixed bottom-0 left-0 right-0 bg-white shadow-2xl z-50 hidden border-t-2 border-gray-100">
+        <div class="max-w-md mx-auto">
+            <div class="flex items-center justify-between bg-gradient-to-r from-purple-500 to-pink-500 p-4 text-white">
+                <button onclick="previousDay()" id="prev-day-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">←</button>
+                <div class="text-center flex-1 cursor-pointer" onclick="showDayPicker()">
+                    <div class="text-xs font-bold opacity-80" id="day-counter">JOUR 1/1</div>
+                    <div class="text-lg font-black" id="current-day-date">Chargement...</div>
+                </div>
+                <button onclick="nextDay()" id="next-day-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">→</button>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL AJOUT ACTIVITÉ -->
     <div id="activity-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden flex items-center justify-center p-4">
@@ -77,10 +460,682 @@
     </div>
 
     <script>
-        let activities = JSON.parse(localStorage.getItem('japan_trip_v4') || '[]');
+        // ========== DONNÉES GLOBALES ==========
+        let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
+        let tripData = JSON.parse(localStorage.getItem('japan_trip_info_v5') || 'null');
+        let currentDayIndex = 0;
         let selectedPlace = null;
         let iaSuggestedLocation = "";
+        let dayCities = JSON.parse(localStorage.getItem('japan_day_cities_v5') || '{}');
+        let dayHotels = JSON.parse(localStorage.getItem('japan_day_hotels_v5') || '{}');
+        let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
+        let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '{}');
 
+        // ========== BASE DE DONNÉES SUGGESTIONS ==========
+        const citySuggestions = {
+            tokyo: [
+                { name: "Senso-ji Temple", query: "Senso-ji Temple, Asakusa, Tokyo, Japan", emoji: "⛩️", image: "🏮" },
+                { name: "Shibuya Crossing", query: "Shibuya Crossing, Tokyo, Japan", emoji: "🚶", image: "🌆" },
+                { name: "Tokyo Skytree", query: "Tokyo Skytree, Tokyo, Japan", emoji: "🗼", image: "🌃" },
+                { name: "Meiji Shrine", query: "Meiji Shrine, Harajuku, Tokyo, Japan", emoji: "⛩️", image: "🌲" },
+                { name: "Tsukiji Market", query: "Tsukiji Outer Market, Tokyo, Japan", emoji: "🐟", image: "🍣" },
+                { name: "Akihabara", query: "Akihabara Electric Town, Tokyo, Japan", emoji: "🎮", image: "⚡" }
+            ],
+            kyoto: [
+                { name: "Fushimi Inari", query: "Fushimi Inari Shrine, Kyoto, Japan", emoji: "⛩️", image: "🦊" },
+                { name: "Kinkaku-ji", query: "Kinkaku-ji Golden Pavilion, Kyoto, Japan", emoji: "🏯", image: "✨" },
+                { name: "Arashiyama Bamboo", query: "Arashiyama Bamboo Grove, Kyoto, Japan", emoji: "🎋", image: "🌿" },
+                { name: "Gion District", query: "Gion District, Kyoto, Japan", emoji: "👘", image: "🏮" },
+                { name: "Kiyomizu-dera", query: "Kiyomizu-dera Temple, Kyoto, Japan", emoji: "⛩️", image: "🏔️" },
+                { name: "Nishiki Market", query: "Nishiki Market, Kyoto, Japan", emoji: "🍜", image: "🥢" }
+            ],
+            osaka: [
+                { name: "Osaka Castle", query: "Osaka Castle, Osaka, Japan", emoji: "🏯", image: "🌸" },
+                { name: "Dotonbori", query: "Dotonbori, Osaka, Japan", emoji: "🍜", image: "🏮" },
+                { name: "Shinsekai", query: "Shinsekai District, Osaka, Japan", emoji: "🗼", image: "🎡" },
+                { name: "Sumiyoshi Taisha", query: "Sumiyoshi Taisha Shrine, Osaka, Japan", emoji: "⛩️", image: "🌊" },
+                { name: "Kuromon Market", query: "Kuromon Ichiba Market, Osaka, Japan", emoji: "🦞", image: "🍢" },
+                { name: "Umeda Sky Building", query: "Umeda Sky Building, Osaka, Japan", emoji: "🏙️", image: "🌃" }
+            ],
+            nara: [
+                { name: "Nara Park Deer", query: "Nara Park, Nara, Japan", emoji: "🦌", image: "🌳" },
+                { name: "Todai-ji Temple", query: "Todai-ji Temple, Nara, Japan", emoji: "🏛️", image: "🗿" },
+                { name: "Kasuga Taisha", query: "Kasuga Taisha Shrine, Nara, Japan", emoji: "⛩️", image: "🏮" },
+                { name: "Naramachi", query: "Naramachi District, Nara, Japan", emoji: "🏘️", image: "🏮" }
+            ],
+            hiroshima: [
+                { name: "Peace Memorial Park", query: "Hiroshima Peace Memorial Park, Hiroshima, Japan", emoji: "☮️", image: "🕊️" },
+                { name: "Miyajima Island", query: "Itsukushima Shrine, Miyajima, Japan", emoji: "⛩️", image: "🌊" },
+                { name: "Hiroshima Castle", query: "Hiroshima Castle, Hiroshima, Japan", emoji: "🏯", image: "🌸" },
+                { name: "Shukkeien Garden", query: "Shukkeien Garden, Hiroshima, Japan", emoji: "🌸", image: "🏞️" }
+            ],
+            hakone: [
+                { name: "Lake Ashi", query: "Lake Ashi, Hakone, Japan", emoji: "🚢", image: "🗻" },
+                { name: "Hakone Shrine", query: "Hakone Shrine, Hakone, Japan", emoji: "⛩️", image: "🌊" },
+                { name: "Owakudani", query: "Owakudani Valley, Hakone, Japan", emoji: "🌋", image: "♨️" },
+                { name: "Hakone Ropeway", query: "Hakone Ropeway, Hakone, Japan", emoji: "🚡", image: "🏔️" }
+            ],
+            nikko: [
+                { name: "Toshogu Shrine", query: "Nikko Toshogu Shrine, Nikko, Japan", emoji: "⛩️", image: "🏮" },
+                { name: "Lake Chuzenji", query: "Lake Chuzenji, Nikko, Japan", emoji: "🏞️", image: "🍂" },
+                { name: "Kegon Falls", query: "Kegon Falls, Nikko, Japan", emoji: "💧", image: "🌊" },
+                { name: "Shinkyo Bridge", query: "Shinkyo Bridge, Nikko, Japan", emoji: "🌉", image: "🍁" }
+            ],
+            kamakura: [
+                { name: "Great Buddha", query: "Kotoku-in Temple Great Buddha, Kamakura, Japan", emoji: "🗿", image: "☸️" },
+                { name: "Hasedera Temple", query: "Hasedera Temple, Kamakura, Japan", emoji: "⛩️", image: "🌸" },
+                { name: "Tsurugaoka Hachimangu", query: "Tsurugaoka Hachimangu Shrine, Kamakura, Japan", emoji: "⛩️", image: "🌳" },
+                { name: "Enoshima Island", query: "Enoshima Island, Kamakura, Japan", emoji: "🏝️", image: "🌊" }
+            ],
+            takayama: [
+                { name: "Old Town", query: "Sanmachi Suji Old Town, Takayama, Japan", emoji: "🏘️", image: "🏮" },
+                { name: "Morning Markets", query: "Takayama Morning Markets, Takayama, Japan", emoji: "🛒", image: "🥬" },
+                { name: "Takayama Jinya", query: "Takayama Jinya, Takayama, Japan", emoji: "🏛️", image: "🏯" },
+                { name: "Higashiyama Trail", query: "Higashiyama Walking Course, Takayama, Japan", emoji: "🥾", image: "⛩️" }
+            ],
+            kanazawa: [
+                { name: "Kenrokuen Garden", query: "Kenrokuen Garden, Kanazawa, Japan", emoji: "🌸", image: "🏞️" },
+                { name: "Higashi Chaya", query: "Higashi Chaya District, Kanazawa, Japan", emoji: "🏮", image: "👘" },
+                { name: "Kanazawa Castle", query: "Kanazawa Castle, Kanazawa, Japan", emoji: "🏯", image: "🌸" },
+                { name: "Omicho Market", query: "Omicho Market, Kanazawa, Japan", emoji: "🦀", image: "🍣" }
+            ]
+        };
+
+        // ========== GESTION DU VOYAGE ==========
+        function calculateDays() {
+            const depDate = document.getElementById('departure-date').value;
+            const retDate = document.getElementById('return-date').value;
+            
+            if (depDate && retDate) {
+                const start = new Date(depDate);
+                const end = new Date(retDate);
+                const diffTime = Math.abs(end - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                
+                document.getElementById('days-count').textContent = diffDays;
+                document.getElementById('trip-summary').classList.remove('hidden');
+                return diffDays;
+            }
+            return 0;
+        }
+
+        document.getElementById('departure-date').addEventListener('change', calculateDays);
+        document.getElementById('return-date').addEventListener('change', calculateDays);
+
+        function startTrip() {
+            const depDate = document.getElementById('departure-date').value;
+            const depTime = document.getElementById('departure-time').value;
+            const arrAirportJapan = document.getElementById('arrival-airport-japan').value;
+            
+            const depAirportJapan = document.getElementById('departure-airport-japan').value;
+            const retDate = document.getElementById('return-date').value;
+            const retTime = document.getElementById('return-time').value;
+
+            if (!depDate || !retDate) {
+                alert('Veuillez renseigner les dates de départ et de retour.');
+                return;
+            }
+
+            if (!arrAirportJapan) {
+                alert('Veuillez sélectionner l\'aéroport d\'arrivée au Japon.');
+                return;
+            }
+
+            if (!depAirportJapan) {
+                alert('Veuillez sélectionner l\'aéroport de départ du Japon.');
+                return;
+            }
+
+            const start = new Date(depDate);
+            const end = new Date(retDate);
+            if (start >= end) {
+                alert('La date de retour doit être après la date de départ.');
+                return;
+            }
+
+            tripData = {
+                outbound: {
+                    departureDate: depDate,
+                    departureTime: depTime,
+                    arrivalAirport: arrAirportJapan
+                },
+                return: {
+                    departureAirport: depAirportJapan,
+                    departureDate: retDate,
+                    departureTime: retTime
+                },
+                totalDays: calculateDays()
+            };
+
+            localStorage.setItem('japan_trip_info_v5', JSON.stringify(tripData));
+            
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('main-header').classList.remove('hidden');
+            document.getElementById('planning-list').classList.remove('hidden');
+            document.getElementById('day-navigation').classList.remove('hidden');
+            
+            updateDayNavigation();
+            updateCitySelector();
+            renderPlanning();
+        }
+
+        function editTrip() {
+            document.getElementById('welcome-screen').classList.remove('hidden');
+            document.getElementById('departure-date').value = tripData.outbound.departureDate;
+            document.getElementById('departure-time').value = tripData.outbound.departureTime;
+            document.getElementById('arrival-airport-japan').value = tripData.outbound.arrivalAirport;
+            
+            document.getElementById('departure-airport-japan').value = tripData.return.departureAirport;
+            document.getElementById('return-date').value = tripData.return.departureDate;
+            document.getElementById('return-time').value = tripData.return.departureTime;
+            
+            calculateDays();
+        }
+
+        // ========== NAVIGATION PAR JOUR ==========
+        function getDayDate(dayIndex) {
+            if (!tripData) return null;
+            const startDate = new Date(tripData.outbound.departureDate);
+            const dayDate = new Date(startDate);
+            dayDate.setDate(startDate.getDate() + dayIndex);
+            return dayDate;
+        }
+
+        function formatDate(date) {
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            return date.toLocaleDateString('fr-FR', options);
+        }
+
+        function updateDayNavigation() {
+            if (!tripData) return;
+            
+            const dayDate = getDayDate(currentDayIndex);
+            document.getElementById('day-counter').textContent = `JOUR ${currentDayIndex + 1}/${tripData.totalDays}`;
+            document.getElementById('current-day-date').textContent = formatDate(dayDate);
+            
+            document.getElementById('prev-day-btn').disabled = currentDayIndex === 0;
+            document.getElementById('next-day-btn').disabled = currentDayIndex === tripData.totalDays - 1;
+            
+            document.getElementById('prev-day-btn').style.opacity = currentDayIndex === 0 ? '0.3' : '1';
+            document.getElementById('next-day-btn').style.opacity = currentDayIndex === tripData.totalDays - 1 ? '0.3' : '1';
+        }
+
+        function previousDay() {
+            if (currentDayIndex > 0) {
+                currentDayIndex--;
+                updateDayNavigation();
+                updateCitySelector();
+                renderPlanning();
+            }
+        }
+
+        function nextDay() {
+            if (currentDayIndex < tripData.totalDays - 1) {
+                currentDayIndex++;
+                updateDayNavigation();
+                updateCitySelector();
+                renderPlanning();
+            }
+        }
+
+        function showDayPicker() {
+            // Zone centrale cliquable - pour future amélioration
+            // Pour l'instant, ne fait rien, mais la zone reste cliquable
+        }
+
+        // ========== GESTION DES VILLES ET SUGGESTIONS ==========
+        let optionsCurrentDay = 0;
+
+        // ========== GESTION DES HÔTELS ==========
+        let hotelAddressTimer = null;
+        let validatedHotelPlace = null;
+
+        function initHotelListeners() {
+            const addressInput = document.getElementById('hotel-address-input');
+            const addressList = document.getElementById('hotel-address-suggestions');
+            
+            if (!addressInput || addressInput.dataset.initialized) return;
+            addressInput.dataset.initialized = 'true';
+
+            addressInput.addEventListener('input', () => {
+                clearTimeout(hotelAddressTimer);
+                const query = addressInput.value.trim();
+                
+                if (query.length < 3) {
+                    addressList.classList.add('hidden');
+                    return;
+                }
+                
+                hotelAddressTimer = setTimeout(async () => {
+                    try {
+                        const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}`);
+                        const j = await r.json();
+                        addressList.innerHTML = '';
+                        
+                        if (j.predictions?.length > 0) {
+                            addressList.classList.remove('hidden');
+                            j.predictions.slice(0, 5).forEach(p => {
+                                const div = document.createElement('div');
+                                div.className = 'suggestion-item';
+                                div.textContent = p.description;
+                                div.onclick = () => validateHotelAddress(p.place_id);
+                                addressList.appendChild(div);
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Erreur autocomplete:', e);
+                    }
+                }, 300);
+            });
+        }
+
+        async function validateHotelAddress(placeId) {
+            try {
+                const r = await fetch(`/api/places/details?place_id=${placeId}`);
+                const j = await r.json();
+                
+                if (j.ok) {
+                    validatedHotelPlace = j.place;
+                    const addressInput = document.getElementById('hotel-address-input');
+                    const addressList = document.getElementById('hotel-address-suggestions');
+                    const statusDiv = document.getElementById('hotel-address-status');
+                    
+                    addressInput.value = j.place.formatted_address;
+                    addressList.classList.add('hidden');
+                    statusDiv.innerHTML = `<span class="text-green-600">✅ Adresse validée</span>`;
+                }
+            } catch (e) {
+                console.error('Erreur validation:', e);
+            }
+        }
+
+        function saveHotelInfo() {
+            const hotelName = document.getElementById('hotel-name-input').value.trim();
+            const price = document.getElementById('hotel-price-input').value;
+            const currency = document.getElementById('hotel-currency-input').value;
+            
+            if (!hotelName) {
+                alert('Veuillez saisir le nom de l\'hôtel');
+                return;
+            }
+            
+            if (!validatedHotelPlace) {
+                alert('Veuillez valider l\'adresse de l\'hôtel via les suggestions');
+                return;
+            }
+            
+            // Sauvegarder l'hôtel pour le jour actuel
+            dayHotels[optionsCurrentDay] = {
+                name: hotelName,
+                place: validatedHotelPlace,
+                price: price ? parseFloat(price) : null,
+                currency: currency
+            };
+            
+            localStorage.setItem('japan_day_hotels_v5', JSON.stringify(dayHotels));
+            
+            // Afficher l'hôtel enregistré
+            displaySavedHotel();
+            updateCitiesSummary();
+            
+            alert('✅ Hébergement enregistré pour le Jour ' + (optionsCurrentDay + 1));
+        }
+
+        function displaySavedHotel() {
+            const hotel = dayHotels[optionsCurrentDay];
+            
+            if (hotel) {
+                document.getElementById('hotel-display-name').textContent = hotel.name;
+                document.getElementById('hotel-display-address').textContent = hotel.place.formatted_address;
+                
+                const priceStr = hotel.price ? `${hotel.price} ${hotel.currency}` : 'Prix non défini';
+                document.getElementById('hotel-display-price').textContent = priceStr;
+                
+                document.getElementById('hotel-display').classList.remove('hidden');
+            } else {
+                document.getElementById('hotel-display').classList.add('hidden');
+            }
+        }
+
+        function clearHotelInfo() {
+            delete dayHotels[optionsCurrentDay];
+            localStorage.setItem('japan_day_hotels_v5', JSON.stringify(dayHotels));
+            
+            document.getElementById('hotel-name-input').value = '';
+            document.getElementById('hotel-address-input').value = '';
+            document.getElementById('hotel-price-input').value = '';
+            document.getElementById('hotel-currency-input').value = 'JPY';
+            document.getElementById('hotel-address-status').innerHTML = '';
+            document.getElementById('hotel-display').classList.add('hidden');
+            
+            validatedHotelPlace = null;
+            updateCitiesSummary();
+        }
+
+        function loadHotelForDay() {
+            const hotel = dayHotels[optionsCurrentDay];
+            
+            if (hotel) {
+                document.getElementById('hotel-name-input').value = hotel.name || '';
+                document.getElementById('hotel-address-input').value = hotel.place.formatted_address || '';
+                document.getElementById('hotel-price-input').value = hotel.price || '';
+                document.getElementById('hotel-currency-input').value = hotel.currency || 'JPY';
+                document.getElementById('hotel-address-status').innerHTML = `<span class="text-green-600">✅ Adresse validée</span>`;
+                
+                validatedHotelPlace = hotel.place;
+                displaySavedHotel();
+            } else {
+                document.getElementById('hotel-name-input').value = '';
+                document.getElementById('hotel-address-input').value = '';
+                document.getElementById('hotel-price-input').value = '';
+                document.getElementById('hotel-currency-input').value = 'JPY';
+                document.getElementById('hotel-address-status').innerHTML = '';
+                document.getElementById('hotel-display').classList.add('hidden');
+                
+                validatedHotelPlace = null;
+            }
+        }
+
+        function openSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            
+            // Synchroniser avec le jour actuel du planning
+            optionsCurrentDay = currentDayIndex;
+            
+            // Mettre à jour l'affichage
+            updateOptionsDayInfo();
+            updateCitiesSummary();
+            
+            // Initialiser les listeners d'hôtel
+            setTimeout(() => {
+                initHotelListeners();
+            }, 100);
+            
+            setTimeout(() => {
+                sidebar.style.transform = 'translateX(0)';
+            }, 10);
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            
+            sidebar.style.transform = 'translateX(100%)';
+            
+            // Synchroniser le planning avec le jour actuel des options
+            if (currentDayIndex !== optionsCurrentDay) {
+                currentDayIndex = optionsCurrentDay;
+                updateDayNavigation();
+                renderPlanning();
+            }
+        }
+
+        // ========== GESTION MODE FATIGUE ==========
+        async function toggleFatigueMode() {
+            const toggle = document.getElementById('fatigue-mode-toggle');
+            const status = document.getElementById('fatigue-status');
+            
+            if (!dayModes[optionsCurrentDay]) {
+                dayModes[optionsCurrentDay] = { fatigue: false, weather: false };
+            }
+            
+            dayModes[optionsCurrentDay].fatigue = toggle.checked;
+            localStorage.setItem('japan_day_modes_v5', JSON.stringify(dayModes));
+            
+            if (toggle.checked) {
+                status.innerHTML = '<span class="text-blue-600 font-bold">✅ Mode activé - Planning adapté</span>';
+                alert('💡 Mode Fatigue activé!\n\nLes activités trop fatigantes seront identifiées.\nUtilisez les suggestions pour les remplacer par des alternatives plus relaxantes.');
+            } else {
+                status.innerHTML = '<span class="text-gray-600">Désactivé</span>';
+            }
+            
+            renderPlanning();
+        }
+
+        // ========== GESTION ADAPTATION MÉTÉO ==========
+        async function toggleWeatherMode() {
+            const toggle = document.getElementById('weather-mode-toggle');
+            const info = document.getElementById('weather-info');
+            
+            if (!dayModes[optionsCurrentDay]) {
+                dayModes[optionsCurrentDay] = { fatigue: false, weather: false };
+            }
+            
+            dayModes[optionsCurrentDay].weather = toggle.checked;
+            localStorage.setItem('japan_day_modes_v5', JSON.stringify(dayModes));
+            
+            if (toggle.checked) {
+                info.innerHTML = '<span class="text-sky-600 font-bold">✅ Mode activé</span>';
+                alert('🌦️ Adaptation Météo activée!\n\nLes activités seront adaptées selon les conditions météorologiques.\nEn cas de pluie, des alternatives intérieures seront suggérées.');
+            } else {
+                info.innerHTML = '<span class="text-gray-600">Désactivé</span>';
+            }
+            
+            renderPlanning();
+        }
+
+        function loadModesForDay() {
+            const modes = dayModes[optionsCurrentDay] || { fatigue: false, weather: false };
+            
+            const fatigueToggle = document.getElementById('fatigue-mode-toggle');
+            const weatherToggle = document.getElementById('weather-mode-toggle');
+            
+            if (fatigueToggle) fatigueToggle.checked = modes.fatigue;
+            if (weatherToggle) weatherToggle.checked = modes.weather;
+            
+            // Mettre à jour les statuts
+            const fatigueStatus = document.getElementById('fatigue-status');
+            const weatherInfo = document.getElementById('weather-info');
+            
+            if (fatigueStatus) {
+                fatigueStatus.innerHTML = modes.fatigue ? 
+                    '<span class="text-green-600 font-bold">✅ Mode activé</span>' : 
+                    '<span class="text-gray-600">Désactivé</span>';
+            }
+            
+            if (weatherInfo) {
+                weatherInfo.innerHTML = modes.weather ? 
+                    '<span class="text-sky-600 font-bold">✅ Mode activé</span>' : 
+                    '<span class="text-gray-600">Désactivé</span>';
+            }
+        }
+
+        function updateOptionsDayInfo() {
+            if (!tripData) return;
+            
+            const dayDate = getDayDate(optionsCurrentDay);
+            document.getElementById('options-day-counter').textContent = `JOUR ${optionsCurrentDay + 1}/${tripData.totalDays}`;
+            document.getElementById('options-day-date').textContent = formatDate(dayDate);
+            
+            // Mettre à jour les boutons
+            document.getElementById('options-prev-btn').disabled = optionsCurrentDay === 0;
+            document.getElementById('options-next-btn').disabled = optionsCurrentDay === tripData.totalDays - 1;
+            
+            document.getElementById('options-prev-btn').style.opacity = optionsCurrentDay === 0 ? '0.3' : '1';
+            document.getElementById('options-next-btn').style.opacity = optionsCurrentDay === tripData.totalDays - 1 ? '0.3' : '1';
+            
+            // Mettre à jour le sélecteur de ville
+            const citySelector = document.getElementById('day-city-selector');
+            const savedCity = dayCities[optionsCurrentDay];
+            citySelector.value = savedCity || '';
+            
+            // Charger l'hôtel du jour
+            loadHotelForDay();
+            
+            // Charger les modes du jour
+            loadModesForDay();
+        }
+
+        function optionsPreviousDay() {
+            if (optionsCurrentDay > 0) {
+                optionsCurrentDay--;
+                updateOptionsDayInfo();
+                updateCitiesSummary();
+            }
+        }
+
+        function optionsNextDay() {
+            if (optionsCurrentDay < tripData.totalDays - 1) {
+                optionsCurrentDay++;
+                updateOptionsDayInfo();
+                updateCitiesSummary();
+            }
+        }
+
+        function handleCityChange() {
+            const citySelector = document.getElementById('day-city-selector');
+            const selectedCity = citySelector.value;
+            
+            // Sauvegarder la ville pour le jour actuel des options
+            dayCities[optionsCurrentDay] = selectedCity;
+            localStorage.setItem('japan_day_cities_v5', JSON.stringify(dayCities));
+            
+            // Mettre à jour le résumé
+            updateCitiesSummary();
+        }
+
+        function updateCitiesSummary() {
+            if (!tripData) return;
+            
+            const summary = document.getElementById('cities-summary');
+            summary.innerHTML = '';
+            
+            let totalBudget = 0;
+            
+            for (let i = 0; i < tripData.totalDays; i++) {
+                const city = dayCities[i];
+                const hotel = dayHotels[i];
+                const dayDate = getDayDate(i);
+                const dateStr = dayDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                
+                const item = document.createElement('div');
+                item.className = `rounded-xl p-3 border-2 ${i === optionsCurrentDay ? 'bg-purple-100 border-purple-300' : 'bg-gray-50 border-gray-200'}`;
+                
+                const cityName = city ? city.charAt(0).toUpperCase() + city.slice(1) : 'Non définie';
+                const emoji = getCityEmoji(city);
+                
+                let hotelInfo = '<div class="text-xs text-gray-400 mt-1">Pas d\'hébergement</div>';
+                if (hotel) {
+                    const priceStr = hotel.price ? `${hotel.price}${hotel.currency}` : 'Prix non défini';
+                    hotelInfo = `<div class="text-xs text-gray-600 mt-1">🏨 ${hotel.name}</div><div class="text-xs text-orange-600 font-bold">${priceStr}</div>`;
+                    
+                    if (hotel.price) {
+                        // Convertir tout en JPY pour le total
+                        if (hotel.currency === 'EUR') totalBudget += hotel.price * 160;
+                        else if (hotel.currency === 'USD') totalBudget += hotel.price * 145;
+                        else totalBudget += hotel.price;
+                    }
+                }
+                
+                item.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-bold text-sm">Jour ${i + 1} - ${dateStr}</div>
+                            <div class="text-sm mt-1">${emoji} ${cityName}</div>
+                            ${hotelInfo}
+                        </div>
+                    </div>
+                `;
+                summary.appendChild(item);
+            }
+            
+            // Afficher le budget total
+            document.getElementById('total-budget').textContent = `Total hébergement: ${Math.round(totalBudget).toLocaleString()}¥`;
+        }
+
+        function getCityEmoji(city) {
+            const emojis = {
+                'tokyo': '🗼',
+                'kyoto': '⛩️',
+                'osaka': '🏯',
+                'nara': '🦌',
+                'hiroshima': '☮️',
+                'hakone': '🗻',
+                'nikko': '🏔️',
+                'kamakura': '🌊',
+                'takayama': '🏘️',
+                'kanazawa': '🎨'
+            };
+            return emojis[city] || '📍';
+        }
+
+        function addSuggestionToModal(suggestion) {
+            // Ouvrir le modal
+            openModal();
+            
+            // Pré-remplir avec la suggestion
+            document.getElementById('modal-title-raw').value = suggestion.name;
+            document.getElementById('modal-dest-search').value = suggestion.query;
+            
+            // Trigger autocomplete
+            triggerAutocomplete(suggestion.query);
+        }
+
+        function updateCitySelector() {
+            const citySelector = document.getElementById('day-city-selector');
+            const savedCity = dayCities[currentDayIndex];
+            
+            if (savedCity) {
+                citySelector.value = savedCity;
+            } else {
+                citySelector.value = '';
+            }
+        }
+
+        // Swipe dans les options
+        let optionsTouchStartX = 0;
+        let optionsTouchEndX = 0;
+
+        document.getElementById('sidebar').addEventListener('touchstart', e => {
+            optionsTouchStartX = e.changedTouches[0].screenX;
+        });
+
+        document.getElementById('sidebar').addEventListener('touchend', e => {
+            optionsTouchEndX = e.changedTouches[0].screenX;
+            handleOptionsSwipe();
+        });
+
+        function handleOptionsSwipe() {
+            const swipeThreshold = 50;
+            const diff = optionsTouchStartX - optionsTouchEndX;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) {
+                    // Swipe left - jour suivant
+                    optionsNextDay();
+                } else {
+                    // Swipe right - jour précédent
+                    optionsPreviousDay();
+                }
+            }
+        }
+
+        // ========== SWIPE GESTURE ==========
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchStartX - touchEndX;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) {
+                    nextDay();
+                } else {
+                    previousDay();
+                }
+            }
+        }
+
+        document.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+
+        document.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+
+        // ========== MODAL ACTIVITÉ ==========
         function openModal() {
             document.getElementById('activity-modal').classList.remove('hidden');
             resetModal();
@@ -100,7 +1155,7 @@
             selectedPlace = null;
         }
 
-        // 1️⃣ PHASE IA : NORMALISATION
+        // ========== PHASE IA : NORMALISATION ==========
         async function normalizeText() {
             const text = document.getElementById('modal-title-raw').value;
             if (!text) return;
@@ -130,7 +1185,7 @@
             document.getElementById('ia-suggestions').classList.add('hidden');
         }
 
-        // 2️⃣ PHASE VALIDATION GOOGLE
+        // ========== PHASE VALIDATION GOOGLE ==========
         const destInput = document.getElementById('modal-dest-search');
         const destList = document.getElementById('dest-suggestions');
         let autoTimer = null;
@@ -169,12 +1224,13 @@
             }
         }
 
-        // 3️⃣ ENREGISTREMENT & PLANNING
+        // ========== ENREGISTREMENT & PLANNING ==========
         function saveActivity() {
             if (!selectedPlace) return alert("Veuillez valider une destination via les suggestions Google.");
             
             const activity = {
                 id: Date.now(),
+                dayIndex: currentDayIndex,
                 time: document.getElementById('modal-time').value,
                 title: document.getElementById('modal-title-raw').value,
                 description: document.getElementById('modal-desc').value,
@@ -182,8 +1238,11 @@
             };
 
             activities.push(activity);
-            activities.sort((a, b) => a.time.localeCompare(b.time));
-            localStorage.setItem('japan_trip_v4', JSON.stringify(activities));
+            activities.sort((a, b) => {
+                if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                return a.time.localeCompare(b.time);
+            });
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
             closeModal();
             renderPlanning();
         }
@@ -192,10 +1251,102 @@
             const list = document.getElementById('planning-list');
             list.innerHTML = '';
 
-            for (let i = 0; i < activities.length; i++) {
-                const act = activities[i];
+            const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
+            const selectedCity = dayCities[currentDayIndex];
+            const modes = dayModes[currentDayIndex] || { fatigue: false, weather: false };
+
+            // Afficher les alertes de modes actifs
+            if (modes.fatigue || modes.weather) {
+                const modeAlert = document.createElement('div');
+                modeAlert.className = "mb-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-4 border-2 border-yellow-200";
+                let modeText = '';
                 
-                // Carte Activité
+                if (modes.fatigue) {
+                    modeText += '<div class="flex items-center gap-2 mb-2"><span class="text-xl">😴</span><span class="font-bold text-blue-700">Mode Fatigue activé</span></div>';
+                    modeText += '<div class="text-xs text-blue-600">Les activités trop intenses sont signalées. Prenez votre temps !</div>';
+                }
+                
+                if (modes.weather) {
+                    if (modes.fatigue) modeText += '<div class="h-2"></div>';
+                    modeText += '<div class="flex items-center gap-2 mb-2"><span class="text-xl">🌦️</span><span class="font-bold text-sky-700">Adaptation Météo active</span></div>';
+                    modeText += '<div class="text-xs text-sky-600">Activités adaptées selon les conditions météo.</div>';
+                }
+                
+                modeAlert.innerHTML = modeText;
+                list.appendChild(modeAlert);
+            }
+
+            // Afficher les suggestions si une ville est choisie
+            if (selectedCity && citySuggestions[selectedCity]) {
+                const suggestionsContainer = document.createElement('div');
+                suggestionsContainer.className = "mb-6";
+                suggestionsContainer.innerHTML = `
+                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border-2 border-purple-100">
+                        <h3 class="text-sm font-bold text-purple-700 mb-3 flex items-center gap-2">
+                            💡 Suggestions pour ${selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}
+                            ${modes.fatigue ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Mode chill</span>' : ''}
+                        </h3>
+                        <div class="grid grid-cols-2 gap-3" id="planning-suggestions-grid"></div>
+                    </div>
+                `;
+                list.appendChild(suggestionsContainer);
+
+                const grid = document.getElementById('planning-suggestions-grid');
+                citySuggestions[selectedCity].forEach(suggestion => {
+                    const tile = document.createElement('div');
+                    tile.className = "bg-white rounded-xl p-3 border-2 border-purple-100 cursor-pointer hover:border-primary hover:shadow-lg transition-all active:scale-95";
+                    tile.onclick = () => addSuggestionToModal(suggestion);
+                    tile.innerHTML = `
+                        <div class="text-4xl mb-2 text-center">${suggestion.image}</div>
+                        <div class="text-xs font-bold text-gray-800 text-center leading-tight">${suggestion.emoji} ${suggestion.name}</div>
+                    `;
+                    grid.appendChild(tile);
+                });
+            }
+
+            if (dayActivities.length === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.className = "text-center py-16 text-gray-400";
+                emptyState.innerHTML = `
+                    <div class="text-6xl mb-4">📅</div>
+                    <div class="text-lg font-bold">Aucune activité prévue</div>
+                    <div class="text-sm mt-2">Ajoutez votre première activité pour ce jour</div>
+                    ${!selectedCity ? '<div class="text-xs mt-4 text-purple-600">💡 Ouvrez les options (⚙️) pour choisir une ville et voir des suggestions</div>' : ''}
+                `;
+                list.appendChild(emptyState);
+                return;
+            }
+
+            for (let i = 0; i < dayActivities.length; i++) {
+                const act = dayActivities[i];
+                
+                // Si c'est la première activité ET qu'il y a un hôtel, ajouter le trajet hôtel → activité
+                if (i === 0 && dayHotels[currentDayIndex]) {
+                    const hotel = dayHotels[currentDayIndex];
+                    const hotelNavId = `nav-hotel-${act.id}`;
+                    const hotelCard = document.createElement('div');
+                    hotelCard.className = "bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-4 border-2 border-orange-200 mb-4";
+                    hotelCard.innerHTML = `
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="text-2xl">🏨</div>
+                            <div>
+                                <div class="font-bold text-sm">${hotel.place.name}</div>
+                                <div class="text-xs text-gray-600">Point de départ</div>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(hotelCard);
+                    
+                    // Bloc navigation hôtel → première activité
+                    const hotelNavBlock = document.createElement('div');
+                    hotelNavBlock.id = hotelNavId;
+                    hotelNavBlock.className = "bg-orange-500 text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md mb-4";
+                    hotelNavBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet depuis l'hôtel...</div>`;
+                    list.appendChild(hotelNavBlock);
+                    
+                    calculateNav(hotel.place, act.place, hotelNavId);
+                }
+                
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-2xl p-5 shadow-sm border-l-4 border-primary relative";
                 card.innerHTML = `
@@ -207,9 +1358,8 @@
                 `;
                 list.appendChild(card);
 
-                // Bloc Navigation (si activité suivante)
-                if (i < activities.length - 1) {
-                    const nextAct = activities[i+1];
+                if (i < dayActivities.length - 1) {
+                    const nextAct = dayActivities[i+1];
                     const navId = `nav-${act.id}-${nextAct.id}`;
                     const navBlock = document.createElement('div');
                     navBlock.id = navId;
@@ -243,20 +1393,43 @@
                         </div>
                     `;
                 } else {
-                    document.getElementById(elementId).innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
+                    el.innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
                 }
             } catch (e) {
-                document.getElementById(elementId).innerHTML = `<div class="text-xs text-red-200">Erreur réseau</div>`;
+                el.innerHTML = `<div class="text-xs text-red-200">Erreur réseau</div>`;
             }
         }
 
         function deleteActivity(id) {
             activities = activities.filter(a => a.id !== id);
-            localStorage.setItem('japan_trip_v4', JSON.stringify(activities));
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
             renderPlanning();
         }
 
-        window.onload = renderPlanning;
+        // ========== INITIALISATION ==========
+        window.onload = function() {
+            // Splash screen pendant 1.5 secondes
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                splash.classList.add('animate-fade-out');
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                    
+                    if (tripData) {
+                        // Si voyage déjà configuré, afficher directement le planning
+                        document.getElementById('main-header').classList.remove('hidden');
+                        document.getElementById('planning-list').classList.remove('hidden');
+                        document.getElementById('day-navigation').classList.remove('hidden');
+                        updateDayNavigation();
+                        updateCitySelector();
+                        renderPlanning();
+                    } else {
+                        // Sinon afficher l'écran de bienvenue
+                        document.getElementById('welcome-screen').classList.remove('hidden');
+                    }
+                }, 500);
+            }, 1500);
+        };
     </script>
 </body>
 </html>
