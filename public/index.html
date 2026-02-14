@@ -49,6 +49,28 @@
         .animate-fade-out {
             animation: fadeOut 0.5s ease-out forwards;
         }
+
+        /* FAB Menu Arc Animation */
+        .fab-bubble {
+            position: absolute;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        .fab-bubble.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        #fab-button.pulsing {
+            animation: pulse 0.5s ease-in-out;
+        }
         
         /* Japanese aesthetic touches */
         .torii-accent::before {
@@ -181,24 +203,76 @@
     </div>
 
     <!-- HEADER (simplifié) -->
-    <header id="main-header" class="bg-white shadow-sm p-4 sticky top-0 z-50 hidden">
-        <div class="max-w-md mx-auto space-y-3">
-            <!-- Info voyage + Boutons -->
-            <div class="flex justify-between items-center">
+    <header id="main-header" class="bg-white shadow-sm sticky top-0 z-50 hidden">
+        <div class="max-w-md mx-auto">
+            <!-- Logo -->
+            <div class="p-4 pb-2 flex justify-center items-center">
                 <h1 class="text-lg font-bold text-primary flex items-center gap-2">
                     <span class="text-2xl">🗾</span>
                     My Japan Trip
                 </h1>
-                <div class="flex gap-2">
-                    <button onclick="openSidebar()" class="text-xl text-gray-400 hover:text-primary transition-colors">⚙️</button>
-                    <button onclick="editTrip()" class="text-xs text-gray-400 hover:text-primary transition-colors">✏️ Modifier</button>
+            </div>
+
+            <!-- Onglets -->
+            <div class="flex border-b border-gray-200">
+                <button onclick="switchTab('route')" id="tab-route" class="tab-button flex-1 py-3 text-sm font-bold border-b-2 border-primary text-primary">
+                    🗺️ Route
+                </button>
+                <button onclick="switchTab('ai')" id="tab-ai" class="tab-button flex-1 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">
+                    🎯 IA
+                </button>
+                <button onclick="switchTab('settings')" id="tab-settings" class="tab-button flex-1 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">
+                    ⚙️ Config
+                </button>
+            </div>
+
+            <!-- Contenu des onglets -->
+            <div id="tab-content-route" class="tab-content p-4">
+                <button onclick="openModal()" class="w-full bg-primary text-white py-3 rounded-full text-sm font-bold shadow-lg hover:shadow-xl transition-all">
+                    + AJOUTER UNE ACTIVITÉ
+                </button>
+            </div>
+
+            <div id="tab-content-ai" class="tab-content hidden p-4">
+                <div class="space-y-3">
+                    <!-- Mode Fatigue -->
+                    <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-3 border border-blue-200">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xl">😴</span>
+                                <div class="text-sm font-bold text-blue-700">Mode Fatigue</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="fatigue-toggle-tab" onchange="toggleFatigueModeTab()" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Adaptation Météo -->
+                    <div class="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-3 border border-sky-200">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xl">🌦️</span>
+                                <div class="text-sm font-bold text-sky-700">Météo</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="weather-toggle-tab" onchange="toggleWeatherModeTab()" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Bouton ajouter activité -->
-            <button onclick="openModal()" class="w-full bg-primary text-white py-3 rounded-full text-sm font-bold shadow-lg hover:shadow-xl transition-all">
-                + AJOUTER UNE ACTIVITÉ
-            </button>
+            <div id="tab-content-settings" class="tab-content hidden p-4 space-y-3">
+                <button onclick="editTrip()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+                    ✏️ Modifier les dates
+                </button>
+                <button onclick="openSidebar()" class="w-full bg-purple-100 text-purple-700 py-3 rounded-xl font-bold hover:bg-purple-200 transition-all flex items-center justify-center gap-2">
+                    ⚙️ Options complètes
+                </button>
+            </div>
         </div>
     </header>
 
@@ -208,8 +282,8 @@
     </main>
 
     <!-- SIDEBAR - OPTIONS DE VOYAGE (PLEIN ÉCRAN) -->
-    <div id="sidebar" class="fixed inset-0 bg-white z-[200] transform translate-x-full transition-transform duration-300 overflow-y-auto">
-        <div class="flex flex-col h-full">
+    <div id="sidebar" class="fixed inset-0 bg-white z-[200] transform translate-x-full transition-transform duration-300 overflow-hidden">
+        <div class="flex flex-col h-full w-full max-w-full overflow-hidden">
             <!-- Header fixe -->
             <div class="bg-white border-b sticky top-0 z-10 shadow-sm">
                 <div class="max-w-md mx-auto p-4">
@@ -256,14 +330,56 @@
                                 <option value="takayama">🏘️ Takayama</option>
                                 <option value="kanazawa">🎨 Kanazawa</option>
                             </select>
-                            <div class="mt-3 text-xs text-purple-600 text-center font-bold">
-                                Swipez pour changer de jour ←→
+                        </div>
+                    </div>
+
+                    <!-- Options intelligentes -->
+                    <div class="space-y-3 border-t-4 border-gray-200 pt-6">
+                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🎯 Options intelligentes</h3>
+                        
+                        <!-- Mode Fatigue -->
+                        <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border-2 border-blue-200">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl">😴</span>
+                                    <div>
+                                        <div class="font-bold text-blue-700">Mode Fatigue</div>
+                                        <div class="text-xs text-blue-600">Activités plus relaxantes</div>
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="fatigue-mode-toggle" onchange="toggleFatigueMode()" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                            <div id="fatigue-status" class="text-xs text-gray-500">
+                                Désactivé
+                            </div>
+                        </div>
+
+                        <!-- Adaptation Météo -->
+                        <div class="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-4 border-2 border-sky-200">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl">🌦️</span>
+                                    <div>
+                                        <div class="font-bold text-sky-700">Adaptation Météo</div>
+                                        <div class="text-xs text-sky-600">Ajuste selon la pluie</div>
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="weather-mode-toggle" onchange="toggleWeatherMode()" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                                </label>
+                            </div>
+                            <div id="weather-info" class="text-xs text-gray-500">
+                                Désactivé
                             </div>
                         </div>
                     </div>
 
                     <!-- Hôtel du jour -->
-                    <div class="space-y-3">
+                    <div class="space-y-3 border-t-4 border-gray-200 pt-6">
                         <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🏨 Hébergement</h3>
                         <div class="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-5 border-2 border-orange-200 space-y-3">
                             <div>
@@ -324,66 +440,13 @@
                     </div>
 
                     <!-- Résumé des villes -->
-                    <div class="space-y-3">
+                    <div class="space-y-3 border-t-4 border-gray-200 pt-6">
                         <div class="flex justify-between items-center">
                             <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">📅 Résumé du voyage</h3>
                             <div class="text-sm font-bold text-orange-600" id="total-budget">Total: 0¥</div>
                         </div>
                         <div id="cities-summary" class="space-y-2">
                             <!-- Les villes par jour seront affichées ici -->
-                        </div>
-                    </div>
-
-                    <!-- Options intelligentes -->
-                    <div class="space-y-3 border-t pt-6">
-                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🎯 Options intelligentes</h3>
-                        
-                        <!-- Mode Fatigue -->
-                        <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border-2 border-blue-200">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-2xl">😴</span>
-                                    <div>
-                                        <div class="font-bold text-blue-700">Mode Fatigue</div>
-                                        <div class="text-xs text-blue-600">Activités plus relaxantes</div>
-                                    </div>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="fatigue-mode-toggle" onchange="toggleFatigueMode()" class="sr-only peer">
-                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                </label>
-                            </div>
-                            <div id="fatigue-status" class="text-xs text-gray-500">
-                                Désactivé
-                            </div>
-                        </div>
-
-                        <!-- Adaptation Météo -->
-                        <div class="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-4 border-2 border-sky-200">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-2xl">🌦️</span>
-                                    <div>
-                                        <div class="font-bold text-sky-700">Adaptation Météo</div>
-                                        <div class="text-xs text-sky-600">Ajuste selon la pluie</div>
-                                    </div>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="weather-mode-toggle" onchange="toggleWeatherMode()" class="sr-only peer">
-                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
-                                </label>
-                            </div>
-                            <div id="weather-info" class="text-xs text-gray-500">
-                                Désactivé
-                            </div>
-                        </div>
-
-                        <!-- Export PDF -->
-                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                            <div class="font-bold text-gray-700 flex items-center gap-2">
-                                📤 Export PDF
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">Prochainement disponible</div>
                         </div>
                     </div>
                 </div>
@@ -472,6 +535,48 @@
                     <div class="loader mx-auto"></div>
                     <div class="text-sm text-gray-500 mt-2">Chargement des informations...</div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOUTON FLOTTANT (FAB) -->
+    <div id="fab-button" class="fixed bottom-20 right-6 w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-2xl flex items-center justify-center text-2xl cursor-move z-[90] transition-all hover:scale-110 active:scale-95">
+        🎯
+    </div>
+
+    <!-- MENU RADIAL EN ARC -->
+    <div id="fab-menu" class="fixed hidden z-[85]">
+        <div class="relative">
+            <!-- Backdrop -->
+            <div id="fab-backdrop" class="fixed inset-0 bg-black bg-opacity-30 -z-10" onclick="closeFabMenu()"></div>
+            
+            <!-- Bulles du menu -->
+            <div id="fab-bubble-1" class="fab-bubble" data-action="options">
+                <div class="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-transform cursor-pointer">
+                    ⚙️
+                </div>
+                <div class="text-xs font-bold text-white mt-1 text-center whitespace-nowrap">Options</div>
+            </div>
+            
+            <div id="fab-bubble-2" class="fab-bubble" data-action="ai">
+                <div class="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-transform cursor-pointer">
+                    🤖
+                </div>
+                <div class="text-xs font-bold text-white mt-1 text-center whitespace-nowrap">Modes IA</div>
+            </div>
+            
+            <div id="fab-bubble-3" class="fab-bubble" data-action="suggestions">
+                <div class="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-transform cursor-pointer">
+                    💡
+                </div>
+                <div class="text-xs font-bold text-white mt-1 text-center whitespace-nowrap">Suggestions</div>
+            </div>
+            
+            <div id="fab-bubble-4" class="fab-bubble" data-action="budget">
+                <div class="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-transform cursor-pointer">
+                    💰
+                </div>
+                <div class="text-xs font-bold text-white mt-1 text-center whitespace-nowrap">Budget</div>
             </div>
         </div>
     </div>
@@ -676,6 +781,9 @@
             
             document.getElementById('prev-day-btn').style.opacity = currentDayIndex === 0 ? '0.3' : '1';
             document.getElementById('next-day-btn').style.opacity = currentDayIndex === tripData.totalDays - 1 ? '0.3' : '1';
+            
+            // Synchroniser les toggles des onglets
+            syncTabToggles();
         }
 
         function previousDay() {
@@ -1099,50 +1207,7 @@
             }
         }
 
-        // Swipe dans les options
-        let optionsTouchStartX = 0;
-        let optionsTouchEndX = 0;
-        let optionsTouchStartY = 0;
-
-        document.getElementById('sidebar').addEventListener('touchstart', e => {
-            optionsTouchStartX = e.changedTouches[0].screenX;
-            optionsTouchStartY = e.changedTouches[0].screenY;
-        });
-
-        document.getElementById('sidebar').addEventListener('touchmove', e => {
-            // Empêcher le scroll horizontal non désiré
-            const touchMoveX = e.changedTouches[0].screenX;
-            const touchMoveY = e.changedTouches[0].screenY;
-            const diffX = Math.abs(touchMoveX - optionsTouchStartX);
-            const diffY = Math.abs(touchMoveY - optionsTouchStartY);
-            
-            // Si le mouvement est plus horizontal que vertical, empêcher le comportement par défaut
-            if (diffX > diffY && diffX > 10) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        document.getElementById('sidebar').addEventListener('touchend', e => {
-            optionsTouchEndX = e.changedTouches[0].screenX;
-            handleOptionsSwipe();
-        });
-
-        function handleOptionsSwipe() {
-            const swipeThreshold = 50;
-            const diff = optionsTouchStartX - optionsTouchEndX;
-            
-            if (Math.abs(diff) > swipeThreshold) {
-                if (diff > 0) {
-                    // Swipe left - jour suivant
-                    optionsNextDay();
-                } else {
-                    // Swipe right - jour précédent
-                    optionsPreviousDay();
-                }
-            }
-        }
-
-        // ========== SWIPE GESTURE ==========
+        // ========== SWIPE GESTURE (Planning uniquement) ==========
         let touchStartX = 0;
         let touchEndX = 0;
 
@@ -1314,12 +1379,20 @@
                 const suggestionsContainer = document.createElement('div');
                 suggestionsContainer.className = "mb-6";
                 suggestionsContainer.innerHTML = `
-                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border-2 border-purple-100">
-                        <h3 class="text-sm font-bold text-purple-700 mb-3 flex items-center gap-2">
-                            💡 Suggestions pour ${selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}
-                            ${modes.fatigue ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Mode chill</span>' : ''}
-                        </h3>
-                        <div class="grid grid-cols-2 gap-3" id="planning-suggestions-grid"></div>
+                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-100 overflow-hidden">
+                        <button onclick="toggleSuggestionsDropdown()" class="w-full p-4 flex justify-between items-center hover:bg-purple-100 transition-colors">
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl">💡</span>
+                                <div>
+                                    <div class="text-sm font-bold text-purple-700">Suggestions pour ${selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}</div>
+                                    <div class="text-xs text-purple-600">${citySuggestions[selectedCity].length} activités disponibles</div>
+                                </div>
+                            </div>
+                            <span id="suggestions-arrow" class="text-2xl text-purple-700 transition-transform">▼</span>
+                        </button>
+                        <div id="suggestions-dropdown" class="hidden bg-white p-4 border-t-2 border-purple-100">
+                            <div class="grid grid-cols-2 gap-3" id="planning-suggestions-grid"></div>
+                        </div>
                     </div>
                 `;
                 list.appendChild(suggestionsContainer);
@@ -1608,6 +1681,241 @@
 
         function closeActivityInfoModal() {
             document.getElementById('activity-info-modal').classList.add('hidden');
+        }
+
+        function toggleSuggestionsDropdown() {
+            const dropdown = document.getElementById('suggestions-dropdown');
+            const arrow = document.getElementById('suggestions-arrow');
+            
+            if (dropdown.classList.contains('hidden')) {
+                dropdown.classList.remove('hidden');
+                arrow.style.transform = 'rotate(180deg)';
+            } else {
+                dropdown.classList.add('hidden');
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        // ========== BOUTON FLOTTANT (FAB) ==========
+        let fabPosition = JSON.parse(localStorage.getItem('fab_position') || '{"x": null, "y": null}');
+        let isDraggingFab = false;
+        let fabStartX, fabStartY, fabCurrentX, fabCurrentY;
+        let longPressTimer = null;
+        let fabMenuOpen = false;
+
+        const fab = document.getElementById('fab-button');
+        const fabMenu = document.getElementById('fab-menu');
+
+        // Initialiser la position du FAB
+        function initFabPosition() {
+            if (fabPosition.x && fabPosition.y) {
+                fab.style.left = fabPosition.x + 'px';
+                fab.style.top = fabPosition.y + 'px';
+                fab.style.right = 'auto';
+                fab.style.bottom = 'auto';
+            }
+        }
+
+        // Touch events pour le drag
+        fab.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            fabStartX = touch.clientX - fab.offsetLeft;
+            fabStartY = touch.clientY - fab.offsetTop;
+            
+            // Long press pour ouvrir le menu
+            longPressTimer = setTimeout(() => {
+                if (!isDraggingFab) {
+                    openFabMenu();
+                    fab.classList.add('pulsing');
+                    setTimeout(() => fab.classList.remove('pulsing'), 500);
+                }
+            }, 500);
+        });
+
+        fab.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            isDraggingFab = true;
+            clearTimeout(longPressTimer);
+            
+            const touch = e.touches[0];
+            fabCurrentX = touch.clientX - fabStartX;
+            fabCurrentY = touch.clientY - fabStartY;
+            
+            // Garder dans les limites de l'écran
+            const maxX = window.innerWidth - fab.offsetWidth;
+            const maxY = window.innerHeight - fab.offsetHeight;
+            
+            fabCurrentX = Math.max(0, Math.min(fabCurrentX, maxX));
+            fabCurrentY = Math.max(0, Math.min(fabCurrentY, maxY));
+            
+            fab.style.left = fabCurrentX + 'px';
+            fab.style.top = fabCurrentY + 'px';
+            fab.style.right = 'auto';
+            fab.style.bottom = 'auto';
+        });
+
+        fab.addEventListener('touchend', (e) => {
+            clearTimeout(longPressTimer);
+            
+            if (isDraggingFab) {
+                // Sauvegarder la position
+                fabPosition = { x: fabCurrentX, y: fabCurrentY };
+                localStorage.setItem('fab_position', JSON.stringify(fabPosition));
+                isDraggingFab = false;
+            } else if (!fabMenuOpen) {
+                // Clic simple → Ouvrir options
+                openSidebar();
+            }
+        });
+
+        // Ouvrir le menu en arc
+        function openFabMenu() {
+            if (fabMenuOpen) return;
+            fabMenuOpen = true;
+            
+            const fabRect = fab.getBoundingClientRect();
+            const centerX = fabRect.left + fabRect.width / 2;
+            const centerY = fabRect.top + fabRect.height / 2;
+            
+            fabMenu.classList.remove('hidden');
+            fabMenu.style.left = centerX + 'px';
+            fabMenu.style.top = centerY + 'px';
+            
+            // Positionner les bulles en arc au-dessus
+            const radius = 100;
+            const startAngle = -150; // Début à gauche
+            const endAngle = -30;    // Fin à droite
+            const bubbles = [
+                document.getElementById('fab-bubble-1'),
+                document.getElementById('fab-bubble-2'),
+                document.getElementById('fab-bubble-3'),
+                document.getElementById('fab-bubble-4')
+            ];
+            
+            const angleStep = (endAngle - startAngle) / (bubbles.length - 1);
+            
+            bubbles.forEach((bubble, index) => {
+                const angle = (startAngle + angleStep * index) * Math.PI / 180;
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+                
+                bubble.style.left = x + 'px';
+                bubble.style.top = y + 'px';
+                
+                // Animation décalée
+                setTimeout(() => {
+                    bubble.classList.add('show');
+                }, index * 50);
+                
+                // Ajouter le clic
+                bubble.onclick = () => handleFabAction(bubble.dataset.action);
+            });
+        }
+
+        // Fermer le menu
+        function closeFabMenu() {
+            const bubbles = document.querySelectorAll('.fab-bubble');
+            bubbles.forEach(bubble => bubble.classList.remove('show'));
+            
+            setTimeout(() => {
+                fabMenu.classList.add('hidden');
+                fabMenuOpen = false;
+            }, 300);
+        }
+
+        // Gérer les actions du menu
+        function handleFabAction(action) {
+            closeFabMenu();
+            
+            switch(action) {
+                case 'options':
+                    openSidebar();
+                    break;
+                case 'ai':
+                    // Ouvrir sidebar sur la section IA
+                    openSidebar();
+                    setTimeout(() => {
+                        document.querySelector('[id*="fatigue"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 400);
+                    break;
+                case 'suggestions':
+                    // Toggle les suggestions si elles existent
+                    const suggestionsBtn = document.querySelector('[onclick="toggleSuggestionsDropdown()"]');
+                    if (suggestionsBtn) {
+                        toggleSuggestionsDropdown();
+                    }
+                    break;
+                case 'budget':
+                    // Ouvrir sidebar sur le résumé
+                    openSidebar();
+                    setTimeout(() => {
+                        document.getElementById('cities-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 400);
+                    break;
+            }
+        }
+
+        // Initialiser au chargement
+        initFabPosition();
+
+        // ========== GESTION DES ONGLETS ==========
+        function switchTab(tabName) {
+            // Cacher tous les contenus
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Désactiver tous les onglets
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('border-primary', 'text-primary');
+                button.classList.add('border-transparent', 'text-gray-400');
+            });
+            
+            // Activer l'onglet sélectionné
+            const activeTab = document.getElementById(`tab-${tabName}`);
+            const activeContent = document.getElementById(`tab-content-${tabName}`);
+            
+            if (activeTab && activeContent) {
+                activeTab.classList.remove('border-transparent', 'text-gray-400');
+                activeTab.classList.add('border-primary', 'text-primary');
+                activeContent.classList.remove('hidden');
+            }
+        }
+
+        // Synchroniser les toggles IA entre header et sidebar
+        function toggleFatigueModeTab() {
+            const toggle = document.getElementById('fatigue-toggle-tab');
+            const sidebarToggle = document.getElementById('fatigue-mode-toggle');
+            
+            if (sidebarToggle) {
+                sidebarToggle.checked = toggle.checked;
+            }
+            
+            // Appeler la fonction du mode fatigue
+            toggleFatigueMode();
+        }
+
+        function toggleWeatherModeTab() {
+            const toggle = document.getElementById('weather-toggle-tab');
+            const sidebarToggle = document.getElementById('weather-mode-toggle');
+            
+            if (sidebarToggle) {
+                sidebarToggle.checked = toggle.checked;
+            }
+            
+            // Appeler la fonction de la météo
+            toggleWeatherMode();
+        }
+
+        // Synchroniser l'état des toggles au changement de jour
+        function syncTabToggles() {
+            const modes = dayModes[currentDayIndex] || { fatigue: false, weather: false };
+            
+            const fatigueToggleTab = document.getElementById('fatigue-toggle-tab');
+            const weatherToggleTab = document.getElementById('weather-toggle-tab');
+            
+            if (fatigueToggleTab) fatigueToggleTab.checked = modes.fatigue;
+            if (weatherToggleTab) weatherToggleTab.checked = modes.weather;
         }
 
         // ========== INITIALISATION ==========
