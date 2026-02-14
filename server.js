@@ -459,14 +459,12 @@ Tâches:
 4. Respecter les horaires fixes (is_flexible: false)
 5. Proposer des horaires réalistes
 
-Retourne un JSON:
+Retourne un JSON avec UNIQUEMENT les IDs et nouveaux horaires:
 {
     "optimized_activities": [
         {
             "id": 123,
             "time": "09:00",
-            "title": "...",
-            "place": {...},
             "reason": "Ouverture + peu de monde",
             "time_changed": true
         }
@@ -485,9 +483,25 @@ Retourne un JSON:
 
         const result = JSON.parse(completion.choices[0].message.content);
         
+        // IMPORTANT: Fusionner les données IA avec les données complètes originales
+        const optimizedWithFullData = result.optimized_activities.map(opt => {
+            const original = activities.find(a => a.id === opt.id);
+            if (!original) return null;
+            
+            return {
+                id: opt.id,
+                time: opt.time,
+                title: original.title,
+                description: original.description,
+                place: original.place, // Conserver l'objet place complet
+                reason: opt.reason,
+                time_changed: opt.time_changed
+            };
+        }).filter(a => a !== null);
+        
         res.json({
             success: true,
-            optimized_activities: result.optimized_activities,
+            optimized_activities: optimizedWithFullData,
             explanation: result.explanation
         });
         

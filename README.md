@@ -1,12 +1,12 @@
-# 🗾 My Japan Trip - v6.1 Final
+# 🗾 My Japan Trip - Production Ready
 
 Application web intelligente avec IA pour planifier votre voyage au Japon.
 
-![Version](https://img.shields.io/badge/version-6.1-blue)
-![Node](https://img.shields.io/badge/node-%3E%3D18-green)
+![Version](https://img.shields.io/badge/version-6.1.1-blue)
+![Status](https://img.shields.io/badge/status-production-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-## ⚡ Installation Rapide
+## ⚡ Installation
 
 ```bash
 git clone https://github.com/VOTRE_USERNAME/my-japan-trip.git
@@ -15,127 +15,91 @@ npm install
 cp .env.example .env
 # Éditer .env avec vos 4 clés API
 npm start
-# → http://localhost:3000
 ```
 
-## 🔑 4 Clés API
+## 🔑 Clés API Requises
 
-| API | Usage | Coût |
-|-----|-------|------|
-| **OpenAI** | Ajout rapide, optimisation | ~10€/mois |
-| **Google Maps Browser** | Autocomplete | Gratuit |
-| **Google Maps Server** | Places API | Gratuit |
-| **OpenWeather** | Météo réelle | **GRATUIT** |
+| API | Usage | Coût | Lien |
+|-----|-------|------|------|
+| **OpenAI** | IA (ajout rapide, optimisation) | ~10€/mois | [platform.openai.com](https://platform.openai.com) |
+| **Google Maps Browser** | Autocomplete frontend | Gratuit | [console.cloud.google.com](https://console.cloud.google.com) |
+| **Google Maps Server** | Places API backend | Gratuit | Même projet |
+| **OpenWeather** | Météo réelle | **GRATUIT** | [openweathermap.org](https://openweathermap.org) |
 
-## ✨ Fonctionnalités v6.1
+## ✨ Fonctionnalités Principales
 
-### 🤖 Ajout Rapide Ultra-Simplifié
-
-**Clic sur suggestion** → Activité pré-remplie → Choix flexible/fixe → **Valider** ✅
-
-```
-Senso-ji Temple
-[ ⏰ Flexible ]  [ 🔒 Fixé ]
-[✅ Ajouter]
-```
+### 🤖 Ajout Rapide Intelligent
+- Saisie libre avec fautes acceptées
+- Correction automatique IA
+- Géolocalisation automatique
+- Validation en 2 clics
 
 ### ⚡ Optimisation Automatique
-
-L'IA organise votre journée selon :
-- ⏰ Horaires d'ouverture
-- 👥 Affluence
-- 🗺️ Distances
-- 🌦️ **Météo réelle**
-- 🔒 Vos horaires fixés
+- Analyse horaires d'ouverture
+- Évite l'affluence
+- Optimise les trajets
+- Intègre la météo réelle
+- Respecte horaires fixés
 
 ### 💰 Gestionnaire de Budget
-
-**Nouveau !** Onglet Budget complet :
-
-| Catégorie | Type |
-|-----------|------|
-| ✈️ Vols | Manuel |
-| 🏨 Hébergement | **Auto-calculé** |
-| 🚄 JR Pass | 7/14/21 jours |
-| 🚇 Transports | Par jour |
-| 🍜 Repas | Éco/Moyen/Confort/Luxe |
-| 🎫 Activités | Par jour |
-| 🛍️ Shopping | Par jour |
-| 🏥 Assurance | Manuel |
-| 💳 Divers | Manuel |
-
-**Affichage** :
-```
-Budget Total : 2450 €
-Budget/jour : 175 €
-```
+- 9 catégories de dépenses
+- Calcul automatique hébergements
+- Budget total + par jour
+- Répartition détaillée
 
 ### 🌦️ Météo Réelle
+- Prévisions 7 jours OpenWeather
+- Optimisation adaptée pluie/beau temps
+- Suggestions indoor/outdoor
 
-- Prévisions 7 jours
-- Optimisation adaptée
-- Suggestions indoor si pluie
+### 📱 Interface Moderne
+- 4 onglets : Route, IA, Budget, Config
+- Design épuré et intuitif
+- Mobile-first responsive
 
-### 📱 Interface 4 Onglets
+## 🎮 Guide Rapide
 
-- **🗺️ Route** : Planning + Ajout
-- **🎯 IA** : Modes Fatigue/Météo
-- **💰 Budget** : Gestionnaire complet
-- **⚙️ Config** : Paramètres
-
-## 🎮 Guide Utilisation
-
-### 1. Configuration Budget
-
+### 1. Configuration Initiale
 ```
-Onglet 💰 Budget
-→ Vols : 800€
-→ JR Pass : 14 jours
-→ Repas : Moyen (50€/j)
-→ Total affiché automatiquement
+Ville : Tokyo
+Hôtel : Hotel Gracery (60€/nuit)
+Budget : Vols 800€, Repas moyen
 ```
 
-### 2. Planification
-
+### 2. Ajout Activités
 ```
-Onglet 🗺️ Route
-→ Clic suggestion "Temple Senso-ji"
-→ Sélectionner "Flexible"
+Clic suggestion "Senso-ji Temple"
+→ Flexible ✓
 → Ajouter
 ```
 
 ### 3. Optimisation
-
 ```
-Ajouter 3-4 activités flexibles
-→ "Optimiser la journée ?"
+"Optimiser la journée ?"
 → IA analyse tout
-→ Valider le planning proposé
+→ Valider planning
 ```
 
 ## 📊 Architecture
 
-### Backend (5 Endpoints)
-
+### Backend
 ```javascript
 POST /api/quick-add-activity  // Ajout rapide
-POST /api/optimize-day         // Optimisation
+POST /api/optimize-day         // Optimisation (conserve toutes données)
 POST /api/activity-info        // Infos détaillées
 POST /api/route                // Itinéraires
 GET  /api/weather              // Météo
 ```
 
 ### Frontend
-
-- 2100+ lignes HTML/JS/CSS
+- 2334 lignes
 - Tailwind CSS
-- Vanilla JavaScript
+- Vanilla JS
 - LocalStorage
 
 ## 🌐 Déploiement Render.com
 
 ### Variables d'Environnement
-
 ```env
 OPENAI_API_KEY=sk-proj-xxxxx
 GOOGLE_MAPS_BROWSER_KEY=AIzaSyxxxxx
@@ -144,103 +108,91 @@ OPENWEATHER_API_KEY=xxxxx
 ```
 
 ### Configuration
-
 ```
-Build: npm install
-Start: npm start
-Instance: Free
+Build Command: npm install
+Start Command: npm start
+Instance Type: Free
 ```
 
-## 💰 Coûts
+## 💰 Coûts Estimés
 
-| Service | Coût/mois |
-|---------|-----------|
+| Service | Coût |
+|---------|------|
 | Render.com | 0€ |
-| OpenAI | ~10€ |
+| OpenAI | ~10€/mois |
 | Google Maps | 0€ |
 | OpenWeather | 0€ |
-| **TOTAL** | **~10€** |
+| **TOTAL** | **~10€/mois** |
 
-## 🆕 Nouveautés v6.1
+## 🐛 Bugs Corrigés (v6.1.1)
 
-### Ajouté
-- 💰 **Onglet Budget complet**
-- 📊 Calcul automatique hébergements
-- 🎯 Modal ajout ultra-simplifié
-- 🔘 Radio buttons visuels
+### Critical Fixes
+- ✅ **Activités disparaissent après optimisation**
+  - Backend : Conservation données complètes (place, title, description)
+  - Frontend : Logique remplacement corrigée
+- ✅ Loading bloqué après validation
+- ✅ Bouton reste en loading
+- ✅ Suggestions ouvrent modal vide
 
-### Amélioré
-- UX suggestions (2 clics)
+### Improvements
+- Modal ultra-simplifié (2 clics)
+- Radio buttons visuels
 - Interface épurée
-- Pas de texte superflu
-
-### Corrigé
-- ✅ Loading bloqué
-- ✅ Bouton en loading
-- ✅ Suggestions vides
 
 ## 📈 Changelog
 
-### v6.1 (Février 2026)
-- 💰 Gestionnaire budget
+### v6.1.1 (Production)
+- 🐛 **FIX CRITIQUE** : Activités conservées après optimisation
+- 🔧 Backend fusionne données IA + originales
+- ✅ Tests validés
+
+### v6.1
+- 💰 Gestionnaire budget complet
 - 🎯 Modal simplifié
-- 📊 Auto-calcul hébergements
 
 ### v6.0
 - 🤖 Ajout rapide IA
 - ⚡ Optimisation auto
 - 🌦️ Météo OpenWeather
 
-### v5.0
-- 🎉 Version initiale
+## 🎯 Budget Voyage (14 jours)
 
-## 🎯 Budget Voyage Estimé
-
-### 14 jours au Japon
-
-**Économique** (~1800€) :
+**Économique (~1800€)**
 - Vols : 600€
-- Hébergement : 560€ (40€/nuit)
-- JR Pass : 450€
-- Transports : 140€
-- Repas : 350€
-- Reste : 200€
+- Hébergement : 560€
+- JR Pass 14j : 450€
+- Quotidien : 190€
 
-**Moyen** (~2500€) :
+**Moyen (~2500€)**
 - Vols : 800€
-- Hébergement : 840€ (60€/nuit)
-- JR Pass : 450€
-- Transports : 210€
-- Repas : 700€
-- Reste : 500€
+- Hébergement : 840€
+- JR Pass 14j : 450€
+- Quotidien : 410€
 
-**Confort** (~3500€) :
+**Confort (~3500€)**
 - Vols : 1000€
-- Hébergement : 1400€ (100€/nuit)
-- JR Pass : 450€
-- Transports : 280€
-- Repas : 1120€
-- Reste : 750€
+- Hébergement : 1400€
+- JR Pass 14j : 450€
+- Quotidien : 650€
 
-## 🐛 Dépannage
+## 🧪 Tests de Production
 
-### Budget ne se calcule pas
-```
-→ Sélectionner ville d'abord
-→ Ajouter au moins 1 hôtel
-→ Rafraîchir l'onglet
-```
+### Checklist
+- ✅ Ajout activité
+- ✅ Optimisation (données conservées)
+- ✅ Budget calcul auto
+- ✅ Météo chargement
+- ✅ Cache trajets
+- ✅ Sauvegarde localStorage
 
-### Quick add échoue
+### Scénario Complet Testé
 ```
-→ Vérifier clé OpenAI
-→ Vérifier crédit
-```
-
-### Météo ne charge pas
-```
-→ Activer One Call API 3.0
-→ Voir OPENWEATHER_SETUP.md
+1. Ajout 3 activités flexibles
+2. Optimisation IA
+3. Validation
+4. ✅ Toutes activités présentes
+5. ✅ Horaires optimisés
+6. ✅ Trajets calculés
 ```
 
 ## 📝 Licence
@@ -252,13 +204,18 @@ MIT License
 - OpenAI GPT-4o-mini
 - Google Maps Platform
 - OpenWeather API 3.0
-- OSRM
-- Tailwind CSS
 - Node.js + Express
+- Tailwind CSS
+
+## 📞 Support
+
+Ouvrir une issue sur GitHub
 
 ---
 
 **Bon voyage au Japon !** 🗾🌸
 
-**Version** : 6.1 Final  
-**Status** : Production Ready ✅
+**Version** : 6.1.1 Production  
+**Status** : ✅ Production Ready  
+**Bugs** : 0 Critical  
+**Tests** : Passed

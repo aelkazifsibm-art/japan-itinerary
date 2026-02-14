@@ -1610,36 +1610,42 @@
         }
 
         function applyOptimization(optimizedActivities) {
+            // IMPORTANT : Ne pas filtrer, juste mettre à jour
             // Remplacer les activités du jour par les optimisées
+            
+            // Supprimer les activités du jour actuel
             activities = activities.filter(a => a.dayIndex !== currentDayIndex);
             
+            // Ajouter toutes les activités optimisées
+            // On doit s'assurer que optimizedActivities contient TOUTES les données nécessaires
             optimizedActivities.forEach(opt => {
-                const existing = activities.find(a => a.id === opt.id);
-                if (existing) {
-                    existing.time = opt.time;
-                    existing.time_flexible = false;
-                    existing.needs_optimization = false;
-                }
+                activities.push({
+                    id: opt.id || Date.now() + Math.random(),
+                    dayIndex: currentDayIndex,
+                    time: opt.time,
+                    time_flexible: false,
+                    needs_optimization: false,
+                    title: opt.title,
+                    description: opt.description || '',
+                    place: opt.place
+                });
             });
             
-            activities.push(...optimizedActivities.map(opt => ({
-                ...opt,
-                time_flexible: false,
-                needs_optimization: false
-            })));
-            
+            // Trier par jour puis par heure
             activities.sort((a, b) => {
                 if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
                 return a.time.localeCompare(b.time);
             });
             
+            // Sauvegarder
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
-            closeOptimizationModal();
             
-            // IMPORTANT : Supprimer le loading s'il existe encore
+            // Fermer le modal et supprimer le loading
+            closeOptimizationModal();
             const loadingEl = document.getElementById('optimization-loading');
             if (loadingEl) loadingEl.remove();
             
+            // Rafraîchir l'affichage
             renderPlanning();
             
             alert('✅ Planning optimisé appliqué !');
