@@ -294,6 +294,67 @@ app.post("/api/activity-info", async (req, res) => {
     }
 });
 
+// --- MÉTÉO ---
+app.get("/api/weather", async (req, res) => {
+    try {
+        const { lat, lng, date } = req.query;
+        const weatherKey = process.env.OPENWEATHER_API_KEY;
+        
+        if (!weatherKey) {
+            return res.json({ success: false, error: "Clé OpenWeather manquante" });
+        }
+        
+        if (!lat || !lng) {
+            return res.json({ success: false, error: "Coordonnées manquantes" });
+        }
+        
+        // API OpenWeather One Call
+        const url = new URL("https://api.openweathermap.org/data/3.0/onecall");
+        url.searchParams.set("lat", lat);
+        url.searchParams.set("lon", lng);
+        url.searchParams.set("appid", weatherKey);
+        url.searchParams.set("units", "metric");
+        url.searchParams.set("lang", "fr");
+        url.searchParams.set("exclude", "minutely,alerts");
+        
+        const response = await fetchJson(url.toString());
+        
+        if (!response.json) {
+            return res.json({ success: false, error: "Erreur API météo" });
+        }
+        
+        const weather = response.json;
+        
+        // Extraire les données pertinentes
+        const forecast = {
+            current: {
+                temp: Math.round(weather.current?.temp || 0),
+                feels_like: Math.round(weather.current?.feels_like || 0),
+                humidity: weather.current?.humidity || 0,
+                description: weather.current?.weather?.[0]?.description || '',
+                icon: weather.current?.weather?.[0]?.icon || '',
+                rain: weather.current?.rain?.['1h'] || 0,
+                is_raining: (weather.current?.rain?.['1h'] || 0) > 0
+            },
+            daily: weather.daily?.slice(0, 7).map(day => ({
+                date: new Date(day.dt * 1000).toLocaleDateString('fr-FR'),
+                temp_max: Math.round(day.temp.max),
+                temp_min: Math.round(day.temp.min),
+                description: day.weather[0].description,
+                icon: day.weather[0].icon,
+                rain_probability: Math.round((day.pop || 0) * 100),
+                rain_mm: day.rain || 0,
+                is_rainy: (day.pop || 0) > 0.3 // Plus de 30% de chance de pluie
+            })) || []
+        };
+        
+        res.json({ success: true, forecast });
+        
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // --- AJOUT RAPIDE IA ---
 app.post("/api/quick-add-activity", async (req, res) => {
     try {

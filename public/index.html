@@ -1251,8 +1251,14 @@
                 return;
             }
             
-            // Afficher un loading
-            const btn = event.target;
+            // Récupérer le bouton AVANT le try/catch
+            const btn = document.querySelector('[onclick="quickAddActivity()"]');
+            if (!btn) {
+                console.error('Bouton non trouvé');
+                return;
+            }
+            
+            const originalHTML = btn.innerHTML;
             btn.innerHTML = '<div class="inline-block animate-spin rounded-full h-5 w-5 border-4 border-white border-t-transparent"></div> Analyse IA...';
             btn.disabled = true;
             
@@ -1294,26 +1300,33 @@
                     });
                     
                     localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                    
+                    // Réinitialiser le formulaire et fermer
+                    document.getElementById('quick-activity-input').value = '';
+                    btn.innerHTML = originalHTML;
+                    btn.disabled = false;
+                    
                     closeModal();
                     renderPlanning();
                     
                     // Si des activités flexibles existent, proposer l'optimisation
                     const flexibleCount = activities.filter(a => a.dayIndex === currentDayIndex && a.time_flexible).length;
-                    if (flexibleCount > 0) {
+                    if (flexibleCount > 1) {
                         setTimeout(() => {
-                            if (confirm(`✨ Vous avez ${flexibleCount} activité(s) flexible(s).\n\nVoulez-vous optimiser la journée maintenant ?`)) {
+                            if (confirm(`✨ Vous avez ${flexibleCount} activités flexibles.\n\nVoulez-vous optimiser la journée maintenant ?`)) {
                                 optimizeDaySchedule();
                             }
                         }, 500);
                     }
                 } else {
                     alert('Erreur: ' + (data.error || 'Impossible d\'analyser l\'activité'));
+                    btn.innerHTML = originalHTML;
+                    btn.disabled = false;
                 }
             } catch (error) {
                 console.error('Erreur:', error);
                 alert('Erreur réseau. Vérifiez votre connexion.');
-            } finally {
-                btn.innerHTML = '✨ Analyser et Ajouter';
+                btn.innerHTML = originalHTML;
                 btn.disabled = false;
             }
         }
