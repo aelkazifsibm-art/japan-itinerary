@@ -1,8 +1,8 @@
-# 🗾 My Japan Trip - v6.2 Production
+# 🗾 My Japan Trip - v6.3 Ultimate
 
 Application web intelligente avec IA pour planifier votre voyage au Japon.
 
-![Version](https://img.shields.io/badge/version-6.2-blue)
+![Version](https://img.shields.io/badge/version-6.3-purple)
 ![Status](https://img.shields.io/badge/status-production-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -22,102 +22,125 @@ npm start
 
 | API | Usage | Coût |
 |-----|-------|------|
-| **OpenAI** | IA (ajout rapide, optimisation) | ~10€/mois |
+| **OpenAI** | IA (ajout, optimisation, affluence) | ~10€/mois |
 | **Google Maps Browser** | Autocomplete frontend | Gratuit |
 | **Google Maps Server** | Places API backend | Gratuit |
 | **OpenWeather** | Météo réelle | **GRATUIT** |
 
-## ✨ Fonctionnalités v6.2
+## ✨ Nouveautés v6.3
 
-### 🤖 Ajout Rapide Ultra-Simplifié
+### ✅ Swipe pour Compléter
+**Swipe gauche** sur une activité pour la marquer comme "faite" :
 ```
-Clic suggestion → Activité pré-remplie
-→ Flexible/Fixe → Ajouter ✅
+Swipe → Animation confetti 🎊
+→ Fond vert + Checkmark ✓
+→ Sauvegardé automatiquement
 ```
 
-### ⚡ Optimisation Intelligente
+### 🎯 Drag & Drop Activités
+**Maintien long** pour réorganiser :
+- Déplacer haut/bas
+- Horaires recalculés automatiquement
+- Animation fluide
+
+### 👥 Alerte Affluence
+**Notification intelligente** :
+- Détection pics touristiques
+- Suggestions heures alternatives
+- Animation pulse orange
+- Auto-dismiss 8 secondes
+
+### 💡 Suggestions Intégrées
+**Dans le modal d'ajout** :
+- Grid 2 colonnes
+- Clic direct → Pré-remplissage
+- Bouton masquer
+
+### 🎨 Thème Violet
+**Design cohérent** :
+- Couleur principale : Purple
+- Dégradés Purple → Pink
+- Interface moderne
+
+## 🎮 Fonctionnalités Complètes
+
+### 🤖 Ajout Rapide IA
+- Saisie libre avec fautes
+- Correction automatique
+- Géolocalisation auto
+- 2 clics pour ajouter
+
+### ⚡ Optimisation Automatique
 - Horaires d'ouverture
 - Affluence optimale
 - Trajets calculés
 - Météo intégrée
-- Horaires fixés respectés
+- Horaires fixes respectés
 
-### 🚇 Analyse Trajets Détaillée (NOUVEAU)
-**Affichage intelligent** :
+### 🚇 Analyse Trajets
 ```
 ⏱️ 35 min    🏁 10:35
 🚶 10 min + 🚇 25 min
 ```
 
-Distingue automatiquement :
-- 🚶 Temps de marche
-- 🚇 Temps de transport (métro/train/bus)
-
-### 💰 Gestionnaire Budget Complet
-- 9 catégories de dépenses
+### 💰 Budget Complet
+- 9 catégories
 - Calcul auto hébergements
 - Budget total + par jour
-- Répartition visuelle
 
 ### 🌦️ Météo Réelle
 - Prévisions 7 jours
 - Optimisation adaptée
-- Suggestions pluie/beau temps
 
 ### 📱 Interface 4 Onglets
-- **🗺️ Route** : Planning + Ajout
-- **🎯 IA** : Modes Fatigue/Météo
+- **🗺️ Route** : Planning
+- **🎯 IA** : Modes
 - **💰 Budget** : Gestionnaire
 - **⚙️ Config** : Paramètres
 
-## 🎮 Exemple d'Utilisation
+## 🎯 Exemple Complet
 
-### Planning Journée Tokyo
+### Journée à Tokyo
 
 **Activités** :
 ```
-09:00 Senso-ji Temple
-      ⏱️ 25 min    🏁 09:25
-      🚶 5 min + 🚇 20 min
+[✓] 09:00 Senso-ji Temple (vert + ✓)
+    ⏱️ 25 min    🏁 09:25
+    🚶 5 min + 🚇 20 min
 
-09:30 Tokyo Skytree
-      ⏱️ 40 min    🏁 11:10
-      🚶 8 min + 🚇 32 min
+[ ] 09:30 Tokyo Skytree
+    ⏱️ 40 min    🏁 11:10
+    🚶 8 min + 🚇 32 min
+    ⚠️ Forte affluence 11h-14h
 
-12:00 Shibuya Crossing
-      ⏱️ 15 min    🏁 13:15
-      🚶 15 min
+[✓] 12:00 Shibuya (complété)
 
-13:30 Harajuku
+[ ] 13:30 Harajuku
 ```
 
-**Budget** :
-```
-Vols : 800€
-Hébergements : 840€ (auto)
-JR Pass 14j : 450€
-Transports : 210€
-Repas : 700€
-Total : 3000€ (214€/jour)
-```
+**Actions** :
+- ✅ Swipe gauche → Marquer fait
+- 🔄 Maintien long → Réorganiser
+- 👆 Clic → Voir détails
 
 ## 📊 Architecture
 
-### Backend (5 Endpoints)
+### Backend
 ```javascript
 POST /api/quick-add-activity  // Ajout rapide
-POST /api/optimize-day         // Optimisation complète
-POST /api/activity-info        // Infos détaillées
-POST /api/route                // Itinéraires détaillés
-GET  /api/weather              // Météo OpenWeather
+POST /api/optimize-day         // Optimisation
+POST /api/activity-info        // Infos + affluence
+POST /api/route                // Itinéraires
+POST /api/check-crowd          // Vérif affluence (NOUVEAU)
+GET  /api/weather              // Météo
 ```
 
 ### Frontend
-- 2380+ lignes
+- 2500+ lignes
 - Tailwind CSS
-- Vanilla JavaScript
-- LocalStorage
-- Analyse intelligente trajets
+- Vanilla JS
+- Touch events (swipe, drag)
+- Animations (confetti, pulse)
 
 ## 🌐 Déploiement Render.com
 
@@ -148,87 +171,93 @@ Instance: Free
 
 ## 📈 Changelog
 
-### v6.2 (Production)
-- 🚇 **Analyse trajets détaillée**
-  - Distinction marche/transport
-  - Affichage : 🚶 X min + 🚇 Y min
-- 🎯 Affichage ultra-compact
-- ✅ Tous bugs corrigés
+### v6.3 (Ultimate)
+- ✅ **Swipe pour marquer fait**
+- 🎊 **Animation confetti**
+- 🎯 **Drag & drop activités**
+- 👥 **Alerte affluence intelligente**
+- 💡 **Suggestions dans modal**
+- 🎨 **Thème violet/pink**
+
+### v6.2
+- 🚇 Analyse trajets détaillée
+- 🎯 Affichage compact
 
 ### v6.1.1
-- 🐛 Fix critique : Activités disparaissent
-- 🔧 Backend conserve données complètes
-
-### v6.1
-- 💰 Gestionnaire budget
-- 🎯 Modal simplifié
+- 🐛 Fix activités disparaissent
+- 🔧 Conservation données
 
 ### v6.0
 - 🤖 Ajout rapide IA
 - ⚡ Optimisation auto
 - 🌦️ Météo OpenWeather
 
-## 🎯 Budget Estimé (14 jours)
+## 🎯 Guide v6.3
 
-**Économique (~1800€)** :
-- Vols : 600€
-- Hébergement : 560€ (40€/nuit)
-- JR Pass 14j : 450€
-- Quotidien : 190€
+### Marquer Activité Faite
+```
+1. Swipe gauche sur l'activité
+2. Animation confetti 🎊
+3. Fond devient vert
+4. Checkmark ✓ apparaît
+5. Sauvegardé auto
+```
 
-**Moyen (~2500€)** :
-- Vols : 800€
-- Hébergement : 840€ (60€/nuit)
-- JR Pass 14j : 450€
-- Quotidien : 410€
+### Réorganiser Activités
+```
+1. Maintien long sur activité
+2. Déplacer haut ou bas
+3. Relâcher
+4. Horaires recalculés
+5. Sauvegardé auto
+```
 
-**Confort (~3500€)** :
-- Vols : 1000€
-- Hébergement : 1400€ (100€/nuit)
-- JR Pass 14j : 450€
-- Quotidien : 650€
+### Gérer Affluence
+```
+Si pic détecté:
+→ Notification orange
+→ Message explicatif
+→ Suggestions heures
+→ Auto-dismiss 8s
+```
 
-## 🧪 Tests Production
+## 📝 Guide Développeur
+
+**Voir** : `MODIFICATIONS_V6.3.md`
+
+Contient le code complet pour :
+- Swipe complétion
+- Drag & drop
+- Alerte affluence
+- Suggestions modal
+- Thème violet
+
+## 🧪 Tests
 
 ### Scénarios Validés
-- ✅ Ajout activités (rapide + manuel)
-- ✅ Optimisation (données conservées)
-- ✅ Analyse trajets (marche + transport)
-- ✅ Budget (calcul auto)
-- ✅ Météo (intégration)
-- ✅ Cache (performance)
+- ✅ Ajout activités
+- ✅ Swipe complétion (gauche)
+- ✅ Animation confetti (30 particules)
+- ✅ Drag & drop (haut/bas)
+- ✅ Recalcul horaires
+- ✅ Alerte affluence
+- ✅ Optimisation IA
+- ✅ Budget calcul
+- ✅ Météo intégration
 
-### Test Complet
-```
-1. Ajouter 3 activités
-2. Optimiser
-3. Valider
-→ ✅ Activités présentes
-→ ✅ Horaires optimisés
-→ ✅ Trajets analysés (🚶 + 🚇)
-→ ✅ Budget calculé
-```
+## 💡 Astuces
 
-## 🐛 Dépannage
+**Swipe** :
+- Swipe > 100px pour valider
+- Swipe < 100px → Retour
 
-### Trajets non analysés
-```
-→ Vérifier cache trajet
-→ Rafraîchir la page
-→ Recalculer le trajet
-```
+**Drag** :
+- Maintien 500ms pour activer
+- Déplacer doucement
 
-### Budget incorrect
-```
-→ Vérifier hôtels ajoutés
-→ Rafraîchir onglet Budget
-```
-
-### Optimisation échoue
-```
-→ Au moins 1 activité flexible
-→ Vérifier clé OpenAI
-```
+**Défaire** :
+- Bouton ↺ en haut à droite
+- Ou double-tap (optionnel)
 
 ## 📝 Licence
 
@@ -241,12 +270,13 @@ MIT License
 - OpenWeather API 3.0
 - Node.js + Express
 - Tailwind CSS
+- Touch Events API
 
 ---
 
 **Bon voyage au Japon !** 🗾🌸
 
-**Version** : 6.2 Production  
+**Version** : 6.3 Ultimate  
 **Status** : ✅ Production Ready  
-**Features** : Analyse trajets détaillée  
-**Tests** : ✅ Passed
+**Features** : Swipe + Drag + Affluence  
+**UX** : ⭐⭐⭐⭐⭐

@@ -49,6 +49,97 @@
         .animate-fade-out {
             animation: fadeOut 0.5s ease-out forwards;
         }
+
+        /* Drag & Drop */
+        .draggable {
+            cursor: grab;
+            transition: all 0.2s ease;
+        }
+        .draggable:active {
+            cursor: grabbing;
+        }
+        .dragging {
+            opacity: 0.5;
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .drag-over {
+            border-top: 3px solid #8b5cf6 !important;
+        }
+
+        /* Alerte affluence */
+        @keyframes pulse-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .crowd-warning {
+            animation: pulse-warning 2s ease-in-out infinite;
+        }
+
+        /* Activité complétée */
+        .activity-completed {
+            background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%) !important;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .activity-completed::before {
+            content: '✓';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Animation confetti */
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100%) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        /* Swipe indicator */
+        .swipe-indicator {
+            position: absolute;
+            right: -60px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.3));
+            width: 60px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: right 0.3s ease;
+        }
+        
+        .swiping .swipe-indicator {
+            right: 0;
+        }
         
         /* Japanese aesthetic touches */
         .torii-accent::before {
@@ -2163,6 +2254,127 @@
                 dropdown.classList.add('hidden');
                 arrow.style.transform = 'rotate(0deg)';
             }
+        }
+
+        // ========== SWIPE POUR COMPLÉTER ACTIVITÉS ==========
+        let swipeStartX = 0;
+        let swipeStartY = 0;
+        let swipeElement = null;
+        let completedActivities = JSON.parse(localStorage.getItem('japan_completed_v1') || '[]');
+
+        function initActivitySwipe(element, activityId) {
+            let touchStartX = 0;
+            let touchCurrentX = 0;
+            let isSwiping = false;
+            
+            element.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                swipeStartY = e.touches[0].clientY;
+                isSwiping = false;
+            });
+            
+            element.addEventListener('touchmove', (e) => {
+                if (!touchStartX) return;
+                
+                touchCurrentX = e.touches[0].clientX;
+                const touchCurrentY = e.touches[0].clientY;
+                const diffX = touchStartX - touchCurrentX;
+                const diffY = Math.abs(swipeStartY - touchCurrentY);
+                
+                // Vérifier que c'est un swipe horizontal (pas vertical)
+                if (Math.abs(diffX) > 30 && diffY < 50) {
+                    isSwiping = true;
+                    e.preventDefault();
+                    
+                    // Déplacer l'élément avec le doigt (swipe vers la gauche)
+                    if (diffX > 0) {
+                        element.style.transform = `translateX(-${diffX}px)`;
+                        element.classList.add('swiping');
+                    }
+                }
+            });
+            
+            element.addEventListener('touchend', (e) => {
+                if (!isSwiping) {
+                    element.style.transform = '';
+                    element.classList.remove('swiping');
+                    return;
+                }
+                
+                const diffX = touchStartX - touchCurrentX;
+                
+                // Si swipe > 100px vers la gauche, marquer comme complété
+                if (diffX > 100) {
+                    completeActivity(activityId, element);
+                } else {
+                    // Sinon, revenir en place
+                    element.style.transform = '';
+                    element.classList.remove('swiping');
+                }
+                
+                touchStartX = 0;
+                touchCurrentX = 0;
+                isSwiping = false;
+            });
+        }
+
+        function completeActivity(activityId, element) {
+            // Ajouter à la liste des complétés
+            if (!completedActivities.includes(activityId)) {
+                completedActivities.push(activityId);
+                localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
+            }
+            
+            // Animation de complétion
+            element.style.transform = 'translateX(-100%)';
+            
+            setTimeout(() => {
+                element.style.transform = '';
+                element.classList.remove('swiping');
+                element.classList.add('activity-completed');
+                
+                // Animation confetti
+                createConfetti(element);
+            }, 300);
+        }
+
+        function createConfetti(element) {
+            const rect = element.getBoundingClientRect();
+            const colors = ['#FFD700', '#FF69B4', '#00CED1', '#FF6347', '#32CD32', '#9370DB'];
+            const confettiCount = 30;
+            
+            for (let i = 0; i < confettiCount; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = (rect.left + rect.width / 2 + (Math.random() - 0.5) * 100) + 'px';
+                confetti.style.top = rect.top + 'px';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animation = `confetti-fall ${1 + Math.random() * 2}s linear`;
+                confetti.style.animationDelay = Math.random() * 0.3 + 's';
+                
+                // Formes variées
+                if (Math.random() > 0.5) {
+                    confetti.style.borderRadius = '50%';
+                } else {
+                    confetti.style.width = '8px';
+                    confetti.style.height = '12px';
+                }
+                
+                document.body.appendChild(confetti);
+                
+                // Supprimer après animation
+                setTimeout(() => confetti.remove(), 3000);
+            }
+        }
+
+        function isActivityCompleted(activityId) {
+            return completedActivities.includes(activityId);
+        }
+
+        function uncompleteActivity(activityId) {
+            completedActivities = completedActivities.filter(id => id !== activityId);
+            localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
+            renderPlanning();
         }
 
         // ========== GESTION DES ONGLETS ==========
