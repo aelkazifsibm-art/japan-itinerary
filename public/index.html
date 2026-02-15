@@ -300,9 +300,24 @@
 
             <!-- Contenu des onglets -->
             <div id="tab-content-route" class="tab-content p-4">
-                <button onclick="openModal()" class="w-full bg-primary text-white py-3 rounded-full text-sm font-bold shadow-lg hover:shadow-xl transition-all">
-                    + AJOUTER UNE ACTIVITÉ
-                </button>
+                <!-- Zone d'ajout avec suggestions -->
+                <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200 overflow-hidden">
+                    <!-- Bouton principal -->
+                    <button onclick="toggleSuggestions()" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-4 font-bold flex items-center justify-between">
+                        <span>💡 Suggestions d'activités</span>
+                        <span id="suggestions-arrow" class="text-xl transition-transform">▼</span>
+                    </button>
+                    
+                    <!-- Suggestions déroulantes -->
+                    <div id="suggestions-dropdown" class="hidden max-h-96 overflow-y-auto p-3 space-y-2">
+                        <!-- Rempli dynamiquement -->
+                    </div>
+                    
+                    <!-- Bouton ajout manuel -->
+                    <button onclick="openModal()" class="w-full bg-white text-purple-600 py-3 px-4 font-bold border-t-2 border-purple-100 hover:bg-purple-50 transition-all">
+                        ✏️ Ou ajouter manuellement
+                    </button>
+                </div>
             </div>
 
             <div id="tab-content-ai" class="tab-content hidden p-4">
@@ -1905,6 +1920,133 @@
             renderPlanning();
         }
 
+        // ========== SUGGESTIONS DÉROULANTES ==========
+        function toggleSuggestions() {
+            const dropdown = document.getElementById('suggestions-dropdown');
+            const arrow = document.getElementById('suggestions-arrow');
+            
+            if (dropdown.classList.contains('hidden')) {
+                dropdown.classList.remove('hidden');
+                arrow.style.transform = 'rotate(180deg)';
+                renderSuggestionsDropdown();
+            } else {
+                dropdown.classList.add('hidden');
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function renderSuggestionsDropdown() {
+            const city = dayCities[currentDayIndex];
+            const dropdown = document.getElementById('suggestions-dropdown');
+            
+            if (!city || !citySuggestions[city]) {
+                dropdown.innerHTML = '<div class="text-center text-gray-500 py-4">Sélectionnez une ville d\'abord</div>';
+                return;
+            }
+            
+            function getFatigueBadge(level) {
+                const badges = {
+                    low: '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">😊 Facile</span>',
+                    medium: '<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">😅 Moyen</span>',
+                    high: '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">😰 Intense</span>'
+                };
+                return badges[level] || '';
+            }
+            
+            dropdown.innerHTML = citySuggestions[city].map(sug => `
+                <div onclick="quickAddSuggestion('${sug.name.replace(/'/g, "\\'")}', '${sug.query.replace(/'/g, "\\'")}')" 
+                     class="bg-white border-2 border-purple-100 rounded-xl p-3 cursor-pointer hover:border-purple-400 hover:shadow-md transition-all">
+                    <div class="flex items-start gap-3">
+                        <div class="text-3xl flex-shrink-0">${sug.emoji}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-purple-800 text-sm mb-2 flex items-center gap-2">
+                                ${sug.name}
+                                ${sug.must_see ? '<span class="text-lg">⭐</span>' : ''}
+                            </div>
+                            <div class="flex gap-2 flex-wrap items-center">
+                                ${getFatigueBadge(sug.fatigue)}
+                                ${sug.must_see ? '<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">🎯 Incontournable</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="text-purple-400 text-xl flex-shrink-0">→</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function quickAddSuggestion(name, query) {
+            // Fermer les suggestions
+            document.getElementById('suggestions-dropdown').classList.add('hidden');
+            document.getElementById('suggestions-arrow').style.transform = 'rotate(0deg)';
+            
+            // Afficher un loader
+            const dropdown = document.getElementById('suggestions-dropdown');
+            const originalContent = dropdown.innerHTML;
+            dropdown.classList.remove('hidden');
+            dropdown.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent"></div><div class="text-purple-600 mt-2">Ajout en cours...</div></div>';
+            
+            try {
+                const response = await fetch('/api/quick-add-activity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: name,
+                        day_index: currentDayIndex,
+                        time_flexible: true,
+                        fixed_time: null
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const newActivity = {
+                        id: Date.now(),
+                        dayIndex: currentDayIndex,
+                        time: data.suggested_time,
+                        time_flexible: true,
+                        needs_optimization: true,
+                        title: data.title,
+                        description: data.description || '',
+                        place: data.place
+                    };
+                    
+                    activities.push(newActivity);
+                    activities.sort((a, b) => {
+                        if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                        return a.time.localeCompare(b.time);
+                    });
+                    
+                    localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                    
+                    // Masquer le dropdown et réafficher
+                    dropdown.classList.add('hidden');
+                    renderPlanning();
+                    
+                    // Proposer optimisation si 2+ activités flexibles
+                    const flexibleCount = activities.filter(a => 
+                        a.dayIndex === currentDayIndex && a.time_flexible
+                    ).length;
+                    
+                    if (flexibleCount >= 2) {
+                        setTimeout(() => {
+                            if (confirm('Vous avez plusieurs activités flexibles. Voulez-vous optimiser la journée ?')) {
+                                optimizeDaySchedule();
+                            }
+                        }, 500);
+                    }
+                } else {
+                    alert('Erreur: ' + (data.error || 'Impossible d\'ajouter l\'activité'));
+                    dropdown.innerHTML = originalContent;
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur réseau');
+                dropdown.innerHTML = originalContent;
+            }
+        }
+
+        // ========== RENDER PLANNING ==========
         async function renderPlanning() {
             const list = document.getElementById('planning-list');
             list.innerHTML = '';
@@ -2047,6 +2189,12 @@
                     
                     calculateNav(act.place, nextAct.place, navId);
                 }
+            }
+            
+            // Rendre les suggestions si le dropdown est ouvert
+            const suggestionsDropdown = document.getElementById('suggestions-dropdown');
+            if (suggestionsDropdown && !suggestionsDropdown.classList.contains('hidden')) {
+                renderSuggestionsDropdown();
             }
         }
 
