@@ -1,8 +1,8 @@
-# 🗾 My Japan Trip - Production Ready
+# 🗾 My Japan Trip - v6.2 Production
 
 Application web intelligente avec IA pour planifier votre voyage au Japon.
 
-![Version](https://img.shields.io/badge/version-6.1.1-blue)
+![Version](https://img.shields.io/badge/version-6.2-blue)
 ![Status](https://img.shields.io/badge/status-production-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -15,91 +15,113 @@ npm install
 cp .env.example .env
 # Éditer .env avec vos 4 clés API
 npm start
+# → http://localhost:3000
 ```
 
-## 🔑 Clés API Requises
+## 🔑 4 Clés API
 
-| API | Usage | Coût | Lien |
-|-----|-------|------|------|
-| **OpenAI** | IA (ajout rapide, optimisation) | ~10€/mois | [platform.openai.com](https://platform.openai.com) |
-| **Google Maps Browser** | Autocomplete frontend | Gratuit | [console.cloud.google.com](https://console.cloud.google.com) |
-| **Google Maps Server** | Places API backend | Gratuit | Même projet |
-| **OpenWeather** | Météo réelle | **GRATUIT** | [openweathermap.org](https://openweathermap.org) |
+| API | Usage | Coût |
+|-----|-------|------|
+| **OpenAI** | IA (ajout rapide, optimisation) | ~10€/mois |
+| **Google Maps Browser** | Autocomplete frontend | Gratuit |
+| **Google Maps Server** | Places API backend | Gratuit |
+| **OpenWeather** | Météo réelle | **GRATUIT** |
 
-## ✨ Fonctionnalités Principales
+## ✨ Fonctionnalités v6.2
 
-### 🤖 Ajout Rapide Intelligent
-- Saisie libre avec fautes acceptées
-- Correction automatique IA
-- Géolocalisation automatique
-- Validation en 2 clics
+### 🤖 Ajout Rapide Ultra-Simplifié
+```
+Clic suggestion → Activité pré-remplie
+→ Flexible/Fixe → Ajouter ✅
+```
 
-### ⚡ Optimisation Automatique
-- Analyse horaires d'ouverture
-- Évite l'affluence
-- Optimise les trajets
-- Intègre la météo réelle
-- Respecte horaires fixés
+### ⚡ Optimisation Intelligente
+- Horaires d'ouverture
+- Affluence optimale
+- Trajets calculés
+- Météo intégrée
+- Horaires fixés respectés
 
-### 💰 Gestionnaire de Budget
+### 🚇 Analyse Trajets Détaillée (NOUVEAU)
+**Affichage intelligent** :
+```
+⏱️ 35 min    🏁 10:35
+🚶 10 min + 🚇 25 min
+```
+
+Distingue automatiquement :
+- 🚶 Temps de marche
+- 🚇 Temps de transport (métro/train/bus)
+
+### 💰 Gestionnaire Budget Complet
 - 9 catégories de dépenses
-- Calcul automatique hébergements
+- Calcul auto hébergements
 - Budget total + par jour
-- Répartition détaillée
+- Répartition visuelle
 
 ### 🌦️ Météo Réelle
-- Prévisions 7 jours OpenWeather
-- Optimisation adaptée pluie/beau temps
-- Suggestions indoor/outdoor
+- Prévisions 7 jours
+- Optimisation adaptée
+- Suggestions pluie/beau temps
 
-### 📱 Interface Moderne
-- 4 onglets : Route, IA, Budget, Config
-- Design épuré et intuitif
-- Mobile-first responsive
+### 📱 Interface 4 Onglets
+- **🗺️ Route** : Planning + Ajout
+- **🎯 IA** : Modes Fatigue/Météo
+- **💰 Budget** : Gestionnaire
+- **⚙️ Config** : Paramètres
 
-## 🎮 Guide Rapide
+## 🎮 Exemple d'Utilisation
 
-### 1. Configuration Initiale
+### Planning Journée Tokyo
+
+**Activités** :
 ```
-Ville : Tokyo
-Hôtel : Hotel Gracery (60€/nuit)
-Budget : Vols 800€, Repas moyen
+09:00 Senso-ji Temple
+      ⏱️ 25 min    🏁 09:25
+      🚶 5 min + 🚇 20 min
+
+09:30 Tokyo Skytree
+      ⏱️ 40 min    🏁 11:10
+      🚶 8 min + 🚇 32 min
+
+12:00 Shibuya Crossing
+      ⏱️ 15 min    🏁 13:15
+      🚶 15 min
+
+13:30 Harajuku
 ```
 
-### 2. Ajout Activités
+**Budget** :
 ```
-Clic suggestion "Senso-ji Temple"
-→ Flexible ✓
-→ Ajouter
-```
-
-### 3. Optimisation
-```
-"Optimiser la journée ?"
-→ IA analyse tout
-→ Valider planning
+Vols : 800€
+Hébergements : 840€ (auto)
+JR Pass 14j : 450€
+Transports : 210€
+Repas : 700€
+Total : 3000€ (214€/jour)
 ```
 
 ## 📊 Architecture
 
-### Backend
+### Backend (5 Endpoints)
 ```javascript
 POST /api/quick-add-activity  // Ajout rapide
-POST /api/optimize-day         // Optimisation (conserve toutes données)
+POST /api/optimize-day         // Optimisation complète
 POST /api/activity-info        // Infos détaillées
-POST /api/route                // Itinéraires
-GET  /api/weather              // Météo
+POST /api/route                // Itinéraires détaillés
+GET  /api/weather              // Météo OpenWeather
 ```
 
 ### Frontend
-- 2334 lignes
+- 2380+ lignes
 - Tailwind CSS
-- Vanilla JS
+- Vanilla JavaScript
 - LocalStorage
+- Analyse intelligente trajets
 
 ## 🌐 Déploiement Render.com
 
-### Variables d'Environnement
+### Variables
 ```env
 OPENAI_API_KEY=sk-proj-xxxxx
 GOOGLE_MAPS_BROWSER_KEY=AIzaSyxxxxx
@@ -107,16 +129,16 @@ GOOGLE_MAPS_SERVER_KEY=AIzaSyxxxxx
 OPENWEATHER_API_KEY=xxxxx
 ```
 
-### Configuration
+### Config
 ```
-Build Command: npm install
-Start Command: npm start
-Instance Type: Free
+Build: npm install
+Start: npm start
+Instance: Free
 ```
 
-## 💰 Coûts Estimés
+## 💰 Coûts
 
-| Service | Coût |
+| Service | Prix |
 |---------|------|
 | Render.com | 0€ |
 | OpenAI | ~10€/mois |
@@ -124,30 +146,21 @@ Instance Type: Free
 | OpenWeather | 0€ |
 | **TOTAL** | **~10€/mois** |
 
-## 🐛 Bugs Corrigés (v6.1.1)
-
-### Critical Fixes
-- ✅ **Activités disparaissent après optimisation**
-  - Backend : Conservation données complètes (place, title, description)
-  - Frontend : Logique remplacement corrigée
-- ✅ Loading bloqué après validation
-- ✅ Bouton reste en loading
-- ✅ Suggestions ouvrent modal vide
-
-### Improvements
-- Modal ultra-simplifié (2 clics)
-- Radio buttons visuels
-- Interface épurée
-
 ## 📈 Changelog
 
-### v6.1.1 (Production)
-- 🐛 **FIX CRITIQUE** : Activités conservées après optimisation
-- 🔧 Backend fusionne données IA + originales
-- ✅ Tests validés
+### v6.2 (Production)
+- 🚇 **Analyse trajets détaillée**
+  - Distinction marche/transport
+  - Affichage : 🚶 X min + 🚇 Y min
+- 🎯 Affichage ultra-compact
+- ✅ Tous bugs corrigés
+
+### v6.1.1
+- 🐛 Fix critique : Activités disparaissent
+- 🔧 Backend conserve données complètes
 
 ### v6.1
-- 💰 Gestionnaire budget complet
+- 💰 Gestionnaire budget
 - 🎯 Modal simplifié
 
 ### v6.0
@@ -155,44 +168,66 @@ Instance Type: Free
 - ⚡ Optimisation auto
 - 🌦️ Météo OpenWeather
 
-## 🎯 Budget Voyage (14 jours)
+## 🎯 Budget Estimé (14 jours)
 
-**Économique (~1800€)**
+**Économique (~1800€)** :
 - Vols : 600€
-- Hébergement : 560€
+- Hébergement : 560€ (40€/nuit)
 - JR Pass 14j : 450€
 - Quotidien : 190€
 
-**Moyen (~2500€)**
+**Moyen (~2500€)** :
 - Vols : 800€
-- Hébergement : 840€
+- Hébergement : 840€ (60€/nuit)
 - JR Pass 14j : 450€
 - Quotidien : 410€
 
-**Confort (~3500€)**
+**Confort (~3500€)** :
 - Vols : 1000€
-- Hébergement : 1400€
+- Hébergement : 1400€ (100€/nuit)
 - JR Pass 14j : 450€
 - Quotidien : 650€
 
-## 🧪 Tests de Production
+## 🧪 Tests Production
 
-### Checklist
-- ✅ Ajout activité
+### Scénarios Validés
+- ✅ Ajout activités (rapide + manuel)
 - ✅ Optimisation (données conservées)
-- ✅ Budget calcul auto
-- ✅ Météo chargement
-- ✅ Cache trajets
-- ✅ Sauvegarde localStorage
+- ✅ Analyse trajets (marche + transport)
+- ✅ Budget (calcul auto)
+- ✅ Météo (intégration)
+- ✅ Cache (performance)
 
-### Scénario Complet Testé
+### Test Complet
 ```
-1. Ajout 3 activités flexibles
-2. Optimisation IA
-3. Validation
-4. ✅ Toutes activités présentes
-5. ✅ Horaires optimisés
-6. ✅ Trajets calculés
+1. Ajouter 3 activités
+2. Optimiser
+3. Valider
+→ ✅ Activités présentes
+→ ✅ Horaires optimisés
+→ ✅ Trajets analysés (🚶 + 🚇)
+→ ✅ Budget calculé
+```
+
+## 🐛 Dépannage
+
+### Trajets non analysés
+```
+→ Vérifier cache trajet
+→ Rafraîchir la page
+→ Recalculer le trajet
+```
+
+### Budget incorrect
+```
+→ Vérifier hôtels ajoutés
+→ Rafraîchir onglet Budget
+```
+
+### Optimisation échoue
+```
+→ Au moins 1 activité flexible
+→ Vérifier clé OpenAI
 ```
 
 ## 📝 Licence
@@ -207,15 +242,11 @@ MIT License
 - Node.js + Express
 - Tailwind CSS
 
-## 📞 Support
-
-Ouvrir une issue sur GitHub
-
 ---
 
 **Bon voyage au Japon !** 🗾🌸
 
-**Version** : 6.1.1 Production  
+**Version** : 6.2 Production  
 **Status** : ✅ Production Ready  
-**Bugs** : 0 Critical  
-**Tests** : Passed
+**Features** : Analyse trajets détaillée  
+**Tests** : ✅ Passed

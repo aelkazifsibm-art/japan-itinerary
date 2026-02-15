@@ -1909,15 +1909,14 @@
                 const el = document.getElementById(elementId);
                 if (el) {
                     const timeDisplay = formatTravelTime(cached.total_minutes);
+                    const breakdown = analyzeTransportBreakdown(cached.details, cached.summary);
                     el.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="font-bold text-sm">${cached.summary}</div>
-                            <div class="text-[10px] bg-white bg-opacity-20 px-2 py-0.5 rounded">✅ CACHE</div>
-                        </div>
-                        <div class="text-[11px] leading-relaxed opacity-90 whitespace-pre-line">${cached.details}</div>
-                        <div class="mt-2 pt-2 border-t border-white border-opacity-20 flex justify-between items-center">
-                            <div class="text-[11px] font-bold">⏱️ Durée: ${timeDisplay}</div>
-                            <div class="text-[11px] font-bold">🏁 Arrivée: ${cached.arrival}</div>
+                        <div class="space-y-1">
+                            <div class="flex justify-between items-center">
+                                <div class="text-sm font-bold">⏱️ ${timeDisplay}</div>
+                                <div class="text-sm font-bold">🏁 ${cached.arrival}</div>
+                            </div>
+                            ${breakdown ? `<div class="text-xs opacity-75">${breakdown}</div>` : ''}
                         </div>
                     `;
                 }
@@ -1946,15 +1945,14 @@
                     
                     if (el) {
                         const timeDisplay = formatTravelTime(j.total_minutes);
+                        const breakdown = analyzeTransportBreakdown(j.details, j.summary);
                         el.innerHTML = `
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="font-bold text-sm">${j.summary}</div>
-                                <div class="text-[10px] bg-white bg-opacity-20 px-2 py-0.5 rounded">✅ VÉRIFIÉ</div>
-                            </div>
-                            <div class="text-[11px] leading-relaxed opacity-90 whitespace-pre-line">${j.details}</div>
-                            <div class="mt-2 pt-2 border-t border-white border-opacity-20 flex justify-between items-center">
-                                <div class="text-[11px] font-bold">⏱️ Durée: ${timeDisplay}</div>
-                                <div class="text-[11px] font-bold">🏁 Arrivée: ${j.arrival}</div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between items-center">
+                                    <div class="text-sm font-bold">⏱️ ${timeDisplay}</div>
+                                    <div class="text-sm font-bold">🏁 ${j.arrival}</div>
+                                </div>
+                                ${breakdown ? `<div class="text-xs opacity-75">${breakdown}</div>` : ''}
                             </div>
                         `;
                     }
@@ -1965,6 +1963,52 @@
                 const el = document.getElementById(elementId);
                 if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur réseau</div>`;
             }
+        }
+
+        function analyzeTransportBreakdown(details, summary) {
+            if (!details) return null;
+            
+            let walkTime = 0;
+            let transitTime = 0;
+            
+            // Analyser le texte pour extraire les temps
+            const lines = details.toLowerCase().split('\n');
+            
+            lines.forEach(line => {
+                // Détecter marche à pied
+                if (line.includes('pied') || line.includes('marche') || line.includes('walk')) {
+                    const match = line.match(/(\d+)\s*min/);
+                    if (match) walkTime += parseInt(match[1]);
+                }
+                
+                // Détecter métro/train/bus
+                if (line.includes('métro') || line.includes('metro') || line.includes('train') || 
+                    line.includes('bus') || line.includes('ligne') || line.includes('subway')) {
+                    const match = line.match(/(\d+)\s*min/);
+                    if (match) transitTime += parseInt(match[1]);
+                }
+            });
+            
+            // Si on n'a pas trouvé de détails, analyser le summary
+            if (walkTime === 0 && transitTime === 0) {
+                const summaryLower = summary.toLowerCase();
+                if (summaryLower.includes('pied') || summaryLower.includes('marche')) {
+                    // Tout le trajet est à pied
+                    const match = summary.match(/(\d+)\s*min/);
+                    if (match) walkTime = parseInt(match[1]);
+                } else if (summaryLower.includes('métro') || summaryLower.includes('train') || summaryLower.includes('bus')) {
+                    // Considérer que c'est du transport
+                    const match = summary.match(/(\d+)\s*min/);
+                    if (match) transitTime = parseInt(match[1]);
+                }
+            }
+            
+            // Construire l'affichage
+            const parts = [];
+            if (walkTime > 0) parts.push(`🚶 ${walkTime} min`);
+            if (transitTime > 0) parts.push(`🚇 ${transitTime} min`);
+            
+            return parts.length > 0 ? parts.join(' + ') : null;
         }
 
         function formatTravelTime(minutes) {
