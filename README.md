@@ -1,4 +1,4 @@
-# 🗾 My Japan Trip - v6.3 Ultimate
+# 🗾 My Japan Trip - v6.3 Final
 
 Application web intelligente avec IA pour planifier votre voyage au Japon.
 
@@ -27,54 +27,66 @@ npm start
 | **Google Maps Server** | Places API backend | Gratuit |
 | **OpenWeather** | Météo réelle | **GRATUIT** |
 
-## ✨ Nouveautés v6.3
+## ✨ Fonctionnalités v6.3
+
+### 💡 Suggestions Intelligentes (NOUVEAU)
+
+**Scroll vertical** avec badges informatifs :
+```
+⛩️ Senso-ji Temple    ⭐
+😊 Facile  🎯 Incontournable
+
+🗼 Tokyo Skytree      ⭐
+😅 Moyen   🎯 Incontournable
+```
+
+**Badges** :
+- 😊 **Facile** (vert) - Marche minimale
+- 😅 **Moyen** (jaune) - Marche modérée  
+- 😰 **Intense** (orange) - Randonnée, escaliers
+- 🎯 **Incontournable** (violet) - Must-see
+- ⭐ **Star** - Visuellement marqué
 
 ### ✅ Swipe pour Compléter
-**Swipe gauche** sur une activité pour la marquer comme "faite" :
 ```
-Swipe → Animation confetti 🎊
+Swipe gauche → Animation confetti 🎊
 → Fond vert + Checkmark ✓
-→ Sauvegardé automatiquement
+→ Sauvegardé auto
 ```
 
-### 🎯 Drag & Drop Activités
-**Maintien long** pour réorganiser :
-- Déplacer haut/bas
-- Horaires recalculés automatiquement
-- Animation fluide
+### 🎯 Drag & Drop
+```
+Maintien long → Déplacer haut/bas
+→ Horaires recalculés
+→ Sauvegarde auto
+```
 
 ### 👥 Alerte Affluence
-**Notification intelligente** :
-- Détection pics touristiques
-- Suggestions heures alternatives
-- Animation pulse orange
-- Auto-dismiss 8 secondes
-
-### 💡 Suggestions Intégrées
-**Dans le modal d'ajout** :
-- Grid 2 colonnes
-- Clic direct → Pré-remplissage
-- Bouton masquer
+```
+Pic détecté → Notification orange
+→ Suggestions heures alternatives
+→ Auto-dismiss 8s
+```
 
 ### 🎨 Thème Violet
-**Design cohérent** :
-- Couleur principale : Purple
-- Dégradés Purple → Pink
-- Interface moderne
+```
+Primary: Purple (#8b5cf6)
+Gradients: Purple → Pink
+```
 
 ## 🎮 Fonctionnalités Complètes
 
 ### 🤖 Ajout Rapide IA
-- Saisie libre avec fautes
-- Correction automatique
-- Géolocalisation auto
-- 2 clics pour ajouter
+- Saisie libre
+- Correction auto
+- Géolocalisation
+- 2 clics
 
 ### ⚡ Optimisation Automatique
-- Horaires d'ouverture
-- Affluence optimale
-- Trajets calculés
-- Météo intégrée
+- Horaires ouverture
+- Affluence
+- Trajets
+- Météo
 - Horaires fixes respectés
 
 ### 🚇 Analyse Trajets
@@ -83,45 +95,65 @@ Swipe → Animation confetti 🎊
 🚶 10 min + 🚇 25 min
 ```
 
-### 💰 Budget Complet
+### 💰 Budget
 - 9 catégories
 - Calcul auto hébergements
-- Budget total + par jour
+- Total + par jour
 
 ### 🌦️ Météo Réelle
 - Prévisions 7 jours
 - Optimisation adaptée
 
-### 📱 Interface 4 Onglets
+### 📱 Interface
 - **🗺️ Route** : Planning
 - **🎯 IA** : Modes
 - **💰 Budget** : Gestionnaire
 - **⚙️ Config** : Paramètres
 
-## 🎯 Exemple Complet
+## 📋 Exemple Journée Tokyo
 
-### Journée à Tokyo
-
-**Activités** :
+### Suggestions avec Infos
 ```
-[✓] 09:00 Senso-ji Temple (vert + ✓)
+Modal → Suggestions scrollables
+
+⛩️ Senso-ji Temple    ⭐
+😊 Facile  🎯 Incontournable
+
+🚶 Shibuya Crossing   ⭐
+😊 Facile  🎯 Incontournable
+
+🗼 Tokyo Skytree      ⭐
+😅 Moyen   🎯 Incontournable
+
+⛩️ Meiji Shrine       ⭐
+😊 Facile  🎯 Incontournable
+
+🐟 Tsukiji Market
+😅 Moyen
+
+🎮 Akihabara
+😅 Moyen
+```
+
+### Planning Optimisé
+```
+[✓] 09:00 Senso-ji (complété)
     ⏱️ 25 min    🏁 09:25
     🚶 5 min + 🚇 20 min
 
 [ ] 09:30 Tokyo Skytree
-    ⏱️ 40 min    🏁 11:10
-    🚶 8 min + 🚇 32 min
     ⚠️ Forte affluence 11h-14h
 
-[✓] 12:00 Shibuya (complété)
+[✓] 12:00 Shibuya
 
-[ ] 13:30 Harajuku
+[ ] 13:30 Meiji Shrine
 ```
 
-**Actions** :
+### Actions
+- 👆 Clic suggestion → Pré-rempli
 - ✅ Swipe gauche → Marquer fait
 - 🔄 Maintien long → Réorganiser
-- 👆 Clic → Voir détails
+- 👁️ Clic activité → Détails
 
 ## 📊 Architecture
 
@@ -129,17 +161,17 @@ Swipe → Animation confetti 🎊
 ```javascript
 POST /api/quick-add-activity  // Ajout rapide
 POST /api/optimize-day         // Optimisation
-POST /api/activity-info        // Infos + affluence
+POST /api/activity-info        // Infos affluence
 POST /api/route                // Itinéraires
-POST /api/check-crowd          // Vérif affluence (NOUVEAU)
+POST /api/check-crowd          // Vérif affluence
 GET  /api/weather              // Météo
 ```
 
 ### Frontend
-- 2500+ lignes
+- 2650+ lignes
 - Tailwind CSS
 - Vanilla JS
-- Touch events (swipe, drag)
+- Touch events
 - Animations (confetti, pulse)
 
 ## 🌐 Déploiement Render.com
@@ -171,93 +203,121 @@ Instance: Free
 
 ## 📈 Changelog
 
-### v6.3 (Ultimate)
-- ✅ **Swipe pour marquer fait**
-- 🎊 **Animation confetti**
-- 🎯 **Drag & drop activités**
-- 👥 **Alerte affluence intelligente**
-- 💡 **Suggestions dans modal**
-- 🎨 **Thème violet/pink**
+### v6.3 Final
+- 💡 **Suggestions scroll vertical**
+- 🏷️ **Badges fatigue (😊😅😰)**
+- ⭐ **Badge incontournable**
+- ✅ Swipe complétion
+- 🎊 Animation confetti
+- 🎯 Drag & drop
+- 👥 Alerte affluence
+- 🎨 Thème violet
 
 ### v6.2
-- 🚇 Analyse trajets détaillée
-- 🎯 Affichage compact
+- 🚇 Analyse trajets
 
-### v6.1.1
-- 🐛 Fix activités disparaissent
-- 🔧 Conservation données
+### v6.1
+- 💰 Budget complet
 
 ### v6.0
 - 🤖 Ajout rapide IA
 - ⚡ Optimisation auto
-- 🌦️ Météo OpenWeather
 
-## 🎯 Guide v6.3
+## 🎯 Guide Utilisation
 
-### Marquer Activité Faite
+### Choisir Activités
 ```
-1. Swipe gauche sur l'activité
-2. Animation confetti 🎊
-3. Fond devient vert
-4. Checkmark ✓ apparaît
-5. Sauvegardé auto
+1. Clic "+ AJOUTER"
+2. Voir suggestions (scroll)
+3. Repérer ⭐ incontournables
+4. Vérifier 😊😅😰 fatigue
+5. Clic suggestion
+6. Flexible/Fixé
+7. Ajouter
 ```
 
-### Réorganiser Activités
+### Planifier Selon Énergie
 ```
-1. Maintien long sur activité
-2. Déplacer haut ou bas
+Matin :
+😊 Facile (Meiji Shrine)
+
+Midi :
+😅 Moyen (Tsukiji Market)
+
+Après-midi :
+😰 Intense (Fushimi Inari - 10000 torii)
+
+Soir :
+😊 Facile (Shibuya)
+```
+
+### Marquer Complété
+```
+1. Swipe gauche > 100px
+2. Confetti 🎊
+3. Fond vert
+4. Checkmark ✓
+5. Auto-save
+```
+
+### Réorganiser
+```
+1. Maintien long
+2. Déplacer haut/bas
 3. Relâcher
 4. Horaires recalculés
-5. Sauvegardé auto
-```
-
-### Gérer Affluence
-```
-Si pic détecté:
-→ Notification orange
-→ Message explicatif
-→ Suggestions heures
-→ Auto-dismiss 8s
+5. Auto-save
 ```
 
 ## 📝 Guide Développeur
 
 **Voir** : `MODIFICATIONS_V6.3.md`
 
-Contient le code complet pour :
+Contient code pour :
 - Swipe complétion
 - Drag & drop
 - Alerte affluence
-- Suggestions modal
+- Suggestions badges
 - Thème violet
 
 ## 🧪 Tests
 
 ### Scénarios Validés
-- ✅ Ajout activités
-- ✅ Swipe complétion (gauche)
-- ✅ Animation confetti (30 particules)
-- ✅ Drag & drop (haut/bas)
+- ✅ Suggestions scroll
+- ✅ Badges fatigue/incontournable
+- ✅ Swipe complétion
+- ✅ Confetti (30 particules)
+- ✅ Drag & drop
 - ✅ Recalcul horaires
 - ✅ Alerte affluence
 - ✅ Optimisation IA
-- ✅ Budget calcul
-- ✅ Météo intégration
+- ✅ Budget
+- ✅ Météo
 
-## 💡 Astuces
+## 💡 Métadonnées Suggestions
 
-**Swipe** :
-- Swipe > 100px pour valider
-- Swipe < 100px → Retour
+**50+ activités** avec :
+- Niveau fatigue (low/medium/high)
+- Incontournable (true/false)
+- Emoji + Image
+- Requête Google Places
 
-**Drag** :
-- Maintien 500ms pour activer
-- Déplacer doucement
+**Exemples** :
+```javascript
+{
+  name: "Fushimi Inari",
+  emoji: "⛩️",
+  fatigue: "high",      // Escaliers 10000 torii
+  must_see: true        // Iconique
+}
 
-**Défaire** :
-- Bouton ↺ en haut à droite
-- Ou double-tap (optionnel)
+{
+  name: "Kinkaku-ji",
+  emoji: "🏯",
+  fatigue: "low",       // Jardin plat
+  must_see: true        // Temple d'or
+}
+```
 
 ## 📝 Licence
 
@@ -276,7 +336,7 @@ MIT License
 
 **Bon voyage au Japon !** 🗾🌸
 
-**Version** : 6.3 Ultimate  
+**Version** : 6.3 Final  
 **Status** : ✅ Production Ready  
-**Features** : Swipe + Drag + Affluence  
+**Features** : Suggestions + Swipe + Drag + Affluence  
 **UX** : ⭐⭐⭐⭐⭐
