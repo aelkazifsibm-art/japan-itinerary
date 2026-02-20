@@ -1,237 +1,311 @@
-# 🗾 Japan Itinerary - Planificateur de Voyage IA
+# 🗾 Japan Trip Planner
 
-Application web complète pour planifier votre voyage au Japon avec intelligence artificielle.
-
-![Version](https://img.shields.io/badge/version-6.5-purple)
-![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green)
-![License](https://img.shields.io/badge/license-MIT-blue)
+Une application web progressive pour planifier votre voyage au Japon avec optimisation d'itinéraire, gestion de budget et recommandations IA.
 
 ## ✨ Fonctionnalités
 
 ### 🎯 Planification Intelligente
-- **Planning jour par jour** avec navigation fluide
-- **140+ suggestions d'activités** pour 10 villes japonaises
-- **Optimisation IA** du parcours quotidien
-- **Mode Fatigue** - Adaptation selon votre énergie
-- **Météo en temps réel** - Optimisation selon la météo
+- **Profil voyageur personnalisé** : Solo, Couple, Famille, Amis
+- **Rythme adapté** : Actif, Équilibré, Détente
+- **Type de voyage** : Touristique ou Authentique
+- **Budget** : Économique, Moyen, Confort
 
-### 🏨 Gestion Complète
-- **Villes par jour** avec sélection guidée
-- **Hébergements** avec autocomplete Google Places
-- **Budget détaillé** (9 catégories : vols, hôtels, JR Pass, etc.)
-- **Calcul d'itinéraires** entre activités
+### 📅 Gestion du Voyage
+- Configuration des vols aller/retour
+- Navigation par jour (13 jours max)
+- Sélection de villes parmi 10 destinations majeures
+- Gestion des hébergements par jour
 
-### 👤 Personnalisation
-- **Profil voyageur** (Solo/Couple/Famille/Amis)
-- **Type de voyage** (Touristique/Authentique)
-- **Rythme** (Actif/Équilibré/Détente)
-- **Budget** (Économique/Moyen/Confort)
-- **Accessibilité** (Options pour handicaps visuels/moteurs)
+### 🏨 Destinations Disponibles
+- 🗼 Tokyo
+- ⛩️ Kyoto
+- 🏯 Osaka
+- 🦌 Nara
+- ☮️ Hiroshima
+- 🗻 Hakone
+- 🏔️ Nikko
+- 🌊 Kamakura
+- 🏘️ Takayama
+- 🎨 Kanazawa
 
-### 🎨 UX Moderne
-- **Interface responsive** - Optimisée mobile & desktop
-- **Bottom navigation** - Ergonomie une main
-- **FAB (Floating Action Button)** - Accès rapide config
-- **Animations fluides** - Swipe, drag & drop
-- **Thème violet/rose** - Design japonais moderne
+### 💰 Gestion de Budget
+Suivi détaillé de 9 catégories :
+- ✈️ Vols
+- 🏨 Hébergement (auto-calculé)
+- 🚄 JR Pass
+- 🚇 Transports locaux
+- 🍜 Repas
+- 🎭 Activités
+- 🛍️ Shopping
+- 🛡️ Assurance
+- 📦 Divers
 
-## 🚀 Déploiement sur Render
+### 🤖 Fonctionnalités IA
+- **140+ suggestions d'activités** réparties sur 11 villes
+- **Analyse OpenAI** des activités suggérées
+- **Correction automatique** des activités ajoutées manuellement
+- **Optimisation de planning** avec temps de trajet
+- **Météo en temps réel** via OpenWeather API
+- **Analyse de transport** (train, métro, marche)
 
-### 1. Configuration
+### 🎨 Interface & UX
+- **Design responsive** optimisé mobile
+- **Thème violet/rose** moderne
+- **Swipe-to-complete** avec confetti 🎉
+- **Drag & drop** pour réorganiser
+- **Navigation par onglets** : Voyage, Budget, Profil
+- **FAB (Floating Action Button)** pour accès rapide config
+- **Bottom navigation** toujours accessible
+- **Mode Fatigue** avec alertes de surcharge
+- **Badges visuels** : Tranquille, Actif, Sportif
 
-**Build Command:**
+### 📊 Optimisation Automatique
+- **Temps flexible vs fixe** pour chaque activité
+- **Regroupement par quartier** (ex: Shibuya, Shinjuku)
+- **Calcul des temps de trajet** entre activités
+- **Alertes foule** pour sites touristiques
+- **Must-see tracking** pour activités incontournables
+
+## 🚀 Installation
+
+### Méthode 1 : Fichier unique
 ```bash
-npm install
+# Télécharger le fichier
+git clone https://github.com/votre-username/japan-trip-planner.git
+
+# Ouvrir index.html dans un navigateur
+open index.html
 ```
 
-**Start Command:**
+### Méthode 2 : Serveur local
 ```bash
-npm start
+# Avec Python
+python -m http.server 8000
+
+# Avec Node.js
+npx http-server
+
+# Accéder à http://localhost:8000
 ```
 
-### 2. Variables d'environnement
+### Méthode 3 : GitHub Pages
+1. Fork ce repo
+2. Aller dans Settings → Pages
+3. Sélectionner la branche `main`
+4. L'app sera disponible à `https://votre-username.github.io/japan-trip-planner`
 
-Configurer dans Render Dashboard → Environment :
+## 🔑 Configuration API (Optionnel)
 
-| Variable | Description | Obligatoire |
-|----------|-------------|-------------|
-| `GOOGLE_MAPS_BROWSER_KEY` | Clé Google Maps (Browser) | ✅ Oui |
-| `GOOGLE_MAPS_SERVER_KEY` | Clé Google Maps (Server) | ✅ Oui |
-| `OPENAI_API_KEY` | Clé OpenAI (GPT-4o-mini) | ✅ Oui |
-| `OPENWEATHER_API_KEY` | Clé OpenWeather | ✅ Oui |
+Pour activer toutes les fonctionnalités :
 
-### 3. Structure du projet
-
-```
-japan-itinerary/
-├── server.js              # Serveur Express avec APIs
-├── package.json           # Dépendances Node.js
-├── public/
-│   └── index.html         # Application frontend
-├── .gitignore
-└── README.md
+### OpenAI API
+Pour l'analyse et correction d'activités :
+```javascript
+// Ligne ~2880 dans index.html
+const OPENAI_API_KEY = 'votre-clé-openai';
 ```
 
-### 4. Déploiement
-
-1. **Fork ce repo** ou clone-le
-2. **Connecte à Render** via GitHub
-3. **Configure les variables d'environnement**
-4. **Deploy !**
-
-L'app sera accessible sur : `https://votre-app.onrender.com`
-
-## 📡 Endpoints API
-
-### Google Places
-```
-GET  /api/places/autocomplete?q={query}
-GET  /api/places/details?place_id={id}
+### OpenWeather API
+Pour la météo en temps réel :
+```javascript
+// Ligne ~2950 dans index.html
+const OPENWEATHER_API_KEY = 'votre-clé-openweather';
 ```
 
-### OpenAI - Intelligence Artificielle
+**Note** : L'application fonctionne sans clés API, mais avec fonctionnalités réduites.
+
+## 📱 Utilisation
+
+### 1️⃣ Onboarding (2 étapes)
+**Étape 1 - Profil** :
+- Nombre de voyageurs
+- Type de voyage
+- Rythme souhaité
+- Budget
+- Accessibilité (optionnel)
+
+**Étape 2 - Dates** :
+- Vol aller : date, heure, aéroport d'arrivée
+- Vol retour : aéroport de départ, date, heure
+
+### 2️⃣ Configuration du Voyage
+Cliquer sur le FAB ⚙️ en bas à droite :
+
+**Onglet 🗺️ Voyage** :
+- Navigation par jour (← JOUR X/Y →)
+- Sélection de ville
+- Nom et adresse de l'hôtel
+- Prix par nuit (optionnel)
+
+**Onglet 💰 Budget** :
+- Saisie des montants par catégorie
+- Calcul automatique du total
+- Breakdown détaillé
+
+**Onglet 👤 Profil** :
+- Affichage du profil actuel
+- Modification des préférences
+- Modification dates/vols
+- Réinitialisation
+
+### 3️⃣ Ajout d'Activités
+**Options** :
+- ➕ Bouton manuel (en bas de chaque jour)
+- 💡 Suggestions IA (140+ activités)
+- 🔍 Recherche par ville/type
+
+**Édition** :
+- Modifier nom, quartier, temps
+- Ajouter des notes
+- Marquer comme "Must-see"
+- Définir temps flexible/fixe
+
+### 4️⃣ Gestion du Planning
+- ✅ **Swipe droite** : Compléter (avec confetti)
+- 🗑️ **Swipe gauche** : Supprimer
+- 🔄 **Drag & drop** : Réorganiser
+- 🤖 **Optimiser** : Réorganisation automatique
+
+## 💾 Stockage
+
+Toutes les données sont sauvegardées localement dans le navigateur :
+- `localStorage` : Profil, dates, villes, hôtels, budget
+- Pas de serveur requis
+- Aucune donnée envoyée en ligne (sauf appels API)
+
+**Données stockées** :
+- `japan_user_profile` : Profil voyageur
+- `japan_trip_info_v5` : Vols et dates
+- `japan_day_cities_v5` : Villes par jour
+- `japan_day_hotels_v5` : Hôtels par jour
+- `japan_activities_v7` : Toutes les activités
+- `japan_budget` : Budget complet
+
+## 🏗️ Architecture
+
+### Fichier unique HTML
+- **HTML** : Structure de l'app
+- **CSS** : Tailwind CSS inline
+- **JavaScript** : ~3900 lignes vanilla JS
+
+### Composants Principaux
 ```
-POST /api/normalize-text          # Normalise les noms de lieux
-POST /api/quick-add-activity      # Ajoute une activité avec IA
-POST /api/optimize-day            # Optimise l'ordre des activités
-POST /api/activity-info           # Infos enrichies sur un lieu
+┌─ Welcome Screen (Onboarding)
+│  ├─ Étape 1 : Profil
+│  └─ Étape 2 : Dates
+│
+├─ Planning Screen
+│  ├─ Header avec titre
+│  ├─ Navigation jour (Jour X/Y)
+│  ├─ Liste activités par jour
+│  └─ Empty state
+│
+├─ Configuration Screen (FAB)
+│  ├─ Onglet Voyage
+│  ├─ Onglet Budget
+│  └─ Onglet Profil
+│
+└─ Sidebar Options
+   ├─ Mode Fatigue
+   ├─ Quick Add
+   └─ Suggestions IA
 ```
 
-### Google Maps
-```
-POST /api/route                   # Calcul d'itinéraire
-```
+## 🛠️ Technologies
 
-### Météo
-```
-GET  /api/weather?city={ville}
-```
+- **HTML5** : Structure sémantique
+- **Tailwind CSS** : Design system
+- **Vanilla JavaScript** : Logique métier
+- **OpenAI API** : Analyse et suggestions
+- **OpenWeather API** : Données météo
+- **LocalStorage** : Persistence
 
-## 🛠️ Développement Local
+## 📈 Versions
 
-### Installation
-
-```bash
-# Cloner le repo
-git clone https://github.com/votre-username/japan-itinerary.git
-cd japan-itinerary
-
-# Installer les dépendances
-npm install
-
-# Créer un fichier .env
-cp .env.example .env
-# Puis éditer .env avec vos clés API
-
-# Lancer le serveur
-npm start
-```
-
-L'app sera accessible sur `http://localhost:3000`
-
-### Mode développement (avec auto-reload)
-
-```bash
-npm run dev
-```
-
-## 🎯 Utilisation
-
-### 1. Premier lancement
-1. **Splash screen** animé (1.5s)
-2. **Onboarding en 2 étapes** :
-   - Profil voyageur (préférences)
-   - Dates de voyage (vols)
-
-### 2. Planning
-- **Jour par jour** - Navigue avec ← →
-- **Ajoute des activités** :
-  - Via suggestions (140+ activités)
-  - Manuellement avec correction IA
-- **Glisse-dépose** pour réorganiser
-- **Swipe → pour compléter** une activité
-
-### 3. Configuration (FAB ⚙️)
-- **🗺️ Voyage** - Villes & hôtels par jour
-- **💰 Budget** - Gestionnaire complet
-- **👤 Profil** - Modifier préférences + dates
-
-## 🌸 Villes Supportées
-
-- 🗼 **Tokyo** (20 activités)
-- ⛩️ **Kyoto** (20 activités)
-- 🏯 **Osaka** (16 activités)
-- 🦌 **Nara** (12 activités)
-- ☮️ **Hiroshima** (12 activités)
-- 🗻 **Hakone** (12 activités)
-- 🏔️ **Nikko** (12 activités)
-- 🌊 **Kamakura** (12 activités)
-- 🏘️ **Takayama** (12 activités)
-- 🎨 **Kanazawa** (12 activités)
-
-## 🔧 Technologies
-
-### Frontend
-- HTML5
-- Tailwind CSS
-- Vanilla JavaScript
-- LocalStorage (persistance)
-
-### Backend
-- Node.js 18+
-- Express.js
-- CORS
-
-### APIs Externes
-- OpenAI GPT-4o-mini
-- Google Maps API
-- Google Places API
-- OpenWeather API
-
-## 📝 Changelog
-
-### v6.5 - Navigation Restructurée (Février 2025)
-- ✅ Bottom navigation (Voyage/Budget/Profil)
-- ✅ FAB pour accès rapide config
+### v6.7 (Actuelle)
 - ✅ Navigation par jour dans config
-- ✅ Dates corrigées (tripData.outbound/return)
-- ✅ Profil intégré dans Réglages
-- ✅ UX optimisée mobile
+- ✅ Formulaire ville/hôtel intégré
+- ✅ Bottom nav toujours accessible
+- ✅ Bug fixes dates et totalDays
 
-### v6.4 - Suggestions Intégrées (Février 2025)
-- ✅ 140 activités (vs 90)
-- ✅ Dropdown intégré
-- ✅ Bouton manuel fixe
+### v6.6
+- Bottom navigation bar
+- User profile tab
+- Restructuration 4 onglets
 
-### v6.0 - Onboarding & Profil (Février 2025)
-- ✅ Profil voyageur (5 catégories)
-- ✅ Onboarding 2 étapes
-- ✅ Swipe entre étapes
+### v6.5
+- Onboarding 2 étapes
+- Profile management
+- FAB implementation
 
-### v5.0 - Base Fonctionnelle (Février 2025)
-- ✅ Planning jour par jour
-- ✅ Villes & hôtels
-- ✅ Budget (9 catégories)
-- ✅ Suggestions d'activités
+### v6.0-6.4
+- Quick activity addition
+- AI corrections
+- Budget manager
+- City suggestions
 
-## 📄 License
+### v5.0
+- Flight form
+- Splash screen
+- Base functionality
 
-MIT License - Utilisation libre
+## 🐛 Bugs Connus
+
+- [ ] Suggestions adresse hôtel non implémentées dans config
+- [ ] Mode Nuit placeholder (non fonctionnel)
+- [ ] Copier hôtel précédent non implémenté
+
+## 🗺️ Roadmap
+
+### Court terme
+- [ ] Autocomplete adresses hôtel
+- [ ] Bouton "Copier hôtel d'hier"
+- [ ] Export PDF du planning
+- [ ] Partage du voyage
+
+### Moyen terme
+- [ ] Mode hors-ligne (PWA)
+- [ ] Multi-langue (EN, FR, JP)
+- [ ] Dark mode fonctionnel
+- [ ] Import/Export JSON
+
+### Long terme
+- [ ] Synchronisation cloud
+- [ ] Collaboration multi-users
+- [ ] Cartes interactives
+- [ ] Calcul de budget optimisé
 
 ## 🤝 Contribution
 
-Les contributions sont les bienvenues !
+Les contributions sont les bienvenues ! Voici comment participer :
 
 1. Fork le projet
-2. Crée une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit tes changements (`git commit -m 'Add AmazingFeature'`)
-4. Push (`git push origin feature/AmazingFeature`)
-5. Ouvre une Pull Request
+2. Créer une branche (`git checkout -b feature/AmazingFeature`)
+3. Commit les changements (`git commit -m 'Add some AmazingFeature'`)
+4. Push vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrir une Pull Request
 
-## 💬 Support
+## 📝 License
 
-Des questions ? Ouvre une [issue](https://github.com/votre-username/japan-itinerary/issues)
+Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+
+## 👤 Auteur
+
+Créé avec ❤️ par Claude & Human
+
+## 🙏 Remerciements
+
+- OpenAI pour l'API GPT
+- OpenWeather pour les données météo
+- Tailwind CSS pour le framework design
+- Communauté open-source
+
+## 📧 Contact
+
+Pour toute question ou suggestion :
+- 📫 Issues GitHub
+- 💬 Discussions GitHub
 
 ---
 
-Made with 🌸 by Claude & You
+**Bon voyage au Japon ! 🗾✨**

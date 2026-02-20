@@ -1290,6 +1290,9 @@
     </div>
 
     <script>
+        // ========== CONFIGURATION BACKEND ==========
+        const BACKEND_URL = 'https://japan-itinerary-7cm0.onrender.com';
+        
         // ========== DONNÉES GLOBALES ==========
         let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
         let tripData = JSON.parse(localStorage.getItem('japan_trip_info_v5') || 'null');
@@ -1790,7 +1793,15 @@
                 
                 hotelAddressTimer = setTimeout(async () => {
                     try {
-                        const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}`);
+                        const r = await fetch(`${BACKEND_URL}/api/places/autocomplete?q=${encodeURIComponent(query)}`);
+                        
+                        // Vérifier si le backend répond
+                        if (!r.ok) {
+                            // Backend non disponible - mode manuel
+                            addressList.classList.add('hidden');
+                            return;
+                        }
+                        
                         const j = await r.json();
                         addressList.innerHTML = '';
                         
@@ -1805,7 +1816,9 @@
                             });
                         }
                     } catch (e) {
-                        console.error('Erreur autocomplete:', e);
+                        // Erreur réseau - backend non disponible - mode manuel silencieux
+                        console.log('Autocomplete non disponible - mode manuel activé');
+                        addressList.classList.add('hidden');
                     }
                 }, 300);
             });
@@ -1814,6 +1827,11 @@
         async function validateHotelAddress(placeId) {
             try {
                 const r = await fetch(`/api/places/details?place_id=${placeId}`);
+                
+                if (!r.ok) {
+                    return;
+                }
+                
                 const j = await r.json();
                 
                 if (j.ok) {
@@ -1827,7 +1845,8 @@
                     statusDiv.innerHTML = `<span class="text-green-600">✅ Adresse validée</span>`;
                 }
             } catch (e) {
-                console.error('Erreur validation:', e);
+                console.log('Validation non disponible');
+
             }
         }
 
@@ -2408,13 +2427,13 @@
                         }, 500);
                     }
                 } else {
-                    alert('Erreur: ' + (data.error || 'Impossible d\'analyser l\'activité'));
+                    console.log('Erreur API:', data.error || 'Impossible d\'analyser l\'activité');
                     btn.innerHTML = originalHTML;
                     btn.disabled = false;
                 }
             } catch (error) {
-                console.error('Erreur:', error);
-                alert('Erreur réseau. Vérifiez votre connexion.');
+                console.log('Backend non disponible - mode manuel activé');
+                // Pas d'alerte - juste continuer en mode manuel
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
             }
@@ -2467,15 +2486,15 @@
                     const loadingEl = document.getElementById('optimization-loading');
                     if (loadingEl) loadingEl.remove();
                     
-                    alert('Erreur: ' + (data.error || 'Impossible d\'optimiser'));
+                    console.log('Erreur optimisation:', data.error);
                 }
             } catch (error) {
                 // TOUJOURS supprimer le loading en cas d'erreur
                 const loadingEl = document.getElementById('optimization-loading');
                 if (loadingEl) loadingEl.remove();
                 
-                console.error('Erreur:', error);
-                alert('Erreur réseau. Vérifiez votre connexion.');
+                console.log('Backend non disponible - optimisation IA désactivée');
+                // Pas d'alerte - l'utilisateur peut continuer manuellement
             }
         }
 
@@ -2601,7 +2620,10 @@
                 document.getElementById('ia-title-clean').textContent = j.title_clean;
                 iaSuggestedLocation = j.suggested_location;
                 document.getElementById('ia-suggestions').classList.remove('hidden');
-            } catch (e) { alert("Erreur IA"); }
+            } catch (e) { 
+                console.log("IA non disponible");
+                // Pas d'alerte - continuer en mode manuel
+            }
             finally { btn.textContent = "✨ IA"; }
         }
 
@@ -2624,24 +2646,41 @@
             if (q.length < 2) { destList.classList.add('hidden'); return; }
             
             autoTimer = setTimeout(async () => {
-                const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`);
-                const j = await r.json();
-                destList.innerHTML = '';
-                if (j.predictions?.length > 0) {
-                    destList.classList.remove('hidden');
-                    j.predictions.slice(0, 5).forEach(p => {
-                        const div = document.createElement('div');
-                        div.className = 'suggestion-item';
-                        div.textContent = p.description;
-                        div.onclick = () => selectPlace(p.place_id);
-                        destList.appendChild(div);
-                    });
+                try {
+                    const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`);
+                    
+                    if (!r.ok) {
+                        destList.classList.add('hidden');
+                        return;
+                    }
+                    
+                    const j = await r.json();
+                    destList.innerHTML = '';
+                    if (j.predictions?.length > 0) {
+                        destList.classList.remove('hidden');
+                        j.predictions.slice(0, 5).forEach(p => {
+                            const div = document.createElement('div');
+                            div.className = 'suggestion-item';
+                            div.textContent = p.description;
+                            div.onclick = () => selectPlace(p.place_id);
+                            destList.appendChild(div);
+                        });
+                    }
+                } catch (e) {
+                    console.log('Autocomplete non disponible - saisie manuelle activée');
+                    destList.classList.add('hidden');
                 }
             }, 300);
         }
 
         async function selectPlace(placeId) {
-            const r = await fetch(`/api/places/details?place_id=${placeId}`);
+            try {
+                const r = await fetch(`/api/places/details?place_id=${placeId}`);
+                
+                if (!r.ok) {
+                    return;
+                }
+                
             const j = await r.json();
             if (j.ok) {
                 selectedPlace = j.place;
@@ -2795,12 +2834,12 @@
                         }, 500);
                     }
                 } else {
-                    alert('Erreur: ' + (data.error || 'Impossible d\'ajouter l\'activité'));
+                    console.log('Erreur API:', data.error);
                     dropdown.innerHTML = originalContent;
                 }
             } catch (error) {
-                console.error('Erreur:', error);
-                alert('Erreur réseau');
+                console.log('Backend non disponible - mode manuel');
+                // Pas d'alerte - juste restaurer le dropdown
                 dropdown.innerHTML = originalContent;
             }
         }
@@ -3468,6 +3507,58 @@
             renderPlanning();
         }
 
+        // ========== AUTOCOMPLETE HÔTEL CONFIG ==========
+        let hotelAddressTimerConfig = null;
+
+        function initHotelListenersConfig() {
+            const addressInput = document.getElementById('hotel-address-input-config');
+            const addressList = document.getElementById('hotel-address-suggestions-config');
+            
+            if (!addressInput || addressInput.dataset.initialized) return;
+            addressInput.dataset.initialized = 'true';
+
+            addressInput.addEventListener('input', () => {
+                clearTimeout(hotelAddressTimerConfig);
+                const query = addressInput.value.trim();
+                
+                if (query.length < 3) {
+                    addressList.classList.add('hidden');
+                    return;
+                }
+                
+                hotelAddressTimerConfig = setTimeout(async () => {
+                    try {
+                        const r = await fetch(`${BACKEND_URL}/api/places/autocomplete?q=${encodeURIComponent(query)}`);
+                        
+                        if (!r.ok) {
+                            addressList.classList.add('hidden');
+                            return;
+                        }
+                        
+                        const j = await r.json();
+                        addressList.innerHTML = '';
+                        
+                        if (j.predictions?.length > 0) {
+                            addressList.classList.remove('hidden');
+                            j.predictions.slice(0, 5).forEach(p => {
+                                const div = document.createElement('div');
+                                div.className = 'px-4 py-3 hover:bg-purple-50 cursor-pointer border-b border-gray-100 text-sm';
+                                div.textContent = p.description;
+                                div.onclick = () => {
+                                    addressInput.value = p.description;
+                                    addressList.classList.add('hidden');
+                                };
+                                addressList.appendChild(div);
+                            });
+                        }
+                    } catch (e) {
+                        console.log('Autocomplete config non disponible');
+                        addressList.classList.add('hidden');
+                    }
+                }, 300);
+            });
+        }
+
         function editHotelConfig() {
             document.getElementById('hotel-display-config').classList.add('hidden');
             // Réafficher le formulaire (déjà visible par défaut)
@@ -3484,9 +3575,7 @@
 
         function configNextDay() {
             if (!tripData) return;
-            const departureDate = new Date(tripData.outbound.departureDate + 'T' + tripData.outbound.departureTime);
-            const returnDate = new Date(tripData.return.departureDate + 'T' + tripData.return.departureTime);
-            const totalDays = Math.ceil((returnDate - departureDate) / (1000 * 60 * 60 * 24));
+            const totalDays = tripData.totalDays;
             if (configDayIndex < totalDays - 1) {
                 configDayIndex++;
                 updateVoyageTab();
@@ -3496,12 +3585,11 @@
         function updateConfigDayNavigation() {
             if (!tripData) return;
             
-            const departureDate = new Date(tripData.outbound.departureDate + 'T' + tripData.outbound.departureTime);
+            const departureDate = new Date(tripData.outbound.departureDate + 'T00:00:00');
             const currentDate = new Date(departureDate);
             currentDate.setDate(currentDate.getDate() + configDayIndex);
             
-            const returnDate = new Date(tripData.return.departureDate + 'T' + tripData.return.departureTime);
-            const totalDays = Math.ceil((returnDate - departureDate) / (1000 * 60 * 60 * 24));
+            const totalDays = tripData.totalDays;
             
             // Mettre à jour le label du jour
             document.getElementById('config-day-label').textContent = `JOUR ${configDayIndex + 1}/${totalDays}`;
@@ -3541,6 +3629,9 @@
             
             // Mettre à jour la navigation
             updateConfigDayNavigation();
+            
+            // Initialiser l'autocomplétion d'adresse
+            initHotelListenersConfig();
             
             // Mettre à jour le sélecteur de ville
             const citySelector = document.getElementById('day-city-selector-config');
