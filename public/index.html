@@ -1291,7 +1291,11 @@
 
     <script>
         // ========== CONFIGURATION BACKEND ==========
-        const BACKEND_URL = 'https://japan-itinerary-7cm0.onrender.com';
+        // Si servi depuis le même serveur (Render), utiliser URLs relatives
+        // Sinon (GitHub Pages par exemple), utiliser l'URL complète Render
+        const BACKEND_URL = window.location.hostname === 'localhost' || window.location.port === '3000' 
+            ? '' // URLs relatives (même serveur)
+            : 'https://japan-itinerary-7cm0.onrender.com'; // URL Render (serveur externe)
         
         // ========== DONNÉES GLOBALES ==========
         let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
