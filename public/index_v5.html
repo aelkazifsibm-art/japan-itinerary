@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JapanRouteEngine — Planning Intelligent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --primary: #ff4757; 
+            --blue-nav: #3498db; 
+            --sakura: #FFB7C5;
+            --night-blue: #1a1f36;
+        }
+        * { font-family: 'Poppins', sans-serif; }
+        .bg-primary { background-color: var(--primary); }
+        .text-primary { color: var(--primary); }
+        .bg-nav { background-color: var(--blue-nav); }
+        .bg-sakura { background: linear-gradient(135deg, #FFB7C5 0%, #FF6B9D 100%); }
+        .bg-japan-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); }
+        .suggestion-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 0.9em; }
+        .suggestion-item:hover { background: #f8f9fa; color: var(--primary); }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Swipe gesture animations */
+        .swipe-container { 
+            touch-action: pan-y; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .day-indicator {
+            transition: all 0.3s ease;
+        }
+        
+        /* Welcome screen animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+        
+        /* Japanese aesthetic touches */
+        .torii-accent::before {
+            content: '⛩️';
+            margin-right: 8px;
+        }
+        
+        .fuji-pattern {
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(255, 183, 197, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(102, 126, 234, 0.2) 0%, transparent 50%);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen pb-20 fuji-pattern">
+
+    <!-- ÉCRAN DE BIENVENUE / CONFIGURATION VOYAGE -->
+    <div id="welcome-screen" class="fixed inset-0 bg-white z-[200] flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-md w-full space-y-6 animate-fade-in-up my-8">
+            <!-- Logo & Titre -->
+            <div class="text-center space-y-2">
+                <div class="text-6xl mb-4">🗾</div>
+                <h1 class="text-4xl font-black text-transparent bg-clip-text bg-japan-gradient">JapanRouteEngine</h1>
+                <p class="text-gray-500 text-sm">Planifiez votre voyage au Japon</p>
+            </div>
+
+            <!-- Formulaire -->
+            <div class="bg-white rounded-3xl shadow-2xl p-8 space-y-5 border-2 border-gray-100">
+                <h2 class="text-xl font-bold text-gray-800 torii-accent">Informations de voyage</h2>
+                
+                <!-- VOL ALLER -->
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 space-y-3 border border-blue-100">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-2xl">🛫</span>
+                        <h3 class="text-sm font-bold text-blue-700 uppercase tracking-wide">Vol Aller</h3>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Aéroport de départ</label>
+                            <select id="departure-airport" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors bg-white text-sm">
+                                <option value="">Sélectionnez votre aéroport</option>
+                                <optgroup label="🇫🇷 France">
+                                    <option value="CDG">Paris - Charles de Gaulle (CDG)</option>
+                                    <option value="ORY">Paris - Orly (ORY)</option>
+                                    <option value="LYS">Lyon - Saint-Exupéry (LYS)</option>
+                                    <option value="MRS">Marseille - Provence (MRS)</option>
+                                    <option value="NCE">Nice - Côte d'Azur (NCE)</option>
+                                    <option value="TLS">Toulouse - Blagnac (TLS)</option>
+                                    <option value="BOD">Bordeaux - Mérignac (BOD)</option>
+                                    <option value="NTE">Nantes - Atlantique (NTE)</option>
+                                </optgroup>
+                                <optgroup label="🇪🇺 Europe">
+                                    <option value="LHR">Londres - Heathrow (LHR)</option>
+                                    <option value="FRA">Frankfurt (FRA)</option>
+                                    <option value="AMS">Amsterdam - Schiphol (AMS)</option>
+                                    <option value="BRU">Bruxelles (BRU)</option>
+                                    <option value="ZRH">Zurich (ZRH)</option>
+                                    <option value="GVA">Genève (GVA)</option>
+                                </optgroup>
+                                <optgroup label="🌍 International">
+                                    <option value="JFK">New York - JFK (JFK)</option>
+                                    <option value="LAX">Los Angeles (LAX)</option>
+                                    <option value="SFO">San Francisco (SFO)</option>
+                                    <option value="YUL">Montréal (YUL)</option>
+                                    <option value="SIN">Singapour (SIN)</option>
+                                    <option value="HKG">Hong Kong (HKG)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Date</label>
+                                <input type="date" id="departure-date" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors" required>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Heure</label>
+                                <input type="time" id="departure-time" value="08:00" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Aéroport d'arrivée au Japon</label>
+                            <select id="arrival-airport-outbound" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors bg-white text-sm">
+                                <option value="">Sélectionnez un aéroport</option>
+                                <optgroup label="🗾 Tokyo">
+                                    <option value="NRT">Tokyo - Narita (NRT)</option>
+                                    <option value="HND">Tokyo - Haneda (HND)</option>
+                                </optgroup>
+                                <optgroup label="🏯 Osaka / Kansai">
+                                    <option value="KIX">Osaka - Kansai (KIX)</option>
+                                    <option value="ITM">Osaka - Itami (ITM)</option>
+                                </optgroup>
+                                <optgroup label="🗼 Autres villes">
+                                    <option value="NGO">Nagoya - Chūbu Centrair (NGO)</option>
+                                    <option value="FUK">Fukuoka (FUK)</option>
+                                    <option value="CTS">Sapporo - New Chitose (CTS)</option>
+                                    <option value="OKA">Naha/Okinawa (OKA)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Numéro de vol (optionnel)</label>
+                            <input type="text" id="outbound-flight-number" placeholder="Ex: AF275" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VOL RETOUR -->
+                <div class="bg-gradient-to-br from-pink-50 to-purple-50 rounded-2xl p-5 space-y-3 border border-pink-100">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-2xl">🛬</span>
+                        <h3 class="text-sm font-bold text-pink-700 uppercase tracking-wide">Vol Retour</h3>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Aéroport de départ au Japon</label>
+                            <select id="departure-airport-return" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors bg-white text-sm">
+                                <option value="">Sélectionnez un aéroport</option>
+                                <optgroup label="🗾 Tokyo">
+                                    <option value="NRT">Tokyo - Narita (NRT)</option>
+                                    <option value="HND">Tokyo - Haneda (HND)</option>
+                                </optgroup>
+                                <optgroup label="🏯 Osaka / Kansai">
+                                    <option value="KIX">Osaka - Kansai (KIX)</option>
+                                    <option value="ITM">Osaka - Itami (ITM)</option>
+                                </optgroup>
+                                <optgroup label="🗼 Autres villes">
+                                    <option value="NGO">Nagoya - Chūbu Centrair (NGO)</option>
+                                    <option value="FUK">Fukuoka (FUK)</option>
+                                    <option value="CTS">Sapporo - New Chitose (CTS)</option>
+                                    <option value="OKA">Naha/Okinawa (OKA)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Date</label>
+                                <input type="date" id="return-date" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors" required>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Heure</label>
+                                <input type="time" id="return-time" value="18:00" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Aéroport d'arrivée</label>
+                            <select id="arrival-airport-return" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors bg-white text-sm">
+                                <option value="">Sélectionnez votre aéroport</option>
+                                <optgroup label="🇫🇷 France">
+                                    <option value="CDG">Paris - Charles de Gaulle (CDG)</option>
+                                    <option value="ORY">Paris - Orly (ORY)</option>
+                                    <option value="LYS">Lyon - Saint-Exupéry (LYS)</option>
+                                    <option value="MRS">Marseille - Provence (MRS)</option>
+                                    <option value="NCE">Nice - Côte d'Azur (NCE)</option>
+                                    <option value="TLS">Toulouse - Blagnac (TLS)</option>
+                                    <option value="BOD">Bordeaux - Mérignac (BOD)</option>
+                                    <option value="NTE">Nantes - Atlantique (NTE)</option>
+                                </optgroup>
+                                <optgroup label="🇪🇺 Europe">
+                                    <option value="LHR">Londres - Heathrow (LHR)</option>
+                                    <option value="FRA">Frankfurt (FRA)</option>
+                                    <option value="AMS">Amsterdam - Schiphol (AMS)</option>
+                                    <option value="BRU">Bruxelles (BRU)</option>
+                                    <option value="ZRH">Zurich (ZRH)</option>
+                                    <option value="GVA">Genève (GVA)</option>
+                                </optgroup>
+                                <optgroup label="🌍 International">
+                                    <option value="JFK">New York - JFK (JFK)</option>
+                                    <option value="LAX">Los Angeles (LAX)</option>
+                                    <option value="SFO">San Francisco (SFO)</option>
+                                    <option value="YUL">Montréal (YUL)</option>
+                                    <option value="SIN">Singapour (SIN)</option>
+                                    <option value="HKG">Hong Kong (HKG)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Numéro de vol (optionnel)</label>
+                            <input type="text" id="return-flight-number" placeholder="Ex: AF274" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Résumé durée -->
+                <div id="trip-summary" class="hidden bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-100">
+                    <div class="text-center">
+                        <div class="text-3xl font-black text-transparent bg-clip-text bg-japan-gradient" id="days-count">0</div>
+                        <div class="text-xs font-bold text-gray-500 uppercase">Jours au Japon</div>
+                    </div>
+                </div>
+
+                <!-- Bouton de validation -->
+                <button onclick="startTrip()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all">
+                    Commencer mon planning 🌸
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER (avec navigation de jours) -->
+    <header id="main-header" class="bg-white shadow-sm p-4 sticky top-0 z-50 hidden">
+        <div class="max-w-md mx-auto">
+            <!-- Info voyage + Bouton modifier -->
+            <div class="flex justify-between items-center mb-3">
+                <h1 class="text-lg font-bold text-primary">JapanRouteEngine</h1>
+                <button onclick="editTrip()" class="text-xs text-gray-400 hover:text-primary transition-colors">✏️ Modifier dates</button>
+            </div>
+            
+            <!-- Navigation des jours -->
+            <div class="flex items-center justify-between bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-4 text-white shadow-lg">
+                <button onclick="previousDay()" id="prev-day-btn" class="text-2xl hover:scale-110 transition-transform">←</button>
+                <div class="text-center flex-1">
+                    <div class="text-xs font-bold opacity-80" id="day-counter">JOUR 1/1</div>
+                    <div class="text-lg font-black" id="current-day-date">Chargement...</div>
+                </div>
+                <button onclick="nextDay()" id="next-day-btn" class="text-2xl hover:scale-110 transition-transform">→</button>
+            </div>
+
+            <!-- Bouton ajouter activité -->
+            <button onclick="openModal()" class="w-full bg-primary text-white py-3 rounded-full text-sm font-bold shadow-lg mt-3 hover:shadow-xl transition-all">
+                + AJOUTER UNE ACTIVITÉ
+            </button>
+        </div>
+    </header>
+
+    <!-- PLANNING (avec support swipe) -->
+    <main class="max-w-md mx-auto p-4 space-y-4 swipe-container hidden" id="planning-list">
+        <!-- Les activités et blocs navigation seront injectés ici -->
+    </main>
+
+    <!-- MODAL AJOUT ACTIVITÉ -->
+    <div id="activity-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 overflow-y-auto max-h-[90vh]">
+            <h2 class="text-xl font-bold">Ajouter une activité</h2>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Heure</label>
+                    <input type="time" id="modal-time" class="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary">
+                </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Titre (Saisie libre)</label>
+                    <div class="flex space-x-2">
+                        <input type="text" id="modal-title-raw" placeholder="Ex: nara cerf" class="flex-1 border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary">
+                        <button onclick="normalizeText()" class="bg-gray-100 text-gray-600 px-3 rounded-xl text-xs font-bold hover:bg-gray-200">✨ IA</button>
+                    </div>
+                </div>
+
+                <div id="ia-suggestions" class="hidden bg-indigo-50 p-3 rounded-xl border border-indigo-100 space-y-2">
+                    <div class="text-xs font-bold text-indigo-600">SUGGESTION IA :</div>
+                    <div id="ia-title-clean" class="text-sm font-bold"></div>
+                    <button onclick="applyIASuggestion()" class="text-xs bg-indigo-600 text-white px-2 py-1 rounded">Appliquer</button>
+                </div>
+
+                <div class="relative">
+                    <label class="text-xs font-bold text-gray-500 uppercase">Destination (Validation Google)</label>
+                    <input type="text" id="modal-dest-search" placeholder="Rechercher le lieu..." class="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary" autocomplete="off">
+                    <div id="dest-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[110] border"></div>
+                    <div id="dest-status" class="text-[10px] mt-1 font-bold"></div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Description</label>
+                    <textarea id="modal-desc" class="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-primary h-20"></textarea>
+                </div>
+            </div>
+
+            <div class="flex space-x-3 pt-4">
+                <button onclick="closeModal()" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">ANNULER</button>
+                <button onclick="saveActivity()" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold shadow-lg">ENREGISTRER</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== DONNÉES GLOBALES ==========
+        let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
+        let tripData = JSON.parse(localStorage.getItem('japan_trip_info_v5') || 'null');
+        let currentDayIndex = 0;
+        let selectedPlace = null;
+        let iaSuggestedLocation = "";
+
+        // ========== GESTION DU VOYAGE ==========
+        function calculateDays() {
+            const depDate = document.getElementById('departure-date').value;
+            const retDate = document.getElementById('return-date').value;
+            
+            if (depDate && retDate) {
+                const start = new Date(depDate);
+                const end = new Date(retDate);
+                const diffTime = Math.abs(end - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                
+                document.getElementById('days-count').textContent = diffDays;
+                document.getElementById('trip-summary').classList.remove('hidden');
+                return diffDays;
+            }
+            return 0;
+        }
+
+        document.getElementById('departure-date').addEventListener('change', calculateDays);
+        document.getElementById('return-date').addEventListener('change', calculateDays);
+
+        function startTrip() {
+            const depAirport = document.getElementById('departure-airport').value;
+            const depDate = document.getElementById('departure-date').value;
+            const depTime = document.getElementById('departure-time').value;
+            const arrAirportOut = document.getElementById('arrival-airport-outbound').value;
+            const outFlightNum = document.getElementById('outbound-flight-number').value;
+            
+            const depAirportRet = document.getElementById('departure-airport-return').value;
+            const retDate = document.getElementById('return-date').value;
+            const retTime = document.getElementById('return-time').value;
+            const arrAirportRet = document.getElementById('arrival-airport-return').value;
+            const retFlightNum = document.getElementById('return-flight-number').value;
+
+            if (!depDate || !retDate) {
+                alert('Veuillez renseigner les dates de départ et de retour.');
+                return;
+            }
+
+            if (!depAirport || !arrAirportOut) {
+                alert('Veuillez sélectionner les aéroports du vol aller.');
+                return;
+            }
+
+            if (!depAirportRet || !arrAirportRet) {
+                alert('Veuillez sélectionner les aéroports du vol retour.');
+                return;
+            }
+
+            const start = new Date(depDate);
+            const end = new Date(retDate);
+            if (start >= end) {
+                alert('La date de retour doit être après la date de départ.');
+                return;
+            }
+
+            tripData = {
+                outbound: {
+                    departureAirport: depAirport,
+                    departureDate: depDate,
+                    departureTime: depTime,
+                    arrivalAirport: arrAirportOut,
+                    flightNumber: outFlightNum
+                },
+                return: {
+                    departureAirport: depAirportRet,
+                    departureDate: retDate,
+                    departureTime: retTime,
+                    arrivalAirport: arrAirportRet,
+                    flightNumber: retFlightNum
+                },
+                totalDays: calculateDays()
+            };
+
+            localStorage.setItem('japan_trip_info_v5', JSON.stringify(tripData));
+            
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('main-header').classList.remove('hidden');
+            document.getElementById('planning-list').classList.remove('hidden');
+            
+            updateDayNavigation();
+            renderPlanning();
+        }
+
+        function editTrip() {
+            document.getElementById('welcome-screen').classList.remove('hidden');
+            document.getElementById('departure-airport').value = tripData.outbound.departureAirport;
+            document.getElementById('departure-date').value = tripData.outbound.departureDate;
+            document.getElementById('departure-time').value = tripData.outbound.departureTime;
+            document.getElementById('arrival-airport-outbound').value = tripData.outbound.arrivalAirport;
+            document.getElementById('outbound-flight-number').value = tripData.outbound.flightNumber || '';
+            
+            document.getElementById('departure-airport-return').value = tripData.return.departureAirport;
+            document.getElementById('return-date').value = tripData.return.departureDate;
+            document.getElementById('return-time').value = tripData.return.departureTime;
+            document.getElementById('arrival-airport-return').value = tripData.return.arrivalAirport;
+            document.getElementById('return-flight-number').value = tripData.return.flightNumber || '';
+            
+            calculateDays();
+        }
+
+        // ========== NAVIGATION PAR JOUR ==========
+        function getDayDate(dayIndex) {
+            if (!tripData) return null;
+            const startDate = new Date(tripData.outbound.departureDate);
+            const dayDate = new Date(startDate);
+            dayDate.setDate(startDate.getDate() + dayIndex);
+            return dayDate;
+        }
+
+        function formatDate(date) {
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            return date.toLocaleDateString('fr-FR', options);
+        }
+
+        function updateDayNavigation() {
+            if (!tripData) return;
+            
+            const dayDate = getDayDate(currentDayIndex);
+            document.getElementById('day-counter').textContent = `JOUR ${currentDayIndex + 1}/${tripData.totalDays}`;
+            document.getElementById('current-day-date').textContent = formatDate(dayDate);
+            
+            document.getElementById('prev-day-btn').disabled = currentDayIndex === 0;
+            document.getElementById('next-day-btn').disabled = currentDayIndex === tripData.totalDays - 1;
+            
+            document.getElementById('prev-day-btn').style.opacity = currentDayIndex === 0 ? '0.3' : '1';
+            document.getElementById('next-day-btn').style.opacity = currentDayIndex === tripData.totalDays - 1 ? '0.3' : '1';
+        }
+
+        function previousDay() {
+            if (currentDayIndex > 0) {
+                currentDayIndex--;
+                updateDayNavigation();
+                renderPlanning();
+            }
+        }
+
+        function nextDay() {
+            if (currentDayIndex < tripData.totalDays - 1) {
+                currentDayIndex++;
+                updateDayNavigation();
+                renderPlanning();
+            }
+        }
+
+        // ========== SWIPE GESTURE ==========
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchStartX - touchEndX;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) {
+                    nextDay();
+                } else {
+                    previousDay();
+                }
+            }
+        }
+
+        document.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+
+        document.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+
+        // ========== MODAL ACTIVITÉ ==========
+        function openModal() {
+            document.getElementById('activity-modal').classList.remove('hidden');
+            resetModal();
+        }
+
+        function closeModal() {
+            document.getElementById('activity-modal').classList.add('hidden');
+        }
+
+        function resetModal() {
+            document.getElementById('modal-time').value = "09:00";
+            document.getElementById('modal-title-raw').value = "";
+            document.getElementById('modal-dest-search').value = "";
+            document.getElementById('modal-desc').value = "";
+            document.getElementById('ia-suggestions').classList.add('hidden');
+            document.getElementById('dest-status').textContent = "";
+            selectedPlace = null;
+        }
+
+        // ========== PHASE IA : NORMALISATION ==========
+        async function normalizeText() {
+            const text = document.getElementById('modal-title-raw').value;
+            if (!text) return;
+            
+            const btn = event.target;
+            btn.textContent = "⏳...";
+            
+            try {
+                const r = await fetch('/api/normalize-text', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text })
+                });
+                const j = await r.json();
+                
+                document.getElementById('ia-title-clean').textContent = j.title_clean;
+                iaSuggestedLocation = j.suggested_location;
+                document.getElementById('ia-suggestions').classList.remove('hidden');
+            } catch (e) { alert("Erreur IA"); }
+            finally { btn.textContent = "✨ IA"; }
+        }
+
+        function applyIASuggestion() {
+            document.getElementById('modal-title-raw').value = document.getElementById('ia-title-clean').textContent;
+            document.getElementById('modal-dest-search').value = iaSuggestedLocation;
+            triggerAutocomplete(iaSuggestedLocation);
+            document.getElementById('ia-suggestions').classList.add('hidden');
+        }
+
+        // ========== PHASE VALIDATION GOOGLE ==========
+        const destInput = document.getElementById('modal-dest-search');
+        const destList = document.getElementById('dest-suggestions');
+        let autoTimer = null;
+
+        destInput.addEventListener('input', () => triggerAutocomplete(destInput.value));
+
+        function triggerAutocomplete(q) {
+            clearTimeout(autoTimer);
+            if (q.length < 2) { destList.classList.add('hidden'); return; }
+            
+            autoTimer = setTimeout(async () => {
+                const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`);
+                const j = await r.json();
+                destList.innerHTML = '';
+                if (j.predictions?.length > 0) {
+                    destList.classList.remove('hidden');
+                    j.predictions.slice(0, 5).forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'suggestion-item';
+                        div.textContent = p.description;
+                        div.onclick = () => selectPlace(p.place_id);
+                        destList.appendChild(div);
+                    });
+                }
+            }, 300);
+        }
+
+        async function selectPlace(placeId) {
+            const r = await fetch(`/api/places/details?place_id=${placeId}`);
+            const j = await r.json();
+            if (j.ok) {
+                selectedPlace = j.place;
+                destInput.value = j.place.name;
+                destList.classList.add('hidden');
+                document.getElementById('dest-status').innerHTML = `<span class="text-green-600">✅ DESTINATION VALIDÉE : ${j.place.formatted_address}</span>`;
+            }
+        }
+
+        // ========== ENREGISTREMENT & PLANNING ==========
+        function saveActivity() {
+            if (!selectedPlace) return alert("Veuillez valider une destination via les suggestions Google.");
+            
+            const activity = {
+                id: Date.now(),
+                dayIndex: currentDayIndex,
+                time: document.getElementById('modal-time').value,
+                title: document.getElementById('modal-title-raw').value,
+                description: document.getElementById('modal-desc').value,
+                place: selectedPlace
+            };
+
+            activities.push(activity);
+            activities.sort((a, b) => {
+                if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                return a.time.localeCompare(b.time);
+            });
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            closeModal();
+            renderPlanning();
+        }
+
+        async function renderPlanning() {
+            const list = document.getElementById('planning-list');
+            list.innerHTML = '';
+
+            const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
+
+            if (dayActivities.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-16 text-gray-400">
+                        <div class="text-6xl mb-4">📅</div>
+                        <div class="text-lg font-bold">Aucune activité prévue</div>
+                        <div class="text-sm mt-2">Ajoutez votre première activité pour ce jour</div>
+                    </div>
+                `;
+                return;
+            }
+
+            for (let i = 0; i < dayActivities.length; i++) {
+                const act = dayActivities[i];
+                
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl p-5 shadow-sm border-l-4 border-primary relative";
+                card.innerHTML = `
+                    <div class="text-xs font-bold text-gray-400 mb-1">${act.time}</div>
+                    <div class="text-lg font-bold text-gray-800">${act.title}</div>
+                    <div class="text-sm text-gray-500 mt-1">${act.description}</div>
+                    <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold">📍 ${act.place.name}</div>
+                    <button onclick="deleteActivity(${act.id})" class="absolute top-4 right-4 text-gray-300 hover:text-red-500">✕</button>
+                `;
+                list.appendChild(card);
+
+                if (i < dayActivities.length - 1) {
+                    const nextAct = dayActivities[i+1];
+                    const navId = `nav-${act.id}-${nextAct.id}`;
+                    const navBlock = document.createElement('div');
+                    navBlock.id = navId;
+                    navBlock.className = "bg-nav text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md";
+                    navBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet...</div>`;
+                    list.appendChild(navBlock);
+                    
+                    calculateNav(act.place, nextAct.place, navId);
+                }
+            }
+        }
+
+        async function calculateNav(from, to, elementId) {
+            try {
+                const r = await fetch('/api/route', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ from_place: from, to_place: to })
+                });
+                const j = await r.json();
+                const el = document.getElementById(elementId);
+                if (j.success) {
+                    el.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="font-bold text-sm">${j.summary}</div>
+                            <div class="text-[10px] bg-white bg-opacity-20 px-2 py-0.5 rounded">✅ VÉRIFIÉ</div>
+                        </div>
+                        <div class="text-[11px] leading-relaxed opacity-90 whitespace-pre-line">${j.details}</div>
+                        <div class="mt-2 pt-2 border-t border-white border-opacity-20 text-[10px] font-bold">
+                            ⏱️ ARRIVÉE ESTIMÉE : ${j.arrival}
+                        </div>
+                    `;
+                } else {
+                    el.innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
+                }
+            } catch (e) {
+                el.innerHTML = `<div class="text-xs text-red-200">Erreur réseau</div>`;
+            }
+        }
+
+        function deleteActivity(id) {
+            activities = activities.filter(a => a.id !== id);
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            renderPlanning();
+        }
+
+        // ========== INITIALISATION ==========
+        window.onload = function() {
+            if (tripData) {
+                document.getElementById('welcome-screen').classList.add('hidden');
+                document.getElementById('main-header').classList.remove('hidden');
+                document.getElementById('planning-list').classList.remove('hidden');
+                updateDayNavigation();
+                renderPlanning();
+            }
+        };
+    </script>
+</body>
+</html>
