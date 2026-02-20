@@ -1791,14 +1791,6 @@
                 hotelAddressTimer = setTimeout(async () => {
                     try {
                         const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}`);
-                        
-                        // Vérifier si le backend répond
-                        if (!r.ok) {
-                            // Backend non disponible - mode manuel
-                            addressList.classList.add('hidden');
-                            return;
-                        }
-                        
                         const j = await r.json();
                         addressList.innerHTML = '';
                         
@@ -1813,9 +1805,7 @@
                             });
                         }
                     } catch (e) {
-                        // Erreur réseau - backend non disponible - mode manuel silencieux
-                        console.log('Autocomplete non disponible - mode manuel activé');
-                        addressList.classList.add('hidden');
+                        console.error('Erreur autocomplete:', e);
                     }
                 }, 300);
             });
@@ -1824,11 +1814,6 @@
         async function validateHotelAddress(placeId) {
             try {
                 const r = await fetch(`/api/places/details?place_id=${placeId}`);
-                
-                if (!r.ok) {
-                    return;
-                }
-                
                 const j = await r.json();
                 
                 if (j.ok) {
@@ -1842,8 +1827,7 @@
                     statusDiv.innerHTML = `<span class="text-green-600">✅ Adresse validée</span>`;
                 }
             } catch (e) {
-                console.log('Validation non disponible');
-
+                console.error('Erreur validation:', e);
             }
         }
 
@@ -2424,13 +2408,13 @@
                         }, 500);
                     }
                 } else {
-                    console.log('Erreur API:', data.error || 'Impossible d\'analyser l\'activité');
+                    alert('Erreur: ' + (data.error || 'Impossible d\'analyser l\'activité'));
                     btn.innerHTML = originalHTML;
                     btn.disabled = false;
                 }
             } catch (error) {
-                console.log('Backend non disponible - mode manuel activé');
-                // Pas d'alerte - juste continuer en mode manuel
+                console.error('Erreur:', error);
+                alert('Erreur réseau. Vérifiez votre connexion.');
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
             }
@@ -2483,15 +2467,15 @@
                     const loadingEl = document.getElementById('optimization-loading');
                     if (loadingEl) loadingEl.remove();
                     
-                    console.log('Erreur optimisation:', data.error);
+                    alert('Erreur: ' + (data.error || 'Impossible d\'optimiser'));
                 }
             } catch (error) {
                 // TOUJOURS supprimer le loading en cas d'erreur
                 const loadingEl = document.getElementById('optimization-loading');
                 if (loadingEl) loadingEl.remove();
                 
-                console.log('Backend non disponible - optimisation IA désactivée');
-                // Pas d'alerte - l'utilisateur peut continuer manuellement
+                console.error('Erreur:', error);
+                alert('Erreur réseau. Vérifiez votre connexion.');
             }
         }
 
@@ -2617,10 +2601,7 @@
                 document.getElementById('ia-title-clean').textContent = j.title_clean;
                 iaSuggestedLocation = j.suggested_location;
                 document.getElementById('ia-suggestions').classList.remove('hidden');
-            } catch (e) { 
-                console.log("IA non disponible");
-                // Pas d'alerte - continuer en mode manuel
-            }
+            } catch (e) { alert("Erreur IA"); }
             finally { btn.textContent = "✨ IA"; }
         }
 
@@ -2643,41 +2624,24 @@
             if (q.length < 2) { destList.classList.add('hidden'); return; }
             
             autoTimer = setTimeout(async () => {
-                try {
-                    const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`);
-                    
-                    if (!r.ok) {
-                        destList.classList.add('hidden');
-                        return;
-                    }
-                    
-                    const j = await r.json();
-                    destList.innerHTML = '';
-                    if (j.predictions?.length > 0) {
-                        destList.classList.remove('hidden');
-                        j.predictions.slice(0, 5).forEach(p => {
-                            const div = document.createElement('div');
-                            div.className = 'suggestion-item';
-                            div.textContent = p.description;
-                            div.onclick = () => selectPlace(p.place_id);
-                            destList.appendChild(div);
-                        });
-                    }
-                } catch (e) {
-                    console.log('Autocomplete non disponible - saisie manuelle activée');
-                    destList.classList.add('hidden');
+                const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`);
+                const j = await r.json();
+                destList.innerHTML = '';
+                if (j.predictions?.length > 0) {
+                    destList.classList.remove('hidden');
+                    j.predictions.slice(0, 5).forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'suggestion-item';
+                        div.textContent = p.description;
+                        div.onclick = () => selectPlace(p.place_id);
+                        destList.appendChild(div);
+                    });
                 }
             }, 300);
         }
 
         async function selectPlace(placeId) {
-            try {
-                const r = await fetch(`/api/places/details?place_id=${placeId}`);
-                
-                if (!r.ok) {
-                    return;
-                }
-                
+            const r = await fetch(`/api/places/details?place_id=${placeId}`);
             const j = await r.json();
             if (j.ok) {
                 selectedPlace = j.place;
@@ -2831,12 +2795,12 @@
                         }, 500);
                     }
                 } else {
-                    console.log('Erreur API:', data.error);
+                    alert('Erreur: ' + (data.error || 'Impossible d\'ajouter l\'activité'));
                     dropdown.innerHTML = originalContent;
                 }
             } catch (error) {
-                console.log('Backend non disponible - mode manuel');
-                // Pas d'alerte - juste restaurer le dropdown
+                console.error('Erreur:', error);
+                alert('Erreur réseau');
                 dropdown.innerHTML = originalContent;
             }
         }
