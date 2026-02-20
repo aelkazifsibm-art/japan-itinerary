@@ -1,17 +1,10 @@
-# OS
+node_modules/
+.env
+*.log
 .DS_Store
-Thumbs.db
-
-# IDEs
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# Logs
-*.log
 npm-debug.log*
-
-# Temporary files
-*.tmp
-.cache/
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

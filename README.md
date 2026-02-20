@@ -1,311 +1,342 @@
-# 🗾 Japan Trip Planner
+# 🗾 My Japan Trip - v6.3 Final
 
-Une application web progressive pour planifier votre voyage au Japon avec optimisation d'itinéraire, gestion de budget et recommandations IA.
+Application web intelligente avec IA pour planifier votre voyage au Japon.
 
-## ✨ Fonctionnalités
+![Version](https://img.shields.io/badge/version-6.3-purple)
+![Status](https://img.shields.io/badge/status-production-green)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-### 🎯 Planification Intelligente
-- **Profil voyageur personnalisé** : Solo, Couple, Famille, Amis
-- **Rythme adapté** : Actif, Équilibré, Détente
-- **Type de voyage** : Touristique ou Authentique
-- **Budget** : Économique, Moyen, Confort
+## ⚡ Installation
 
-### 📅 Gestion du Voyage
-- Configuration des vols aller/retour
-- Navigation par jour (13 jours max)
-- Sélection de villes parmi 10 destinations majeures
-- Gestion des hébergements par jour
-
-### 🏨 Destinations Disponibles
-- 🗼 Tokyo
-- ⛩️ Kyoto
-- 🏯 Osaka
-- 🦌 Nara
-- ☮️ Hiroshima
-- 🗻 Hakone
-- 🏔️ Nikko
-- 🌊 Kamakura
-- 🏘️ Takayama
-- 🎨 Kanazawa
-
-### 💰 Gestion de Budget
-Suivi détaillé de 9 catégories :
-- ✈️ Vols
-- 🏨 Hébergement (auto-calculé)
-- 🚄 JR Pass
-- 🚇 Transports locaux
-- 🍜 Repas
-- 🎭 Activités
-- 🛍️ Shopping
-- 🛡️ Assurance
-- 📦 Divers
-
-### 🤖 Fonctionnalités IA
-- **140+ suggestions d'activités** réparties sur 11 villes
-- **Analyse OpenAI** des activités suggérées
-- **Correction automatique** des activités ajoutées manuellement
-- **Optimisation de planning** avec temps de trajet
-- **Météo en temps réel** via OpenWeather API
-- **Analyse de transport** (train, métro, marche)
-
-### 🎨 Interface & UX
-- **Design responsive** optimisé mobile
-- **Thème violet/rose** moderne
-- **Swipe-to-complete** avec confetti 🎉
-- **Drag & drop** pour réorganiser
-- **Navigation par onglets** : Voyage, Budget, Profil
-- **FAB (Floating Action Button)** pour accès rapide config
-- **Bottom navigation** toujours accessible
-- **Mode Fatigue** avec alertes de surcharge
-- **Badges visuels** : Tranquille, Actif, Sportif
-
-### 📊 Optimisation Automatique
-- **Temps flexible vs fixe** pour chaque activité
-- **Regroupement par quartier** (ex: Shibuya, Shinjuku)
-- **Calcul des temps de trajet** entre activités
-- **Alertes foule** pour sites touristiques
-- **Must-see tracking** pour activités incontournables
-
-## 🚀 Installation
-
-### Méthode 1 : Fichier unique
 ```bash
-# Télécharger le fichier
-git clone https://github.com/votre-username/japan-trip-planner.git
-
-# Ouvrir index.html dans un navigateur
-open index.html
+git clone https://github.com/VOTRE_USERNAME/my-japan-trip.git
+cd my-japan-trip
+npm install
+cp .env.example .env
+# Éditer .env avec vos 4 clés API
+npm start
+# → http://localhost:3000
 ```
 
-### Méthode 2 : Serveur local
-```bash
-# Avec Python
-python -m http.server 8000
+## 🔑 4 Clés API
 
-# Avec Node.js
-npx http-server
+| API | Usage | Coût |
+|-----|-------|------|
+| **OpenAI** | IA (ajout, optimisation, affluence) | ~10€/mois |
+| **Google Maps Browser** | Autocomplete frontend | Gratuit |
+| **Google Maps Server** | Places API backend | Gratuit |
+| **OpenWeather** | Météo réelle | **GRATUIT** |
 
-# Accéder à http://localhost:8000
+## ✨ Fonctionnalités v6.3
+
+### 💡 Suggestions Intelligentes (NOUVEAU)
+
+**Scroll vertical** avec badges informatifs :
+```
+⛩️ Senso-ji Temple    ⭐
+😊 Facile  🎯 Incontournable
+
+🗼 Tokyo Skytree      ⭐
+😅 Moyen   🎯 Incontournable
 ```
 
-### Méthode 3 : GitHub Pages
-1. Fork ce repo
-2. Aller dans Settings → Pages
-3. Sélectionner la branche `main`
-4. L'app sera disponible à `https://votre-username.github.io/japan-trip-planner`
+**Badges** :
+- 😊 **Facile** (vert) - Marche minimale
+- 😅 **Moyen** (jaune) - Marche modérée  
+- 😰 **Intense** (orange) - Randonnée, escaliers
+- 🎯 **Incontournable** (violet) - Must-see
+- ⭐ **Star** - Visuellement marqué
 
-## 🔑 Configuration API (Optionnel)
+### ✅ Swipe pour Compléter
+```
+Swipe gauche → Animation confetti 🎊
+→ Fond vert + Checkmark ✓
+→ Sauvegardé auto
+```
 
-Pour activer toutes les fonctionnalités :
+### 🎯 Drag & Drop
+```
+Maintien long → Déplacer haut/bas
+→ Horaires recalculés
+→ Sauvegarde auto
+```
 
-### OpenAI API
-Pour l'analyse et correction d'activités :
+### 👥 Alerte Affluence
+```
+Pic détecté → Notification orange
+→ Suggestions heures alternatives
+→ Auto-dismiss 8s
+```
+
+### 🎨 Thème Violet
+```
+Primary: Purple (#8b5cf6)
+Gradients: Purple → Pink
+```
+
+## 🎮 Fonctionnalités Complètes
+
+### 🤖 Ajout Rapide IA
+- Saisie libre
+- Correction auto
+- Géolocalisation
+- 2 clics
+
+### ⚡ Optimisation Automatique
+- Horaires ouverture
+- Affluence
+- Trajets
+- Météo
+- Horaires fixes respectés
+
+### 🚇 Analyse Trajets
+```
+⏱️ 35 min    🏁 10:35
+🚶 10 min + 🚇 25 min
+```
+
+### 💰 Budget
+- 9 catégories
+- Calcul auto hébergements
+- Total + par jour
+
+### 🌦️ Météo Réelle
+- Prévisions 7 jours
+- Optimisation adaptée
+
+### 📱 Interface
+- **🗺️ Route** : Planning
+- **🎯 IA** : Modes
+- **💰 Budget** : Gestionnaire
+- **⚙️ Config** : Paramètres
+
+## 📋 Exemple Journée Tokyo
+
+### Suggestions avec Infos
+```
+Modal → Suggestions scrollables
+
+⛩️ Senso-ji Temple    ⭐
+😊 Facile  🎯 Incontournable
+
+🚶 Shibuya Crossing   ⭐
+😊 Facile  🎯 Incontournable
+
+🗼 Tokyo Skytree      ⭐
+😅 Moyen   🎯 Incontournable
+
+⛩️ Meiji Shrine       ⭐
+😊 Facile  🎯 Incontournable
+
+🐟 Tsukiji Market
+😅 Moyen
+
+🎮 Akihabara
+😅 Moyen
+```
+
+### Planning Optimisé
+```
+[✓] 09:00 Senso-ji (complété)
+    ⏱️ 25 min    🏁 09:25
+    🚶 5 min + 🚇 20 min
+
+[ ] 09:30 Tokyo Skytree
+    ⚠️ Forte affluence 11h-14h
+
+[✓] 12:00 Shibuya
+
+[ ] 13:30 Meiji Shrine
+```
+
+### Actions
+- 👆 Clic suggestion → Pré-rempli
+- ✅ Swipe gauche → Marquer fait
+- 🔄 Maintien long → Réorganiser
+- 👁️ Clic activité → Détails
+
+## 📊 Architecture
+
+### Backend
 ```javascript
-// Ligne ~2880 dans index.html
-const OPENAI_API_KEY = 'votre-clé-openai';
+POST /api/quick-add-activity  // Ajout rapide
+POST /api/optimize-day         // Optimisation
+POST /api/activity-info        // Infos affluence
+POST /api/route                // Itinéraires
+POST /api/check-crowd          // Vérif affluence
+GET  /api/weather              // Météo
 ```
 
-### OpenWeather API
-Pour la météo en temps réel :
+### Frontend
+- 2650+ lignes
+- Tailwind CSS
+- Vanilla JS
+- Touch events
+- Animations (confetti, pulse)
+
+## 🌐 Déploiement Render.com
+
+### Variables
+```env
+OPENAI_API_KEY=sk-proj-xxxxx
+GOOGLE_MAPS_BROWSER_KEY=AIzaSyxxxxx
+GOOGLE_MAPS_SERVER_KEY=AIzaSyxxxxx
+OPENWEATHER_API_KEY=xxxxx
+```
+
+### Config
+```
+Build: npm install
+Start: npm start
+Instance: Free
+```
+
+## 💰 Coûts
+
+| Service | Prix |
+|---------|------|
+| Render.com | 0€ |
+| OpenAI | ~10€/mois |
+| Google Maps | 0€ |
+| OpenWeather | 0€ |
+| **TOTAL** | **~10€/mois** |
+
+## 📈 Changelog
+
+### v6.3 Final
+- 💡 **Suggestions scroll vertical**
+- 🏷️ **Badges fatigue (😊😅😰)**
+- ⭐ **Badge incontournable**
+- ✅ Swipe complétion
+- 🎊 Animation confetti
+- 🎯 Drag & drop
+- 👥 Alerte affluence
+- 🎨 Thème violet
+
+### v6.2
+- 🚇 Analyse trajets
+
+### v6.1
+- 💰 Budget complet
+
+### v6.0
+- 🤖 Ajout rapide IA
+- ⚡ Optimisation auto
+
+## 🎯 Guide Utilisation
+
+### Choisir Activités
+```
+1. Clic "+ AJOUTER"
+2. Voir suggestions (scroll)
+3. Repérer ⭐ incontournables
+4. Vérifier 😊😅😰 fatigue
+5. Clic suggestion
+6. Flexible/Fixé
+7. Ajouter
+```
+
+### Planifier Selon Énergie
+```
+Matin :
+😊 Facile (Meiji Shrine)
+
+Midi :
+😅 Moyen (Tsukiji Market)
+
+Après-midi :
+😰 Intense (Fushimi Inari - 10000 torii)
+
+Soir :
+😊 Facile (Shibuya)
+```
+
+### Marquer Complété
+```
+1. Swipe gauche > 100px
+2. Confetti 🎊
+3. Fond vert
+4. Checkmark ✓
+5. Auto-save
+```
+
+### Réorganiser
+```
+1. Maintien long
+2. Déplacer haut/bas
+3. Relâcher
+4. Horaires recalculés
+5. Auto-save
+```
+
+## 📝 Guide Développeur
+
+**Voir** : `MODIFICATIONS_V6.3.md`
+
+Contient code pour :
+- Swipe complétion
+- Drag & drop
+- Alerte affluence
+- Suggestions badges
+- Thème violet
+
+## 🧪 Tests
+
+### Scénarios Validés
+- ✅ Suggestions scroll
+- ✅ Badges fatigue/incontournable
+- ✅ Swipe complétion
+- ✅ Confetti (30 particules)
+- ✅ Drag & drop
+- ✅ Recalcul horaires
+- ✅ Alerte affluence
+- ✅ Optimisation IA
+- ✅ Budget
+- ✅ Météo
+
+## 💡 Métadonnées Suggestions
+
+**50+ activités** avec :
+- Niveau fatigue (low/medium/high)
+- Incontournable (true/false)
+- Emoji + Image
+- Requête Google Places
+
+**Exemples** :
 ```javascript
-// Ligne ~2950 dans index.html
-const OPENWEATHER_API_KEY = 'votre-clé-openweather';
+{
+  name: "Fushimi Inari",
+  emoji: "⛩️",
+  fatigue: "high",      // Escaliers 10000 torii
+  must_see: true        // Iconique
+}
+
+{
+  name: "Kinkaku-ji",
+  emoji: "🏯",
+  fatigue: "low",       // Jardin plat
+  must_see: true        // Temple d'or
+}
 ```
 
-**Note** : L'application fonctionne sans clés API, mais avec fonctionnalités réduites.
+## 📝 Licence
 
-## 📱 Utilisation
+MIT License
 
-### 1️⃣ Onboarding (2 étapes)
-**Étape 1 - Profil** :
-- Nombre de voyageurs
-- Type de voyage
-- Rythme souhaité
-- Budget
-- Accessibilité (optionnel)
+## 🙏 Technologies
 
-**Étape 2 - Dates** :
-- Vol aller : date, heure, aéroport d'arrivée
-- Vol retour : aéroport de départ, date, heure
-
-### 2️⃣ Configuration du Voyage
-Cliquer sur le FAB ⚙️ en bas à droite :
-
-**Onglet 🗺️ Voyage** :
-- Navigation par jour (← JOUR X/Y →)
-- Sélection de ville
-- Nom et adresse de l'hôtel
-- Prix par nuit (optionnel)
-
-**Onglet 💰 Budget** :
-- Saisie des montants par catégorie
-- Calcul automatique du total
-- Breakdown détaillé
-
-**Onglet 👤 Profil** :
-- Affichage du profil actuel
-- Modification des préférences
-- Modification dates/vols
-- Réinitialisation
-
-### 3️⃣ Ajout d'Activités
-**Options** :
-- ➕ Bouton manuel (en bas de chaque jour)
-- 💡 Suggestions IA (140+ activités)
-- 🔍 Recherche par ville/type
-
-**Édition** :
-- Modifier nom, quartier, temps
-- Ajouter des notes
-- Marquer comme "Must-see"
-- Définir temps flexible/fixe
-
-### 4️⃣ Gestion du Planning
-- ✅ **Swipe droite** : Compléter (avec confetti)
-- 🗑️ **Swipe gauche** : Supprimer
-- 🔄 **Drag & drop** : Réorganiser
-- 🤖 **Optimiser** : Réorganisation automatique
-
-## 💾 Stockage
-
-Toutes les données sont sauvegardées localement dans le navigateur :
-- `localStorage` : Profil, dates, villes, hôtels, budget
-- Pas de serveur requis
-- Aucune donnée envoyée en ligne (sauf appels API)
-
-**Données stockées** :
-- `japan_user_profile` : Profil voyageur
-- `japan_trip_info_v5` : Vols et dates
-- `japan_day_cities_v5` : Villes par jour
-- `japan_day_hotels_v5` : Hôtels par jour
-- `japan_activities_v7` : Toutes les activités
-- `japan_budget` : Budget complet
-
-## 🏗️ Architecture
-
-### Fichier unique HTML
-- **HTML** : Structure de l'app
-- **CSS** : Tailwind CSS inline
-- **JavaScript** : ~3900 lignes vanilla JS
-
-### Composants Principaux
-```
-┌─ Welcome Screen (Onboarding)
-│  ├─ Étape 1 : Profil
-│  └─ Étape 2 : Dates
-│
-├─ Planning Screen
-│  ├─ Header avec titre
-│  ├─ Navigation jour (Jour X/Y)
-│  ├─ Liste activités par jour
-│  └─ Empty state
-│
-├─ Configuration Screen (FAB)
-│  ├─ Onglet Voyage
-│  ├─ Onglet Budget
-│  └─ Onglet Profil
-│
-└─ Sidebar Options
-   ├─ Mode Fatigue
-   ├─ Quick Add
-   └─ Suggestions IA
-```
-
-## 🛠️ Technologies
-
-- **HTML5** : Structure sémantique
-- **Tailwind CSS** : Design system
-- **Vanilla JavaScript** : Logique métier
-- **OpenAI API** : Analyse et suggestions
-- **OpenWeather API** : Données météo
-- **LocalStorage** : Persistence
-
-## 📈 Versions
-
-### v6.7 (Actuelle)
-- ✅ Navigation par jour dans config
-- ✅ Formulaire ville/hôtel intégré
-- ✅ Bottom nav toujours accessible
-- ✅ Bug fixes dates et totalDays
-
-### v6.6
-- Bottom navigation bar
-- User profile tab
-- Restructuration 4 onglets
-
-### v6.5
-- Onboarding 2 étapes
-- Profile management
-- FAB implementation
-
-### v6.0-6.4
-- Quick activity addition
-- AI corrections
-- Budget manager
-- City suggestions
-
-### v5.0
-- Flight form
-- Splash screen
-- Base functionality
-
-## 🐛 Bugs Connus
-
-- [ ] Suggestions adresse hôtel non implémentées dans config
-- [ ] Mode Nuit placeholder (non fonctionnel)
-- [ ] Copier hôtel précédent non implémenté
-
-## 🗺️ Roadmap
-
-### Court terme
-- [ ] Autocomplete adresses hôtel
-- [ ] Bouton "Copier hôtel d'hier"
-- [ ] Export PDF du planning
-- [ ] Partage du voyage
-
-### Moyen terme
-- [ ] Mode hors-ligne (PWA)
-- [ ] Multi-langue (EN, FR, JP)
-- [ ] Dark mode fonctionnel
-- [ ] Import/Export JSON
-
-### Long terme
-- [ ] Synchronisation cloud
-- [ ] Collaboration multi-users
-- [ ] Cartes interactives
-- [ ] Calcul de budget optimisé
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! Voici comment participer :
-
-1. Fork le projet
-2. Créer une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit les changements (`git commit -m 'Add some AmazingFeature'`)
-4. Push vers la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrir une Pull Request
-
-## 📝 License
-
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
-
-## 👤 Auteur
-
-Créé avec ❤️ par Claude & Human
-
-## 🙏 Remerciements
-
-- OpenAI pour l'API GPT
-- OpenWeather pour les données météo
-- Tailwind CSS pour le framework design
-- Communauté open-source
-
-## 📧 Contact
-
-Pour toute question ou suggestion :
-- 📫 Issues GitHub
-- 💬 Discussions GitHub
+- OpenAI GPT-4o-mini
+- Google Maps Platform
+- OpenWeather API 3.0
+- Node.js + Express
+- Tailwind CSS
+- Touch Events API
 
 ---
 
-**Bon voyage au Japon ! 🗾✨**
+**Bon voyage au Japon !** 🗾🌸
+
+**Version** : 6.3 Final  
+**Status** : ✅ Production Ready  
+**Features** : Suggestions + Swipe + Drag + Affluence  
+**UX** : ⭐⭐⭐⭐⭐
