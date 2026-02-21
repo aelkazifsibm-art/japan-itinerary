@@ -140,7 +140,7 @@ app.get("/api/places/details", async (req, res) => {
 
         const u = new URL("https://maps.googleapis.com/maps/api/place/details/json");
         u.searchParams.set("place_id", placeId);
-        u.searchParams.set("fields", "place_id,name,formatted_address,geometry");
+        u.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types,editorial_summary");
         u.searchParams.set("language", "fr");
         u.searchParams.set("key", key);
 
@@ -155,7 +155,11 @@ app.get("/api/places/details", async (req, res) => {
                 name: p.name,
                 formatted_address: p.formatted_address,
                 lat: p.geometry?.location?.lat,
-                lng: p.geometry?.location?.lng
+                lng: p.geometry?.location?.lng,
+                opening_hours: p.opening_hours?.weekday_text || null,
+                open_now: p.opening_hours?.open_now ?? null,
+                price_level: p.price_level ?? null,
+                types: p.types || []
             }
         });
     } catch (e) {

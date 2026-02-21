@@ -2702,7 +2702,14 @@
                 list.appendChild(hotelCard);
             }
 
-            // ── 3. Rendu de chaque activité ──────────────────────────────────
+            // ── 3. Enrichissement des activités sans horaires/prix ───────────
+            dayActivities.forEach(act => {
+                if (act.place?.place_id && (act.place.opening_hours === undefined && act.place.price_level === undefined)) {
+                    enrichActivityPlace(act);
+                }
+            });
+
+            // ── 4. Rendu de chaque activité ──────────────────────────────────
             for (let i = 0; i < dayActivities.length; i++) {
                 const act        = dayActivities[i];
                 const arriveTime = realTimes[i];                                        // heure d'arrivée au site
@@ -2791,7 +2798,31 @@
             }
         }
 
-        function buildPlaceChips(place) {
+        // Enrichit une activité avec horaires/prix depuis Google Places si manquants
+        async function enrichActivityPlace(act) {
+            if (!act.place?.place_id) return;
+            try {
+                const res = await fetch('/api/place-details?place_id=' + act.place.place_id);
+                const data = await res.json();
+                if (data.ok && data.place) {
+                    // Mettre à jour l'objet place dans activities
+                    const idx = activities.findIndex(a => a.id === act.id);
+                    if (idx >= 0) {
+                        activities[idx].place = {
+                            ...activities[idx].place,
+                            opening_hours: data.place.opening_hours,
+                            open_now: data.place.open_now,
+                            price_level: data.place.price_level,
+                            types: data.place.types
+                        };
+                        localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                        renderPlanning(); // Re-render avec les nouvelles infos
+                    }
+                }
+            } catch(e) { /* silencieux */ }
+        }
+
+                function buildPlaceChips(place) {
             if (!place) return '';
             const chips = [];
 
