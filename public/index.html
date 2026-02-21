@@ -1669,8 +1669,27 @@
         }
 
         function selectSuggestionInModal(name, query) {
-            document.getElementById('quick-activity-input').value = name;
-            // Garder les suggestions visibles pour sélections multiples
+            // Basculer en mode manuel si pas déjà actif
+            const quickMode = document.getElementById('quick-add-mode');
+            const manualMode = document.getElementById('manual-add-mode');
+            const toggleText = document.getElementById('manual-toggle-text');
+            if (!quickMode.classList.contains('hidden')) {
+                quickMode.classList.add('hidden');
+                manualMode.classList.remove('hidden');
+                toggleText.textContent = '← Mode rapide';
+            }
+
+            // Pré-remplir le titre
+            document.getElementById('modal-title-raw').value = name;
+
+            // Lancer la recherche Google Places directement avec le nom du lieu
+            const destInput = document.getElementById('modal-dest-search');
+            destInput.value = query;
+            triggerAutocomplete(query);
+
+            // Scroll vers le champ de recherche
+            destInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            destInput.focus();
         }
 
         function closeModal() {
