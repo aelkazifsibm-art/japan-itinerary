@@ -1193,7 +1193,19 @@
 
             if (!city) { alert('Choisissez une ville'); return; }
             if (isNaN(startDay) || isNaN(endDay) || startDay > endDay) { alert('Jours invalides'); return; }
+            if (startDay < 0) { alert('Le jour de début doit être au moins 1'); return; }
             if (tripData && endDay >= tripData.totalDays) { alert(`Votre voyage fait ${tripData.totalDays} jours maximum`); return; }
+
+            // Vérifier les chevauchements avec les autres séjours
+            const overlap = stays.find((s, i) => {
+                if (i === stayEditIndex) return false; // ignorer le séjour en cours d'édition
+                return startDay <= s.endDay && endDay >= s.startDay;
+            });
+            if (overlap) {
+                const overlapCity = overlap.city.charAt(0).toUpperCase() + overlap.city.slice(1);
+                alert(`❌ Conflit : ces jours chevauchent le séjour à ${overlapCity} (J${overlap.startDay + 1}→J${overlap.endDay + 1}).\n\nModifiez les dates pour qu'elles ne se superposent pas.`);
+                return;
+            }
 
             const newStay = {
                 city,
