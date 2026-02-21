@@ -748,79 +748,141 @@
 
     <!-- MODAL SÉJOUR (global, z-index élevé, fonctionne depuis sidebar ET config) -->
     <div id="stay-modal" class="fixed inset-0 bg-black bg-opacity-60 z-[400] hidden flex items-end justify-center sm:items-center p-0 sm:p-4">
-        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
-            <!-- Header modal -->
-            <div class="flex justify-between items-center p-5 border-b flex-shrink-0">
-                <h3 class="text-lg font-bold text-gray-800" id="stay-form-title">🏨 Nouveau séjour</h3>
-                <button onclick="closeStayForm()" class="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-xl font-bold transition-all">×</button>
-            </div>
-            <!-- Contenu scrollable -->
-            <div class="flex-1 overflow-y-auto p-5 space-y-4">
-                <input type="hidden" id="stay-edit-index" value="-1">
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+            <input type="hidden" id="stay-edit-index" value="-1">
 
-                <!-- Ville -->
-                <div>
-                    <label class="text-xs font-bold text-purple-700 uppercase block mb-2">📍 Ville</label>
-                    <select id="stay-city" class="w-full border-2 border-purple-200 rounded-xl p-3 outline-none focus:border-purple-500 bg-white font-bold text-sm">
-                        <option value="">Choisir une ville...</option>
-                        <option value="tokyo">🗼 Tokyo</option>
-                        <option value="kyoto">⛩️ Kyoto</option>
-                        <option value="osaka">🏯 Osaka</option>
-                        <option value="nara">🦌 Nara</option>
-                        <option value="hiroshima">☮️ Hiroshima</option>
-                        <option value="hakone">🗻 Hakone</option>
-                        <option value="nikko">🏔️ Nikko</option>
-                        <option value="kamakura">🌊 Kamakura</option>
-                        <option value="takayama">🏘️ Takayama</option>
-                        <option value="kanazawa">🎨 Kanazawa</option>
-                    </select>
+            <!-- STEP INDICATOR -->
+            <div class="flex-shrink-0 px-5 pt-5 pb-3">
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="text-lg font-black text-gray-800" id="stay-form-title">Nouveau séjour</h3>
+                    <button onclick="closeStayForm()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 text-lg">×</button>
                 </div>
+                <!-- Progress bar 2 étapes -->
+                <div class="flex gap-2 mt-3">
+                    <div id="stay-step-bar-1" class="h-1 flex-1 rounded-full bg-purple-500 transition-all"></div>
+                    <div id="stay-step-bar-2" class="h-1 flex-1 rounded-full bg-gray-200 transition-all"></div>
+                </div>
+                <div class="flex justify-between mt-1">
+                    <span id="stay-step-label-1" class="text-[10px] font-bold text-purple-600">📍 Destination</span>
+                    <span id="stay-step-label-2" class="text-[10px] font-medium text-gray-400">🏨 Hôtel</span>
+                </div>
+            </div>
+
+            <!-- ÉTAPE 1 : VILLE + DATES -->
+            <div id="stay-step-1" class="flex-1 overflow-y-auto px-5 pb-5">
+                <p class="text-sm text-gray-400 mb-4">Choisissez votre destination et les jours de séjour</p>
+
+                <!-- Grille villes -->
+                <div class="grid grid-cols-2 gap-2 mb-5" id="stay-city-grid">
+                    <button onclick="selectStayCity('tokyo')"    data-city="tokyo"     class="stay-city-btn flex items-center gap-2 p-3 rounded-2xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50 transition-all text-left">
+                        <span class="text-2xl">🗼</span><div><div class="text-sm font-black text-gray-800">Tokyo</div><div class="text-[10px] text-gray-400">Métropole</div></div>
+                    </button>
+                    <button onclick="selectStayCity('kyoto')"    data-city="kyoto"     class="stay-city-btn flex items-center gap-2 p-3 rounded-2xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50 transition-all text-left">
+                        <span class="text-2xl">⛩️</span><div><div class="text-sm font-black text-gray-800">Kyoto</div><div class="text-[10px] text-gray-400">Temples</div></div>
+                    </button>
+                    <button onclick="selectStayCity('osaka')"    data-city="osaka"     class="stay-city-btn flex items-center gap-2 p-3 rounded-2xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50 transition-all text-left">
+                        <span class="text-2xl">🏯</span><div><div class="text-sm font-black text-gray-800">Osaka</div><div class="text-[10px] text-gray-400">Street food</div></div>
+                    </button>
+                    <button onclick="selectStayCity('nara')"     data-city="nara"      class="stay-city-btn flex items-center gap-2 p-3 rounded-2xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50 transition-all text-left">
+                        <span class="text-2xl">🦌</span><div><div class="text-sm font-black text-gray-800">Nara</div><div class="text-[10px] text-gray-400">Cerfs sacrés</div></div>
+                    </button>
+                    <button onclick="selectStayCity('hiroshima')" data-city="hiroshima" class="stay-city-btn flex items-center gap-2 p-3 rounded-2xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50 transition-all text-left">
+                        <span class="text-2xl">☮️</span><div><div class="text-sm font-black text-gray-800">Hiroshima</div><div class="text-[10px] text-gray-400">Histoire</div></div>
+                    </button>
+                    <button onclick="selectStayCity('hakone')"   data-city="hakone"    class="stay-city-btn flex items-center gap-2 p-3 rounded-2xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50 transition-all text-left">
+                        <span class="text-2xl">🗻</span><div><div class="text-sm font-black text-gray-800">Hakone</div><div class="text-[10px] text-gray-400">Fuji & onsen</div></div>
+                    </button>
+                    <button onclick="selectStayCity('nikko')"    data-city="nikko"     class="stay-city-btn flex items-center gap-2 p-3 rounded-2xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50 transition-all text-left">
+                        <span class="text-2xl">🏔️</span><div><div class="text-sm font-black text-gray-800">Nikko</div><div class="text-[10px] text-gray-400">Sanctuaires</div></div>
+                    </button>
+                    <button onclick="selectStayCity('kamakura')" data-city="kamakura"  class="stay-city-btn flex items-center gap-2 p-3 rounded-2xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50 transition-all text-left">
+                        <span class="text-2xl">🌊</span><div><div class="text-sm font-black text-gray-800">Kamakura</div><div class="text-[10px] text-gray-400">Bouddha géant</div></div>
+                    </button>
+                    <button onclick="selectStayCity('takayama')" data-city="takayama"  class="stay-city-btn flex items-center gap-2 p-3 rounded-2xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50 transition-all text-left">
+                        <span class="text-2xl">🏘️</span><div><div class="text-sm font-black text-gray-800">Takayama</div><div class="text-[10px] text-gray-400">Japon rural</div></div>
+                    </button>
+                    <button onclick="selectStayCity('kanazawa')" data-city="kanazawa"  class="stay-city-btn flex items-center gap-2 p-3 rounded-2xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50 transition-all text-left">
+                        <span class="text-2xl">🎨</span><div><div class="text-sm font-black text-gray-800">Kanazawa</div><div class="text-[10px] text-gray-400">Arts & jardins</div></div>
+                    </button>
+                </div>
+                <!-- Hidden select for compat -->
+                <select id="stay-city" class="hidden">
+                    <option value="">Choisir une ville...</option>
+                    <option value="tokyo">Tokyo</option>
+                    <option value="kyoto">Kyoto</option>
+                    <option value="osaka">Osaka</option>
+                    <option value="nara">Nara</option>
+                    <option value="hiroshima">Hiroshima</option>
+                    <option value="hakone">Hakone</option>
+                    <option value="nikko">Nikko</option>
+                    <option value="kamakura">Kamakura</option>
+                    <option value="takayama">Takayama</option>
+                    <option value="kanazawa">Kanazawa</option>
+                </select>
 
                 <!-- Jours -->
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs font-bold text-purple-700 uppercase block mb-2">Du Jour</label>
-                        <input type="number" id="stay-start-day" min="1" placeholder="1" class="w-full border-2 border-purple-200 rounded-xl p-3 outline-none focus:border-purple-500 text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-purple-700 uppercase block mb-2">Au Jour</label>
-                        <input type="number" id="stay-end-day" min="1" placeholder="3" class="w-full border-2 border-purple-200 rounded-xl p-3 outline-none focus:border-purple-500 text-sm">
-                    </div>
-                </div>
-
-                <!-- Hôtel -->
-                <div>
-                    <label class="text-xs font-bold text-orange-700 uppercase block mb-2">🏨 Nom de l'hôtel</label>
-                    <input type="text" id="stay-hotel-name" placeholder="Ex: Hotel Gracery Shinjuku" class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 text-sm">
-                </div>
-
-                <!-- Adresse avec autocomplete -->
-                <div>
-                    <label class="text-xs font-bold text-orange-700 uppercase block mb-2">📍 Adresse</label>
-                    <div class="relative">
-                        <input type="text" id="stay-hotel-address" placeholder="Rechercher l'adresse..." autocomplete="off" class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 text-sm">
-                        <div id="stay-hotel-address-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[410] border max-h-40 overflow-y-auto"></div>
-                    </div>
-                    <div id="stay-hotel-address-status" class="text-xs mt-1 font-bold"></div>
-                </div>
-
-                <!-- Prix -->
-                <div>
-                    <label class="text-xs font-bold text-orange-700 uppercase block mb-2">💰 Prix par nuit (optionnel)</label>
-                    <div class="flex gap-2">
-                        <input type="number" id="stay-price" placeholder="15000" class="flex-1 border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 text-sm">
-                        <select id="stay-currency" class="border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 bg-white text-sm">
-                            <option value="EUR">€</option>
-                            <option value="USD">$</option>
-                            <option value="JPY" selected>¥</option>
-                        </select>
+                <div class="bg-purple-50 rounded-2xl p-4">
+                    <div class="text-xs font-bold text-purple-700 uppercase mb-3">📅 Jours de séjour</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-purple-500 font-medium block mb-1">Du jour</label>
+                            <input type="number" id="stay-start-day" min="1" placeholder="1"
+                                class="w-full border-2 border-purple-200 rounded-xl p-3 outline-none focus:border-purple-500 text-sm font-bold bg-white">
+                        </div>
+                        <div>
+                            <label class="text-xs text-purple-500 font-medium block mb-1">Au jour</label>
+                            <input type="number" id="stay-end-day" min="1" placeholder="3"
+                                class="w-full border-2 border-purple-200 rounded-xl p-3 outline-none focus:border-purple-500 text-sm font-bold bg-white">
+                        </div>
                     </div>
                 </div>
             </div>
-            <!-- Footer bouton -->
-            <div class="p-5 border-t flex-shrink-0">
-                <button onclick="saveStay()" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-bold text-base hover:shadow-lg active:scale-95 transition-all">
-                    💾 Enregistrer le séjour
+
+            <!-- ÉTAPE 2 : HÔTEL -->
+            <div id="stay-step-2" class="flex-1 overflow-y-auto px-5 pb-5 hidden">
+                <p class="text-sm text-gray-400 mb-4">Où dormez-vous ? (optionnel mais recommandé)</p>
+
+                <div class="space-y-4">
+                    <!-- Nom hôtel -->
+                    <div class="bg-orange-50 rounded-2xl p-4 space-y-3">
+                        <div class="text-xs font-bold text-orange-700 uppercase">🏨 Nom de l'hôtel</div>
+                        <input type="text" id="stay-hotel-name" placeholder="Ex: Hotel Gracery Shinjuku"
+                            class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 text-sm bg-white">
+
+                        <!-- Adresse -->
+                        <div class="text-xs font-bold text-orange-700 uppercase mt-1">📍 Adresse</div>
+                        <div class="relative">
+                            <input type="text" id="stay-hotel-address" placeholder="Rechercher l'adresse..." autocomplete="off"
+                                class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 text-sm bg-white">
+                            <div id="stay-hotel-address-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[410] border max-h-40 overflow-y-auto"></div>
+                        </div>
+                        <div id="stay-hotel-address-status" class="text-xs font-bold"></div>
+                    </div>
+
+                    <!-- Prix -->
+                    <div class="bg-gray-50 rounded-2xl p-4">
+                        <div class="text-xs font-bold text-gray-600 uppercase mb-3">💰 Prix par nuit (optionnel)</div>
+                        <div class="flex gap-2">
+                            <input type="number" id="stay-price" placeholder="15000"
+                                class="flex-1 border-2 border-gray-200 rounded-xl p-3 outline-none focus:border-gray-400 text-sm">
+                            <select id="stay-currency" class="border-2 border-gray-200 rounded-xl p-3 outline-none focus:border-gray-400 bg-white text-sm">
+                                <option value="EUR">€</option>
+                                <option value="USD">$</option>
+                                <option value="JPY" selected>¥</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOOTER NAVIGATION -->
+            <div class="p-5 border-t flex-shrink-0 flex gap-3" id="stay-footer">
+                <button id="stay-btn-back" onclick="stayGoStep(1)" class="hidden flex-shrink-0 bg-gray-100 text-gray-600 px-4 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all">
+                    ← Retour
+                </button>
+                <button id="stay-btn-next" onclick="stayGoStep(2)"
+                    class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-black text-base shadow-lg active:scale-95 transition-all">
+                    Suivant →
                 </button>
             </div>
         </div>
@@ -1402,10 +1464,49 @@
             }
         }
 
+        function selectStayCity(city) {
+            document.getElementById('stay-city').value = city;
+            document.querySelectorAll('.stay-city-btn').forEach(btn => {
+                const isSelected = btn.dataset.city === city;
+                btn.classList.toggle('border-purple-500', isSelected);
+                btn.classList.toggle('bg-purple-50', isSelected);
+                btn.classList.toggle('border-gray-100', !isSelected);
+                btn.classList.toggle('shadow-md', isSelected);
+            });
+        }
+
+        function stayGoStep(step) {
+            if (step === 2) {
+                if (!document.getElementById('stay-city').value) {
+                    // Pulse les boutons pour indiquer qu'il faut choisir
+                    document.getElementById('stay-city-grid').classList.add('ring-2', 'ring-red-300', 'rounded-2xl');
+                    setTimeout(() => document.getElementById('stay-city-grid').classList.remove('ring-2', 'ring-red-300', 'rounded-2xl'), 1500);
+                    return;
+                }
+            }
+            document.getElementById('stay-step-1').classList.toggle('hidden', step !== 1);
+            document.getElementById('stay-step-2').classList.toggle('hidden', step !== 2);
+            document.getElementById('stay-btn-back').classList.toggle('hidden', step === 1);
+
+            const btnNext = document.getElementById('stay-btn-next');
+            if (step === 2) {
+                btnNext.textContent = '💾 Enregistrer';
+                btnNext.onclick = saveStay;
+                document.getElementById('stay-step-bar-2').classList.replace('bg-gray-200', 'bg-purple-500');
+                document.getElementById('stay-step-label-2').classList.replace('text-gray-400', 'text-purple-600');
+                document.getElementById('stay-step-label-2').classList.replace('font-medium', 'font-bold');
+                setTimeout(() => { initHotelListeners(); }, 100);
+            } else {
+                btnNext.textContent = 'Suivant →';
+                btnNext.onclick = () => stayGoStep(2);
+                document.getElementById('stay-step-bar-2').classList.replace('bg-purple-500', 'bg-gray-200');
+            }
+        }
+
         function openAddStay() {
             stayEditIndex = -1;
             stayValidatedPlace = null;
-            document.getElementById('stay-form-title').textContent = '🏨 Nouveau séjour';
+            document.getElementById('stay-form-title').textContent = 'Nouveau séjour';
             document.getElementById('stay-edit-index').value = -1;
             document.getElementById('stay-city').value = '';
             document.getElementById('stay-hotel-name').value = '';
@@ -1413,6 +1514,14 @@
             document.getElementById('stay-price').value = '';
             document.getElementById('stay-currency').value = 'JPY';
             document.getElementById('stay-hotel-address-status').innerHTML = '';
+            // Reset city grid selection
+            document.querySelectorAll('.stay-city-btn').forEach(btn => {
+                btn.classList.remove('border-purple-500', 'bg-purple-50', 'shadow-md');
+                btn.classList.add('border-gray-100');
+            });
+            // Reset to step 1
+            stayGoStep(1);
+            document.getElementById('stay-step-bar-2').classList.replace('bg-purple-500', 'bg-gray-200');
 
             if (tripData) {
                 if (stays.length === 0) {
@@ -1427,7 +1536,7 @@
             }
 
             document.getElementById('stay-modal').classList.remove('hidden');
-            setTimeout(() => { initHotelListeners(); initStayDayListeners(); }, 100);
+            setTimeout(() => { initStayDayListeners(); }, 100);
         }
 
         function editStay(index) {
@@ -1449,6 +1558,8 @@
                 ? '<span class="text-green-600">✅ Adresse validée</span>' : '';
 
             document.getElementById('stay-modal').classList.remove('hidden');
+            // En mode édition, aller directement à l'étape 2
+            stayGoStep(2);
             setTimeout(() => { initHotelListeners(); initStayDayListeners(); }, 100);
         }
 
