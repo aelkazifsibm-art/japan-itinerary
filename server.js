@@ -385,17 +385,20 @@ app.post("/api/quick-add-activity", async (req, res) => {
             messages: [
                 {
                     role: "system",
-                    content: `Tu es un assistant de voyage expert du Japon. Analyse la description d'activité et retourne un JSON:
-                    {
-                        "title": "Titre propre de l'activité",
-                        "description": "Description courte",
-                        "search_query": "Requête Google Places pour trouver le lieu exact",
-                        "suggested_time": "09:00"
-                    }`
+                    content: `Tu es un expert du tourisme au Japon. Analyse l'activité et retourne un JSON:
+{
+  "title": "Titre propre de l'activité",
+  "description": "Description courte (1 phrase)",
+  "search_query": "Requête Google Places précise pour trouver le lieu",
+  "suggested_time": "09:00",
+  "duration_minutes": 90,
+  "duration_reason": "Raison courte ex: temple + jardins nécessitent 1h30 min"
+}
+Pour duration_minutes: base-toi sur les recommandations réelles (TripAdvisor, guides). Ex: Senso-ji=90min, Tsukiji=60min, Fushimi Inari=150min, musée=120min, marché=45min.`
                 },
                 {
                     role: "user",
-                    content: `Activité décrite par l'utilisateur: "${description}"\n\nCrée une activité structurée.`
+                    content: `Activité: "${description}"\n\nCrée une activité structurée avec la durée de visite recommandée.`
                 }
             ],
             response_format: { type: "json_object" }
@@ -435,6 +438,8 @@ app.post("/api/quick-add-activity", async (req, res) => {
                 title: parsed.title,
                 description: parsed.description,
                 suggested_time: time_flexible ? null : (fixed_time || parsed.suggested_time),
+                duration_minutes: parsed.duration_minutes || 90,
+                duration_reason: parsed.duration_reason || '',
                 place: {
                     place_id: place.place_id,
                     name: place.name,
@@ -481,7 +486,8 @@ Génère une fiche de présentation avec :
   "best_time_reason": "Pourquoi c'est le meilleur moment (max 80 caractères, ex: Avant l'afflux de 10h, lumière dorée)",
   "avoid_time": "Plage à éviter (ex: 10h-13h)",
   "avoid_reason": "Pourquoi éviter (max 60 caractères)",
-  "duration": "Durée recommandée (ex: 1h30)",
+  "duration": "Durée recommandée lisible (ex: 1h30)",
+  "duration_minutes": 90,
   "tip": "1 conseil insider court et précis (max 80 caractères)",
   "intensity": "balade|exploration|randonnée"
 }`

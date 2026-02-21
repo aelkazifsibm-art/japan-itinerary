@@ -1878,6 +1878,7 @@
         let _previewName = null;
         let _previewBestTime = null;
         let _previewImage = null;
+        let _previewDuration = 90;
 
         async function selectSuggestionInModal(name, query, image) {
             _previewPlace = null;
@@ -1912,6 +1913,7 @@
 
                 _previewPlace = data.place;
                 _previewBestTime = data.preview.best_time;
+                _previewDuration = data.preview.duration_minutes || 90;
 
                 const intensityIcon = { balade: '🚶', exploration: '🧭', randonnée: '🥾' };
                 const intensityColor = { balade: 'text-green-700 bg-green-100', exploration: 'text-yellow-700 bg-yellow-100', randonnée: 'text-orange-700 bg-orange-100' };
@@ -2007,6 +2009,7 @@
                 title: _previewName,
                 description: '',
                 place: _previewPlace,
+                duration_minutes: _previewDuration || 90,
                 needs_optimization: false
             };
 
@@ -2163,6 +2166,7 @@
                         title: data.activity.title,
                         description: data.activity.description || '',
                         place: data.activity.place,
+                        duration_minutes: data.activity.duration_minutes || 90,
                         needs_optimization: isFlexible
                     };
                     
@@ -2447,7 +2451,8 @@
                 time: document.getElementById('modal-time').value,
                 title: document.getElementById('modal-title-raw').value,
                 description: document.getElementById('modal-desc').value,
-                place: selectedPlace
+                place: selectedPlace,
+                duration_minutes: 90
             };
 
             activities.push(activity);
@@ -2648,7 +2653,10 @@
                 card.className = "bg-white rounded-2xl p-5 shadow-sm border-l-4 border-primary relative cursor-pointer hover:shadow-lg transition-shadow";
                 card.onclick = () => showActivityInfo(act);
                 card.innerHTML = `
-                    <div class="text-xs font-bold text-gray-400 mb-1">${act.time}</div>
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="text-xs font-bold text-gray-400">${act.time}</div>
+                        <div class="text-[10px] bg-indigo-50 text-indigo-400 px-2 py-0.5 rounded-full font-medium">⏱ ${act.duration_minutes || 90}min</div>
+                    </div>
                     <div class="text-lg font-bold text-gray-800">${act.title}</div>
                     <div class="text-sm text-gray-500 mt-1">${act.description}</div>
                     <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold">📍 ${act.place?.name || 'Lieu non défini'}</div>
@@ -2676,7 +2684,7 @@
                         navBlock.className = "bg-nav text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md";
                         navBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet...</div>`;
                         list.appendChild(navBlock);
-                        calculateNav(act.place, nextAct.place, navId, act.time);
+                        calculateNav(act.place, nextAct.place, navId, addMinutesToTime(act.time, act.duration_minutes || 90));
                     }
                 }
             }
