@@ -962,8 +962,8 @@
             updateCitySelector();
             renderPlanning();
 
-            // Onboarding : afficher le tooltip FAB uniquement à la première visite
-            if (!localStorage.getItem('japan_onboarding_done')) {
+            // Onboarding : afficher le tooltip FAB si aucun séjour configuré
+            if (stays.length === 0) {
                 showFabOnboarding();
             }
         }
@@ -2765,26 +2765,25 @@
 
         function showFabOnboarding() {
             const tooltip = document.getElementById('fab-onboarding');
+            if (!tooltip) return;
             tooltip.classList.remove('hidden');
-            // Animation d'entrée
             tooltip.style.opacity = '0';
             tooltip.style.transform = 'translateY(10px)';
             tooltip.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
             setTimeout(() => {
                 tooltip.style.opacity = '1';
                 tooltip.style.transform = 'translateY(0)';
-            }, 800); // délai pour laisser la page s'afficher d'abord
-            // Auto-dismiss après 12s
-            setTimeout(() => dismissOnboarding(), 12000);
+            }, 100);
+            // Auto-dismiss après 15s
+            setTimeout(() => dismissOnboarding(), 15000);
         }
 
         function dismissOnboarding() {
             const tooltip = document.getElementById('fab-onboarding');
-            if (!tooltip) return;
+            if (!tooltip || tooltip.classList.contains('hidden')) return;
             tooltip.style.opacity = '0';
             tooltip.style.transform = 'translateY(10px)';
             setTimeout(() => tooltip.classList.add('hidden'), 400);
-            localStorage.setItem('japan_onboarding_done', '1');
         }
 
         // ========== FAB CONFIGURATION ==========
@@ -2905,6 +2904,10 @@
                         updateCitySelector();
                         renderStaysList();
                         renderPlanning();
+                        // Montrer l'onboarding si aucun séjour configuré
+                        if (stays.length === 0) {
+                            showFabOnboarding();
+                        }
                     } else {
                         // Sinon afficher l'écran de bienvenue
                         document.getElementById('welcome-screen').classList.remove('hidden');
