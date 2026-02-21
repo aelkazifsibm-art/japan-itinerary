@@ -1108,6 +1108,43 @@
             });
         }
 
+        // Auto-suggestion du jour de fin quand le jour de début change
+        function initStayDayListeners() {
+            const startInput = document.getElementById('stay-start-day');
+            const endInput = document.getElementById('stay-end-day');
+            if (!startInput || startInput.dataset.dayListenerInit) return;
+            startInput.dataset.dayListenerInit = 'true';
+
+            startInput.addEventListener('input', () => {
+                const startVal = parseInt(startInput.value);
+                if (isNaN(startVal) || startVal < 1) return;
+
+                // Trouver la prochaine plage disponible à partir du jour saisi
+                const startDay = startVal - 1; // 0-based
+                
+                // Chercher combien de jours consécutifs sont libres depuis startDay
+                let defaultNights = 3;
+                let maxEnd = tripData ? tripData.totalDays - 1 : startDay + defaultNights;
+
+                // Trouver le prochain séjour qui bloque
+                const nextBlock = stays
+                    .filter((s, i) => i !== stayEditIndex && s.startDay >= startDay)
+                    .sort((a, b) => a.startDay - b.startDay)[0];
+
+                if (nextBlock) {
+                    // L'end max est juste avant le prochain séjour
+                    maxEnd = Math.min(maxEnd, nextBlock.startDay - 1);
+                }
+
+                const suggestedEnd = Math.min(startDay + defaultNights, maxEnd);
+                endInput.value = suggestedEnd + 1; // +1 pour affichage 1-based
+
+                // Feedback visuel
+                endInput.classList.add('border-purple-500', 'bg-purple-50');
+                setTimeout(() => endInput.classList.remove('border-purple-500', 'bg-purple-50'), 800);
+            });
+        }
+
         // Init autocomplete sur le modal séjour
         function initHotelListeners() {
             initAutocomplete(
@@ -1152,7 +1189,7 @@
             }
 
             document.getElementById('stay-modal').classList.remove('hidden');
-            setTimeout(() => initHotelListeners(), 100);
+            setTimeout(() => { initHotelListeners(); initStayDayListeners(); }, 100);
         }
 
         function editStay(index) {
@@ -1174,7 +1211,7 @@
                 ? '<span class="text-green-600">✅ Adresse validée</span>' : '';
 
             document.getElementById('stay-modal').classList.remove('hidden');
-            setTimeout(() => initHotelListeners(), 100);
+            setTimeout(() => { initHotelListeners(); initStayDayListeners(); }, 100);
         }
 
         function closeStayForm() {
