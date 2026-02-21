@@ -2717,25 +2717,25 @@
                 card.onclick = () => showActivityInfo(act);
                 card.innerHTML = `
                     <!-- Colonne timeline gauche -->
-                    <div class="flex flex-col items-center w-14 flex-shrink-0 py-4 px-2 bg-gray-50 border-r border-gray-100">
+                    <div class="flex flex-col items-center w-20 flex-shrink-0 py-5 px-2 bg-gray-50 border-r border-gray-100">
                         <!-- Heure arrivée -->
-                        <div class="text-xs font-black text-gray-800 leading-none">${arriveTime}</div>
+                        <div class="text-sm font-black text-gray-800 leading-none">${arriveTime}</div>
                         <!-- Barre durée -->
-                        <div class="relative flex-1 flex flex-col items-center my-2 w-full" style="min-height:${barH}px">
-                            <div class="w-0.5 flex-1 bg-gradient-to-b from-purple-400 to-pink-400 rounded-full"></div>
+                        <div class="relative flex-1 flex flex-col items-center my-3 w-full" style="min-height:${barH}px">
+                            <div class="w-1 flex-1 bg-gradient-to-b from-purple-400 to-pink-400 rounded-full"></div>
                             <!-- Badge durée centré sur la barre -->
-                            <div class="absolute top-1/2 -translate-y-1/2 bg-white border border-purple-200 rounded-lg px-1 py-0.5 shadow-sm">
-                                <div class="text-[9px] font-black text-purple-500 leading-none text-center">${dur}</div>
-                                <div class="text-[8px] text-purple-400 leading-none text-center">min</div>
+                            <div class="absolute top-1/2 -translate-y-1/2 bg-white border-2 border-purple-300 rounded-xl px-2 py-1 shadow-md">
+                                <div class="text-sm font-black text-purple-600 leading-none text-center">${dur}</div>
+                                <div class="text-[10px] text-purple-400 leading-none text-center font-medium">min</div>
                             </div>
                         </div>
                         <!-- Heure départ -->
-                        <div class="text-xs font-bold text-gray-400 leading-none">${leaveTime}</div>
+                        <div class="text-sm font-bold text-gray-400 leading-none">${leaveTime}</div>
                     </div>
 
                     <!-- Contenu principal -->
                     <div class="flex-1 p-4 min-w-0">
-                        <div class="text-base font-black text-gray-800 leading-snug pr-6">${act.title}</div>
+                        <div class="text-lg font-black text-gray-800 leading-snug pr-6">${act.title}</div>
                         ${act.description ? `<div class="text-xs text-gray-400 mt-1 leading-snug">${act.description}</div>` : ''}
                         <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold tracking-wide">📍 ${act.place?.name || 'Lieu non défini'}</div>
                         <div class="mt-3 flex gap-2 flex-wrap">
