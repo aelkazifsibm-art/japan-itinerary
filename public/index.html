@@ -2617,9 +2617,26 @@
                 return;
             }
 
+            // Pré-calculer les heures réelles en cascade depuis le cache
+            function computeCascadeTime(actIndex) {
+                if (actIndex === 0) return dayActivities[0].time;
+                const prev = dayActivities[actIndex - 1];
+                const prevTime = computeCascadeTime(actIndex - 1);
+                const prevEnd = addMinutesToTime(prevTime, prev.duration_minutes || 90);
+                // Chercher le trajet dans le cache
+                const curr = dayActivities[actIndex];
+                if (prev.place && curr.place) {
+                    const cacheKey = `${prev.place.place_id}-${curr.place.place_id}`;
+                    const cached = routeCache[cacheKey];
+                    if (cached) return addMinutesToTime(prevEnd, cached.total_minutes);
+                }
+                return prevEnd; // Sans cache, au moins ajouter la durée visite
+            }
+
             for (let i = 0; i < dayActivities.length; i++) {
                 const act = dayActivities[i];
-                
+                const cascadeTime = computeCascadeTime(i); // Heure réelle calculée
+
                 // Si c'est la première activité ET qu'il y a un hôtel, ajouter le trajet hôtel → activité
                 if (i === 0 && getStayForDay(currentDayIndex)) {
                     const stay = getStayForDay(currentDayIndex);
@@ -2637,8 +2654,7 @@
                         </div>
                     `;
                     list.appendChild(hotelCard);
-                    
-                    // Bloc navigation hôtel → première activité (uniquement si place validé ET activité avec place)
+
                     if (hotel.place && act.place) {
                         const hotelNavBlock = document.createElement('div');
                         hotelNavBlock.id = hotelNavId;
@@ -2654,7 +2670,10 @@
                 card.onclick = () => showActivityInfo(act);
                 card.innerHTML = `
                     <div class="flex items-center justify-between mb-1">
-                        <div class="text-xs font-bold text-gray-400">${act.time}</div>
+                        <div class="flex items-center gap-2">
+                            <div class="text-xs font-bold text-gray-700">${cascadeTime}</div>
+                            ${cascadeTime !== act.time ? `<div class="text-[10px] text-orange-400 line-through">${act.time}</div>` : ''}
+                        </div>
                         <div class="text-[10px] bg-indigo-50 text-indigo-400 px-2 py-0.5 rounded-full font-medium">⏱ ${act.duration_minutes || 90}min</div>
                     </div>
                     <div class="text-lg font-bold text-gray-800">${act.title}</div>
@@ -2684,7 +2703,7 @@
                         navBlock.className = "bg-nav text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md";
                         navBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet...</div>`;
                         list.appendChild(navBlock);
-                        calculateNav(act.place, nextAct.place, navId, addMinutesToTime(act.time, act.duration_minutes || 90));
+                        calculateNav(act.place, nextAct.place, navId, addMinutesToTime(cascadeTime, act.duration_minutes || 90));
                     }
                 }
             }
