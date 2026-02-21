@@ -467,6 +467,8 @@ Pour duration_minutes: base-toi sur les recommandations réelles (TripAdvisor, g
         // Obtenir les détails
         const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
         detailsUrl.searchParams.set("place_id", firstResult.place_id);
+        detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types");
+        detailsUrl.searchParams.set("language", "fr");
         detailsUrl.searchParams.set("key", serverKey);
         
         const detailsRes = await fetchJson(detailsUrl.toString());
@@ -489,7 +491,11 @@ Pour duration_minutes: base-toi sur les recommandations réelles (TripAdvisor, g
                     name: place.name,
                     formatted_address: place.formatted_address,
                     lat: place.geometry.location.lat,
-                    lng: place.geometry.location.lng
+                    lng: place.geometry.location.lng,
+                    opening_hours: place.opening_hours?.weekday_text || null,
+                    open_now: place.opening_hours?.open_now ?? null,
+                    price_level: place.price_level ?? null,
+                    types: place.types || []
                 }
             }
         });
@@ -554,6 +560,8 @@ Génère une fiche de présentation avec :
         if (firstResult) {
             const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
             detailsUrl.searchParams.set("place_id", firstResult.place_id);
+            detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types");
+            detailsUrl.searchParams.set("language", "fr");
             detailsUrl.searchParams.set("key", serverKey);
             const detailsRes = await fetchJson(detailsUrl.toString());
             const p = detailsRes.json?.result;
@@ -563,7 +571,11 @@ Génère une fiche de présentation avec :
                     name: p.name,
                     formatted_address: p.formatted_address,
                     lat: p.geometry?.location?.lat,
-                    lng: p.geometry?.location?.lng
+                    lng: p.geometry?.location?.lng,
+                    opening_hours: p.opening_hours?.weekday_text || null,
+                    open_now: p.opening_hours?.open_now ?? null,
+                    price_level: p.price_level ?? null,
+                    types: p.types || []
                 };
             }
         }
