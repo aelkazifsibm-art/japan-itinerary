@@ -342,63 +342,80 @@
             <!-- Contenu scrollable -->
             <div class="flex-1 overflow-y-auto pb-20">
                 <div class="max-w-md mx-auto p-6 space-y-6">
-                    <!-- Ville du jour -->
-                    <div class="space-y-3">
-                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">📍 Ville de la journée</h3>
-                        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-5 border-2 border-purple-200">
-                            <select id="day-city-selector" onchange="handleCityChange()" class="w-full border-2 border-purple-300 rounded-xl p-4 outline-none focus:border-purple-500 transition-colors bg-white text-base font-bold shadow-sm">
-                                <option value="">Choisir une ville...</option>
-                                <option value="tokyo">🗼 Tokyo</option>
-                                <option value="kyoto">⛩️ Kyoto</option>
-                                <option value="osaka">🏯 Osaka</option>
-                                <option value="nara">🦌 Nara</option>
-                                <option value="hiroshima">☮️ Hiroshima</option>
-                                <option value="hakone">🗻 Hakone</option>
-                                <option value="nikko">🏔️ Nikko</option>
-                                <option value="kamakura">🌊 Kamakura</option>
-                                <option value="takayama">🏘️ Takayama</option>
-                                <option value="kanazawa">🎨 Kanazawa</option>
-                            </select>
+                    <!-- SÉJOURS -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🏨 Séjours</h3>
+                            <button onclick="openAddStay()" class="bg-purple-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-purple-600 transition-all">
+                                + Ajouter
+                            </button>
                         </div>
-                    </div>
 
-                    <!-- Hôtel du jour -->
-                    <div class="space-y-3 border-t-4 border-gray-200 pt-6">
-                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🏨 Hébergement</h3>
-                        <div class="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-5 border-2 border-orange-200 space-y-3">
+                        <!-- Liste des séjours -->
+                        <div id="stays-list" class="space-y-3">
+                            <!-- Rempli dynamiquement -->
+                        </div>
+
+                        <!-- Formulaire d'ajout/édition séjour -->
+                        <div id="stay-form" class="hidden bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-purple-200 space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-bold text-purple-800" id="stay-form-title">Nouveau séjour</h4>
+                                <button onclick="closeStayForm()" class="text-gray-400 hover:text-gray-600 text-xl">×</button>
+                            </div>
+                            <input type="hidden" id="stay-edit-index" value="-1">
+
+                            <!-- Ville -->
                             <div>
-                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Nom de l'hôtel</label>
-                                <input 
-                                    type="text" 
-                                    id="hotel-name-input" 
-                                    placeholder="Ex: Hotel Gracery Shinjuku" 
-                                    class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors"
-                                >
+                                <label class="text-xs font-bold text-purple-700 uppercase block mb-2">📍 Ville</label>
+                                <select id="stay-city" class="w-full border-2 border-purple-200 rounded-xl p-3 outline-none focus:border-purple-500 bg-white font-bold text-sm">
+                                    <option value="">Choisir une ville...</option>
+                                    <option value="tokyo">🗼 Tokyo</option>
+                                    <option value="kyoto">⛩️ Kyoto</option>
+                                    <option value="osaka">🏯 Osaka</option>
+                                    <option value="nara">🦌 Nara</option>
+                                    <option value="hiroshima">☮️ Hiroshima</option>
+                                    <option value="hakone">🗻 Hakone</option>
+                                    <option value="nikko">🏔️ Nikko</option>
+                                    <option value="kamakura">🌊 Kamakura</option>
+                                    <option value="takayama">🏘️ Takayama</option>
+                                    <option value="kanazawa">🎨 Kanazawa</option>
+                                </select>
                             </div>
 
-                            <div class="relative">
-                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Adresse de l'hôtel</label>
-                                <input 
-                                    type="text" 
-                                    id="hotel-address-input" 
-                                    placeholder="Rechercher l'adresse..." 
-                                    class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors"
-                                    autocomplete="off"
-                                >
-                                <div id="hotel-address-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[110] border max-h-48 overflow-y-auto"></div>
-                                <div id="hotel-address-status" class="text-xs mt-1 font-bold"></div>
+                            <!-- Jours -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs font-bold text-purple-700 uppercase block mb-2">Du Jour</label>
+                                    <input type="number" id="stay-start-day" min="1" placeholder="1" class="w-full border-2 border-purple-200 rounded-xl p-3 outline-none focus:border-purple-500 text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-purple-700 uppercase block mb-2">Au Jour</label>
+                                    <input type="number" id="stay-end-day" min="1" placeholder="3" class="w-full border-2 border-purple-200 rounded-xl p-3 outline-none focus:border-purple-500 text-sm">
+                                </div>
                             </div>
-                            
+
+                            <!-- Hôtel -->
+                            <div>
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">🏨 Nom de l'hôtel</label>
+                                <input type="text" id="stay-hotel-name" placeholder="Ex: Hotel Gracery Shinjuku" class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 text-sm">
+                            </div>
+
+                            <!-- Adresse avec autocomplete -->
+                            <div>
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">📍 Adresse</label>
+                                <div class="relative">
+                                    <input type="text" id="stay-hotel-address" placeholder="Rechercher l'adresse..." autocomplete="off" class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 text-sm">
+                                    <div id="stay-hotel-address-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[310] border max-h-48 overflow-y-auto"></div>
+                                </div>
+                                <div id="stay-hotel-address-status" class="text-xs mt-1 font-bold"></div>
+                            </div>
+
+                            <!-- Prix -->
                             <div>
                                 <label class="text-xs font-bold text-orange-700 uppercase block mb-2">💰 Prix par nuit (optionnel)</label>
                                 <div class="flex gap-2">
-                                    <input 
-                                        type="number" 
-                                        id="hotel-price-input" 
-                                        placeholder="150"
-                                        class="flex-1 border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors"
-                                    >
-                                    <select id="hotel-currency-input" class="border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors bg-white">
+                                    <input type="number" id="stay-price" placeholder="15000" class="flex-1 border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 text-sm">
+                                    <select id="stay-currency" class="border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 bg-white text-sm">
                                         <option value="EUR">€</option>
                                         <option value="USD">$</option>
                                         <option value="JPY" selected>¥</option>
@@ -406,31 +423,9 @@
                                 </div>
                             </div>
 
-                            <button onclick="saveHotelInfo()" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition-colors">
-                                💾 Enregistrer l'hébergement
+                            <button onclick="saveStay()" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold hover:shadow-lg transition-all">
+                                💾 Enregistrer le séjour
                             </button>
-
-                            <!-- Affichage de l'hôtel enregistré -->
-                            <div id="hotel-display" class="hidden bg-white rounded-xl p-4 border-2 border-green-200">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div class="font-bold text-green-700">✅ Hébergement enregistré</div>
-                                    <button onclick="clearHotelInfo()" class="text-red-400 hover:text-red-600">✕</button>
-                                </div>
-                                <div class="text-sm text-gray-700" id="hotel-display-name"></div>
-                                <div class="text-xs text-gray-500 mt-1" id="hotel-display-address"></div>
-                                <div class="text-xs text-orange-600 font-bold mt-2" id="hotel-display-price"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Résumé des villes -->
-                    <div class="space-y-3 border-t-4 border-gray-200 pt-6">
-                        <div class="flex justify-between items-center">
-                            <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">📅 Résumé du voyage</h3>
-                            <div class="text-sm font-bold text-orange-600" id="total-budget">Total: 0¥</div>
-                        </div>
-                        <div id="cities-summary" class="space-y-2">
-                            <!-- Les villes par jour seront affichées ici -->
                         </div>
                     </div>
                 </div>
@@ -478,82 +473,17 @@
 
             <!-- Onglet Voyage -->
             <div id="config-content-voyage" class="config-content pb-24 overflow-y-auto">
-                <!-- Navigation par jour -->
-                <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4 sticky top-0 z-10">
-                    <div class="flex items-center justify-between text-white">
-                        <button onclick="configPrevDay()" id="config-prev-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">←</button>
-                        <div class="text-center flex-1">
-                            <div class="text-sm font-bold opacity-90" id="config-day-label">JOUR 1/1</div>
-                            <div class="text-xs opacity-75" id="config-day-date">Chargement...</div>
-                        </div>
-                        <button onclick="configNextDay()" id="config-next-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">→</button>
+                <div class="p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-base font-bold text-gray-800 uppercase tracking-wide">🏨 Séjours</h3>
+                        <button onclick="openAddStay()" class="bg-purple-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-purple-600 transition-all">
+                            + Ajouter
+                        </button>
                     </div>
-                </div>
-
-                <div class="p-4 space-y-6">
-                    <!-- Ville du jour -->
-                    <div class="space-y-3">
-                        <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                            <span>📍</span><span>VILLE DE LA JOURNÉE</span>
-                        </h3>
-                        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 border-2 border-purple-200">
-                            <select id="day-city-selector-config" onchange="handleCityChangeConfig()" class="w-full border-2 border-purple-300 rounded-xl p-3 outline-none focus:border-purple-500 transition-colors bg-white text-base font-bold shadow-sm">
-                                <option value="">Choisir une ville...</option>
-                                <option value="tokyo">🗼 Tokyo</option>
-                                <option value="kyoto">⛩️ Kyoto</option>
-                                <option value="osaka">🏯 Osaka</option>
-                                <option value="nara">🦌 Nara</option>
-                                <option value="hiroshima">☮️ Hiroshima</option>
-                                <option value="hakone">🗻 Hakone</option>
-                                <option value="nikko">🏔️ Nikko</option>
-                                <option value="kamakura">🌊 Kamakura</option>
-                                <option value="takayama">🏘️ Takayama</option>
-                                <option value="kanazawa">🎨 Kanazawa</option>
-                            </select>
-                        </div>
+                    <div id="stays-list-config" class="space-y-3">
+                        <!-- Rempli dynamiquement — partagé avec sidebar -->
                     </div>
-
-                    <!-- Hôtel du jour -->
-                    <div class="space-y-3">
-                        <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                            <span>🏨</span><span>HÉBERGEMENT</span>
-                        </h3>
-                        <div class="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-4 border-2 border-orange-200 space-y-3">
-                            <div>
-                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Nom de l'hôtel</label>
-                                <input type="text" id="hotel-name-input-config" placeholder="Ex: Hotel Gracery Shinjuku" class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors text-sm">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Adresse</label>
-                                <div class="relative">
-                                    <input type="text" id="hotel-address-input-config" placeholder="Rechercher l'adresse..." class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors text-sm" autocomplete="off">
-                                    <div id="hotel-address-suggestions-config" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[310] border max-h-48 overflow-y-auto"></div>
-                                </div>
-                                <div id="hotel-address-status-config" class="text-xs mt-1 font-bold"></div>
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">💰 Prix par nuit (optionnel)</label>
-                                <div class="flex gap-2">
-                                    <input type="number" id="hotel-price-input-config" placeholder="150" class="flex-1 border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors text-sm">
-                                    <select id="hotel-currency-input-config" class="border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors bg-white text-sm">
-                                        <option value="EUR">€</option>
-                                        <option value="USD">$</option>
-                                        <option value="JPY" selected>¥</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <button onclick="saveHotelInfoConfig()" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-bold hover:shadow-xl transition-all">
-                                💾 Enregistrer l'hébergement
-                            </button>
-                            <div id="hotel-display-config" class="hidden bg-white rounded-xl p-4 border-2 border-green-200">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div class="font-bold text-green-700">✅ Hébergement enregistré</div>
-                                    <button onclick="editHotelConfig()" class="text-blue-600 text-sm font-bold">✏️ Modifier</button>
-                                </div>
-                                <div id="hotel-details-config" class="text-sm space-y-1"></div>
-                            </div>
-                        </div>
-                    </div>
+                    <p class="text-xs text-gray-400 text-center">Gérez vos séjours depuis ici ou depuis le panneau Options</p>
                 </div>
             </div>
 
@@ -873,8 +803,8 @@
         let currentDayIndex = 0;
         let selectedPlace = null;
         let iaSuggestedLocation = "";
-        let dayCities = JSON.parse(localStorage.getItem('japan_day_cities_v5') || '{}');
-        let dayHotels = JSON.parse(localStorage.getItem('japan_day_hotels_v5') || '{}');
+        let stays = JSON.parse(localStorage.getItem('japan_stays_v1') || '[]');
+        // stays[] = [{ city, hotelName, address, place, price, currency, startDay, endDay }]
         let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
         let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '{}');
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache') || '{}');
@@ -1098,6 +1028,20 @@
         // ========== GESTION DES VILLES ET SUGGESTIONS ==========
         let optionsCurrentDay = 0;
 
+        // ========== HELPERS SÉJOURS ==========
+        function getStayForDay(dayIndex) {
+            return stays.find(s => dayIndex >= s.startDay && dayIndex <= s.endDay) || null;
+        }
+
+        function getCityForDay(dayIndex) {
+            const stay = getStayForDay(dayIndex);
+            return stay ? stay.city : null;
+        }
+
+        function saveStays() {
+            localStorage.setItem('japan_stays_v1', JSON.stringify(stays));
+        }
+
         // ========== GESTION DES HÔTELS ==========
         let hotelAddressTimer = null;
         let hotelAddressTimerConfig = null;
@@ -1172,168 +1116,201 @@
             });
         }
 
-        // Init autocomplete sidebar hôtel
+        // Init autocomplete sidebar hôtel — désormais sur le formulaire séjour
         function initHotelListeners() {
             initAutocomplete(
-                'hotel-address-input',
-                'hotel-address-suggestions',
-                'hotel-address-status',
-                (place) => { validatedHotelPlace = place; }
+                'stay-hotel-address',
+                'stay-hotel-address-suggestions',
+                'stay-hotel-address-status',
+                (place) => { stayValidatedPlace = place; }
             );
         }
 
-        // Init autocomplete config-screen hôtel (appelé à l'ouverture de la config)
+        // Init autocomplete config-screen hôtel — redirige vers le même formulaire séjour
         function initHotelListenersConfig() {
-            // Créer dynamiquement le conteneur de suggestions s'il n'existe pas
-            const input = document.getElementById('hotel-address-input-config');
-            if (!input) return;
-            
-            let list = document.getElementById('hotel-address-suggestions-config');
-            if (!list) {
-                list = document.createElement('div');
-                list.id = 'hotel-address-suggestions-config';
-                list.className = 'absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[310] border max-h-48 overflow-y-auto';
-                input.parentElement.style.position = 'relative';
-                input.parentElement.appendChild(list);
-            }
-
-            initAutocomplete(
-                'hotel-address-input-config',
-                'hotel-address-suggestions-config',
-                null,
-                (place) => {
-                    validatedHotelPlaceConfig = place;
-                    // Afficher confirmation inline
-                    const status = document.getElementById('hotel-address-status-config');
-                    if (status) status.innerHTML = `<span class="text-green-600 text-xs font-bold">✅ ${place.formatted_address}</span>`;
-                }
-            );
+            // Le formulaire de séjour est partagé, l'autocomplete est déjà initialisé
         }
 
-        async function validateHotelAddress(placeId) {
-            try {
-                const r = await fetch(`/api/places/details?place_id=${placeId}`);
-                const j = await r.json();
-                
-                if (j.ok) {
-                    validatedHotelPlace = j.place;
-                    const addressInput = document.getElementById('hotel-address-input');
-                    const addressList = document.getElementById('hotel-address-suggestions');
-                    const statusDiv = document.getElementById('hotel-address-status');
-                    
-                    addressInput.value = j.place.formatted_address;
-                    addressList.classList.add('hidden');
-                    statusDiv.innerHTML = `<span class="text-green-600">✅ Adresse validée</span>`;
+        // ========== GESTION DES SÉJOURS ==========
+        let stayValidatedPlace = null;
+        let stayEditIndex = -1;
+
+        function openAddStay() {
+            stayEditIndex = -1;
+            stayValidatedPlace = null;
+            document.getElementById('stay-form-title').textContent = 'Nouveau séjour';
+            document.getElementById('stay-edit-index').value = -1;
+            document.getElementById('stay-city').value = '';
+            document.getElementById('stay-hotel-name').value = '';
+            document.getElementById('stay-hotel-address').value = '';
+            document.getElementById('stay-price').value = '';
+            document.getElementById('stay-currency').value = 'JPY';
+            document.getElementById('stay-hotel-address-status').innerHTML = '';
+
+            // Pré-remplir les jours selon le dernier séjour existant
+            if (tripData) {
+                if (stays.length === 0) {
+                    document.getElementById('stay-start-day').value = 1;
+                    document.getElementById('stay-end-day').value = Math.min(3, tripData.totalDays);
+                } else {
+                    const lastStay = stays[stays.length - 1];
+                    const nextStart = lastStay.endDay + 1;
+                    document.getElementById('stay-start-day').value = nextStart;
+                    document.getElementById('stay-end-day').value = Math.min(nextStart + 2, tripData.totalDays);
                 }
-            } catch (e) {
-                console.error('Erreur validation:', e);
             }
+
+            document.getElementById('stay-form').classList.remove('hidden');
+            setTimeout(() => initHotelListeners(), 50);
+            document.getElementById('stay-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        function saveHotelInfo() {
-            const hotelName = document.getElementById('hotel-name-input').value.trim();
-            const address = document.getElementById('hotel-address-input').value.trim();
-            const price = document.getElementById('hotel-price-input').value;
-            const currency = document.getElementById('hotel-currency-input').value;
-            
-            if (!hotelName) {
-                alert('Veuillez saisir le nom de l\'hôtel');
-                return;
-            }
-            
-            const hotelEntry = {
-                name: hotelName,
-                address: address,
+        function editStay(index) {
+            const stay = stays[index];
+            if (!stay) return;
+            stayEditIndex = index;
+            stayValidatedPlace = stay.place || null;
+
+            document.getElementById('stay-form-title').textContent = 'Modifier le séjour';
+            document.getElementById('stay-edit-index').value = index;
+            document.getElementById('stay-city').value = stay.city || '';
+            document.getElementById('stay-start-day').value = stay.startDay + 1; // +1 pour affichage 1-based
+            document.getElementById('stay-end-day').value = stay.endDay + 1;
+            document.getElementById('stay-hotel-name').value = stay.hotelName || '';
+            document.getElementById('stay-hotel-address').value = stay.address || '';
+            document.getElementById('stay-price').value = stay.price || '';
+            document.getElementById('stay-currency').value = stay.currency || 'JPY';
+            document.getElementById('stay-hotel-address-status').innerHTML = stay.place
+                ? '<span class="text-green-600">✅ Adresse validée</span>' : '';
+
+            document.getElementById('stay-form').classList.remove('hidden');
+            setTimeout(() => initHotelListeners(), 50);
+            document.getElementById('stay-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function closeStayForm() {
+            document.getElementById('stay-form').classList.add('hidden');
+            stayValidatedPlace = null;
+        }
+
+        function saveStay() {
+            const city = document.getElementById('stay-city').value;
+            const startDay = parseInt(document.getElementById('stay-start-day').value) - 1; // 0-based
+            const endDay = parseInt(document.getElementById('stay-end-day').value) - 1;
+            const hotelName = document.getElementById('stay-hotel-name').value.trim();
+            const address = document.getElementById('stay-hotel-address').value.trim();
+            const price = document.getElementById('stay-price').value;
+            const currency = document.getElementById('stay-currency').value;
+
+            if (!city) { alert('Choisissez une ville'); return; }
+            if (isNaN(startDay) || isNaN(endDay) || startDay > endDay) { alert('Jours invalides'); return; }
+            if (tripData && endDay >= tripData.totalDays) { alert(`Votre voyage fait ${tripData.totalDays} jours maximum`); return; }
+
+            const newStay = {
+                city,
+                startDay,
+                endDay,
+                hotelName: hotelName || '',
+                address: stayValidatedPlace ? stayValidatedPlace.formatted_address : (address || ''),
+                place: stayValidatedPlace || null,
                 price: price ? parseFloat(price) : null,
-                currency: currency
+                currency
             };
-            if (validatedHotelPlace) {
-                hotelEntry.place = validatedHotelPlace;
-                hotelEntry.address = validatedHotelPlace.formatted_address;
+
+            if (stayEditIndex >= 0) {
+                stays[stayEditIndex] = newStay;
+            } else {
+                stays.push(newStay);
             }
-            
-            dayHotels[optionsCurrentDay] = hotelEntry;
-            localStorage.setItem('japan_day_hotels_v5', JSON.stringify(dayHotels));
-            validatedHotelPlace = null;
-            
-            displaySavedHotel();
-            updateCitiesSummary();
+            // Trier par startDay
+            stays.sort((a, b) => a.startDay - b.startDay);
+
+            saveStays();
+            closeStayForm();
+            renderStaysList();
+            renderPlanning();
             calculateBudget();
-            
-            alert('✅ Hébergement enregistré pour le Jour ' + (optionsCurrentDay + 1));
         }
 
-        function displaySavedHotel() {
-            const hotel = dayHotels[optionsCurrentDay];
-            
-            if (hotel) {
-                document.getElementById('hotel-display-name').textContent = hotel.name;
-                const addr = hotel.address || (hotel.place ? hotel.place.formatted_address : '') || '';
-                document.getElementById('hotel-display-address').textContent = addr;
-                
-                const priceStr = hotel.price ? `${hotel.price} ${hotel.currency}` : 'Prix non défini';
-                document.getElementById('hotel-display-price').textContent = priceStr;
-                
-                document.getElementById('hotel-display').classList.remove('hidden');
-            } else {
-                document.getElementById('hotel-display').classList.add('hidden');
-            }
+        function deleteStay(index) {
+            if (!confirm('Supprimer ce séjour ?')) return;
+            stays.splice(index, 1);
+            saveStays();
+            renderStaysList();
+            renderPlanning();
+            calculateBudget();
         }
 
-        function clearHotelInfo() {
-            delete dayHotels[optionsCurrentDay];
-            localStorage.setItem('japan_day_hotels_v5', JSON.stringify(dayHotels));
-            
-            document.getElementById('hotel-name-input').value = '';
-            document.getElementById('hotel-address-input').value = '';
-            document.getElementById('hotel-price-input').value = '';
-            document.getElementById('hotel-currency-input').value = 'JPY';
-            document.getElementById('hotel-address-status').innerHTML = '';
-            document.getElementById('hotel-display').classList.add('hidden');
-            
-            validatedHotelPlace = null;
-            updateCitiesSummary();
+        function renderStaysList() {
+            const containers = ['stays-list', 'stays-list-config'];
+            const cityEmojis = { tokyo:'🗼', kyoto:'⛩️', osaka:'🏯', nara:'🦌', hiroshima:'☮️', hakone:'🗻', nikko:'🏔️', kamakura:'🌊', takayama:'🏘️', kanazawa:'🎨' };
+
+            containers.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.innerHTML = '';
+
+                if (stays.length === 0) {
+                    el.innerHTML = `<div class="text-center py-6 text-gray-400">
+                        <div class="text-4xl mb-2">🏨</div>
+                        <div class="text-sm">Aucun séjour configuré</div>
+                        <div class="text-xs mt-1">Ajoutez votre premier séjour</div>
+                    </div>`;
+                    return;
+                }
+
+                stays.forEach((stay, i) => {
+                    const emoji = cityEmojis[stay.city] || '📍';
+                    const cityName = stay.city ? stay.city.charAt(0).toUpperCase() + stay.city.slice(1) : '?';
+                    const nights = stay.endDay - stay.startDay + 1;
+                    const priceStr = stay.price ? `${stay.price.toLocaleString()} ${stay.currency}/nuit` : '';
+                    const totalStr = stay.price ? ` · ${(stay.price * nights).toLocaleString()} ${stay.currency} total` : '';
+
+                    const div = document.createElement('div');
+                    div.className = 'bg-white rounded-2xl p-4 border-2 border-purple-100 shadow-sm';
+                    div.innerHTML = `
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-xl">${emoji}</span>
+                                    <span class="font-bold text-purple-800">${cityName}</span>
+                                    <span class="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-bold">J${stay.startDay+1}→J${stay.endDay+1}</span>
+                                    <span class="text-xs text-gray-400">${nights} nuit${nights>1?'s':''}</span>
+                                </div>
+                                ${stay.hotelName ? `<div class="text-sm font-semibold text-gray-700 truncate">🏨 ${stay.hotelName}</div>` : ''}
+                                ${stay.address ? `<div class="text-xs text-gray-400 truncate mt-0.5">📍 ${stay.address}</div>` : ''}
+                                ${priceStr ? `<div class="text-xs text-orange-600 font-bold mt-1">💰 ${priceStr}${totalStr}</div>` : ''}
+                            </div>
+                            <div class="flex flex-col gap-1 flex-shrink-0">
+                                <button onclick="editStay(${i})" class="text-blue-500 hover:text-blue-700 text-sm px-2 py-1 rounded hover:bg-blue-50">✏️</button>
+                                <button onclick="deleteStay(${i})" class="text-red-400 hover:text-red-600 text-sm px-2 py-1 rounded hover:bg-red-50">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                    el.appendChild(div);
+                });
+
+                // Vérifier les jours sans séjour
+                if (tripData) {
+                    const uncovered = [];
+                    for (let d = 0; d < tripData.totalDays; d++) {
+                        if (!getStayForDay(d)) uncovered.push(d + 1);
+                    }
+                    if (uncovered.length > 0) {
+                        const warn = document.createElement('div');
+                        warn.className = 'bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-700';
+                        warn.innerHTML = `⚠️ Jours sans séjour : J${uncovered.join(', J')}`;
+                        el.appendChild(warn);
+                    }
+                }
+            });
         }
 
-        function loadHotelForDay() {
-            const hotel = dayHotels[optionsCurrentDay];
-            
-            if (hotel) {
-                document.getElementById('hotel-name-input').value = hotel.name || '';
-                document.getElementById('hotel-address-input').value = hotel.place.formatted_address || '';
-                document.getElementById('hotel-price-input').value = hotel.price || '';
-                document.getElementById('hotel-currency-input').value = hotel.currency || 'JPY';
-                document.getElementById('hotel-address-status').innerHTML = `<span class="text-green-600">✅ Adresse validée</span>`;
-                
-                validatedHotelPlace = hotel.place;
-                displaySavedHotel();
-            } else {
-                document.getElementById('hotel-name-input').value = '';
-                document.getElementById('hotel-address-input').value = '';
-                document.getElementById('hotel-price-input').value = '';
-                document.getElementById('hotel-currency-input').value = 'JPY';
-                document.getElementById('hotel-address-status').innerHTML = '';
-                document.getElementById('hotel-display').classList.add('hidden');
-                
-                validatedHotelPlace = null;
-            }
-        }
-
-        function openSidebar() {
+                function openSidebar() {
             const sidebar = document.getElementById('sidebar');
-            
-            // Synchroniser avec le jour actuel du planning
             optionsCurrentDay = currentDayIndex;
-            
-            // Mettre à jour l'affichage
             updateOptionsDayInfo();
-            updateCitiesSummary();
-            
-            // Initialiser les listeners d'hôtel
-            setTimeout(() => {
-                initHotelListeners();
-            }, 100);
-            
+            renderStaysList();
             setTimeout(() => {
                 sidebar.style.transform = 'translateX(0)';
             }, 10);
@@ -1424,106 +1401,45 @@
 
         function updateOptionsDayInfo() {
             if (!tripData) return;
-            
             const dayDate = getDayDate(optionsCurrentDay);
             document.getElementById('options-day-counter').textContent = `JOUR ${optionsCurrentDay + 1}/${tripData.totalDays}`;
             document.getElementById('options-day-date').textContent = formatDate(dayDate);
-            
-            // Mettre à jour les boutons
             document.getElementById('options-prev-btn').disabled = optionsCurrentDay === 0;
             document.getElementById('options-next-btn').disabled = optionsCurrentDay === tripData.totalDays - 1;
-            
             document.getElementById('options-prev-btn').style.opacity = optionsCurrentDay === 0 ? '0.3' : '1';
             document.getElementById('options-next-btn').style.opacity = optionsCurrentDay === tripData.totalDays - 1 ? '0.3' : '1';
-            
-            // Mettre à jour le sélecteur de ville
-            const citySelector = document.getElementById('day-city-selector');
-            const savedCity = dayCities[optionsCurrentDay];
-            citySelector.value = savedCity || '';
-            
-            // Charger l'hôtel du jour
-            loadHotelForDay();
-            
-            // Charger les modes du jour
             loadModesForDay();
         }
 
         function optionsPreviousDay() {
-            if (optionsCurrentDay > 0) {
-                optionsCurrentDay--;
-                updateOptionsDayInfo();
-                updateCitiesSummary();
-            }
+            if (optionsCurrentDay > 0) { optionsCurrentDay--; updateOptionsDayInfo(); }
         }
 
         function optionsNextDay() {
-            if (optionsCurrentDay < tripData.totalDays - 1) {
-                optionsCurrentDay++;
-                updateOptionsDayInfo();
-                updateCitiesSummary();
-            }
+            if (optionsCurrentDay < tripData.totalDays - 1) { optionsCurrentDay++; updateOptionsDayInfo(); }
         }
 
-        function handleCityChange() {
-            const citySelector = document.getElementById('day-city-selector');
-            const selectedCity = citySelector.value;
-            
-            // Sauvegarder la ville pour le jour actuel des options
-            dayCities[optionsCurrentDay] = selectedCity;
-            localStorage.setItem('japan_day_cities_v5', JSON.stringify(dayCities));
-            
-            // Mettre à jour le résumé
-            updateCitiesSummary();
-        }
-
-        function updateCitiesSummary() {
+        function updateOptionsDayInfo() {
             if (!tripData) return;
-            
-            const summary = document.getElementById('cities-summary');
-            summary.innerHTML = '';
-            
-            let totalBudget = 0;
-            
-            for (let i = 0; i < tripData.totalDays; i++) {
-                const city = dayCities[i];
-                const hotel = dayHotels[i];
-                const dayDate = getDayDate(i);
-                const dateStr = dayDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-                
-                const item = document.createElement('div');
-                item.className = `rounded-xl p-3 border-2 ${i === optionsCurrentDay ? 'bg-purple-100 border-purple-300' : 'bg-gray-50 border-gray-200'}`;
-                
-                const cityName = city ? city.charAt(0).toUpperCase() + city.slice(1) : 'Non définie';
-                const emoji = getCityEmoji(city);
-                
-                let hotelInfo = '<div class="text-xs text-gray-400 mt-1">Pas d\'hébergement</div>';
-                if (hotel) {
-                    const priceStr = hotel.price ? `${hotel.price}${hotel.currency}` : 'Prix non défini';
-                    hotelInfo = `<div class="text-xs text-gray-600 mt-1">🏨 ${hotel.name}</div><div class="text-xs text-orange-600 font-bold">${priceStr}</div>`;
-                    
-                    if (hotel.price) {
-                        // Convertir tout en JPY pour le total
-                        if (hotel.currency === 'EUR') totalBudget += hotel.price * 160;
-                        else if (hotel.currency === 'USD') totalBudget += hotel.price * 145;
-                        else totalBudget += hotel.price;
-                    }
-                }
-                
-                item.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <div class="font-bold text-sm">Jour ${i + 1} - ${dateStr}</div>
-                            <div class="text-sm mt-1">${emoji} ${cityName}</div>
-                            ${hotelInfo}
-                        </div>
-                    </div>
-                `;
-                summary.appendChild(item);
-            }
-            
-            // Afficher le budget total
-            document.getElementById('total-budget').textContent = `Total hébergement: ${Math.round(totalBudget).toLocaleString()}¥`;
+            const dayDate = getDayDate(optionsCurrentDay);
+            document.getElementById('options-day-counter').textContent = `JOUR ${optionsCurrentDay + 1}/${tripData.totalDays}`;
+            document.getElementById('options-day-date').textContent = formatDate(dayDate);
+            document.getElementById('options-prev-btn').disabled = optionsCurrentDay === 0;
+            document.getElementById('options-next-btn').disabled = optionsCurrentDay === tripData.totalDays - 1;
+            document.getElementById('options-prev-btn').style.opacity = optionsCurrentDay === 0 ? '0.3' : '1';
+            document.getElementById('options-next-btn').style.opacity = optionsCurrentDay === tripData.totalDays - 1 ? '0.3' : '1';
+            loadModesForDay();
         }
+
+        function optionsPreviousDay() {
+            if (optionsCurrentDay > 0) { optionsCurrentDay--; updateOptionsDayInfo(); }
+        }
+
+        function optionsNextDay() {
+            if (optionsCurrentDay < tripData.totalDays - 1) { optionsCurrentDay++; updateOptionsDayInfo(); }
+        }
+
+
 
         function getCityEmoji(city) {
             const emojis = {
@@ -1566,14 +1482,7 @@
         }
 
         function updateCitySelector() {
-            const citySelector = document.getElementById('day-city-selector');
-            const savedCity = dayCities[currentDayIndex];
-            
-            if (savedCity) {
-                citySelector.value = savedCity;
-            } else {
-                citySelector.value = '';
-            }
+            // Plus de sélecteur city dans le sidebar jour par jour — géré via stays
         }
 
         // ========== SWIPE GESTURE (Planning uniquement) ==========
@@ -1645,7 +1554,7 @@
         }
 
         function loadSuggestionsInModal() {
-            const city = dayCities[currentDayIndex];
+            const city = getCityForDay(currentDayIndex);
             if (!city || !citySuggestions[city]) return;
             
             const suggestionsDiv = document.getElementById('modal-suggestions');
@@ -1850,7 +1759,7 @@
                     body: JSON.stringify({
                         activities: dayActivities,
                         day_index: currentDayIndex,
-                        hotel: dayHotels[currentDayIndex] || null
+                        hotel: getStayForDay(currentDayIndex) || null
                     })
                 });
                 
@@ -2080,7 +1989,7 @@
             list.innerHTML = '';
 
             const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
-            const selectedCity = dayCities[currentDayIndex];
+            const selectedCity = getCityForDay(currentDayIndex);
             const modes = dayModes[currentDayIndex] || { fatigue: false, weather: false };
 
             // Afficher les alertes de modes actifs
@@ -2157,8 +2066,9 @@
                 const act = dayActivities[i];
                 
                 // Si c'est la première activité ET qu'il y a un hôtel, ajouter le trajet hôtel → activité
-                if (i === 0 && dayHotels[currentDayIndex]) {
-                    const hotel = dayHotels[currentDayIndex];
+                if (i === 0 && getStayForDay(currentDayIndex)) {
+                    const stay = getStayForDay(currentDayIndex);
+                    const hotel = stay;
                     const hotelNavId = `nav-hotel-${act.id}`;
                     const hotelCard = document.createElement('div');
                     hotelCard.className = "bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-4 border-2 border-orange-200 mb-4";
@@ -2166,7 +2076,7 @@
                         <div class="flex items-center gap-2 mb-2">
                             <div class="text-2xl">🏨</div>
                             <div>
-                                <div class="font-bold text-sm">${hotel.place.name}</div>
+                                <div class="font-bold text-sm">${hotel.hotelName}</div>
                                 <div class="text-xs text-gray-600">Point de départ</div>
                             </div>
                         </div>
@@ -2180,7 +2090,7 @@
                     hotelNavBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet depuis l'hôtel...</div>`;
                     list.appendChild(hotelNavBlock);
                     
-                    calculateNav(hotel.place, act.place, hotelNavId);
+                    if (hotel.place) calculateNav(hotel.place, act.place, hotelNavId);
                 }
                 
                 const card = document.createElement('div');
@@ -2685,14 +2595,15 @@
             const insurance = parseFloat(document.getElementById('budget-insurance')?.value || 0);
             const misc = parseFloat(document.getElementById('budget-misc')?.value || 0);
             
-            // Calculer hébergements depuis dayHotels
+            // Calculer hébergements depuis stays[]
             let hotelTotal = 0;
-            Object.values(dayHotels).forEach(hotel => {
-                if (hotel && hotel.price) {
-                    let priceInEur = hotel.price;
-                    if (hotel.currency === 'JPY') priceInEur = hotel.price / 160;
-                    if (hotel.currency === 'USD') priceInEur = hotel.price * 0.92;
-                    hotelTotal += priceInEur;
+            stays.forEach(stay => {
+                if (stay && stay.price) {
+                    const nights = stay.endDay - stay.startDay + 1;
+                    let pricePerNight = stay.price;
+                    if (stay.currency === 'JPY') pricePerNight = stay.price / 160;
+                    if (stay.currency === 'USD') pricePerNight = stay.price * 0.92;
+                    hotelTotal += pricePerNight * nights;
                 }
             });
             
@@ -2814,8 +2725,7 @@
             document.getElementById('fab-icon').textContent = '×';
             syncConfigToggles();
             configDayIndex = currentDayIndex;
-            // Initialiser l'autocomplete du champ hôtel config
-            setTimeout(() => initHotelListenersConfig(), 100);
+            renderStaysList();
             switchConfigTab('voyage');
         }
 
@@ -2840,96 +2750,6 @@
             }
             if (tabName === 'voyage') updateVoyageTab();
             if (tabName === 'budget') { setTimeout(() => { loadBudget(); calculateBudget(); }, 100); }
-        }
-
-        function updateVoyageTab() {
-            if (!tripData) return;
-            updateConfigDayNavigation();
-            const citySelector = document.getElementById('day-city-selector-config');
-            if (citySelector) citySelector.value = dayCities[configDayIndex] || '';
-            const hotel = dayHotels[configDayIndex];
-            if (hotel) {
-                document.getElementById('hotel-name-input-config').value = hotel.name || '';
-                document.getElementById('hotel-address-input-config').value = hotel.address || (hotel.place ? hotel.place.formatted_address : '') || '';
-                document.getElementById('hotel-price-input-config').value = hotel.price || '';
-                document.getElementById('hotel-currency-input-config').value = hotel.currency || 'JPY';
-                const display = document.getElementById('hotel-display-config');
-                const details = document.getElementById('hotel-details-config');
-                display.classList.remove('hidden');
-                const addr = hotel.address || (hotel.place ? hotel.place.formatted_address : '') || '';
-                details.innerHTML = `
-                    <div class="font-bold">${hotel.name}</div>
-                    ${addr ? `<div class="text-gray-600 text-xs">${addr}</div>` : ''}
-                    ${hotel.price ? `<div class="text-orange-600 font-bold mt-1">${hotel.price} ${hotel.currency} / nuit</div>` : ''}
-                `;
-            } else {
-                document.getElementById('hotel-name-input-config').value = '';
-                document.getElementById('hotel-address-input-config').value = '';
-                document.getElementById('hotel-price-input-config').value = '';
-                document.getElementById('hotel-display-config').classList.add('hidden');
-            }
-        }
-
-        function updateConfigDayNavigation() {
-            if (!tripData) return;
-            const startDate = new Date(tripData.outbound.departureDate);
-            const currentDate = new Date(startDate);
-            currentDate.setDate(startDate.getDate() + configDayIndex);
-            const totalDays = tripData.totalDays;
-            document.getElementById('config-day-label').textContent = `JOUR ${configDayIndex + 1}/${totalDays}`;
-            const dayNames = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
-            const monthNames = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-            document.getElementById('config-day-date').textContent = `${dayNames[currentDate.getDay()]} ${currentDate.getDate()} ${monthNames[currentDate.getMonth()]}`;
-            const prevBtn = document.getElementById('config-prev-btn');
-            const nextBtn = document.getElementById('config-next-btn');
-            prevBtn.style.opacity = configDayIndex === 0 ? '0.3' : '1';
-            prevBtn.style.pointerEvents = configDayIndex === 0 ? 'none' : 'auto';
-            nextBtn.style.opacity = configDayIndex === totalDays - 1 ? '0.3' : '1';
-            nextBtn.style.pointerEvents = configDayIndex === totalDays - 1 ? 'none' : 'auto';
-        }
-
-        function configPrevDay() {
-            if (configDayIndex > 0) { configDayIndex--; updateVoyageTab(); }
-        }
-
-        function configNextDay() {
-            if (!tripData) return;
-            if (configDayIndex < tripData.totalDays - 1) { configDayIndex++; updateVoyageTab(); }
-        }
-
-        function handleCityChangeConfig() {
-            const citySelector = document.getElementById('day-city-selector-config');
-            dayCities[configDayIndex] = citySelector.value;
-            localStorage.setItem('japan_day_cities_v5', JSON.stringify(dayCities));
-            if (configDayIndex === currentDayIndex) renderPlanning();
-        }
-
-        function saveHotelInfoConfig() {
-            const name = document.getElementById('hotel-name-input-config').value.trim();
-            const addressInput = document.getElementById('hotel-address-input-config').value.trim();
-            const price = document.getElementById('hotel-price-input-config').value;
-            const currency = document.getElementById('hotel-currency-input-config').value;
-            if (!name) { alert('Veuillez entrer le nom de l\'hôtel'); return; }
-            
-            // Utiliser le place validé si disponible, sinon juste l'adresse saisie
-            const hotelEntry = { name, address: addressInput, price: price ? parseFloat(price) : null, currency };
-            if (validatedHotelPlaceConfig) {
-                hotelEntry.place = validatedHotelPlaceConfig;
-                hotelEntry.address = validatedHotelPlaceConfig.formatted_address;
-            }
-            
-            dayHotels[configDayIndex] = hotelEntry;
-            localStorage.setItem('japan_day_hotels_v5', JSON.stringify(dayHotels));
-            validatedHotelPlaceConfig = null; // reset
-            calculateBudget();
-            updateVoyageTab();
-        }
-
-        function editHotelConfig() {
-            document.getElementById('hotel-display-config').classList.add('hidden');
-            const status = document.getElementById('hotel-address-status-config');
-            if (status) status.innerHTML = '';
-            validatedHotelPlaceConfig = null;
         }
 
         function syncConfigToggles() {
@@ -2979,8 +2799,8 @@
         }
 
         function resetAllData() {
-            ['japan_trip_info_v5','japan_trip_v5','japan_day_cities_v5','japan_day_hotels_v5','japan_day_modes_v5','japan_route_cache','japan_budget_v1','japan_completed_v1'].forEach(k => localStorage.removeItem(k));
-            tripData = null; activities = []; dayCities = {}; dayHotels = {}; dayModes = {};
+            ['japan_trip_info_v5','japan_trip_v5','japan_stays_v1','japan_day_modes_v5','japan_route_cache','japan_budget_v1','japan_completed_v1'].forEach(k => localStorage.removeItem(k));
+            tripData = null; activities = []; stays = []; dayModes = {};
             document.querySelectorAll('div[class*="fixed"]').forEach(el => { if (el.innerHTML.includes('Réinitialiser')) el.remove(); });
             setTimeout(() => location.reload(), 500);
         }
@@ -3002,6 +2822,7 @@
                         document.getElementById('fab-config').classList.remove('hidden');
                         updateDayNavigation();
                         updateCitySelector();
+                        renderStaysList();
                         renderPlanning();
                     } else {
                         // Sinon afficher l'écran de bienvenue
