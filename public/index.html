@@ -1683,22 +1683,70 @@
             suggestionsDiv.classList.remove('hidden');
         }
 
-        function selectSuggestionInModal(name, query) {
-            // Rester en mode rapide, juste pré-remplir le champ et soumettre
-            const quickMode = document.getElementById('quick-add-mode');
-            const manualMode = document.getElementById('manual-add-mode');
-            const toggleText = document.getElementById('manual-toggle-text');
-            // S'assurer qu'on est en mode rapide
-            quickMode.classList.remove('hidden');
-            manualMode.classList.add('hidden');
-            toggleText.textContent = 'Mode manuel →';
+        async function selectSuggestionInModal(name, query) {
+            // Fermer le modal si ouvert
+            document.getElementById('activity-modal').classList.add('hidden');
 
-            // Pré-remplir avec le nom de la suggestion
-            const input = document.getElementById('quick-activity-input');
-            input.value = name;
+            // Afficher un toast de progression directement sur la page
+            const toast = document.createElement('div');
+            toast.id = 'suggestion-toast';
+            toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[500] bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-sm font-bold';
+            toast.innerHTML = `<div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent flex-shrink-0"></div> Ajout de "${name}"...`;
+            document.body.appendChild(toast);
 
-            // Lancer directement l'ajout IA
-            quickAddActivity();
+            try {
+                const response = await fetch('/api/quick-add-activity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: name,
+                        day_index: currentDayIndex,
+                        time_flexible: true,
+                        fixed_time: null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const activity = {
+                        id: Date.now(),
+                        dayIndex: currentDayIndex,
+                        time: data.activity.suggested_time || '09:00',
+                        time_flexible: true,
+                        title: data.activity.title,
+                        description: data.activity.description || '',
+                        place: data.activity.place,
+                        needs_optimization: true
+                    };
+
+                    activities.push(activity);
+                    activities.sort((a, b) => {
+                        if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                        if (a.time_flexible && !b.time_flexible) return 1;
+                        if (!a.time_flexible && b.time_flexible) return -1;
+                        return a.time.localeCompare(b.time);
+                    });
+                    localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+
+                    toast.innerHTML = `✅ "${data.activity.title}" ajouté !`;
+                    toast.classList.add('bg-green-700');
+                    renderPlanning();
+                } else {
+                    toast.innerHTML = `❌ Erreur : ${data.error || 'Impossible d\'ajouter'}`;
+                    toast.classList.add('bg-red-700');
+                }
+            } catch (e) {
+                toast.innerHTML = `❌ Erreur réseau`;
+                toast.classList.add('bg-red-700');
+            }
+
+            // Faire disparaître le toast après 2.5s
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.4s';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 400);
+            }, 2500);
         }
 
         function closeModal() {
