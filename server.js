@@ -194,58 +194,102 @@ app.post('/api/route', async (req, res) => {
         matrixFrom.sort((a, b) => a.walk_min - b.walk_min);
         matrixTo.sort((a, b) => a.walk_min - b.walk_min);
 
-        // IA ASSEMBLAGE
-        const bestFrom = matrixFrom[0]; // station la plus proche du départ
-        const bestTo   = matrixTo[0];   // station la plus proche de l'arrivée
+        const bestFrom = matrixFrom[0];
+        const bestTo   = matrixTo[0];
 
+        // Distance à vol d'oiseau entre les deux lieux (haversine)
+        function haversineKm(a, b) {
+            const R = 6371;
+            const dLat = (b.lat - a.lat) * Math.PI / 180;
+            const dLng = (b.lng - a.lng) * Math.PI / 180;
+            const s = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180) * Math.cos(b.lat*Math.PI/180) * Math.sin(dLng/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+        }
+        const distKm = haversineKm(fromCoords, toCoords).toFixed(1);
+
+        // Durée OSRM à pied entre les deux lieux (pour détecter si tout est faisable à pied)
+        const walkDirect = await getWalkingDirections(fromCoords, toCoords);
+        const walkDirectMin = walkDirect.success ? walkDirect.duration : 999;
+
+        // Si distance < 1.2km : tout à pied, pas de transit
+        const useTransit = distKm > 1.2;
+
+        const walkFrom = bestFrom?.walk_min || 3;
+        const walkTo   = bestTo?.walk_min   || 3;
+
+        let transit = 0;
+        let mode = 'walk';
+        let steps = '';
+
+        if (!useTransit) {
+            // Trajet entièrement à pied
+            transit = 0;
+            mode = 'walk';
+            steps = `🚶 ${walkDirectMin}min`;
+            const totalReal = walkDirectMin;
+            return res.json({
+                success: true,
+                summary: steps,
+                details: steps,
+                total_minutes: totalReal,
+                walk_from_min: walkDirectMin,
+                transit_min: 0,
+                walk_to_min: 0,
+                mode: 'walk'
+            });
+        }
+
+        // Trajet avec transit — demander à l'IA la durée du segment en transports
         const aiRoute = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
                 {
                     role: "system",
-                    content: `Tu es un expert en transports Tokyo/Japon.
-Données réelles disponibles :
-- Marche DÉPART→station : ${bestFrom?.walk_min ?? '?'} min (station: ${bestFrom?.name ?? '?'})
-- Marche station→ARRIVÉE : ${bestTo?.walk_min ?? '?'} min (station: ${bestTo?.name ?? '?'})
+                    content: `Tu es un expert des transports en commun au Japon (Tokyo, Kyoto, Osaka...).
+On connait déjà les segments de marche. Tu dois UNIQUEMENT estimer la durée du trajet en transports entre deux stations.
 
-RÈGLE ABSOLUE : total_minutes = walk_from + transit_minutes + walk_to
-Ne jamais inventer un total différent de la somme des parts.
-transit_minutes = durée réaliste du trajet en transports entre les deux stations (métro/train/bus).
+Données :
+- DÉPART : ${from_place.name}
+- Station départ : ${bestFrom?.name ?? '?'} (${walkFrom}min à pied du départ)
+- ARRIVÉE : ${to_place.name}  
+- Station arrivée : ${bestTo?.name ?? '?'} (${walkTo}min à pied de l'arrivée)
+- Distance directe : ${distKm} km
 
-Format JSON STRICT :
+RÈGLE : transit_min = durée réelle en métro/train entre les deux stations (sans les marches).
+Pour ${distKm}km au Japon, le transit typique est entre ${Math.round(distKm * 2)}min et ${Math.round(distKm * 4)}min selon les correspondances.
+Si les deux stations sont sur la même ligne : moins de correspondances.
+Si les stations sont différentes : ajouter 5-10min de correspondance.
+
+Réponds UNIQUEMENT avec ce JSON :
 {
-  "walk_from_min": <int>,
   "transit_min": <int>,
-  "walk_to_min": <int>,
-  "total_minutes": <int = walk_from + transit + walk_to>,
-  "steps": "<emoji> X min + <emoji> Y min + <emoji> Z min",
-  "mode": "walk|metro|train|bus|taxi"
+  "mode": "metro|train|bus",
+  "line_hint": "ex: Ginza Line direction Shibuya"
 }`
                 },
-                { role: "user", content: `Trajet de "${from_place.name}" à "${to_place.name}".` }
+                { role: "user", content: `De "${bestFrom?.name}" à "${bestTo?.name}" pour aller de ${from_place.name} à ${to_place.name}.` }
             ],
             response_format: { type: "json_object" }
         });
 
         const r = JSON.parse(aiRoute.choices[0].message.content);
 
-        // Calcul arithmétique côté serveur — on ne fait jamais confiance au total de l'IA
-        const walkFrom  = Math.max(0, parseInt(r.walk_from_min)  || bestFrom?.walk_min || 0);
-        const transit   = Math.max(0, parseInt(r.transit_min)    || 0);
-        const walkTo    = Math.max(0, parseInt(r.walk_to_min)    || bestTo?.walk_min  || 0);
+        // Calcul arithmétique — serveur est maître du total
+        transit = Math.max(1, parseInt(r.transit_min) || Math.round(distKm * 3));
+        mode    = r.mode || 'metro';
+        const modeEmoji = { metro: '🚇', train: '🚄', bus: '🚌' }[mode] || '🚇';
         const totalReal = walkFrom + transit + walkTo;
+        steps = `🚶 ${walkFrom}min + ${modeEmoji} ${transit}min + 🚶 ${walkTo}min`;
 
-        // L'heure d'arrivée est calculée côté CLIENT à partir de l'heure de départ de l'activité
-        // Le serveur renvoie uniquement la durée, pas une heure absolue
         res.json({
             success: true,
-            summary: r.steps || `🚶 ${walkFrom}min + 🚇 ${transit}min + 🚶 ${walkTo}min`,
-            details: r.steps || '',
+            summary: steps,
+            details: steps,
             total_minutes: totalReal,
             walk_from_min: walkFrom,
             transit_min: transit,
             walk_to_min: walkTo,
-            mode: r.mode || 'metro'
+            mode
         });
 
     } catch (error) {
