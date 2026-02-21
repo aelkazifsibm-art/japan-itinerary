@@ -1624,9 +1624,11 @@
             // Ajouter le temps de trajet si disponible en cache
             if (dayActivities.length >= 2) {
                 const secondLast = dayActivities[dayActivities.length - 2];
-                const cacheKey = `${secondLast.place.place_id}-${lastActivity.place.place_id}`;
-                if (routeCache[cacheKey]) {
-                    endTime.setMinutes(endTime.getMinutes() + routeCache[cacheKey].total_minutes);
+                if (secondLast.place && lastActivity.place) {
+                    const cacheKey = `${secondLast.place.place_id}-${lastActivity.place.place_id}`;
+                    if (routeCache[cacheKey]) {
+                        endTime.setMinutes(endTime.getMinutes() + routeCache[cacheKey].total_minutes);
+                    }
                 }
             }
             
@@ -1961,7 +1963,7 @@
                                         ${act.time_changed ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Modifié</span>' : '<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">OK</span>'}
                                     </div>
                                     <div class="font-bold">${act.title}</div>
-                                    <div class="text-xs text-gray-500 mt-1">📍 ${act.place.name}</div>
+                                    <div class="text-xs text-gray-500 mt-1">📍 ${act.place?.name || ""}</div>
                                     ${act.reason ? `<div class="text-xs text-blue-600 mt-2">💡 ${act.reason}</div>` : ''}
                                 </div>
                             `).join('')}
@@ -2495,8 +2497,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        place_name: activity.place.name,
-                        place_address: activity.place.formatted_address,
+                        place_name: activity.place?.name || activity.title,
+                        place_address: activity.place?.formatted_address || "",
                         visit_time: activity.time
                     })
                 });
@@ -2568,7 +2570,7 @@
                         </div>
                         
                         <!-- Lien Google Maps -->
-                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.place.name)}&query_place_id=${activity.place.place_id}" 
+                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.place?.name || activity.title)}&query_place_id=${activity.place?.place_id || ""}" 
                            target="_blank"
                            class="block w-full bg-blue-600 text-white text-center py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors">
                             🗺️ Ouvrir dans Google Maps
