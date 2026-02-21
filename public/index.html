@@ -761,14 +761,25 @@
                 </div>
                 
                 <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase">Titre</label>
+                    <label class="text-xs font-bold text-gray-500 uppercase flex justify-between">
+                        <span>Titre</span>
+                        <button onclick="normalizeText()" class="text-purple-500 font-bold text-xs">✨ IA</button>
+                    </label>
                     <input type="text" id="modal-title-raw" placeholder="Ex: Visite temple" class="w-full border-2 border-gray-100 rounded-xl p-3">
+                </div>
+
+                <!-- Suggestion IA -->
+                <div id="ia-suggestions" class="hidden bg-purple-50 rounded-xl p-3 border border-purple-200 space-y-2">
+                    <div class="text-xs font-bold text-purple-700">✨ Suggestion IA</div>
+                    <div id="ia-title-clean" class="text-sm font-bold text-gray-800"></div>
+                    <button onclick="applyIASuggestion()" class="text-xs bg-purple-500 text-white px-3 py-1 rounded-lg">Appliquer</button>
                 </div>
 
                 <div class="relative">
                     <label class="text-xs font-bold text-gray-500 uppercase">Destination</label>
                     <input type="text" id="modal-dest-search" placeholder="Rechercher..." class="w-full border-2 border-gray-100 rounded-xl p-3" autocomplete="off">
                     <div id="dest-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[110] border"></div>
+                    <div id="dest-status" class="text-xs mt-1 font-bold"></div>
                 </div>
 
                 <div>
@@ -1463,13 +1474,13 @@
             const weatherInfo = document.getElementById('weather-info');
             
             if (fatigueStatus) {
-                fatigueStatus.innerHTML = modes.fatigue ? 
+                fatigueStatus?.innerHTML = modes.fatigue ? 
                     '<span class="text-green-600 font-bold">✅ Mode activé</span>' : 
                     '<span class="text-gray-600">Désactivé</span>';
             }
             
             if (weatherInfo) {
-                weatherInfo.innerHTML = modes.weather ? 
+                weatherInfo?.innerHTML = modes.weather ? 
                     '<span class="text-sky-600 font-bold">✅ Mode activé</span>' : 
                     '<span class="text-gray-600">Désactivé</span>';
             }
@@ -1478,12 +1489,14 @@
         function updateOptionsDayInfo() {
             if (!tripData) return;
             const dayDate = getDayDate(optionsCurrentDay);
-            document.getElementById('options-day-counter').textContent = `JOUR ${optionsCurrentDay + 1}/${tripData.totalDays}`;
-            document.getElementById('options-day-date').textContent = formatDate(dayDate);
-            document.getElementById('options-prev-btn').disabled = optionsCurrentDay === 0;
-            document.getElementById('options-next-btn').disabled = optionsCurrentDay === tripData.totalDays - 1;
-            document.getElementById('options-prev-btn').style.opacity = optionsCurrentDay === 0 ? '0.3' : '1';
-            document.getElementById('options-next-btn').style.opacity = optionsCurrentDay === tripData.totalDays - 1 ? '0.3' : '1';
+            const counter = document.getElementById('options-day-counter');
+            const dateEl = document.getElementById('options-day-date');
+            const prevBtn = document.getElementById('options-prev-btn');
+            const nextBtn = document.getElementById('options-next-btn');
+            if (counter) counter.textContent = `JOUR ${optionsCurrentDay + 1}/${tripData.totalDays}`;
+            if (dateEl) dateEl.textContent = formatDate(dayDate);
+            if (prevBtn) { prevBtn.disabled = optionsCurrentDay === 0; prevBtn.style.opacity = optionsCurrentDay === 0 ? '0.3' : '1'; }
+            if (nextBtn) { nextBtn.disabled = optionsCurrentDay === tripData.totalDays - 1; nextBtn.style.opacity = optionsCurrentDay === tripData.totalDays - 1 ? '0.3' : '1'; }
             loadModesForDay();
         }
 
@@ -1498,12 +1511,14 @@
         function updateOptionsDayInfo() {
             if (!tripData) return;
             const dayDate = getDayDate(optionsCurrentDay);
-            document.getElementById('options-day-counter').textContent = `JOUR ${optionsCurrentDay + 1}/${tripData.totalDays}`;
-            document.getElementById('options-day-date').textContent = formatDate(dayDate);
-            document.getElementById('options-prev-btn').disabled = optionsCurrentDay === 0;
-            document.getElementById('options-next-btn').disabled = optionsCurrentDay === tripData.totalDays - 1;
-            document.getElementById('options-prev-btn').style.opacity = optionsCurrentDay === 0 ? '0.3' : '1';
-            document.getElementById('options-next-btn').style.opacity = optionsCurrentDay === tripData.totalDays - 1 ? '0.3' : '1';
+            const counter = document.getElementById('options-day-counter');
+            const dateEl = document.getElementById('options-day-date');
+            const prevBtn = document.getElementById('options-prev-btn');
+            const nextBtn = document.getElementById('options-next-btn');
+            if (counter) counter.textContent = `JOUR ${optionsCurrentDay + 1}/${tripData.totalDays}`;
+            if (dateEl) dateEl.textContent = formatDate(dayDate);
+            if (prevBtn) { prevBtn.disabled = optionsCurrentDay === 0; prevBtn.style.opacity = optionsCurrentDay === 0 ? '0.3' : '1'; }
+            if (nextBtn) { nextBtn.disabled = optionsCurrentDay === tripData.totalDays - 1; nextBtn.style.opacity = optionsCurrentDay === tripData.totalDays - 1 ? '0.3' : '1'; }
             loadModesForDay();
         }
 
