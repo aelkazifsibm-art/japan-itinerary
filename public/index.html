@@ -2287,21 +2287,22 @@
                         <div class="flex items-center gap-2 mb-2">
                             <div class="text-2xl">🏨</div>
                             <div>
-                                <div class="font-bold text-sm">${hotel.hotelName}</div>
+                                <div class="font-bold text-sm">${hotel.hotelName || 'Hôtel'}</div>
                                 <div class="text-xs text-gray-600">Point de départ</div>
                             </div>
                         </div>
                     `;
                     list.appendChild(hotelCard);
                     
-                    // Bloc navigation hôtel → première activité
-                    const hotelNavBlock = document.createElement('div');
-                    hotelNavBlock.id = hotelNavId;
-                    hotelNavBlock.className = "bg-orange-500 text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md mb-4";
-                    hotelNavBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet depuis l'hôtel...</div>`;
-                    list.appendChild(hotelNavBlock);
-                    
-                    if (hotel.place) calculateNav(hotel.place, act.place, hotelNavId);
+                    // Bloc navigation hôtel → première activité (uniquement si place validé ET activité avec place)
+                    if (hotel.place && act.place) {
+                        const hotelNavBlock = document.createElement('div');
+                        hotelNavBlock.id = hotelNavId;
+                        hotelNavBlock.className = "bg-orange-500 text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md mb-4";
+                        hotelNavBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet depuis l'hôtel...</div>`;
+                        list.appendChild(hotelNavBlock);
+                        calculateNav(hotel.place, act.place, hotelNavId);
+                    }
                 }
                 
                 const card = document.createElement('div');
@@ -2311,14 +2312,14 @@
                     <div class="text-xs font-bold text-gray-400 mb-1">${act.time}</div>
                     <div class="text-lg font-bold text-gray-800">${act.title}</div>
                     <div class="text-sm text-gray-500 mt-1">${act.description}</div>
-                    <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold">📍 ${act.place.name}</div>
+                    <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold">📍 ${act.place?.name || 'Lieu non défini'}</div>
                     <div class="mt-2 flex gap-2">
-                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}" 
+                        ${act.place ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}" 
                            target="_blank" 
                            onclick="event.stopPropagation()"
                            class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">
                             🗺️ Itinéraire
-                        </a>
+                        </a>` : ''}
                         <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
                             ℹ️ Cliquez pour + d'infos
                         </span>
@@ -2329,14 +2330,15 @@
 
                 if (i < dayActivities.length - 1) {
                     const nextAct = dayActivities[i+1];
-                    const navId = `nav-${act.id}-${nextAct.id}`;
-                    const navBlock = document.createElement('div');
-                    navBlock.id = navId;
-                    navBlock.className = "bg-nav text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md";
-                    navBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet...</div>`;
-                    list.appendChild(navBlock);
-                    
-                    calculateNav(act.place, nextAct.place, navId);
+                    if (act.place && nextAct.place) {
+                        const navId = `nav-${act.id}-${nextAct.id}`;
+                        const navBlock = document.createElement('div');
+                        navBlock.id = navId;
+                        navBlock.className = "bg-nav text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md";
+                        navBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet...</div>`;
+                        list.appendChild(navBlock);
+                        calculateNav(act.place, nextAct.place, navId);
+                    }
                 }
             }
         }
