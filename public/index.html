@@ -525,7 +525,11 @@
                             </div>
                             <div>
                                 <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Adresse</label>
-                                <input type="text" id="hotel-address-input-config" placeholder="Adresse de l'hôtel..." class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors text-sm">
+                                <div class="relative">
+                                    <input type="text" id="hotel-address-input-config" placeholder="Rechercher l'adresse..." class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors text-sm" autocomplete="off">
+                                    <div id="hotel-address-suggestions-config" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[310] border max-h-48 overflow-y-auto"></div>
+                                </div>
+                                <div id="hotel-address-status-config" class="text-xs mt-1 font-bold"></div>
                             </div>
                             <div>
                                 <label class="text-xs font-bold text-orange-700 uppercase block mb-2">💰 Prix par nuit (optionnel)</label>
@@ -1096,45 +1100,114 @@
 
         // ========== GESTION DES HÔTELS ==========
         let hotelAddressTimer = null;
+        let hotelAddressTimerConfig = null;
         let validatedHotelPlace = null;
+        let validatedHotelPlaceConfig = null;
 
-        function initHotelListeners() {
-            const addressInput = document.getElementById('hotel-address-input');
-            const addressList = document.getElementById('hotel-address-suggestions');
-            
-            if (!addressInput || addressInput.dataset.initialized) return;
-            addressInput.dataset.initialized = 'true';
+        /**
+         * Attache l'autocomplete Google Places à n'importe quel champ texte.
+         * @param {string} inputId       - ID du champ input
+         * @param {string} suggestionsId - ID du conteneur de suggestions
+         * @param {string} statusId      - ID du span de statut (optionnel)
+         * @param {function} onSelect    - Callback appelé avec l'objet place validé
+         */
+        function initAutocomplete(inputId, suggestionsId, statusId, onSelect) {
+            const input = document.getElementById(inputId);
+            const list  = document.getElementById(suggestionsId);
+            if (!input || !list) return;
+            if (input.dataset.autocompleteInit) return; // Eviter double init
+            input.dataset.autocompleteInit = 'true';
 
-            addressInput.addEventListener('input', () => {
-                clearTimeout(hotelAddressTimer);
-                const query = addressInput.value.trim();
-                
-                if (query.length < 3) {
-                    addressList.classList.add('hidden');
-                    return;
-                }
-                
-                hotelAddressTimer = setTimeout(async () => {
+            let timer = null;
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                const query = input.value.trim();
+                if (query.length < 2) { list.classList.add('hidden'); return; }
+
+                timer = setTimeout(async () => {
                     try {
                         const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}`);
                         const j = await r.json();
-                        addressList.innerHTML = '';
-                        
+                        list.innerHTML = '';
                         if (j.predictions?.length > 0) {
-                            addressList.classList.remove('hidden');
-                            j.predictions.slice(0, 5).forEach(p => {
+                            list.classList.remove('hidden');
+                            j.predictions.slice(0, 6).forEach(p => {
                                 const div = document.createElement('div');
                                 div.className = 'suggestion-item';
                                 div.textContent = p.description;
-                                div.onclick = () => validateHotelAddress(p.place_id);
-                                addressList.appendChild(div);
+                                div.addEventListener('mousedown', async (e) => {
+                                    e.preventDefault(); // empêche le blur de fermer la liste avant le clic
+                                    list.classList.add('hidden');
+                                    const statusEl = statusId ? document.getElementById(statusId) : null;
+                                    if (statusEl) statusEl.innerHTML = '<span class="text-gray-400">⏳ Validation...</span>';
+                                    try {
+                                        const dr = await fetch(`/api/places/details?place_id=${encodeURIComponent(p.place_id)}`);
+                                        const dj = await dr.json();
+                                        if (dj.ok) {
+                                            input.value = dj.place.formatted_address;
+                                            if (statusEl) statusEl.innerHTML = `<span class="text-green-600">✅ Adresse validée</span>`;
+                                            if (onSelect) onSelect(dj.place);
+                                        } else {
+                                            if (statusEl) statusEl.innerHTML = '<span class="text-red-500">❌ Erreur validation</span>';
+                                        }
+                                    } catch(e) {
+                                        if (statusEl) statusEl.innerHTML = '<span class="text-red-500">❌ Erreur réseau</span>';
+                                    }
+                                });
+                                list.appendChild(div);
                             });
+                        } else {
+                            list.classList.add('hidden');
                         }
                     } catch (e) {
-                        console.error('Erreur autocomplete:', e);
+                        console.error('Autocomplete erreur:', e);
                     }
                 }, 300);
             });
+
+            // Fermer la liste si on clique ailleurs
+            input.addEventListener('blur', () => {
+                setTimeout(() => list.classList.add('hidden'), 200);
+            });
+        }
+
+        // Init autocomplete sidebar hôtel
+        function initHotelListeners() {
+            initAutocomplete(
+                'hotel-address-input',
+                'hotel-address-suggestions',
+                'hotel-address-status',
+                (place) => { validatedHotelPlace = place; }
+            );
+        }
+
+        // Init autocomplete config-screen hôtel (appelé à l'ouverture de la config)
+        function initHotelListenersConfig() {
+            // Créer dynamiquement le conteneur de suggestions s'il n'existe pas
+            const input = document.getElementById('hotel-address-input-config');
+            if (!input) return;
+            
+            let list = document.getElementById('hotel-address-suggestions-config');
+            if (!list) {
+                list = document.createElement('div');
+                list.id = 'hotel-address-suggestions-config';
+                list.className = 'absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[310] border max-h-48 overflow-y-auto';
+                input.parentElement.style.position = 'relative';
+                input.parentElement.appendChild(list);
+            }
+
+            initAutocomplete(
+                'hotel-address-input-config',
+                'hotel-address-suggestions-config',
+                null,
+                (place) => {
+                    validatedHotelPlaceConfig = place;
+                    // Afficher confirmation inline
+                    const status = document.getElementById('hotel-address-status-config');
+                    if (status) status.innerHTML = `<span class="text-green-600 text-xs font-bold">✅ ${place.formatted_address}</span>`;
+                }
+            );
         }
 
         async function validateHotelAddress(placeId) {
@@ -1159,6 +1232,7 @@
 
         function saveHotelInfo() {
             const hotelName = document.getElementById('hotel-name-input').value.trim();
+            const address = document.getElementById('hotel-address-input').value.trim();
             const price = document.getElementById('hotel-price-input').value;
             const currency = document.getElementById('hotel-currency-input').value;
             
@@ -1167,24 +1241,24 @@
                 return;
             }
             
-            if (!validatedHotelPlace) {
-                alert('Veuillez valider l\'adresse de l\'hôtel via les suggestions');
-                return;
-            }
-            
-            // Sauvegarder l'hôtel pour le jour actuel
-            dayHotels[optionsCurrentDay] = {
+            const hotelEntry = {
                 name: hotelName,
-                place: validatedHotelPlace,
+                address: address,
                 price: price ? parseFloat(price) : null,
                 currency: currency
             };
+            if (validatedHotelPlace) {
+                hotelEntry.place = validatedHotelPlace;
+                hotelEntry.address = validatedHotelPlace.formatted_address;
+            }
             
+            dayHotels[optionsCurrentDay] = hotelEntry;
             localStorage.setItem('japan_day_hotels_v5', JSON.stringify(dayHotels));
+            validatedHotelPlace = null;
             
-            // Afficher l'hôtel enregistré
             displaySavedHotel();
             updateCitiesSummary();
+            calculateBudget();
             
             alert('✅ Hébergement enregistré pour le Jour ' + (optionsCurrentDay + 1));
         }
@@ -1194,7 +1268,8 @@
             
             if (hotel) {
                 document.getElementById('hotel-display-name').textContent = hotel.name;
-                document.getElementById('hotel-display-address').textContent = hotel.place.formatted_address;
+                const addr = hotel.address || (hotel.place ? hotel.place.formatted_address : '') || '';
+                document.getElementById('hotel-display-address').textContent = addr;
                 
                 const priceStr = hotel.price ? `${hotel.price} ${hotel.currency}` : 'Prix non défini';
                 document.getElementById('hotel-display-price').textContent = priceStr;
@@ -2739,6 +2814,8 @@
             document.getElementById('fab-icon').textContent = '×';
             syncConfigToggles();
             configDayIndex = currentDayIndex;
+            // Initialiser l'autocomplete du champ hôtel config
+            setTimeout(() => initHotelListenersConfig(), 100);
             switchConfigTab('voyage');
         }
 
@@ -2829,18 +2906,30 @@
 
         function saveHotelInfoConfig() {
             const name = document.getElementById('hotel-name-input-config').value.trim();
-            const address = document.getElementById('hotel-address-input-config').value.trim();
+            const addressInput = document.getElementById('hotel-address-input-config').value.trim();
             const price = document.getElementById('hotel-price-input-config').value;
             const currency = document.getElementById('hotel-currency-input-config').value;
             if (!name) { alert('Veuillez entrer le nom de l\'hôtel'); return; }
-            dayHotels[configDayIndex] = { name, address, price: price ? parseFloat(price) : null, currency };
+            
+            // Utiliser le place validé si disponible, sinon juste l'adresse saisie
+            const hotelEntry = { name, address: addressInput, price: price ? parseFloat(price) : null, currency };
+            if (validatedHotelPlaceConfig) {
+                hotelEntry.place = validatedHotelPlaceConfig;
+                hotelEntry.address = validatedHotelPlaceConfig.formatted_address;
+            }
+            
+            dayHotels[configDayIndex] = hotelEntry;
             localStorage.setItem('japan_day_hotels_v5', JSON.stringify(dayHotels));
+            validatedHotelPlaceConfig = null; // reset
             calculateBudget();
             updateVoyageTab();
         }
 
         function editHotelConfig() {
             document.getElementById('hotel-display-config').classList.add('hidden');
+            const status = document.getElementById('hotel-address-status-config');
+            if (status) status.innerHTML = '';
+            validatedHotelPlaceConfig = null;
         }
 
         function syncConfigToggles() {
