@@ -510,86 +510,98 @@ Génère une fiche de présentation avec :
 app.post("/api/optimize-day", async (req, res) => {
     try {
         const { activities, day_index, hotel } = req.body;
-        
-        // Préparer le contexte pour l'IA — ignorer les activités sans place valide
-        const activitiesContext = activities
-            .filter(a => a.place && a.place.name)
-            .map(a => ({
-                id: a.id,
-                title: a.title,
-                place: a.place.name,
-                current_time: a.time,
-                is_flexible: a.time_flexible || false
-            }));
 
-        if (activitiesContext.length === 0) {
-            return res.status(400).json({ success: false, error: "Aucune activité avec lieu valide à optimiser." });
+        const validActivities = activities.filter(a => a.place && a.place.name);
+        if (validActivities.length === 0) {
+            return res.status(400).json({ success: false, error: "Aucune activité avec lieu valide." });
         }
 
         const hotelName = hotel?.place?.name || hotel?.hotelName || null;
-        const prompt = `Tu es un expert en optimisation d'itinéraires au Japon.
+        const activitiesContext = validActivities.map(a => ({
+            id: a.id,
+            title: a.title,
+            place: a.place.name,
+            current_time: a.time,
+            is_flexible: a.time_flexible !== false
+        }));
 
-Activités à optimiser:
+        const prompt = `Tu es un expert en planification d'itinéraires au Japon. Crée un planning de journée optimal et humain.
+
+Activités:
 ${JSON.stringify(activitiesContext, null, 2)}
 
-${hotelName ? `Hôtel: ${hotelName}` : 'Pas d\'hôtel défini'}
+${hotelName ? `Point de départ: ${hotelName}` : ''}
 
-Tâches:
-1. Vérifier les horaires d'ouverture
-2. Éviter les heures d'affluence
-3. Optimiser les trajets
-4. Respecter les horaires fixes (is_flexible: false)
-5. Proposer des horaires réalistes
+RÈGLES:
+1. Respecter les vrais horaires d'ouverture
+2. Éviter les pics d'affluence touristique
+3. Optimiser l'ordre géographique pour minimiser les trajets
+4. Ne JAMAIS changer is_flexible:false
+5. Marges de respiration INTELLIGENTES (temps de flâner, se perdre, souffler):
+   - Lieux proches: 15-20min
+   - Lieux éloignés: 30-45min
+   - Après marché/repas: 20min
+   - Après site intense/randonnée: 30min
+6. Journée réaliste: début 08h-09h, fin avant 21h
+7. Activités physiques le matin, culturelles/légères l'après-midi
 
-Retourne un JSON avec UNIQUEMENT les IDs et nouveaux horaires:
+JSON de réponse:
 {
-    "optimized_activities": [
-        {
-            "id": 123,
-            "time": "09:00",
-            "reason": "Ouverture + peu de monde",
-            "time_changed": true
-        }
-    ],
-    "explanation": "Le planning a été optimisé pour..."
+  "optimized_activities": [
+    {
+      "id": 123,
+      "time": "09:00",
+      "duration_minutes": 90,
+      "breathing_after_minutes": 20,
+      "breathing_reason": "Flâner dans les ruelles avant de reprendre",
+      "reason": "Ouverture à 8h30, lumière dorée et peu de monde",
+      "time_changed": true
+    }
+  ],
+  "day_summary": "Une journée fluide entre marchés animés et temples apaisants",
+  "energy_level": "modérée"
 }`;
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
-                { role: "system", content: "Tu es un expert en optimisation d'itinéraires au Japon." },
+                { role: "system", content: "Expert tourisme Japon. Réponds UNIQUEMENT en JSON valide." },
                 { role: "user", content: prompt }
             ],
             response_format: { type: "json_object" }
         });
 
         const result = JSON.parse(completion.choices[0].message.content);
-        
-        // IMPORTANT: Fusionner les données IA avec les données complètes originales
+
         const optimizedWithFullData = result.optimized_activities.map(opt => {
-            const original = activities.find(a => a.id === opt.id);
+            const original = validActivities.find(a => a.id === opt.id);
             if (!original) return null;
-            
             return {
                 id: opt.id,
                 time: opt.time,
                 title: original.title,
-                description: original.description,
-                place: original.place, // Conserver l'objet place complet
-                reason: opt.reason,
-                time_changed: opt.time_changed
+                description: original.description || '',
+                place: original.place,
+                reason: opt.reason || '',
+                breathing_after_minutes: opt.breathing_after_minutes || 0,
+                breathing_reason: opt.breathing_reason || '',
+                duration_minutes: opt.duration_minutes || 90,
+                time_changed: opt.time_changed || false
             };
-        }).filter(a => a !== null);
-        
+        }).filter(Boolean);
+
         res.json({
             success: true,
             optimized_activities: optimizedWithFullData,
-            explanation: result.explanation
+            day_summary: result.day_summary || '',
+            energy_level: result.energy_level || ''
         });
-        
+
     } catch (e) {
+        console.error("optimize-day error:", e);
         res.status(500).json({ success: false, error: e.message });
     }
 });
+
 
 app.listen(port, () => console.log(`✅ Serveur prêt sur http://localhost:${port}`));

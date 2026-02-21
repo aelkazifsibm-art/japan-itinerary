@@ -2208,29 +2208,33 @@
         }
 
         // ========== OPTIMISATION DU PLANNING ==========
+        // ═══ OPTIMISATION IA ════════════════════════════════
+
         async function optimizeDaySchedule() {
             const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
-            
-            if (dayActivities.length === 0) {
-                alert('Aucune activité à optimiser');
+            if (dayActivities.length < 2) {
+                alert('Ajoutez au moins 2 activités pour optimiser la journée.');
                 return;
             }
-            
-            // Afficher modal de chargement avec ID unique
-            const loadingHTML = `
-                <div id="optimization-loading" class="fixed inset-0 bg-black bg-opacity-70 z-[300] flex items-center justify-center">
-                    <div class="bg-white rounded-2xl p-8 max-w-sm mx-4 text-center">
-                        <div class="text-6xl mb-4 animate-bounce">🤖</div>
-                        <div class="text-xl font-bold mb-2">Optimisation IA</div>
-                        <div class="text-sm text-gray-600 mb-4">Analyse des horaires, affluence, trajets...</div>
-                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+
+            // Spinner overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'opt-loading-overlay';
+            overlay.className = 'fixed inset-0 bg-black/60 z-[350] flex items-center justify-center';
+            overlay.innerHTML = `
+                <div class="bg-white rounded-3xl p-8 mx-4 text-center max-w-xs w-full shadow-2xl">
+                    <div class="text-5xl mb-4 animate-bounce">🧠</div>
+                    <div class="text-lg font-black text-gray-800 mb-1">Optimisation IA</div>
+                    <div class="text-sm text-gray-500 mb-5">Horaires · Trajets · Marges de respiration...</div>
+                    <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full animate-pulse" style="width:70%"></div>
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', loadingHTML);
-            
+            document.body.appendChild(overlay);
+
             try {
-                const response = await fetch('/api/optimize-day', {
+                const res = await fetch('/api/optimize-day', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2239,92 +2243,108 @@
                         hotel: getStayForDay(currentDayIndex) || null
                     })
                 });
-                
-                const data = await response.json();
-                
+                const data = await res.json();
+                overlay.remove();
+
                 if (data.success) {
-                    // Supprimer le loading
-                    const loadingEl = document.getElementById('optimization-loading');
-                    if (loadingEl) loadingEl.remove();
-                    
-                    // Afficher la proposition
-                    showOptimizationProposal(data.optimized_activities, data.explanation);
+                    showOptimizationTimeline(data.optimized_activities, data.day_summary, data.energy_level, dayActivities);
                 } else {
-                    // Supprimer le loading même en cas d'erreur
-                    const loadingEl = document.getElementById('optimization-loading');
-                    if (loadingEl) loadingEl.remove();
-                    
-                    alert('Erreur: ' + (data.error || 'Impossible d\'optimiser'));
+                    alert('Erreur : ' + (data.error || 'Optimisation impossible'));
                 }
-            } catch (error) {
-                // TOUJOURS supprimer le loading en cas d'erreur
-                const loadingEl = document.getElementById('optimization-loading');
-                if (loadingEl) loadingEl.remove();
-                
-                console.error('Erreur:', error);
+            } catch(e) {
+                overlay.remove();
                 alert('Erreur réseau. Vérifiez votre connexion.');
             }
         }
 
-        function showOptimizationProposal(optimizedActivities, explanation) {
-            // Créer un modal de proposition
-            const modalHTML = `
-                <div id="optimization-modal" class="fixed inset-0 bg-black bg-opacity-70 z-[300] flex items-center justify-center p-4">
-                    <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <h2 class="text-2xl font-bold mb-4">✨ Planning Optimisé</h2>
-                        
-                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-                            <div class="text-sm font-bold text-blue-700 mb-2">💡 Explications</div>
-                            <div class="text-xs text-blue-600">${explanation}</div>
+        function showOptimizationTimeline(optimized, daySummary, energyLevel, originalActivities) {
+            const energyEmoji = { 'légère': '😌', 'modérée': '🚶', 'soutenue': '💪', 'intense': '🔥' };
+            const eEmoji = energyEmoji[energyLevel] || '🧭';
+
+            // Construire la timeline
+            let timelineHTML = '';
+            optimized.forEach((act, i) => {
+                const orig = originalActivities.find(a => a.id === act.id);
+                const origTime = orig ? orig.time : act.time;
+                const changed = act.time_changed && origTime !== act.time;
+
+                timelineHTML += `
+                <div class="flex gap-3">
+                    <!-- Colonne temps + trait -->
+                    <div class="flex flex-col items-center w-14 flex-shrink-0">
+                        <div class="text-xs font-black ${changed ? 'text-purple-600' : 'text-gray-500'} whitespace-nowrap">${act.time}</div>
+                        <div class="w-0.5 flex-1 bg-gradient-to-b from-purple-300 to-pink-200 mt-1 min-h-[20px]"></div>
+                    </div>
+                    <!-- Carte activité -->
+                    <div class="flex-1 pb-2">
+                        <div class="bg-white rounded-2xl p-3.5 border-2 ${changed ? 'border-purple-200 bg-purple-50/30' : 'border-gray-100'} shadow-sm mb-1">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="font-bold text-gray-800 text-sm leading-snug">${act.title}</div>
+                                ${changed ? `<span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold flex-shrink-0 mt-0.5">${origTime} → ${act.time}</span>` : '<span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">Inchangé</span>'}
+                            </div>
+                            ${act.reason ? `<div class="text-[11px] text-purple-600 mt-1.5 leading-snug">💡 ${act.reason}</div>` : ''}
                         </div>
-                        
-                        <div class="space-y-3 mb-6">
-                            ${optimizedActivities.map(act => `
-                                <div class="bg-white border-2 border-green-200 rounded-xl p-4">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <div class="font-bold text-lg">${act.time}</div>
-                                        ${act.time_changed ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Modifié</span>' : '<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">OK</span>'}
-                                    </div>
-                                    <div class="font-bold">${act.title}</div>
-                                    <div class="text-xs text-gray-500 mt-1">📍 ${act.place?.name || ""}</div>
-                                    ${act.reason ? `<div class="text-xs text-blue-600 mt-2">💡 ${act.reason}</div>` : ''}
-                                </div>
-                            `).join('')}
+                        ${act.breathing_after_minutes > 0 ? `
+                        <div class="flex items-center gap-2 pl-2 py-1">
+                            <div class="text-base">🌬️</div>
+                            <div>
+                                <div class="text-[10px] font-bold text-teal-600">${act.breathing_after_minutes}min de respiration</div>
+                                <div class="text-[10px] text-teal-500">${act.breathing_reason}</div>
+                            </div>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+            });
+
+            const modal = document.createElement('div');
+            modal.id = 'optimization-modal';
+            modal.className = 'fixed inset-0 bg-black/60 z-[350] flex items-end sm:items-center justify-center p-0 sm:p-4';
+            modal.innerHTML = `
+                <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh]">
+                    <!-- Header -->
+                    <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-5 rounded-t-3xl sm:rounded-t-2xl flex-shrink-0">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="text-white font-black text-lg">✨ Journée optimisée</div>
+                                <div class="text-white/80 text-xs mt-0.5 leading-snug">${daySummary || 'Planning réorganisé par l\'IA'}</div>
+                            </div>
+                            <div class="bg-white/20 rounded-xl px-3 py-1.5 text-center flex-shrink-0">
+                                <div class="text-lg">${eEmoji}</div>
+                                <div class="text-[10px] text-white font-bold capitalize">${energyLevel || ''}</div>
+                            </div>
                         </div>
-                        
-                        <div class="flex gap-3">
-                            <button onclick="closeOptimizationModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">
-                                Annuler
-                            </button>
-                            <button onclick="applyOptimization(${JSON.stringify(optimizedActivities).replace(/"/g, '&quot;')})" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold">
-                                ✅ Valider
-                            </button>
+                    </div>
+
+                    <!-- Timeline scrollable -->
+                    <div class="flex-1 overflow-y-auto p-5">
+                        <div class="space-y-0">
+                            ${timelineHTML}
                         </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="p-4 border-t flex gap-3 flex-shrink-0 bg-white rounded-b-3xl sm:rounded-b-2xl">
+                        <button onclick="document.getElementById('optimization-modal').remove()" 
+                                class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all">
+                            Annuler
+                        </button>
+                        <button onclick="applyOptimization(${JSON.stringify(optimized).replace(/"/g, '&quot;')})"
+                                class="flex-[2] bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-black text-sm shadow-lg active:scale-95 transition-all">
+                            ✅ Appliquer ce planning
+                        </button>
                     </div>
                 </div>
             `;
-            
-            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            document.body.appendChild(modal);
         }
 
         function closeOptimizationModal() {
             const modal = document.getElementById('optimization-modal');
             if (modal) modal.remove();
-            
-            // IMPORTANT : Supprimer aussi le loading s'il existe encore
-            const loadingEl = document.getElementById('optimization-loading');
-            if (loadingEl) loadingEl.remove();
         }
 
         function applyOptimization(optimizedActivities) {
-            // IMPORTANT : Ne pas filtrer, juste mettre à jour
-            // Remplacer les activités du jour par les optimisées
-            
-            // Supprimer les activités du jour actuel
             activities = activities.filter(a => a.dayIndex !== currentDayIndex);
-            
-            // Ajouter toutes les activités optimisées
-            // On doit s'assurer que optimizedActivities contient TOUTES les données nécessaires
             optimizedActivities.forEach(opt => {
                 activities.push({
                     id: opt.id || Date.now() + Math.random(),
@@ -2337,37 +2357,16 @@
                     place: opt.place
                 });
             });
-            
-            // Trier par jour puis par heure
             activities.sort((a, b) => {
                 if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
                 return a.time.localeCompare(b.time);
             });
-            
-            // Sauvegarder
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
-            
-            // Fermer le modal et supprimer le loading
             closeOptimizationModal();
-            const loadingEl = document.getElementById('optimization-loading');
-            if (loadingEl) loadingEl.remove();
-            
-            // Rafraîchir l'affichage
             renderPlanning();
-            
-            alert('✅ Planning optimisé appliqué !');
+            showAddConfirmation('Planning appliqué !', 'Journée optimisée', '✨');
         }
 
-        function resetModal() {
-            const suggestedTime = calculateNextAvailableTime();
-            document.getElementById('modal-time').value = suggestedTime;
-            document.getElementById('modal-title-raw').value = "";
-            document.getElementById('modal-dest-search').value = "";
-            document.getElementById('modal-desc').value = "";
-            document.getElementById('ia-suggestions').classList.add('hidden');
-            document.getElementById('dest-status').textContent = "";
-            selectedPlace = null;
-        }
 
         // ========== PHASE IA : NORMALISATION ==========
         async function normalizeText() {
@@ -2680,6 +2679,25 @@
                         calculateNav(act.place, nextAct.place, navId);
                     }
                 }
+            }
+
+            // Bouton "Optimiser ma journée" — apparaît dès 2 activités
+            if (dayActivities.length >= 2) {
+                const optBtn = document.createElement('div');
+                optBtn.className = 'mt-6 mb-2';
+                optBtn.innerHTML = `
+                    <button onclick="optimizeDaySchedule()"
+                        class="w-full group relative overflow-hidden bg-gradient-to-r from-violet-600 via-purple-500 to-pink-500 text-white py-4 rounded-2xl font-black text-sm shadow-lg hover:shadow-purple-400/40 hover:shadow-xl active:scale-95 transition-all duration-300 flex items-center justify-center gap-3">
+                        <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <span class="text-xl">🧠</span>
+                        <div class="text-left">
+                            <div class="font-black leading-tight">Optimiser ma journée</div>
+                            <div class="text-white/70 text-[11px] font-normal">Horaires · Trajets · Marges de respiration</div>
+                        </div>
+                        <span class="ml-auto text-white/60 text-lg">→</span>
+                    </button>
+                `;
+                list.appendChild(optBtn);
             }
         }
 
