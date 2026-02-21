@@ -325,20 +325,6 @@
                 </div>
             </div>
 
-            <!-- Navigation des jours avec swipe -->
-            <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4">
-                <div class="max-w-md mx-auto">
-                    <div class="flex items-center justify-between text-white">
-                        <button onclick="optionsPreviousDay()" id="options-prev-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">←</button>
-                        <div class="text-center flex-1">
-                            <div class="text-xs font-bold opacity-80" id="options-day-counter">JOUR 1/1</div>
-                            <div class="text-lg font-black" id="options-day-date">Chargement...</div>
-                        </div>
-                        <button onclick="optionsNextDay()" id="options-next-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">→</button>
-                    </div>
-                </div>
-            </div>
-
             <!-- Contenu scrollable -->
             <div class="flex-1 overflow-y-auto pb-20">
                 <div class="max-w-md mx-auto p-6 space-y-6">
@@ -1162,7 +1148,14 @@
 
             document.getElementById('stay-form').classList.remove('hidden');
             setTimeout(() => initHotelListeners(), 50);
-            document.getElementById('stay-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Scroller le conteneur scrollable du sidebar vers le formulaire
+            setTimeout(() => {
+                const form = document.getElementById('stay-form');
+                const scrollContainer = form.closest('.overflow-y-auto');
+                if (scrollContainer) {
+                    scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
+                }
+            }, 50);
         }
 
         function editStay(index) {
@@ -1185,7 +1178,13 @@
 
             document.getElementById('stay-form').classList.remove('hidden');
             setTimeout(() => initHotelListeners(), 50);
-            document.getElementById('stay-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setTimeout(() => {
+                const form = document.getElementById('stay-form');
+                const scrollContainer = form.closest('.overflow-y-auto');
+                if (scrollContainer) {
+                    scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
+                }
+            }, 50);
         }
 
         function closeStayForm() {
