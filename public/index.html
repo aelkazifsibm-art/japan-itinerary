@@ -2795,45 +2795,53 @@
             if (!place) return '';
             const chips = [];
 
-            // Type de lieu
+            // ── Type de lieu ──────────────────────────────────────────────
             const typeMap = [
-                ['temple',    ['temple','shrine','place_of_worship','buddhist_temple','hindu_temple']],
-                ['marché',    ['market','food_market','shopping_mall','store','supermarket']],
-                ['parc',      ['park','garden','natural_feature','campground']],
-                ['musée',     ['museum','art_gallery']],
-                ['restaurant',['restaurant','food','cafe','bakery','bar']],
-                ['château',   ['castle']],
-                ['onsen',     ['spa','health']],
-                ['montagne',  ['mountain','hiking_area']],
+                ['Temple',     ['temple','shrine','place_of_worship','buddhist_temple','hindu_temple']],
+                ['Marché',     ['market','food_market','shopping_mall','store','supermarket']],
+                ['Parc',       ['park','garden','natural_feature','campground']],
+                ['Musée',      ['museum','art_gallery']],
+                ['Restaurant', ['restaurant','food','cafe','bakery','bar']],
+                ['Château',    ['castle']],
+                ['Onsen',      ['spa','health']],
+                ['Montagne',   ['mountain','hiking_area']],
             ];
+            const typeEmoji = { 'Temple':'⛩️','Marché':'🛍️','Parc':'🌿','Musée':'🎨','Restaurant':'🍜','Château':'🏯','Onsen':'♨️','Montagne':'⛰️' };
             const types = place.types || [];
             for (const [label, keywords] of typeMap) {
                 if (types.some(t => keywords.includes(t))) {
-                    chips.push('<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-medium capitalize">🏷 ' + label + '</span>');
+                    const em = typeEmoji[label] || '📍';
+                    chips.push('<span class="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full font-semibold">' + em + ' ' + label + '</span>');
                     break;
                 }
             }
 
-            // Horaires du jour
+            // ── Horaires du jour ──────────────────────────────────────────
             if (place.opening_hours && place.opening_hours.length > 0) {
                 const dayNames = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
                 const todayLine = place.opening_hours.find(h => h.startsWith(dayNames[new Date().getDay()]));
                 if (todayLine) {
-                    const hours = todayLine.replace(/^[^:]+:\s*/, '');
-                    chips.push('<span class="text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-medium">🕐 ' + hours + '</span>');
+                    const hours = todayLine.replace(/^[A-Za-zÀ-ÿ]+\s*:\s*/, '');
+                    chips.push('<span class="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-semibold">🕐 ' + hours + '</span>');
                 }
+            } else if (place.open_now === true) {
+                chips.push('<span class="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-semibold">🟢 Ouvert</span>');
+            } else if (place.open_now === false) {
+                chips.push('<span class="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full font-semibold">🔴 Fermé</span>');
             }
 
-            // Prix
+            // ── Prix ──────────────────────────────────────────────────────
             if (place.price_level !== null && place.price_level !== undefined) {
-                const priceLabels = ['Gratuit', '€ Abordable', '€€ Modéré', '€€€ Cher', '€€€€ Luxe'];
-                const priceColors = ['text-green-700 bg-green-50','text-blue-600 bg-blue-50','text-yellow-600 bg-yellow-50','text-orange-600 bg-orange-50','text-red-600 bg-red-50'];
+                const priceLabels = ['Gratuit','Abordable','Modéré','Cher','Luxe'];
+                const priceSymbol = ['','€','€€','€€€','€€€€'];
+                const priceColors = ['bg-green-100 text-green-700','bg-sky-100 text-sky-700','bg-yellow-100 text-yellow-700','bg-orange-100 text-orange-700','bg-red-100 text-red-700'];
                 const pl = place.price_level;
-                chips.push('<span class="text-[10px] ' + priceColors[pl] + ' px-2 py-0.5 rounded-full font-medium">💴 ' + priceLabels[pl] + '</span>');
+                const label = pl === 0 ? 'Gratuit' : priceSymbol[pl] + ' ' + priceLabels[pl];
+                chips.push('<span class="inline-flex items-center gap-1 text-xs ' + priceColors[pl] + ' px-2.5 py-1 rounded-full font-semibold">💴 ' + label + '</span>');
             }
 
             if (!chips.length) return '';
-            return '<div class="mt-2 flex flex-wrap gap-1">' + chips.join('') + '</div>';
+            return '<div class="mt-2 flex flex-wrap gap-1.5">' + chips.join('') + '</div>';
         }
 
                 // Ajoute N minutes à "HH:MM", gère les négatifs
