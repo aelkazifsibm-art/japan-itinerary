@@ -2708,33 +2708,49 @@
                 const arriveTime = realTimes[i];                                        // heure d'arrivée au site
                 const leaveTime  = addMinutesToTime(arriveTime, act.duration_minutes || 90); // heure de départ du site
 
+                const dur = act.duration_minutes || 90;
+                // Hauteur de la barre de durée : 1min = 0.7px, min 48px, max 140px
+                const barH = Math.min(140, Math.max(48, Math.round(dur * 0.7)));
+
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl p-5 shadow-sm border-l-4 border-primary relative cursor-pointer hover:shadow-lg transition-shadow";
+                card.className = "bg-white rounded-2xl shadow-sm relative cursor-pointer hover:shadow-lg transition-shadow overflow-hidden flex";
                 card.onclick = () => showActivityInfo(act);
                 card.innerHTML = `
-                    <div class="flex items-center justify-between mb-1">
-                        <div class="flex items-center gap-2">
-                            <div class="text-sm font-black text-gray-800">${arriveTime}</div>
-                            <div class="text-[10px] text-gray-300">→</div>
-                            <div class="text-xs font-bold text-gray-400">${leaveTime}</div>
+                    <!-- Colonne timeline gauche -->
+                    <div class="flex flex-col items-center w-14 flex-shrink-0 py-4 px-2 bg-gray-50 border-r border-gray-100">
+                        <!-- Heure arrivée -->
+                        <div class="text-xs font-black text-gray-800 leading-none">${arriveTime}</div>
+                        <!-- Barre durée -->
+                        <div class="relative flex-1 flex flex-col items-center my-2 w-full" style="min-height:${barH}px">
+                            <div class="w-0.5 flex-1 bg-gradient-to-b from-purple-400 to-pink-400 rounded-full"></div>
+                            <!-- Badge durée centré sur la barre -->
+                            <div class="absolute top-1/2 -translate-y-1/2 bg-white border border-purple-200 rounded-lg px-1 py-0.5 shadow-sm">
+                                <div class="text-[9px] font-black text-purple-500 leading-none text-center">${dur}</div>
+                                <div class="text-[8px] text-purple-400 leading-none text-center">min</div>
+                            </div>
                         </div>
-                        <div class="text-[10px] bg-indigo-50 text-indigo-400 px-2 py-0.5 rounded-full font-medium">⏱ ${act.duration_minutes || 90}min</div>
+                        <!-- Heure départ -->
+                        <div class="text-xs font-bold text-gray-400 leading-none">${leaveTime}</div>
                     </div>
-                    <div class="text-lg font-bold text-gray-800">${act.title}</div>
-                    <div class="text-sm text-gray-500 mt-1">${act.description}</div>
-                    <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold">📍 ${act.place?.name || 'Lieu non défini'}</div>
-                    <div class="mt-2 flex gap-2">
-                        ${act.place ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}"
-                           target="_blank"
-                           onclick="event.stopPropagation()"
-                           class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">
-                            🗺️ Itinéraire
-                        </a>` : ''}
-                        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                            ℹ️ Cliquez pour + d'infos
-                        </span>
+
+                    <!-- Contenu principal -->
+                    <div class="flex-1 p-4 min-w-0">
+                        <div class="text-base font-black text-gray-800 leading-snug pr-6">${act.title}</div>
+                        ${act.description ? `<div class="text-xs text-gray-400 mt-1 leading-snug">${act.description}</div>` : ''}
+                        <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold tracking-wide">📍 ${act.place?.name || 'Lieu non défini'}</div>
+                        <div class="mt-3 flex gap-2 flex-wrap">
+                            ${act.place ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}"
+                               target="_blank"
+                               onclick="event.stopPropagation()"
+                               class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-lg hover:bg-blue-200 transition-colors">
+                                🗺️ Itinéraire
+                            </a>` : ''}
+                            <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-lg">
+                                ℹ️ + d'infos
+                            </span>
+                        </div>
                     </div>
-                    <button onclick="event.stopPropagation(); deleteActivity(${act.id})" class="absolute top-4 right-4 text-gray-300 hover:text-red-500">✕</button>
+                    <button onclick="event.stopPropagation(); deleteActivity(${act.id})" class="absolute top-3 right-3 text-gray-300 hover:text-red-400 transition-colors text-lg leading-none">✕</button>
                 `;
                 list.appendChild(card);
 
