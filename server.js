@@ -436,21 +436,28 @@ app.post("/api/optimize-day", async (req, res) => {
     try {
         const { activities, day_index, hotel } = req.body;
         
-        // Préparer le contexte pour l'IA
-        const activitiesContext = activities.map(a => ({
-            id: a.id,
-            title: a.title,
-            place: a.place.name,
-            current_time: a.time,
-            is_flexible: a.time_flexible || false
-        }));
-        
+        // Préparer le contexte pour l'IA — ignorer les activités sans place valide
+        const activitiesContext = activities
+            .filter(a => a.place && a.place.name)
+            .map(a => ({
+                id: a.id,
+                title: a.title,
+                place: a.place.name,
+                current_time: a.time,
+                is_flexible: a.time_flexible || false
+            }));
+
+        if (activitiesContext.length === 0) {
+            return res.status(400).json({ success: false, error: "Aucune activité avec lieu valide à optimiser." });
+        }
+
+        const hotelName = hotel?.place?.name || hotel?.hotelName || null;
         const prompt = `Tu es un expert en optimisation d'itinéraires au Japon.
 
 Activités à optimiser:
 ${JSON.stringify(activitiesContext, null, 2)}
 
-${hotel ? `Hôtel: ${hotel.place.name}` : 'Pas d\'hôtel défini'}
+${hotelName ? `Hôtel: ${hotelName}` : 'Pas d\'hôtel défini'}
 
 Tâches:
 1. Vérifier les horaires d'ouverture
