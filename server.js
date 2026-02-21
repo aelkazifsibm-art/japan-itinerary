@@ -195,38 +195,57 @@ app.post('/api/route', async (req, res) => {
         matrixTo.sort((a, b) => a.walk_min - b.walk_min);
 
         // IA ASSEMBLAGE
+        const bestFrom = matrixFrom[0]; // station la plus proche du départ
+        const bestTo   = matrixTo[0];   // station la plus proche de l'arrivée
+
         const aiRoute = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
-                { 
-                    role: "system", 
-                    content: `Tu es un expert en transports au Japon. 
-                    Calcule un itinéraire réaliste (Protocol Transit Safe Time v1).
-                    
-                    DÉPART : ${from_place.name}
-                    STATIONS PROCHES DÉPART : ${matrixFrom.map(s => `${s.name} (${s.walk_min}m)`).join(', ')}
-                    
-                    ARRIVÉE : ${to_place.name}
-                    STATIONS PROCHES ARRIVÉE : ${matrixTo.map(s => `${s.name} (${s.walk_min}m)`).join(', ')}
-                    
-                    CONSIGNES :
-                    1. Applique Coeff 1.25 sur transport + Buffer 7 min.
-                    2. Arrondis au multiple de 5 min supérieur.
-                    3. Format JSON : {"summary": "🚇 X min", "steps": "...", "total_minutes": X}`
+                {
+                    role: "system",
+                    content: `Tu es un expert en transports Tokyo/Japon.
+Données réelles disponibles :
+- Marche DÉPART→station : ${bestFrom?.walk_min ?? '?'} min (station: ${bestFrom?.name ?? '?'})
+- Marche station→ARRIVÉE : ${bestTo?.walk_min ?? '?'} min (station: ${bestTo?.name ?? '?'})
+
+RÈGLE ABSOLUE : total_minutes = walk_from + transit_minutes + walk_to
+Ne jamais inventer un total différent de la somme des parts.
+transit_minutes = durée réaliste du trajet en transports entre les deux stations (métro/train/bus).
+
+Format JSON STRICT :
+{
+  "walk_from_min": <int>,
+  "transit_min": <int>,
+  "walk_to_min": <int>,
+  "total_minutes": <int = walk_from + transit + walk_to>,
+  "steps": "<emoji> X min + <emoji> Y min + <emoji> Z min",
+  "mode": "walk|metro|train|bus|taxi"
+}`
                 },
-                { role: "user", content: `Trajet de ${from_place.name} à ${to_place.name}.` }
+                { role: "user", content: `Trajet de "${from_place.name}" à "${to_place.name}".` }
             ],
             response_format: { type: "json_object" }
         });
 
-        const routeData = JSON.parse(aiRoute.choices[0].message.content);
-        
+        const r = JSON.parse(aiRoute.choices[0].message.content);
+
+        // Calcul arithmétique côté serveur — on ne fait jamais confiance au total de l'IA
+        const walkFrom  = Math.max(0, parseInt(r.walk_from_min)  || bestFrom?.walk_min || 0);
+        const transit   = Math.max(0, parseInt(r.transit_min)    || 0);
+        const walkTo    = Math.max(0, parseInt(r.walk_to_min)    || bestTo?.walk_min  || 0);
+        const totalReal = walkFrom + transit + walkTo;
+
+        // L'heure d'arrivée est calculée côté CLIENT à partir de l'heure de départ de l'activité
+        // Le serveur renvoie uniquement la durée, pas une heure absolue
         res.json({
             success: true,
-            summary: routeData.summary,
-            details: routeData.steps,
-            total_minutes: routeData.total_minutes,
-            arrival: new Date(Date.now() + routeData.total_minutes * 60000).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})
+            summary: r.steps || `🚶 ${walkFrom}min + 🚇 ${transit}min + 🚶 ${walkTo}min`,
+            details: r.steps || '',
+            total_minutes: totalReal,
+            walk_from_min: walkFrom,
+            transit_min: transit,
+            walk_to_min: walkTo,
+            mode: r.mode || 'metro'
         });
 
     } catch (error) {

@@ -977,7 +977,7 @@
         // stays[] = [{ city, hotelName, address, place, price, currency, startDay, endDay }]
         let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
         let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '{}');
-        let routeCache = JSON.parse(localStorage.getItem('japan_route_cache') || '{}');
+        let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
 
         // ========== BASE DE DONNÉES SUGGESTIONS ==========
         const citySuggestions = {
@@ -2640,7 +2640,7 @@
                         hotelNavBlock.className = "bg-orange-500 text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md mb-4";
                         hotelNavBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet depuis l'hôtel...</div>`;
                         list.appendChild(hotelNavBlock);
-                        calculateNav(hotel.place, act.place, hotelNavId);
+                        calculateNav(hotel.place, act.place, hotelNavId, act.time);
                     }
                 }
                 
@@ -2676,7 +2676,7 @@
                         navBlock.className = "bg-nav text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md";
                         navBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet...</div>`;
                         list.appendChild(navBlock);
-                        calculateNav(act.place, nextAct.place, navId);
+                        calculateNav(act.place, nextAct.place, navId, act.time);
                     }
                 }
             }
@@ -2701,63 +2701,71 @@
             }
         }
 
-        async function calculateNav(from, to, elementId) {
-            // Créer une clé de cache unique
+        // Calcule HH:MM + N minutes
+        function addMinutesToTime(timeStr, minutes) {
+            if (!timeStr) return null;
+            const [h, m] = timeStr.split(':').map(Number);
+            const total = h * 60 + m + minutes;
+            const hh = String(Math.floor(total / 60) % 24).padStart(2, '0');
+            const mm = String(total % 60).padStart(2, '0');
+            return `${hh}:${mm}`;
+        }
+
+        function renderNavBlock(el, data, departureTime) {
+            const arrival = departureTime ? addMinutesToTime(departureTime, data.total_minutes) : null;
+            const modeIcons = { walk: '🚶', metro: '🚇', train: '🚄', bus: '🚌', taxi: '🚕' };
+            const modeIcon = modeIcons[data.mode] || '🚇';
+
+            // Construire le détail visuel des segments
+            let segments = '';
+            if (data.walk_from_min > 0) segments += `🚶 ${data.walk_from_min}min`;
+            if (data.transit_min > 0)   segments += `${segments ? ' + ' : ''}${modeIcon} ${data.transit_min}min`;
+            if (data.walk_to_min > 0)   segments += `${segments ? ' + ' : ''}🚶 ${data.walk_to_min}min`;
+            if (!segments) segments = data.summary || `${data.total_minutes}min`;
+
+            el.innerHTML = `
+                <div class="flex justify-between items-center mb-1">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-sm">⏱️</span>
+                        <span class="text-sm font-black">${data.total_minutes} min</span>
+                        ${departureTime ? `<span class="text-xs opacity-60">dep. ${departureTime}</span>` : ''}
+                    </div>
+                    ${arrival ? `<div class="flex items-center gap-1"><span class="text-sm">🏁</span><span class="text-sm font-black">${arrival}</span></div>` : ''}
+                </div>
+                <div class="text-xs opacity-75">${segments}</div>
+            `;
+        }
+
+        async function calculateNav(from, to, elementId, departureTime) {
             const cacheKey = `${from.place_id}-${to.place_id}`;
-            
-            // Vérifier si on a déjà calculé ce trajet
+
             if (routeCache[cacheKey]) {
-                const cached = routeCache[cacheKey];
                 const el = document.getElementById(elementId);
-                if (el) {
-                    const timeDisplay = formatTravelTime(cached.total_minutes);
-                    const breakdown = analyzeTransportBreakdown(cached.details, cached.summary);
-                    el.innerHTML = `
-                        <div class="space-y-1">
-                            <div class="flex justify-between items-center">
-                                <div class="text-sm font-bold">⏱️ ${timeDisplay}</div>
-                                <div class="text-sm font-bold">🏁 ${cached.arrival}</div>
-                            </div>
-                            ${breakdown ? `<div class="text-xs opacity-75">${breakdown}</div>` : ''}
-                        </div>
-                    `;
-                }
+                if (el) renderNavBlock(el, routeCache[cacheKey], departureTime);
                 return;
             }
-            
-            // Sinon, calculer le trajet
+
             try {
                 const r = await fetch('/api/route', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ from_place: from, to_place: to })
                 });
                 const j = await r.json();
                 const el = document.getElementById(elementId);
-                
+
                 if (j.success) {
-                    // Sauvegarder dans le cache
                     routeCache[cacheKey] = {
-                        summary: j.summary,
-                        details: j.details,
-                        arrival: j.arrival,
-                        total_minutes: j.total_minutes
+                        summary:       j.summary,
+                        details:       j.details,
+                        total_minutes: j.total_minutes,
+                        walk_from_min: j.walk_from_min,
+                        transit_min:   j.transit_min,
+                        walk_to_min:   j.walk_to_min,
+                        mode:          j.mode
                     };
-                    localStorage.setItem('japan_route_cache', JSON.stringify(routeCache));
-                    
-                    if (el) {
-                        const timeDisplay = formatTravelTime(j.total_minutes);
-                        const breakdown = analyzeTransportBreakdown(j.details, j.summary);
-                        el.innerHTML = `
-                            <div class="space-y-1">
-                                <div class="flex justify-between items-center">
-                                    <div class="text-sm font-bold">⏱️ ${timeDisplay}</div>
-                                    <div class="text-sm font-bold">🏁 ${j.arrival}</div>
-                                </div>
-                                ${breakdown ? `<div class="text-xs opacity-75">${breakdown}</div>` : ''}
-                            </div>
-                        `;
-                    }
+                    localStorage.setItem('japan_route_cache_v2', JSON.stringify(routeCache));
+                    if (el) renderNavBlock(el, routeCache[cacheKey], departureTime);
                 } else {
                     if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
                 }
@@ -3476,7 +3484,7 @@
         }
 
         function resetAllData() {
-            ['japan_trip_info_v5','japan_trip_v5','japan_stays_v1','japan_day_modes_v5','japan_route_cache','japan_budget_v1','japan_completed_v1'].forEach(k => localStorage.removeItem(k));
+            ['japan_trip_info_v5','japan_trip_v5','japan_stays_v1','japan_day_modes_v5','japan_route_cache_v2','japan_budget_v1','japan_completed_v1'].forEach(k => localStorage.removeItem(k));
             tripData = null; activities = []; stays = []; dayModes = {};
             document.querySelectorAll('div[class*="fixed"]').forEach(el => { if (el.innerHTML.includes('Réinitialiser')) el.remove(); });
             setTimeout(() => location.reload(), 500);
