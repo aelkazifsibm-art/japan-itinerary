@@ -2570,14 +2570,25 @@
                     ].map(c => `<option value="${c.value}">${c.label}</option>`).join('');
 
                     emptyState.innerHTML = `
-                        <div class="text-center py-10 px-4">
-                            <div class="text-5xl mb-4">📅</div>
-                            <div class="text-base font-bold text-gray-700 mb-1">Séjour non configuré</div>
-                            <div class="text-sm text-gray-400 mb-6">Configurez ce séjour pour commencer à planifier vos activités</div>
-                            <button onclick="openAddStayFromDay(${currentDayIndex})" 
-                                class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-lg hover:shadow-xl active:scale-95 transition-all">
+                        <div class="flex flex-col items-center py-12 px-6 gap-0">
+                            <div class="text-6xl mb-6">📅</div>
+
+                            <!-- Bouton principal GRAND -->
+                            <button onclick="openAddStayFromDay(${currentDayIndex})"
+                                class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-5 rounded-3xl font-black text-lg shadow-xl active:scale-95 transition-all mb-0">
                                 🏨 Configurer ce séjour
                             </button>
+
+                            <!-- Flèche pointant vers le haut -->
+                            <div class="flex flex-col items-center mt-1 mb-1">
+                                <div class="w-0 h-0" style="border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:14px solid #111827;"></div>
+                            </div>
+
+                            <!-- Bulle conseil -->
+                            <div class="bg-gray-900 text-white rounded-2xl px-5 py-4 w-full shadow-xl">
+                                <div class="text-sm font-bold leading-snug mb-1">👆 Appuyez ici pour commencer</div>
+                                <div class="text-xs text-gray-400 leading-snug">Ajoutez votre ville, hôtel et dates pour débloquer les suggestions et le planning automatique.</div>
+                            </div>
                         </div>
                     `;
                     list.appendChild(emptyState);
