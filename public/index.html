@@ -2769,7 +2769,18 @@
             }
         }
 
-        function renderNavBlock(el, data, departureTime, arrivalTime) {
+        // Ajoute N minutes à "HH:MM", gère les négatifs
+        function addMinutesToTime(timeStr, minutes) {
+            if (!timeStr) return null;
+            const [h, m] = timeStr.split(':').map(Number);
+            if (isNaN(h) || isNaN(m)) return timeStr;
+            const total = h * 60 + m + Math.round(minutes);
+            const hh = String(((Math.floor(total / 60)) % 24 + 24) % 24).padStart(2, '0');
+            const mm = String(((total % 60) + 60) % 60).padStart(2, '0');
+            return `${hh}:${mm}`;
+        }
+
+                function renderNavBlock(el, data, departureTime, arrivalTime) {
             // RÈGLE ABSOLUE : l'heure d'arrivée est toujours fournie par realTimes, jamais recalculée ici
             const arrival = arrivalTime || (departureTime ? addMinutesToTime(departureTime, data.total_minutes) : null);
             const modeIcons = { walk: '🚶', metro: '🚇', train: '🚄', bus: '🚌', taxi: '🚕' };
