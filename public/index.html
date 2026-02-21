@@ -1814,9 +1814,11 @@
             if (dayActivities.length >= 2) {
                 const secondLast = dayActivities[dayActivities.length - 2];
                 if (secondLast.place && lastActivity.place) {
-                    const cacheKey = `${secondLast.place.place_id}-${lastActivity.place.place_id}`;
-                    if (routeCache[cacheKey]) {
-                        endTime.setMinutes(endTime.getMinutes() + routeCache[cacheKey].total_minutes);
+                    if (secondLast.place?.place_id && lastActivity.place?.place_id) {
+                        const cacheKey = `${secondLast.place.place_id}-${lastActivity.place.place_id}`;
+                        if (routeCache[cacheKey]) {
+                            endTime.setMinutes(endTime.getMinutes() + routeCache[cacheKey].total_minutes);
+                        }
                     }
                 }
             }
@@ -1999,8 +2001,9 @@
 
         async function confirmSuggestion() {
             closeSuggestionPreview();
-            if (!_previewPlace || !_previewBestTime) return;
+            if (!_previewBestTime) return;
 
+            // place peut être null si Google Places n'a pas répondu — on ajoute quand même
             const activity = {
                 id: Date.now(),
                 dayIndex: currentDayIndex,
@@ -2008,9 +2011,9 @@
                 time_flexible: false,
                 title: _previewName,
                 description: '',
-                place: _previewPlace,
+                place: _previewPlace || null,
                 duration_minutes: _previewDuration || 90,
-                needs_optimization: false
+                needs_optimization: _previewPlace ? false : true
             };
 
             activities.push(activity);
@@ -2618,66 +2621,92 @@
             }
 
             // ═══════════════════════════════════════════════════════════════
-            // RÈGLE ABSOLUE DE CALCUL EN CHAÎNE
-            // ---------------------------------------------------------------
-            // realTimes[0] = act[0].time  (ancrage utilisateur)
+            // SYSTÈME DE CALCUL EN CHAÎNE
+            // ═══════════════════════════════════════════════════════════════
+            // realTimes[0] = act[0].time  (ancrage utilisateur, jamais modifié)
             // realTimes[i] = realTimes[i-1] + durée_visite[i-1] + trajet[i-1→i]
             //
-            // • L'heure affichée sur chaque carte = realTimes[i]
-            // • Le trajet part de            = realTimes[i] + durée_visite[i]
-            // • Le trajet arrive à           = realTimes[i+1]
-            // • JAMAIS act.time sauf pour i=0
+            // Affichage :
+            //   carte[i]      → realTimes[i]           (heure d'arrivée au site)
+            //   badge durée   → act.duration_minutes    (temps sur place)
+            //   bloc trajet   → dep: realTimes[i] + durée[i]   arr: realTimes[i+1]
+            //
+            // Hôtel :
+            //   hotelNav      → dep: calculé pour arriver à realTimes[0]
+            //                   arr: realTimes[0]
             // ═══════════════════════════════════════════════════════════════
+
+            // ── 1. Construire realTimes depuis le cache existant ─────────────
             const realTimes = new Array(dayActivities.length);
-            realTimes[0] = dayActivities[0].time;
+            realTimes[0] = dayActivities[0].time; // ancrage
 
             for (let k = 1; k < dayActivities.length; k++) {
-                const prev  = dayActivities[k - 1];
-                const curr  = dayActivities[k];
-                // Fin de visite de l'activité précédente
+                const prev    = dayActivities[k - 1];
+                const curr    = dayActivities[k];
                 const prevEnd = addMinutesToTime(realTimes[k - 1], prev.duration_minutes || 90);
-                // Trajet entre les deux (si en cache)
-                let travelMin = 0;
+                let   travel  = 0;
                 if (prev.place && curr.place) {
-                    const ck = `${prev.place.place_id}-${curr.place.place_id}`;
-                    if (routeCache[ck]) travelMin = routeCache[ck].total_minutes || 0;
-                }
-                realTimes[k] = addMinutesToTime(prevEnd, travelMin);
-            }
-
-            for (let i = 0; i < dayActivities.length; i++) {
-                const act         = dayActivities[i];
-                const displayTime = realTimes[i];               // heure d'arrivée sur le site
-                const departTime  = addMinutesToTime(displayTime, act.duration_minutes || 90); // heure de départ vers le suivant
-
-                // Si c'est la première activité ET qu'il y a un hôtel, ajouter le trajet hôtel → activité
-                if (i === 0 && getStayForDay(currentDayIndex)) {
-                    const stay = getStayForDay(currentDayIndex);
-                    const hotel = stay;
-                    const hotelNavId = `nav-hotel-${act.id}`;
-                    const hotelCard = document.createElement('div');
-                    hotelCard.className = "bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-4 border-2 border-orange-200 mb-4";
-                    hotelCard.innerHTML = `
-                        <div class="flex items-center gap-2 mb-2">
-                            <div class="text-2xl">🏨</div>
-                            <div>
-                                <div class="font-bold text-sm">${hotel.hotelName || 'Hôtel'}</div>
-                                <div class="text-xs text-gray-600">Point de départ</div>
-                            </div>
-                        </div>
-                    `;
-                    list.appendChild(hotelCard);
-
-                    if (hotel.place && act.place) {
-                        const hotelNavBlock = document.createElement('div');
-                        hotelNavBlock.id = hotelNavId;
-                        hotelNavBlock.className = "bg-orange-500 text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md mb-4";
-                        hotelNavBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet depuis l'hôtel...</div>`;
-                        list.appendChild(hotelNavBlock);
-                        // L'hôtel part à l'heure d'ancrage initiale pour arriver à displayTime
-                        calculateNav(hotel.place, act.place, hotelNavId, act.time);
+                    if (prev.place?.place_id && curr.place?.place_id) {
+                        const ck = `${prev.place.place_id}-${curr.place.place_id}`;
+                        travel = routeCache[ck]?.total_minutes || 0;
                     }
                 }
+                realTimes[k] = addMinutesToTime(prevEnd, travel);
+            }
+
+            // ── 2. Heure de départ hôtel = realTimes[0] - durée trajet hôtel ─
+            const stay0 = getStayForDay(currentDayIndex);
+            const act0  = dayActivities[0];
+            if (stay0?.place && act0?.place) {
+                const hotelKey = stay0.place?.place_id && act0.place?.place_id ? `${stay0.place.place_id}-${act0.place.place_id}` : null;
+                const hotelTravel = hotelKey ? (routeCache[hotelKey]?.total_minutes || 0) : 0;
+                const hotelDepart = addMinutesToTime(realTimes[0], -hotelTravel);
+
+                const hotelCard = document.createElement('div');
+                hotelCard.className = "bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-4 border-2 border-orange-200 mb-4";
+                hotelCard.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="text-2xl">🏨</div>
+                            <div>
+                                <div class="font-bold text-sm">${stay0.hotelName || 'Hôtel'}</div>
+                                <div class="text-xs text-gray-500">Point de départ</div>
+                            </div>
+                        </div>
+                        ${hotelTravel > 0 ? `<div class="text-xs font-bold text-orange-600">Départ ${hotelDepart}</div>` : ''}
+                    </div>
+                `;
+                list.appendChild(hotelCard);
+
+                const hotelNavId    = `nav-hotel-${act0.id}`;
+                const hotelNavBlock = document.createElement('div');
+                hotelNavBlock.id        = hotelNavId;
+                hotelNavBlock.className = "bg-orange-500 text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md mb-4";
+                hotelNavBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet depuis l'hôtel...</div>`;
+                list.appendChild(hotelNavBlock);
+                // dep = hotelDepart  arr = realTimes[0]
+                calculateNav(stay0.place, act0.place, hotelNavId, hotelDepart, realTimes[0]);
+            } else if (stay0) {
+                // Hôtel sans place validée — carte simple
+                const hotelCard = document.createElement('div');
+                hotelCard.className = "bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-4 border-2 border-orange-200 mb-4";
+                hotelCard.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <div class="text-2xl">🏨</div>
+                        <div>
+                            <div class="font-bold text-sm">${stay0.hotelName || 'Hôtel'}</div>
+                            <div class="text-xs text-gray-500">Point de départ</div>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(hotelCard);
+            }
+
+            // ── 3. Rendu de chaque activité ──────────────────────────────────
+            for (let i = 0; i < dayActivities.length; i++) {
+                const act        = dayActivities[i];
+                const arriveTime = realTimes[i];                                        // heure d'arrivée au site
+                const leaveTime  = addMinutesToTime(arriveTime, act.duration_minutes || 90); // heure de départ du site
 
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-2xl p-5 shadow-sm border-l-4 border-primary relative cursor-pointer hover:shadow-lg transition-shadow";
@@ -2685,8 +2714,9 @@
                 card.innerHTML = `
                     <div class="flex items-center justify-between mb-1">
                         <div class="flex items-center gap-2">
-                            <div class="text-xs font-bold text-gray-700">${displayTime}</div>
-                            ${displayTime !== act.time ? `<div class="text-[10px] text-orange-400 line-through">${act.time}</div>` : ''}
+                            <div class="text-sm font-black text-gray-800">${arriveTime}</div>
+                            <div class="text-[10px] text-gray-300">→</div>
+                            <div class="text-xs font-bold text-gray-400">${leaveTime}</div>
                         </div>
                         <div class="text-[10px] bg-indigo-50 text-indigo-400 px-2 py-0.5 rounded-full font-medium">⏱ ${act.duration_minutes || 90}min</div>
                     </div>
@@ -2708,18 +2738,18 @@
                 `;
                 list.appendChild(card);
 
+                // Bloc trajet entre act[i] et act[i+1]
                 if (i < dayActivities.length - 1) {
                     const nextAct = dayActivities[i + 1];
                     if (act.place && nextAct.place) {
-                        const navId = `nav-${act.id}-${nextAct.id}`;
+                        const navId    = `nav-${act.id}-${nextAct.id}`;
                         const navBlock = document.createElement('div');
-                        navBlock.id = navId;
+                        navBlock.id        = navId;
                         navBlock.className = "bg-nav text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md";
                         navBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet...</div>`;
                         list.appendChild(navBlock);
-                        // Départ = fin de visite de l'activité courante
-                        // Arrivée = realTimes[i+1] (sera mis à jour dans renderNavBlock)
-                        calculateNav(act.place, nextAct.place, navId, departTime, realTimes[i + 1]);
+                        // dep = fin de visite act[i]   arr = arrivée act[i+1]
+                        calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i + 1]);
                     }
                 }
             }
@@ -2744,7 +2774,18 @@
             }
         }
 
-        function renderNavBlock(el, data, departureTime, arrivalTime) {
+        // Ajoute N minutes à "HH:MM", gère les négatifs
+        function addMinutesToTime(timeStr, minutes) {
+            if (!timeStr) return null;
+            const [h, m] = timeStr.split(':').map(Number);
+            if (isNaN(h) || isNaN(m)) return timeStr;
+            const total = h * 60 + m + Math.round(minutes);
+            const hh = String(((Math.floor(total / 60)) % 24 + 24) % 24).padStart(2, '0');
+            const mm = String(((total % 60) + 60) % 60).padStart(2, '0');
+            return `${hh}:${mm}`;
+        }
+
+                function renderNavBlock(el, data, departureTime, arrivalTime) {
             // RÈGLE ABSOLUE : l'heure d'arrivée est toujours fournie par realTimes, jamais recalculée ici
             const arrival = arrivalTime || (departureTime ? addMinutesToTime(departureTime, data.total_minutes) : null);
             const modeIcons = { walk: '🚶', metro: '🚇', train: '🚄', bus: '🚌', taxi: '🚕' };
