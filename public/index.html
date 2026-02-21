@@ -830,14 +830,7 @@
     <div id="suggestion-preview-modal" class="fixed inset-0 bg-black bg-opacity-60 z-[350] hidden flex items-end justify-center sm:items-center p-0 sm:p-4">
         <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
             <!-- Contenu chargé dynamiquement -->
-            <div id="suggestion-preview-content">
-                <!-- État de chargement -->
-                <div id="suggestion-preview-loading" class="p-8 text-center">
-                    <div class="w-12 h-12 rounded-full border-4 border-purple-200 border-t-purple-500 animate-spin mx-auto mb-4"></div>
-                    <div class="font-bold text-gray-700" id="suggestion-preview-loading-name">Analyse en cours...</div>
-                    <div class="text-sm text-gray-400 mt-1">L'IA prépare votre fiche</div>
-                </div>
-            </div>
+            <div id="suggestion-preview-content"></div>
         </div>
     </div>
 
@@ -1893,11 +1886,13 @@
 
             // Ouvrir le modal preview en état loading
             const modal = document.getElementById('suggestion-preview-modal');
-            const loadingName = document.getElementById('suggestion-preview-loading-name');
-            loadingName.textContent = name;
-            document.getElementById('suggestion-preview-loading').classList.remove('hidden');
-            document.getElementById('suggestion-preview-content').innerHTML =
-                document.getElementById('suggestion-preview-loading').outerHTML;
+            document.getElementById('suggestion-preview-content').innerHTML = `
+                <div class="p-8 text-center">
+                    <div class="w-12 h-12 rounded-full border-4 border-purple-200 border-t-purple-500 animate-spin mx-auto mb-4"></div>
+                    <div class="font-bold text-gray-700">${name}</div>
+                    <div class="text-sm text-gray-400 mt-1">L'IA prépare votre fiche...</div>
+                </div>
+            `;
             modal.classList.remove('hidden');
 
             // Appel API IA
