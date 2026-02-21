@@ -1669,27 +1669,21 @@
         }
 
         function selectSuggestionInModal(name, query) {
-            // Basculer en mode manuel si pas déjà actif
+            // Rester en mode rapide, juste pré-remplir le champ et soumettre
             const quickMode = document.getElementById('quick-add-mode');
             const manualMode = document.getElementById('manual-add-mode');
             const toggleText = document.getElementById('manual-toggle-text');
-            if (!quickMode.classList.contains('hidden')) {
-                quickMode.classList.add('hidden');
-                manualMode.classList.remove('hidden');
-                toggleText.textContent = '← Mode rapide';
-            }
+            // S'assurer qu'on est en mode rapide
+            quickMode.classList.remove('hidden');
+            manualMode.classList.add('hidden');
+            toggleText.textContent = 'Mode manuel →';
 
-            // Pré-remplir le titre
-            document.getElementById('modal-title-raw').value = name;
+            // Pré-remplir avec le nom de la suggestion
+            const input = document.getElementById('quick-activity-input');
+            input.value = name;
 
-            // Lancer la recherche Google Places directement avec le nom du lieu
-            const destInput = document.getElementById('modal-dest-search');
-            destInput.value = query;
-            triggerAutocomplete(query);
-
-            // Scroll vers le champ de recherche
-            destInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            destInput.focus();
+            // Lancer directement l'ajout IA
+            quickAddActivity();
         }
 
         function closeModal() {
