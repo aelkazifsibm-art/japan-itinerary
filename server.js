@@ -431,6 +431,81 @@ app.post("/api/quick-add-activity", async (req, res) => {
     }
 });
 
+// --- FICHE SUGGESTION IA ---
+app.post("/api/suggestion-preview", async (req, res) => {
+    try {
+        const { name, query, existing_activities } = req.body;
+
+        const activitiesContext = (existing_activities || [])
+            .map(a => `${a.time} - ${a.title}`)
+            .join('\n') || 'Aucune activité planifiée';
+
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                {
+                    role: "system",
+                    content: `Tu es un expert du tourisme au Japon, passionné et enthousiaste. 
+Tu connais parfaitement les horaires, l'affluence touristique, les meilleures conditions de visite.
+Réponds UNIQUEMENT en JSON valide, sans markdown.`
+                },
+                {
+                    role: "user",
+                    content: `Activité : "${name}" (${query})
+Activités déjà planifiées ce jour :
+${activitiesContext}
+
+Génère une fiche de présentation avec :
+{
+  "hook": "1-2 phrases poétiques/immersives qui donnent vraiment envie de visiter (max 120 caractères)",
+  "best_time": "HH:MM",
+  "best_time_reason": "Pourquoi c'est le meilleur moment (max 80 caractères, ex: Avant l'afflux de 10h, lumière dorée)",
+  "avoid_time": "Plage à éviter (ex: 10h-13h)",
+  "avoid_reason": "Pourquoi éviter (max 60 caractères)",
+  "duration": "Durée recommandée (ex: 1h30)",
+  "tip": "1 conseil insider court et précis (max 80 caractères)",
+  "intensity": "balade|exploration|randonnée"
+}`
+                }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        const preview = JSON.parse(completion.choices[0].message.content);
+
+        // Rechercher le lieu sur Google Places pour avoir le place_id
+        const serverKey = process.env.GOOGLE_MAPS_SERVER_KEY;
+        const searchUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
+        searchUrl.searchParams.set("query", query);
+        searchUrl.searchParams.set("key", serverKey);
+        const placesRes = await fetchJson(searchUrl.toString());
+        const firstResult = placesRes.json?.results?.[0];
+
+        let place = null;
+        if (firstResult) {
+            const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+            detailsUrl.searchParams.set("place_id", firstResult.place_id);
+            detailsUrl.searchParams.set("key", serverKey);
+            const detailsRes = await fetchJson(detailsUrl.toString());
+            const p = detailsRes.json?.result;
+            if (p) {
+                place = {
+                    place_id: p.place_id,
+                    name: p.name,
+                    formatted_address: p.formatted_address,
+                    lat: p.geometry?.location?.lat,
+                    lng: p.geometry?.location?.lng
+                };
+            }
+        }
+
+        res.json({ success: true, preview, place });
+    } catch (e) {
+        console.error("suggestion-preview error:", e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // --- OPTIMISATION JOURNÉE ---
 app.post("/api/optimize-day", async (req, res) => {
     try {

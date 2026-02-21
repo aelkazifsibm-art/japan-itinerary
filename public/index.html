@@ -153,6 +153,31 @@
                 radial-gradient(circle at 80% 20%, rgba(102, 126, 234, 0.2) 0%, transparent 50%);
         }
 
+        /* ── ANIMATION CONFIRMATION ────────────────────────── */
+        @keyframes confetti-pop {
+            0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+            100% { transform: translateY(-120px) rotate(720deg) scale(0); opacity: 0; }
+        }
+        .confetti-piece {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            animation: confetti-pop 0.8s ease-out forwards;
+        }
+        #add-confirm-card.show {
+            opacity: 1 !important;
+            transform: translate(-50%, -50%) scale(1) !important;
+        }
+
+        /* ── FICHE PREVIEW ─────────────────────────────────── */
+        .preview-stat {
+            background: linear-gradient(135deg, #f5f3ff, #fdf2f8);
+            border: 1.5px solid #e9d5ff;
+            border-radius: 14px;
+            padding: 10px 14px;
+        }
+
         /* ── FAB ORGANIQUE ─────────────────────────────────── */
 
         /* Conteneur wrapper positionné sur le bord */
@@ -799,6 +824,38 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- MODAL FICHE SUGGESTION IA -->
+    <div id="suggestion-preview-modal" class="fixed inset-0 bg-black bg-opacity-60 z-[350] hidden flex items-end justify-center sm:items-center p-0 sm:p-4">
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+            <!-- Contenu chargé dynamiquement -->
+            <div id="suggestion-preview-content">
+                <!-- État de chargement -->
+                <div id="suggestion-preview-loading" class="p-8 text-center">
+                    <div class="w-12 h-12 rounded-full border-4 border-purple-200 border-t-purple-500 animate-spin mx-auto mb-4"></div>
+                    <div class="font-bold text-gray-700" id="suggestion-preview-loading-name">Analyse en cours...</div>
+                    <div class="text-sm text-gray-400 mt-1">L'IA prépare votre fiche</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ANIMATION CONFIRMATION AJOUT -->
+    <div id="add-confirm-overlay" class="fixed inset-0 z-[400] pointer-events-none hidden">
+        <div id="add-confirm-card" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+             bg-white rounded-3xl shadow-2xl p-8 text-center w-72
+             opacity-0 scale-75 transition-all duration-500">
+            <div id="add-confirm-emoji" class="text-6xl mb-3"></div>
+            <div class="text-xl font-black text-gray-800" id="add-confirm-title"></div>
+            <div class="text-sm text-gray-500 mt-1" id="add-confirm-time"></div>
+            <div class="mt-4 flex items-center justify-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-green-400"></div>
+                <span class="text-sm font-bold text-green-600">Ajouté au planning</span>
+            </div>
+        </div>
+        <!-- Confettis SVG -->
+        <div id="add-confirm-confetti" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
     </div>
 
     <!-- MODAL AJOUT ACTIVITÉ -->
@@ -1823,70 +1880,203 @@
             suggestionsDiv.classList.remove('hidden');
         }
 
-        async function selectSuggestionInModal(name, query) {
-            // Fermer le modal si ouvert
-            document.getElementById('activity-modal').classList.add('hidden');
+        // ── FICHE SUGGESTION IA ─────────────────────────────
+        let _previewPlace = null;
+        let _previewName = null;
+        let _previewBestTime = null;
+        let _previewImage = null;
 
-            // Afficher un toast de progression directement sur la page
-            const toast = document.createElement('div');
-            toast.id = 'suggestion-toast';
-            toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[500] bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-sm font-bold';
-            toast.innerHTML = `<div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent flex-shrink-0"></div> Ajout de "${name}"...`;
-            document.body.appendChild(toast);
+        async function selectSuggestionInModal(name, query, image) {
+            _previewPlace = null;
+            _previewName = name;
+            _previewImage = image || '📍';
 
+            // Ouvrir le modal preview en état loading
+            const modal = document.getElementById('suggestion-preview-modal');
+            const loadingName = document.getElementById('suggestion-preview-loading-name');
+            loadingName.textContent = name;
+            document.getElementById('suggestion-preview-loading').classList.remove('hidden');
+            document.getElementById('suggestion-preview-content').innerHTML =
+                document.getElementById('suggestion-preview-loading').outerHTML;
+            modal.classList.remove('hidden');
+
+            // Appel API IA
             try {
-                const response = await fetch('/api/quick-add-activity', {
+                const dayActs = activities
+                    .filter(a => a.dayIndex === currentDayIndex)
+                    .map(a => ({ time: a.time, title: a.title }));
+
+                const res = await fetch('/api/suggestion-preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        description: name,
-                        day_index: currentDayIndex,
-                        time_flexible: true,
-                        fixed_time: null
-                    })
+                    body: JSON.stringify({ name, query, existing_activities: dayActs })
                 });
+                const data = await res.json();
 
-                const data = await response.json();
+                if (!data.success) throw new Error(data.error);
 
-                if (data.success) {
-                    const activity = {
-                        id: Date.now(),
-                        dayIndex: currentDayIndex,
-                        time: data.activity.suggested_time || '09:00',
-                        time_flexible: true,
-                        title: data.activity.title,
-                        description: data.activity.description || '',
-                        place: data.activity.place,
-                        needs_optimization: true
-                    };
+                _previewPlace = data.place;
+                _previewBestTime = data.preview.best_time;
 
-                    activities.push(activity);
-                    activities.sort((a, b) => {
-                        if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
-                        if (a.time_flexible && !b.time_flexible) return 1;
-                        if (!a.time_flexible && b.time_flexible) return -1;
-                        return a.time.localeCompare(b.time);
-                    });
-                    localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                const intensityIcon = { balade: '🚶', exploration: '🧭', randonnée: '🥾' };
+                const intensityColor = { balade: 'text-green-700 bg-green-100', exploration: 'text-yellow-700 bg-yellow-100', randonnée: 'text-orange-700 bg-orange-100' };
+                const iIcon = intensityIcon[data.preview.intensity] || '🧭';
+                const iColor = intensityColor[data.preview.intensity] || 'text-yellow-700 bg-yellow-100';
 
-                    toast.innerHTML = `✅ "${data.activity.title}" ajouté !`;
-                    toast.classList.add('bg-green-700');
-                    renderPlanning();
-                } else {
-                    toast.innerHTML = `❌ Erreur : ${data.error || 'Impossible d\'ajouter'}`;
-                    toast.classList.add('bg-red-700');
-                }
-            } catch (e) {
-                toast.innerHTML = `❌ Erreur réseau`;
-                toast.classList.add('bg-red-700');
+                document.getElementById('suggestion-preview-content').innerHTML = `
+                    <div>
+                        <!-- Header -->
+                        <div class="bg-gradient-to-br from-purple-500 to-pink-500 p-6 text-white">
+                            <div class="text-5xl text-center mb-3">${image || '📍'}</div>
+                            <h2 class="text-xl font-black text-center">${name}</h2>
+                            <p class="text-sm text-white/80 text-center mt-2 leading-relaxed italic">"${data.preview.hook}"</p>
+                        </div>
+
+                        <!-- Stats -->
+                        <div class="p-5 space-y-3">
+                            <!-- Heure idéale -->
+                            <div class="preview-stat flex items-start gap-3">
+                                <div class="text-2xl flex-shrink-0">⏰</div>
+                                <div>
+                                    <div class="font-black text-purple-800 text-base">Arriver à ${data.preview.best_time}</div>
+                                    <div class="text-xs text-purple-600 mt-0.5">${data.preview.best_time_reason}</div>
+                                </div>
+                            </div>
+
+                            <!-- Éviter -->
+                            <div class="preview-stat flex items-start gap-3">
+                                <div class="text-2xl flex-shrink-0">⚠️</div>
+                                <div>
+                                    <div class="font-bold text-gray-700 text-sm">Éviter <span class="text-red-500">${data.preview.avoid_time}</span></div>
+                                    <div class="text-xs text-gray-500 mt-0.5">${data.preview.avoid_reason}</div>
+                                </div>
+                            </div>
+
+                            <!-- Durée + Intensité -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="preview-stat text-center">
+                                    <div class="text-xl mb-1">🕐</div>
+                                    <div class="text-xs text-gray-500">Durée</div>
+                                    <div class="font-bold text-gray-800 text-sm">${data.preview.duration}</div>
+                                </div>
+                                <div class="preview-stat text-center">
+                                    <div class="text-xl mb-1">${iIcon}</div>
+                                    <div class="text-xs text-gray-500">Intensité</div>
+                                    <div class="font-bold text-sm capitalize ${iColor} px-2 py-0.5 rounded-lg inline-block mt-0.5">${data.preview.intensity}</div>
+                                </div>
+                            </div>
+
+                            <!-- Conseil insider -->
+                            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+                                <span class="text-lg flex-shrink-0">💡</span>
+                                <span class="text-xs text-amber-800">${data.preview.tip}</span>
+                            </div>
+                        </div>
+
+                        <!-- CTA -->
+                        <div class="px-5 pb-6 flex gap-3">
+                            <button onclick="closeSuggestionPreview()" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all">
+                                Annuler
+                            </button>
+                            <button onclick="confirmSuggestion()" class="flex-2 flex-[2] bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-black text-sm shadow-lg hover:shadow-xl active:scale-95 transition-all">
+                                ✅ Ajouter à ${data.preview.best_time}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } catch(e) {
+                document.getElementById('suggestion-preview-content').innerHTML = `
+                    <div class="p-8 text-center">
+                        <div class="text-4xl mb-3">⚠️</div>
+                        <div class="font-bold text-gray-700">Erreur de chargement</div>
+                        <div class="text-sm text-gray-400 mt-1">${e.message}</div>
+                        <button onclick="closeSuggestionPreview()" class="mt-4 bg-gray-100 text-gray-600 px-6 py-2 rounded-xl font-bold text-sm">Fermer</button>
+                    </div>
+                `;
+            }
+        }
+
+        function closeSuggestionPreview() {
+            document.getElementById('suggestion-preview-modal').classList.add('hidden');
+        }
+
+        async function confirmSuggestion() {
+            closeSuggestionPreview();
+            if (!_previewPlace || !_previewBestTime) return;
+
+            const activity = {
+                id: Date.now(),
+                dayIndex: currentDayIndex,
+                time: _previewBestTime,
+                time_flexible: false,
+                title: _previewName,
+                description: '',
+                place: _previewPlace,
+                needs_optimization: false
+            };
+
+            activities.push(activity);
+            activities.sort((a, b) => {
+                if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                if (a.time_flexible && !b.time_flexible) return 1;
+                if (!a.time_flexible && b.time_flexible) return -1;
+                return a.time.localeCompare(b.time);
+            });
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+
+            // Animation de confirmation
+            showAddConfirmation(_previewName, _previewBestTime, _previewImage);
+            renderPlanning();
+        }
+
+        function showAddConfirmation(name, time, image) {
+            const overlay = document.getElementById('add-confirm-overlay');
+            const card = document.getElementById('add-confirm-card');
+            const confetti = document.getElementById('add-confirm-confetti');
+
+            document.getElementById('add-confirm-emoji').textContent = image || '✅';
+            document.getElementById('add-confirm-title').textContent = name;
+            document.getElementById('add-confirm-time').textContent = `Planifié à ${time}`;
+
+            // Reset
+            card.classList.remove('show');
+            confetti.innerHTML = '';
+            overlay.classList.remove('hidden');
+
+            // Lancer animation carte
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    card.classList.add('show');
+                });
+            });
+
+            // Confettis
+            const colors = ['#a855f7','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444'];
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            for (let i = 0; i < 24; i++) {
+                const el = document.createElement('div');
+                el.className = 'confetti-piece';
+                el.style.cssText = `
+                    background: ${colors[i % colors.length]};
+                    left: ${cx + (Math.random() - 0.5) * 160}px;
+                    top: ${cy + 40}px;
+                    animation-delay: ${Math.random() * 0.3}s;
+                    animation-duration: ${0.6 + Math.random() * 0.5}s;
+                    border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+                    transform: rotate(${Math.random() * 360}deg);
+                `;
+                confetti.appendChild(el);
             }
 
-            // Faire disparaître le toast après 2.5s
+            // Disparaître après 2.2s
             setTimeout(() => {
-                toast.style.transition = 'opacity 0.4s';
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 400);
-            }, 2500);
+                card.classList.remove('show');
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                    confetti.innerHTML = '';
+                }, 500);
+            }, 2200);
         }
 
         function closeModal() {
@@ -2334,7 +2524,7 @@
                 citySuggestions[selectedCity].forEach(suggestion => {
                     const tile = document.createElement('div');
                     tile.className = "bg-white rounded-xl p-3 border-2 border-purple-100 cursor-pointer hover:border-primary hover:shadow-lg transition-all active:scale-95";
-                    tile.onclick = () => selectSuggestionInModal(suggestion.name, suggestion.query);
+                    tile.onclick = () => selectSuggestionInModal(suggestion.name, suggestion.query, suggestion.image);
                     const fatigueBadges = {
                         balade:      { icon: '🚶', label: 'Balade',      bg: 'bg-green-100 text-green-700' },
                         exploration: { icon: '🧭', label: 'Exploration', bg: 'bg-yellow-100 text-yellow-700' },
