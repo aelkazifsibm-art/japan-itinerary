@@ -411,14 +411,11 @@
 
     <!-- HEADER -->
     <header id="main-header" class="bg-white shadow-sm sticky top-0 z-50 hidden">
-        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center">
             <h1 class="text-lg font-bold text-primary flex items-center gap-2">
                 <span class="text-2xl">🗾</span>
                 My Japan Trip
             </h1>
-            <button onclick="openModal()" class="bg-primary text-white px-4 py-2 rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1">
-                <span>+</span> Activité
-            </button>
         </div>
     </header>
 
@@ -2293,16 +2290,18 @@
                 suggestionsContainer.className = "mb-6";
                 suggestionsContainer.innerHTML = `
                     <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-100 overflow-hidden">
-                        <button onclick="toggleSuggestionsDropdown()" class="w-full p-4 flex justify-between items-center hover:bg-purple-100 transition-colors">
-                            <div class="flex items-center gap-2">
-                                <span class="text-2xl">💡</span>
+                        <div class="flex items-center">
+                            <button onclick="toggleSuggestionsDropdown()" class="flex-1 p-4 flex items-center gap-2 hover:bg-purple-100 transition-colors text-left">
+                                <span class="text-xl">💡</span>
                                 <div>
-                                    <div class="text-sm font-bold text-purple-700">Suggestions pour ${selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}</div>
-                                    <div class="text-xs text-purple-600">${citySuggestions[selectedCity].length} activités disponibles</div>
+                                    <div class="text-sm font-bold text-purple-700">Suggestions — ${selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}</div>
+                                    <div class="text-xs text-purple-500">${citySuggestions[selectedCity].length} activités · <span id="suggestions-arrow-text">voir</span> <span id="suggestions-arrow" class="inline-block transition-transform">▾</span></div>
                                 </div>
-                            </div>
-                            <span id="suggestions-arrow" class="text-2xl text-purple-700 transition-transform">▼</span>
-                        </button>
+                            </button>
+                            <button onclick="openModal()" class="flex-shrink-0 m-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg active:scale-95 transition-all whitespace-nowrap">
+                                + Activité
+                            </button>
+                        </div>
                         <div id="suggestions-dropdown" class="hidden bg-white p-4 border-t-2 border-purple-100">
                             <div class="grid grid-cols-2 gap-3" id="planning-suggestions-grid"></div>
                         </div>
@@ -2721,13 +2720,16 @@
         function toggleSuggestionsDropdown() {
             const dropdown = document.getElementById('suggestions-dropdown');
             const arrow = document.getElementById('suggestions-arrow');
-            
-            if (dropdown.classList.contains('hidden')) {
+            const text = document.getElementById('suggestions-arrow-text');
+            const isHidden = dropdown.classList.contains('hidden');
+            if (isHidden) {
                 dropdown.classList.remove('hidden');
-                arrow.style.transform = 'rotate(180deg)';
+                if (arrow) arrow.style.transform = 'rotate(180deg)';
+                if (text) text.textContent = 'masquer';
             } else {
                 dropdown.classList.add('hidden');
-                arrow.style.transform = 'rotate(0deg)';
+                if (arrow) arrow.style.transform = 'rotate(0deg)';
+                if (text) text.textContent = 'voir';
             }
         }
 
