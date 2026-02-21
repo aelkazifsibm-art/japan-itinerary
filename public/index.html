@@ -1182,6 +1182,26 @@
         let stayValidatedPlace = null;
         let stayEditIndex = -1;
 
+        function openAddStayFromDay(dayIndex, preselectedCity = '') {
+            // Ouvrir le modal séjour pré-rempli avec ce jour
+            openAddStay();
+            // Pré-remplir le jour de début avec le jour courant
+            document.getElementById('stay-start-day').value = dayIndex + 1;
+            // Suggérer une fin par défaut (3 nuits ou fin du voyage)
+            const maxDay = tripData ? tripData.totalDays : dayIndex + 3;
+            const nextBlock = stays
+                .filter(s => s.startDay > dayIndex)
+                .sort((a, b) => a.startDay - b.startDay)[0];
+            const suggestedEnd = nextBlock
+                ? Math.min(dayIndex + 3, nextBlock.startDay)
+                : Math.min(dayIndex + 3, maxDay - 1);
+            document.getElementById('stay-end-day').value = suggestedEnd + 1;
+            // Pré-sélectionner la ville si fournie
+            if (preselectedCity) {
+                document.getElementById('stay-city').value = preselectedCity;
+            }
+        }
+
         function openAddStay() {
             stayEditIndex = -1;
             stayValidatedPlace = null;
@@ -2106,15 +2126,74 @@
             }
 
             if (dayActivities.length === 0) {
-                const emptyState = document.createElement('div');
-                emptyState.className = "text-center py-16 text-gray-400";
-                emptyState.innerHTML = `
-                    <div class="text-6xl mb-4">📅</div>
-                    <div class="text-lg font-bold">Aucune activité prévue</div>
-                    <div class="text-sm mt-2">Ajoutez votre première activité pour ce jour</div>
-                    ${!selectedCity ? '<div class="text-xs mt-4 text-purple-600">💡 Ouvrez les options (⚙️) pour choisir une ville et voir des suggestions</div>' : ''}
-                `;
-                list.appendChild(emptyState);
+                const stay = getStayForDay(currentDayIndex);
+
+                if (!stay) {
+                    // Pas de séjour configuré → carte d'action directe
+                    const emptyState = document.createElement('div');
+                    emptyState.className = 'mt-4';
+                    const dayNum = currentDayIndex + 1;
+                    const cityOptions = [
+                        { value: 'tokyo', label: '🗼 Tokyo' },
+                        { value: 'kyoto', label: '⛩️ Kyoto' },
+                        { value: 'osaka', label: '🏯 Osaka' },
+                        { value: 'nara', label: '🦌 Nara' },
+                        { value: 'hiroshima', label: '☮️ Hiroshima' },
+                        { value: 'hakone', label: '🗻 Hakone' },
+                        { value: 'nikko', label: '🏔️ Nikko' },
+                        { value: 'kamakura', label: '🌊 Kamakura' },
+                        { value: 'takayama', label: '🏘️ Takayama' },
+                        { value: 'kanazawa', label: '🎨 Kanazawa' },
+                    ].map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+
+                    emptyState.innerHTML = `
+                        <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-dashed border-purple-200 space-y-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">📍</div>
+                                <div>
+                                    <div class="font-bold text-gray-800">Jour ${dayNum} — Où allez-vous ?</div>
+                                    <div class="text-xs text-gray-500 mt-0.5">Choisissez une ville pour voir les suggestions d'activités</div>
+                                </div>
+                            </div>
+
+                            <select id="quickstay-city-${dayNum}" class="w-full border-2 border-purple-200 rounded-xl p-3 bg-white font-bold text-sm outline-none focus:border-purple-500">
+                                <option value="">Choisir une ville...</option>
+                                ${cityOptions}
+                            </select>
+
+                            <button onclick="openAddStayFromDay(${currentDayIndex})" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold text-sm hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
+                                🏨 Configurer ce séjour
+                            </button>
+                        </div>
+
+                        <div class="text-center py-8 text-gray-400">
+                            <div class="text-4xl mb-3">📅</div>
+                            <div class="text-sm">Les activités apparaîtront ici</div>
+                        </div>
+                    `;
+                    list.appendChild(emptyState);
+
+                    // Quand on choisit une ville dans le select rapide → pré-remplir et ouvrir le modal
+                    setTimeout(() => {
+                        const quickSelect = document.getElementById(`quickstay-city-${dayNum}`);
+                        if (quickSelect) {
+                            quickSelect.addEventListener('change', () => {
+                                if (quickSelect.value) openAddStayFromDay(currentDayIndex, quickSelect.value);
+                            });
+                        }
+                    }, 0);
+
+                } else {
+                    // Séjour configuré mais pas d'activités
+                    const emptyState = document.createElement('div');
+                    emptyState.className = 'text-center py-16 text-gray-400';
+                    emptyState.innerHTML = `
+                        <div class="text-6xl mb-4">📅</div>
+                        <div class="text-lg font-bold">Aucune activité prévue</div>
+                        <div class="text-sm mt-2">Appuyez sur <span class="font-bold text-primary">+ Activité</span> pour commencer</div>
+                    `;
+                    list.appendChild(emptyState);
+                }
                 return;
             }
 
