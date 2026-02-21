@@ -153,40 +153,142 @@
                 radial-gradient(circle at 80% 20%, rgba(102, 126, 234, 0.2) 0%, transparent 50%);
         }
 
-        /* FAB edge-peek : semi-caché sur le bord droit */
-        #fab-config {
-            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
-            transform: translateX(28px); /* à moitié caché */
-            cursor: grab;
-        }
-        #fab-config.peeking {
-            transform: translateX(28px);
-        }
-        #fab-config.revealed {
-            transform: translateX(0);
-        }
-        #fab-config.active {
-            background: linear-gradient(to bottom right, #ef4444, #dc2626) !important;
-            transform: translateX(0) !important;
-            box-shadow: 0 0 0 6px rgba(239,68,68,0.25) !important;
-        }
-        /* Demi-cercle visible côté gauche du FAB */
-        #fab-edge-hint {
+        /* ── FAB ORGANIQUE ─────────────────────────────────── */
+
+        /* Conteneur wrapper positionné sur le bord */
+        #fab-wrapper {
             position: fixed;
-            right: 0;
             bottom: 88px;
-            width: 18px;
-            height: 56px;
-            background: linear-gradient(135deg, #a855f7, #ec4899);
-            border-radius: 999px 0 0 999px;
-            z-index: 249;
-            pointer-events: none;
-            opacity: 0.85;
-            transition: opacity 0.3s;
+            right: 0;
+            z-index: 250;
+            display: none; /* showFAB() l'active */
         }
-        #fab-config.revealed ~ #fab-edge-hint,
-        #fab-config.active ~ #fab-edge-hint {
+
+        /* L'oreille : la partie visible au repos, demi-pill arrondie */
+        #fab-ear {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 22px;
+            height: 52px;
+            background: linear-gradient(160deg, #c084fc, #a855f7, #ec4899);
+            border-radius: 14px 0 0 14px;
+            cursor: pointer;
+            z-index: 1;
+            box-shadow: -3px 0 16px rgba(168,85,247,0.35);
+            transition: width 0.25s ease, opacity 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #fab-ear::before {
+            content: '‹';
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            font-weight: bold;
+            margin-right: 1px;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        #fab-wrapper.revealed #fab-ear,
+        #fab-wrapper.active #fab-ear {
             opacity: 0;
+            pointer-events: none;
+            width: 0;
+        }
+
+        /* Le bouton principal */
+        #fab-config {
+            position: relative;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #a855f7 0%, #d946ef 50%, #ec4899 100%);
+            box-shadow:
+                0 8px 32px rgba(168,85,247,0.45),
+                0 2px 8px rgba(0,0,0,0.15),
+                inset 0 1px 0 rgba(255,255,255,0.25);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: translateX(64px); /* caché derrière le bord */
+            transition:
+                transform 0.5s cubic-bezier(0.34, 1.4, 0.64, 1),
+                box-shadow 0.3s ease,
+                background 0.4s ease;
+            will-change: transform;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Halo pulsant au repos */
+        #fab-config::after {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border-radius: 50%;
+            background: transparent;
+            border: 2px solid rgba(168,85,247,0.3);
+            animation: fab-halo 2.5s ease-in-out infinite;
+            opacity: 0;
+        }
+        @keyframes fab-halo {
+            0%   { transform: scale(0.85); opacity: 0; }
+            40%  { opacity: 1; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        #fab-wrapper.revealed #fab-config {
+            transform: translateX(0) scale(1);
+            box-shadow:
+                0 12px 40px rgba(168,85,247,0.55),
+                0 4px 12px rgba(0,0,0,0.2),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+
+        /* État actif (config ouverte) */
+        #fab-wrapper.active #fab-config {
+            transform: translateX(0) rotate(90deg) !important;
+            background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+            box-shadow:
+                0 12px 40px rgba(239,68,68,0.5),
+                0 4px 12px rgba(0,0,0,0.2) !important;
+        }
+        #fab-wrapper.active #fab-config::after {
+            border-color: rgba(239,68,68,0.3);
+        }
+
+        /* Icône */
+        #fab-icon {
+            font-size: 22px;
+            line-height: 1;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: block;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+        }
+        #fab-wrapper.active #fab-icon {
+            transform: rotate(-90deg);
+        }
+
+        /* Reflet glossy sur le bouton */
+        #fab-config::before {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: 10px;
+            width: 36px;
+            height: 16px;
+            background: rgba(255,255,255,0.18);
+            border-radius: 50%;
+            filter: blur(2px);
+            pointer-events: none;
+        }
+
+        /* Bord droit - marge */
+        #fab-wrapper {
+            padding-right: 10px;
         }
     </style>
 </head>
@@ -602,10 +704,12 @@
     </div>
 
     <!-- FAB (Floating Action Button) - Configuration -->
-    <button id="fab-config" onclick="toggleConfigFAB()" class="fixed bottom-20 right-0 w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-full shadow-2xl flex items-center justify-center z-[250] hidden">
-        <span id="fab-icon" class="text-2xl">⚙️</span>
-    </button>
-    <div id="fab-edge-hint" class="hidden"></div>
+    <div id="fab-wrapper">
+        <div id="fab-ear" onclick="revealFab()"></div>
+        <button id="fab-config" onclick="toggleConfigFAB()" aria-label="Configuration">
+            <span id="fab-icon">⚙️</span>
+        </button>
+    </div>
 
     <!-- ONBOARDING TOOLTIP FAB -->
     <div id="fab-onboarding" class="hidden fixed z-[300] bottom-36 right-4 max-w-[220px]">
@@ -2965,63 +3069,77 @@
         let configDayIndex = 0;
 
         function showFAB() {
-            const fab = document.getElementById('fab-config');
-            const hint = document.getElementById('fab-edge-hint');
-            fab.classList.remove('hidden');
-            hint.classList.remove('hidden');
-            fab.classList.add('peeking');
+            const wrapper = document.getElementById('fab-wrapper');
+            wrapper.style.display = 'block';
+            // Petit délai pour que le display:block soit appliqué avant la transition
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    wrapper.classList.remove('active');
+                    // Reste en état caché (bouton translateX(64px))
+                });
+            });
             initFabSwipe();
         }
 
         function initFabSwipe() {
+            const wrapper = document.getElementById('fab-wrapper');
             const fab = document.getElementById('fab-config');
-            if (fab.dataset.swipeInit) return;
-            fab.dataset.swipeInit = 'true';
+            if (wrapper.dataset.swipeInit) return;
+            wrapper.dataset.swipeInit = 'true';
 
             let startX = null;
+            let startY = null;
 
-            fab.addEventListener('touchstart', e => {
+            // Touch sur toute la zone wrapper (oreille + bouton)
+            wrapper.addEventListener('touchstart', e => {
                 startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
             }, { passive: true });
 
-            fab.addEventListener('touchend', e => {
+            wrapper.addEventListener('touchend', e => {
                 if (startX === null) return;
                 const dx = startX - e.changedTouches[0].clientX;
-                // Slide vers la gauche (dx > 30) → révéler
-                if (dx > 30 && !fab.classList.contains('active')) {
-                    revealFab();
-                    return;
+                const dy = Math.abs(startY - e.changedTouches[0].clientY);
+                // Ignorer si scroll vertical
+                if (dy > 20 && dy > Math.abs(dx)) { startX = null; return; }
+
+                if (dx > 25 && !wrapper.classList.contains('active')) {
+                    revealFab(); startX = null; return;
                 }
-                // Slide vers la droite (dx < -30) → cacher
-                if (dx < -30 && !fab.classList.contains('active')) {
-                    peekFab();
-                    return;
+                if (dx < -25 && !wrapper.classList.contains('active')) {
+                    peekFab(); startX = null; return;
                 }
-                // Tap simple → toggle config
-                if (Math.abs(dx) < 10) toggleConfigFAB();
                 startX = null;
             }, { passive: true });
 
-            // Sur desktop : hover révèle
+            // Desktop : hover sur le bouton révèle
             fab.addEventListener('mouseenter', () => {
-                if (!fab.classList.contains('active')) revealFab();
+                if (!wrapper.classList.contains('active')) revealFab();
             });
-            fab.addEventListener('mouseleave', () => {
-                if (!fab.classList.contains('active')) peekFab();
+            wrapper.addEventListener('mouseleave', () => {
+                if (!wrapper.classList.contains('active')) {
+                    setTimeout(() => {
+                        if (!wrapper.matches(':hover')) peekFab();
+                    }, 300);
+                }
             });
         }
 
         function revealFab() {
-            const fab = document.getElementById('fab-config');
-            fab.classList.remove('peeking');
-            fab.classList.add('revealed');
+            const wrapper = document.getElementById('fab-wrapper');
+            if (wrapper.classList.contains('active')) return;
+            wrapper.classList.add('revealed');
+            // Auto-peek après 4s si pas de clic
+            clearTimeout(window._fabPeekTimer);
+            window._fabPeekTimer = setTimeout(() => {
+                if (!wrapper.classList.contains('active')) peekFab();
+            }, 4000);
         }
 
         function peekFab() {
-            const fab = document.getElementById('fab-config');
-            if (fab.classList.contains('active')) return;
-            fab.classList.remove('revealed');
-            fab.classList.add('peeking');
+            const wrapper = document.getElementById('fab-wrapper');
+            if (wrapper.classList.contains('active')) return;
+            wrapper.classList.remove('revealed');
         }
 
         function toggleConfigFAB() {
@@ -3035,9 +3153,9 @@
 
         function openConfigScreen() {
             document.getElementById('config-screen').classList.remove('translate-x-full');
-            const fab = document.getElementById('fab-config');
-            fab.classList.add('active');
-            fab.classList.remove('peeking', 'revealed');
+            const wrapper = document.getElementById('fab-wrapper');
+            wrapper.classList.add('active', 'revealed');
+            wrapper.classList.remove('peeking');
             document.getElementById('fab-icon').textContent = '×';
             syncConfigToggles();
             configDayIndex = currentDayIndex;
@@ -3048,10 +3166,11 @@
 
         function closeConfigScreen() {
             document.getElementById('config-screen').classList.add('translate-x-full');
-            const fab = document.getElementById('fab-config');
-            fab.classList.remove('active');
-            fab.classList.add('peeking');
+            const wrapper = document.getElementById('fab-wrapper');
+            wrapper.classList.remove('active', 'revealed');
             document.getElementById('fab-icon').textContent = '⚙️';
+            // Revenir en peek après un délai
+            setTimeout(() => peekFab(), 100);
         }
 
         function switchConfigTab(tabName) {
