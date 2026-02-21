@@ -153,25 +153,40 @@
                 radial-gradient(circle at 80% 20%, rgba(102, 126, 234, 0.2) 0%, transparent 50%);
         }
 
-        /* FAB pulse animation */
-        @keyframes fab-pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
-            50% { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); }
+        /* FAB edge-peek : semi-caché sur le bord droit */
+        #fab-config {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+            transform: translateX(28px); /* à moitié caché */
+            cursor: grab;
         }
-        @keyframes fab-pulse-red {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
-            50% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+        #fab-config.peeking {
+            transform: translateX(28px);
         }
-        #fab-config:not(.active):not(:hover) {
-            animation: fab-pulse 2s infinite;
+        #fab-config.revealed {
+            transform: translateX(0);
         }
         #fab-config.active {
-            background: linear-gradient(to bottom right, #ef4444, #dc2626);
-            animation: fab-pulse-red 2s infinite;
+            background: linear-gradient(to bottom right, #ef4444, #dc2626) !important;
+            transform: translateX(0) !important;
+            box-shadow: 0 0 0 6px rgba(239,68,68,0.25) !important;
         }
-        #fab-config.active:hover {
-            transform: scale(1.15) rotate(90deg);
-            animation: none;
+        /* Demi-cercle visible côté gauche du FAB */
+        #fab-edge-hint {
+            position: fixed;
+            right: 0;
+            bottom: 88px;
+            width: 18px;
+            height: 56px;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            border-radius: 999px 0 0 999px;
+            z-index: 249;
+            pointer-events: none;
+            opacity: 0.85;
+            transition: opacity 0.3s;
+        }
+        #fab-config.revealed ~ #fab-edge-hint,
+        #fab-config.active ~ #fab-edge-hint {
+            opacity: 0;
         }
     </style>
 </head>
@@ -587,9 +602,10 @@
     </div>
 
     <!-- FAB (Floating Action Button) - Configuration -->
-    <button id="fab-config" onclick="toggleConfigFAB()" class="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-full shadow-2xl hover:shadow-purple-500/50 hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center z-[250] hidden">
+    <button id="fab-config" onclick="toggleConfigFAB()" class="fixed bottom-20 right-0 w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-full shadow-2xl flex items-center justify-center z-[250] hidden">
         <span id="fab-icon" class="text-2xl">⚙️</span>
     </button>
+    <div id="fab-edge-hint" class="hidden"></div>
 
     <!-- ONBOARDING TOOLTIP FAB -->
     <div id="fab-onboarding" class="hidden fixed z-[300] bottom-36 right-4 max-w-[220px]">
@@ -967,7 +983,7 @@
             document.getElementById('main-header').classList.remove('hidden');
             document.getElementById('planning-list').classList.remove('hidden');
             document.getElementById('day-navigation').classList.remove('hidden');
-            document.getElementById('fab-config').classList.remove('hidden');
+            showFAB();
             
             updateDayNavigation();
             updateCitySelector();
@@ -2948,6 +2964,66 @@
         // ========== FAB CONFIGURATION ==========
         let configDayIndex = 0;
 
+        function showFAB() {
+            const fab = document.getElementById('fab-config');
+            const hint = document.getElementById('fab-edge-hint');
+            fab.classList.remove('hidden');
+            hint.classList.remove('hidden');
+            fab.classList.add('peeking');
+            initFabSwipe();
+        }
+
+        function initFabSwipe() {
+            const fab = document.getElementById('fab-config');
+            if (fab.dataset.swipeInit) return;
+            fab.dataset.swipeInit = 'true';
+
+            let startX = null;
+
+            fab.addEventListener('touchstart', e => {
+                startX = e.touches[0].clientX;
+            }, { passive: true });
+
+            fab.addEventListener('touchend', e => {
+                if (startX === null) return;
+                const dx = startX - e.changedTouches[0].clientX;
+                // Slide vers la gauche (dx > 30) → révéler
+                if (dx > 30 && !fab.classList.contains('active')) {
+                    revealFab();
+                    return;
+                }
+                // Slide vers la droite (dx < -30) → cacher
+                if (dx < -30 && !fab.classList.contains('active')) {
+                    peekFab();
+                    return;
+                }
+                // Tap simple → toggle config
+                if (Math.abs(dx) < 10) toggleConfigFAB();
+                startX = null;
+            }, { passive: true });
+
+            // Sur desktop : hover révèle
+            fab.addEventListener('mouseenter', () => {
+                if (!fab.classList.contains('active')) revealFab();
+            });
+            fab.addEventListener('mouseleave', () => {
+                if (!fab.classList.contains('active')) peekFab();
+            });
+        }
+
+        function revealFab() {
+            const fab = document.getElementById('fab-config');
+            fab.classList.remove('peeking');
+            fab.classList.add('revealed');
+        }
+
+        function peekFab() {
+            const fab = document.getElementById('fab-config');
+            if (fab.classList.contains('active')) return;
+            fab.classList.remove('revealed');
+            fab.classList.add('peeking');
+        }
+
         function toggleConfigFAB() {
             const configScreen = document.getElementById('config-screen');
             if (configScreen.classList.contains('translate-x-full')) {
@@ -2959,7 +3035,9 @@
 
         function openConfigScreen() {
             document.getElementById('config-screen').classList.remove('translate-x-full');
-            document.getElementById('fab-config').classList.add('active');
+            const fab = document.getElementById('fab-config');
+            fab.classList.add('active');
+            fab.classList.remove('peeking', 'revealed');
             document.getElementById('fab-icon').textContent = '×';
             syncConfigToggles();
             configDayIndex = currentDayIndex;
@@ -2970,7 +3048,9 @@
 
         function closeConfigScreen() {
             document.getElementById('config-screen').classList.add('translate-x-full');
-            document.getElementById('fab-config').classList.remove('active');
+            const fab = document.getElementById('fab-config');
+            fab.classList.remove('active');
+            fab.classList.add('peeking');
             document.getElementById('fab-icon').textContent = '⚙️';
         }
 
@@ -3058,7 +3138,7 @@
                         document.getElementById('main-header').classList.remove('hidden');
                         document.getElementById('planning-list').classList.remove('hidden');
                         document.getElementById('day-navigation').classList.remove('hidden');
-                        document.getElementById('fab-config').classList.remove('hidden');
+                        showFAB();
                         updateDayNavigation();
                         updateCitySelector();
                         renderStaysList();
