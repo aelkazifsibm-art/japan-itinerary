@@ -2992,7 +2992,9 @@
                     opening_hours: data.place.opening_hours,
                     open_now:      data.place.open_now,
                     price_level:   data.place.price_level,
-                    types:         data.place.types
+                    price_detail:  data.place.price_detail || null,
+                    types:         data.place.types,
+                    ai_hours:      data.place.ai_hours || false
                 };
                 setPlaceCache(placeId, placeData);
                 return placeData;
@@ -3050,12 +3052,13 @@
             if (place) {
                 // Détecter H24 : "Open 24 hours" dans les horaires
                 const is24h = (place.opening_hours || []).some(h => /24 hours|24h|ouvert en permanence/i.test(h));
+                const aiLabel = place.ai_hours ? '<span style="font-size:8px;opacity:0.6">~indicatif</span>' : '';
                 if (is24h)
-                    statusChip = '<div class="' + ACTIVE('bg-blue-50 text-blue-700 border border-blue-200') + '">🕐<span>H24</span></div>';
+                    statusChip = '<div class="' + ACTIVE('bg-blue-50 text-blue-700 border border-blue-200') + '">🕐<span>H24</span>' + aiLabel + '</div>';
                 else if (place.open_now === true)
-                    statusChip = '<div class="' + ACTIVE('bg-green-50 text-green-700 border border-green-200') + '"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span><span>Ouvert</span></div>';
+                    statusChip = '<div class="' + ACTIVE('bg-green-50 text-green-700 border border-green-200') + '"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span><span>Ouvert</span>' + aiLabel + '</div>';
                 else if (place.open_now === false)
-                    statusChip = '<div class="' + ACTIVE('bg-red-50 text-red-600 border border-red-200') + '"><span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span><span>Fermé</span></div>';
+                    statusChip = '<div class="' + ACTIVE('bg-red-50 text-red-600 border border-red-200') + '"><span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span><span>Fermé</span>' + aiLabel + '</div>';
             }
 
             // Prix — "Gratuit" explicite si price_level = 0
@@ -3069,7 +3072,8 @@
                     {t:'€€€€',    i:'💎',  cls:'bg-red-50 text-red-700 border border-red-200'},
                 ];
                 const c = cfg[place.price_level] || cfg[1];
-                priceChip = '<div class="' + ACTIVE(c.cls) + '">' + c.i + '<span>' + c.t + '</span></div>';
+                const detail = place.price_detail ? '<span style="font-size:8px;opacity:0.7;line-height:1.1">' + place.price_detail + '</span>' : '';
+                priceChip = '<div class="' + ACTIVE(c.cls) + '" title="' + (place.price_detail || '') + '">' + c.i + '<span>' + c.t + '</span>' + detail + '</div>';
             }
 
             return statusChip + priceChip;

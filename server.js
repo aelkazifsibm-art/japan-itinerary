@@ -140,7 +140,7 @@ app.get("/api/places/details", async (req, res) => {
 
         const u = new URL("https://maps.googleapis.com/maps/api/place/details/json");
         u.searchParams.set("place_id", placeId);
-        u.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types,editorial_summary");
+        u.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,current_opening_hours,price_level,types,editorial_summary,business_status");
         u.searchParams.set("language", "fr");
         u.searchParams.set("key", key);
 
@@ -148,6 +148,48 @@ app.get("/api/places/details", async (req, res) => {
         if (r.json.status !== "OK") return res.json({ ok: false, status: r.json.status });
 
         const p = r.json.result;
+        let opening_hours = p.current_opening_hours?.weekday_text || p.opening_hours?.weekday_text || null;
+        let open_now      = p.current_opening_hours?.open_now ?? p.opening_hours?.open_now ?? null;
+        let price_level   = p.price_level ?? null;
+        let ai_hours      = false;
+
+        // ── Fallback OpenAI web search si Google n'a pas les horaires/prix ─
+        const needsHours = !opening_hours;
+        const needsPrice = price_level === null;
+        if (needsHours || needsPrice) {
+            try {
+                const tokyoTime = new Date().toLocaleString('fr-FR', {timeZone: 'Asia/Tokyo'});
+                const aiRes = await openai.chat.completions.create({
+                    model: "gpt-4o-search-preview",
+                    max_tokens: 400,
+                    messages: [{
+                        role: "system",
+                        content: "Tu es un assistant de voyage expert au Japon. Cherche les informations sur le web puis réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour."
+                    }, {
+                        role: "user",
+                        content: `Recherche les horaires d'ouverture officiels et le prix d'entrée de : "${p.name}", ${p.formatted_address}.
+Heure actuelle à Tokyo : ${tokyoTime}.
+Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
+{
+  "opening_hours": ["Lundi: 06:00 - 17:00", ...] ou null,
+  "open_now": true/false/null,
+  "price_level": 0 si gratuit, 1 si <1000¥, 2 si 1000-2000¥, 3 si 2000-4000¥, 4 si >4000¥, null si inconnu,
+  "price_detail": "ex: 500¥ adulte, gratuit enfant" ou null
+}`
+                    }]
+                });
+                const raw = aiRes.choices[0]?.message?.content?.trim();
+                const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+                if (needsHours && parsed.opening_hours) opening_hours = parsed.opening_hours;
+                if (parsed.open_now !== undefined && open_now === null) open_now = parsed.open_now;
+                if (needsPrice && parsed.price_level !== undefined && parsed.price_level !== null) price_level = parsed.price_level;
+                if (parsed.price_detail) { ai_hours = true; Object.assign(p, { price_detail: parsed.price_detail }); }
+                ai_hours = true;
+            } catch(aiErr) {
+                console.warn("OpenAI search fallback failed:", aiErr.message);
+            }
+        }
+
         res.json({
             ok: true,
             place: {
@@ -156,10 +198,12 @@ app.get("/api/places/details", async (req, res) => {
                 formatted_address: p.formatted_address,
                 lat: p.geometry?.location?.lat,
                 lng: p.geometry?.location?.lng,
-                opening_hours: p.opening_hours?.weekday_text || null,
-                open_now: p.opening_hours?.open_now ?? null,
-                price_level: p.price_level ?? null,
-                types: p.types || []
+                opening_hours,
+                open_now,
+                price_level,
+                price_detail: p.price_detail || null,
+                types: p.types || [],
+                ai_hours
             }
         });
     } catch (e) {
