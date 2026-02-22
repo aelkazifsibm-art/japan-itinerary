@@ -1042,7 +1042,7 @@
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
-        const PLACE_CACHE_KEY = 'japan_place_cache_v1';
+        const PLACE_CACHE_KEY = 'japan_place_cache_v2';
         const PLACE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
         let placeCache = JSON.parse(localStorage.getItem(PLACE_CACHE_KEY) || '{}');
 
@@ -2825,8 +2825,19 @@
 
             // ── 3. Enrichissement des activités sans horaires/prix ───────────
             dayActivities.forEach(act => {
-                if (act.place?.place_id && (act.place.opening_hours === undefined && act.place.price_level === undefined)) {
-                    enrichActivityPlace(act);
+                if (act.place?.place_id) {
+                    const cached = getPlaceCache(act.place.place_id);
+                    const needsEnrich = act.place.opening_hours === undefined || act.place.opening_hours === null;
+                    if (needsEnrich && !cached) {
+                        enrichActivityPlace(act);
+                    } else if (cached && needsEnrich) {
+                        // Appliquer le cache immédiatement sans appel réseau
+                        const idx = activities.findIndex(a => a.id === act.id);
+                        if (idx >= 0) {
+                            activities[idx].place = { ...activities[idx].place, ...cached };
+                            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                        }
+                    }
                 }
             });
 
@@ -2934,23 +2945,30 @@
             }
         }
 
+        // Guard anti-boucle : set des place_ids en cours de fetch
+        const _enrichingIds = new Set();
+
         // Enrichit une activité avec horaires/prix depuis Google Places si manquants
         async function enrichActivityPlace(act) {
             if (!act.place?.place_id) return;
+            if (_enrichingIds.has(act.place.place_id)) return; // déjà en cours
+            _enrichingIds.add(act.place.place_id);
             try {
-                // 1. Vérifier le cache d'abord
                 const cached = getPlaceCache(act.place.place_id);
                 const placeData = cached || await fetchPlaceDetails(act.place.place_id);
                 if (!placeData) return;
 
-                // 2. Mettre à jour l'activité
                 const idx = activities.findIndex(a => a.id === act.id);
                 if (idx >= 0) {
                     activities[idx].place = { ...activities[idx].place, ...placeData };
                     localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
                     renderPlanning();
                 }
-            } catch(e) { /* silencieux */ }
+            } catch(e) {
+                console.warn('enrichActivityPlace error:', e);
+            } finally {
+                _enrichingIds.delete(act.place.place_id);
+            }
         }
 
         async function fetchPlaceDetails(placeId) {
