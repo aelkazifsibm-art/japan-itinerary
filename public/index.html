@@ -2816,67 +2816,57 @@
                 const leaveTime  = addMinutesToTime(arriveTime, act.duration_minutes || 90); // heure de départ du site
 
                 const dur = act.duration_minutes || 90;
-                // Hauteur de la barre de durée : 1min = 0.7px, min 48px, max 140px
-                const barH = Math.min(140, Math.max(48, Math.round(dur * 0.7)));
+                const mapsUrl = act.place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}` : '';
 
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl shadow-sm relative cursor-pointer hover:shadow-lg transition-shadow overflow-hidden flex";
+                card.className = "bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-shadow";
                 card.onclick = () => showActivityInfo(act);
                 card.innerHTML = `
-                    <!-- Colonne timeline gauche -->
-                    <div class="flex flex-col items-center w-20 flex-shrink-0 py-5 px-2 bg-gray-50 border-r border-gray-100">
-                        <!-- Heure arrivée -->
-                        <div class="text-sm font-black text-gray-800 leading-none">${arriveTime}</div>
-                        <!-- Barre durée -->
-                        <div class="relative flex-1 flex flex-col items-center my-3 w-full" style="min-height:${barH}px">
-                            <div class="w-1 flex-1 bg-gradient-to-b from-purple-400 to-pink-400 rounded-full"></div>
-                            <!-- Badge durée centré sur la barre -->
-                            <div class="absolute top-1/2 -translate-y-1/2 bg-white border-2 border-purple-300 rounded-xl px-2 py-1 shadow-md">
-                                <div class="text-sm font-black text-purple-600 leading-none text-center">${dur}</div>
-                                <div class="text-[10px] text-purple-400 leading-none text-center font-medium">min</div>
+                    <div class="flex">
+                        <!-- ── Colonne timeline : largeur fixe ── -->
+                        <div class="w-16 flex-shrink-0 flex flex-col items-center py-4 bg-gray-50 border-r border-gray-100">
+                            <span class="text-xs font-black text-gray-700">${arriveTime}</span>
+                            <!-- Barre + badge dur -->
+                            <div class="relative flex flex-col items-center flex-1 my-2 w-full" style="min-height:52px">
+                                <div class="w-0.5 absolute inset-x-1/2 top-0 bottom-0 bg-gradient-to-b from-purple-400 to-pink-400 rounded-full" style="width:2px;left:calc(50% - 1px)"></div>
+                                <div class="absolute top-1/2 -translate-y-1/2 bg-white border border-purple-200 rounded-lg px-1.5 py-0.5 shadow-sm z-10">
+                                    <div class="text-xs font-black text-purple-600 leading-none text-center">${dur}</div>
+                                    <div class="text-[9px] text-purple-400 leading-none text-center">min</div>
+                                </div>
                             </div>
-                        </div>
-                        <!-- Heure départ -->
-                        <div class="text-sm font-bold text-gray-400 leading-none">${leaveTime}</div>
-                    </div>
-
-                    <!-- Contenu principal -->
-                    <div class="flex-1 p-4 min-w-0">
-                        <!-- Ligne titre + actions droite -->
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <div class="text-base font-black text-gray-800 leading-snug">${act.title}</div>
-                                <div class="text-[10px] text-gray-300 mt-0.5 uppercase font-bold tracking-wide">📍 ${act.place?.name || 'Lieu non défini'}</div>
-                            </div>
-                            <!-- Actions droite : Maps + ✕ -->
-                            <div class="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
-                                ${act.place ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}"
-                                    target="_blank" onclick="event.stopPropagation()"
-                                    class="w-7 h-7 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center shadow transition-all active:scale-90"
-                                    title="Voir sur Google Maps">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                                    </svg>
-                                </a>` : ''}
-                                <button onclick="event.stopPropagation(); deleteActivity(${act.id})"
-                                    class="w-7 h-7 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-all text-base">✕</button>
-                            </div>
+                            <span class="text-xs font-bold text-gray-400">${leaveTime}</span>
                         </div>
 
-                        <!-- Chips infos : toujours 3, grisées si absent -->
-                        ${buildPlaceChips(act.place)}
+                        <!-- ── Contenu : hauteur fixe 120px ── -->
+                        <div class="flex-1 min-w-0 px-3 py-3 flex flex-col justify-between" style="min-height:120px">
+                            <!-- Titre + boutons droite -->
+                            <div class="flex items-start justify-between gap-1">
+                                <div class="min-w-0">
+                                    <div class="text-sm font-black text-gray-800 leading-tight truncate">${act.title}</div>
+                                    <div class="text-[10px] text-gray-400 mt-0.5 truncate">📍 ${act.place?.name || '—'}</div>
+                                </div>
+                                <div class="flex gap-1 flex-shrink-0">
+                                    ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
+                                        class="w-6 h-6 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center flex-shrink-0 transition-colors" title="Google Maps">
+                                        <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                                    </a>` : ''}
+                                    <button onclick="event.stopPropagation(); deleteActivity(${act.id})"
+                                        class="w-6 h-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all text-sm">✕</button>
+                                </div>
+                            </div>
 
-                        <!-- Boutons actions -->
-                        <div class="mt-2.5 flex gap-2">
-                            ${act.place ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}"
-                               target="_blank" onclick="event.stopPropagation()"
-                               class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl font-semibold hover:bg-blue-100 transition-colors">
-                                🕐 Horaires
-                            </a>` : ''}
-                            <button onclick="event.stopPropagation(); showActivityInfo(act)"
-                                class="inline-flex items-center gap-1 text-xs bg-purple-50 text-purple-600 border border-purple-200 px-3 py-1.5 rounded-xl font-semibold hover:bg-purple-100 transition-colors">
-                                ℹ️ + d'infos
-                            </button>
+                            <!-- Chips : grille 3 colonnes égales -->
+                            <div class="grid grid-cols-3 gap-1 mt-2">
+                                ${buildPlaceChipsGrid(act.place)}
+                            </div>
+
+                            <!-- Bouton + d'infos -->
+                            <div class="mt-2">
+                                <button onclick="event.stopPropagation(); showActivityInfo(act)"
+                                    class="w-full text-xs bg-purple-50 text-purple-600 border border-purple-100 py-1.5 rounded-lg font-semibold hover:bg-purple-100 transition-colors">
+                                    ℹ️ + d'infos sur cette activité
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2940,6 +2930,59 @@
                     }
                 }
             } catch(e) { /* silencieux */ }
+        }
+
+                // Chips en grille 3 colonnes — taille identique garanie par grid
+        function buildPlaceChipsGrid(place) {
+            const GREY = 'col-span-1 flex items-center justify-center gap-1 text-[10px] bg-gray-100 text-gray-400 py-1 px-1 rounded-lg font-medium text-center';
+            const ACTIVE = (cls) => 'col-span-1 flex items-center justify-center gap-1 text-[10px] ' + cls + ' py-1 px-1 rounded-lg font-semibold text-center';
+
+            // ── Chip type ─────────────────────────────────────────────────
+            let typeChip = '<div class="' + GREY + '">📍 N/D</div>';
+            if (place) {
+                const typeMap = [
+                    ['Temple',     ['temple','shrine','place_of_worship','buddhist_temple','hindu_temple']],
+                    ['Marché',     ['market','food_market','shopping_mall','store','supermarket']],
+                    ['Parc',       ['park','garden','natural_feature','campground']],
+                    ['Musée',      ['museum','art_gallery']],
+                    ['Restaurant', ['restaurant','food','cafe','bakery','bar']],
+                    ['Château',    ['castle']],
+                    ['Onsen',      ['spa','health']],
+                    ['Montagne',   ['mountain','hiking_area']],
+                ];
+                const em = {'Temple':'⛩️','Marché':'🛍️','Parc':'🌿','Musée':'🎨','Restaurant':'🍜','Château':'🏯','Onsen':'♨️','Montagne':'⛰️'};
+                for (const [label, kw] of typeMap) {
+                    if ((place.types||[]).some(t => kw.includes(t))) {
+                        typeChip = '<div class="' + ACTIVE('bg-indigo-100 text-indigo-700') + '">' + (em[label]||'📍') + ' ' + label + '</div>';
+                        break;
+                    }
+                }
+            }
+
+            // ── Chip statut ───────────────────────────────────────────────
+            let statusChip = '<div class="' + GREY + '">🕐 N/D</div>';
+            if (place) {
+                if (place.open_now === true)
+                    statusChip = '<div class="' + ACTIVE('bg-green-50 text-green-700 border border-green-200') + '"><span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block flex-shrink-0"></span>Ouvert</div>';
+                else if (place.open_now === false)
+                    statusChip = '<div class="' + ACTIVE('bg-red-50 text-red-600 border border-red-200') + '"><span class="w-1.5 h-1.5 rounded-full bg-red-400 inline-block flex-shrink-0"></span>Fermé</div>';
+            }
+
+            // ── Chip prix ─────────────────────────────────────────────────
+            let priceChip = '<div class="' + GREY + '">💴 N/D</div>';
+            if (place && place.price_level !== null && place.price_level !== undefined) {
+                const cfg = [
+                    {t:'Gratuit', cls:'bg-green-50 text-green-700 border border-green-200', i:'🎟️'},
+                    {t:'€',       cls:'bg-sky-50 text-sky-700 border border-sky-200',       i:'💴'},
+                    {t:'€€',      cls:'bg-yellow-50 text-yellow-700 border border-yellow-200',i:'💴'},
+                    {t:'€€€',     cls:'bg-orange-50 text-orange-700 border border-orange-200',i:'💴'},
+                    {t:'€€€€',    cls:'bg-red-50 text-red-700 border border-red-200',        i:'💎'},
+                ];
+                const c = cfg[place.price_level] || cfg[1];
+                priceChip = '<div class="' + ACTIVE(c.cls) + '">' + c.i + ' ' + c.t + '</div>';
+            }
+
+            return typeChip + statusChip + priceChip;
         }
 
                 function buildPlaceChips(place) {
