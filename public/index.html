@@ -1053,7 +1053,7 @@
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
-        const PLACE_CACHE_KEY = 'japan_place_cache_v2';
+        const PLACE_CACHE_KEY = 'japan_place_cache_v3';
         const PLACE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
         let placeCache = JSON.parse(localStorage.getItem(PLACE_CACHE_KEY) || '{}');
 
@@ -2847,6 +2847,8 @@
                         if (idx >= 0) {
                             activities[idx].place = { ...activities[idx].place, ...cached };
                             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                            // Re-render pour afficher les données mises à jour
+                            setTimeout(() => renderPlanning(), 0);
                         }
                     }
                 }
@@ -2854,9 +2856,11 @@
 
             // ── 4. Rendu de chaque activité ──────────────────────────────────
             for (let i = 0; i < dayActivities.length; i++) {
-                const act        = dayActivities[i];
-                const arriveTime = realTimes[i];                                        // heure d'arrivée au site
-                const leaveTime  = addMinutesToTime(arriveTime, act.duration_minutes || 90); // heure de départ du site
+                // Toujours prendre la version fraîche depuis activities[] pour avoir les données enrichies
+                const actStored  = activities.find(a => a.id === dayActivities[i].id) || dayActivities[i];
+                const act        = actStored;
+                const arriveTime = realTimes[i];
+                const leaveTime  = addMinutesToTime(arriveTime, act.duration_minutes || 90);
 
                 const dur = act.duration_minutes || 90;
                 const mapsUrl = act.place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}` : '';

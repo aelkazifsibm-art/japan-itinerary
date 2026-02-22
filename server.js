@@ -183,7 +183,7 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
                 if (needsHours && parsed.opening_hours) opening_hours = parsed.opening_hours;
                 if (parsed.open_now !== undefined && open_now === null) open_now = parsed.open_now;
                 if (needsPrice && parsed.price_level !== undefined && parsed.price_level !== null) price_level = parsed.price_level;
-                if (parsed.price_detail) { ai_hours = true; Object.assign(p, { price_detail: parsed.price_detail }); }
+                if (parsed.price_detail) p._price_detail = parsed.price_detail;
                 ai_hours = true;
             } catch(aiErr) {
                 console.warn("OpenAI search fallback failed:", aiErr.message);
@@ -201,7 +201,7 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
                 opening_hours,
                 open_now,
                 price_level,
-                price_detail: p.price_detail || null,
+                price_detail: p._price_detail || null,
                 types: p.types || [],
                 ai_hours
             }
