@@ -190,6 +190,20 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
             }
         }
 
+        // Types d'espaces publics accessibles H24
+        const publicTypes = ['neighborhood','sublocality','political','locality','geocode',
+                             'natural_feature','park','street_address','route','intersection',
+                             'premise','tourist_attraction','point_of_interest'];
+        const isPublicSpace = (p.types || []).some(t => publicTypes.includes(t));
+        // Si espace public sans horaires → H24
+        if (isPublicSpace && !opening_hours && open_now === null) {
+            opening_hours = ['Lundi: Ouvert 24h/24','Mardi: Ouvert 24h/24','Mercredi: Ouvert 24h/24',
+                             'Jeudi: Ouvert 24h/24','Vendredi: Ouvert 24h/24','Samedi: Ouvert 24h/24',
+                             'Dimanche: Ouvert 24h/24'];
+            open_now = true;
+            ai_hours = true;
+        }
+
         res.json({
             ok: true,
             place: {

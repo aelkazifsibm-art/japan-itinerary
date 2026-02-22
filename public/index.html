@@ -1053,7 +1053,7 @@
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
-        const PLACE_CACHE_KEY = 'japan_place_cache_v4';
+        const PLACE_CACHE_KEY = 'japan_place_cache_v5';
         const PLACE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
         let placeCache = JSON.parse(localStorage.getItem(PLACE_CACHE_KEY) || '{}');
 
@@ -2151,7 +2151,6 @@
         }
 
         async function confirmSuggestion() {
-            closeSuggestionPreview();
             if (!_previewBestTime) return;
 
             // place peut être null si Google Places n'a pas répondu — on ajoute quand même
@@ -2176,7 +2175,9 @@
             });
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
 
-            // Animation de confirmation
+            // Fermer le modal suggestion
+            closeSuggestionPreview();
+            // Animation de confirmation + render
             showAddConfirmation(_previewName, _previewBestTime, _previewImage);
             renderPlanning();
         }
@@ -2981,11 +2982,17 @@
 
         // Guard anti-boucle : set des place_ids en cours de fetch
         const _enrichingIds = new Set();
+        // Compteur de tentatives pour éviter les retries infinis
+        const _enrichRetries = {};
+        const MAX_ENRICH_RETRIES = 2;
 
         // Enrichit une activité avec horaires/prix depuis Google Places si manquants
         async function enrichActivityPlace(act) {
             if (!act.place?.place_id) return;
-            if (_enrichingIds.has(act.place.place_id)) return; // déjà en cours
+            if (_enrichingIds.has(act.place.place_id)) return;
+            const retries = _enrichRetries[act.place.place_id] || 0;
+            if (retries >= MAX_ENRICH_RETRIES) return; // max tentatives atteint
+            _enrichRetries[act.place.place_id] = retries + 1;
             _enrichingIds.add(act.place.place_id);
             try {
                 const cached = getPlaceCache(act.place.place_id);
@@ -2997,6 +3004,15 @@
                     activities[idx].place = { ...activities[idx].place, ...placeData };
                     localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
                     renderPlanning();
+                    // Si encore incomplet après enrichissement, retry automatique (délai 2s)
+                    const p = activities[idx].place;
+                    if ((p.opening_hours === null || p.opening_hours === undefined) ||
+                        (p.price_level === null || p.price_level === undefined)) {
+                        const retries = _enrichRetries[act.place.place_id] || 0;
+                        if (retries < MAX_ENRICH_RETRIES) {
+                            setTimeout(() => enrichActivityPlace(activities[idx]), 2000);
+                        }
+                    }
                 }
             } catch(e) {
                 console.warn('enrichActivityPlace error:', e);
