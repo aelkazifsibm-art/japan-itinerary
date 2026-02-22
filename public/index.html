@@ -1041,6 +1041,27 @@
         let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '{}');
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
 
+        // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
+        const PLACE_CACHE_KEY = 'japan_place_cache_v1';
+        const PLACE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
+        let placeCache = JSON.parse(localStorage.getItem(PLACE_CACHE_KEY) || '{}');
+
+        function getPlaceCache(placeId) {
+            const entry = placeCache[placeId];
+            if (!entry) return null;
+            if (Date.now() - entry.ts > PLACE_CACHE_TTL) {
+                delete placeCache[placeId];
+                localStorage.setItem(PLACE_CACHE_KEY, JSON.stringify(placeCache));
+                return null; // Expiré → re-fetch
+            }
+            return entry.data;
+        }
+
+        function setPlaceCache(placeId, data) {
+            placeCache[placeId] = { ts: Date.now(), data };
+            localStorage.setItem(PLACE_CACHE_KEY, JSON.stringify(placeCache));
+        }
+
         // ========== BASE DE DONNÉES SUGGESTIONS ==========
         const citySuggestions = {
             tokyo: [
@@ -2861,7 +2882,7 @@
                         <div class="w-12 flex-shrink-0 flex flex-col border-l border-gray-100 overflow-hidden rounded-r-2xl">
                             <!-- Maps pleine hauteur sauf croix -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
-                                class="flex-1 flex flex-col items-center justify-center gap-1 bg-blue-500 hover:bg-blue-600 transition-colors" title="Google Maps">
+                                class="flex-1 flex flex-col items-center justify-center gap-1 bg-slate-600 hover:bg-slate-700 transition-colors" title="Google Maps">
                                 <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                                 </svg>
@@ -2917,24 +2938,43 @@
         async function enrichActivityPlace(act) {
             if (!act.place?.place_id) return;
             try {
-                const res = await fetch('/api/place-details?place_id=' + act.place.place_id);
-                const data = await res.json();
-                if (data.ok && data.place) {
-                    // Mettre à jour l'objet place dans activities
-                    const idx = activities.findIndex(a => a.id === act.id);
-                    if (idx >= 0) {
-                        activities[idx].place = {
-                            ...activities[idx].place,
-                            opening_hours: data.place.opening_hours,
-                            open_now: data.place.open_now,
-                            price_level: data.place.price_level,
-                            types: data.place.types
-                        };
-                        localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
-                        renderPlanning(); // Re-render avec les nouvelles infos
-                    }
+                // 1. Vérifier le cache d'abord
+                const cached = getPlaceCache(act.place.place_id);
+                const placeData = cached || await fetchPlaceDetails(act.place.place_id);
+                if (!placeData) return;
+
+                // 2. Mettre à jour l'activité
+                const idx = activities.findIndex(a => a.id === act.id);
+                if (idx >= 0) {
+                    activities[idx].place = { ...activities[idx].place, ...placeData };
+                    localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                    renderPlanning();
                 }
             } catch(e) { /* silencieux */ }
+        }
+
+        async function fetchPlaceDetails(placeId) {
+            try {
+                const res = await fetch('/api/place-details?place_id=' + placeId);
+                const data = await res.json();
+                if (!data.ok) return null;
+                const placeData = {
+                    opening_hours: data.place.opening_hours,
+                    open_now:      data.place.open_now,
+                    price_level:   data.place.price_level,
+                    types:         data.place.types
+                };
+                setPlaceCache(placeId, placeData); // Sauvegarder en cache 7j
+                return placeData;
+            } catch(e) { return null; }
+        }
+
+        // Forcer le rafraîchissement des infos d'une activité (ignore le cache)
+        async function refreshActivityPlace(act) {
+            if (!act.place?.place_id) return;
+            delete placeCache[act.place.place_id];
+            localStorage.setItem(PLACE_CACHE_KEY, JSON.stringify(placeCache));
+            await enrichActivityPlace(act);
         }
 
                 // Type chip inline avec le titre
