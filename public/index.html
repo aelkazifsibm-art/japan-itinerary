@@ -1053,7 +1053,7 @@
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
-        const PLACE_CACHE_KEY = 'japan_place_cache_v3';
+        const PLACE_CACHE_KEY = 'japan_place_cache_v4';
         const PLACE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
         let placeCache = JSON.parse(localStorage.getItem(PLACE_CACHE_KEY) || '{}');
 
@@ -1069,6 +1069,8 @@
         }
 
         function setPlaceCache(placeId, data) {
+            // Ne pas mettre en cache si les données sont encore incomplètes
+            if (data.opening_hours === null && data.price_level === null) return;
             placeCache[placeId] = { ts: Date.now(), data };
             localStorage.setItem(PLACE_CACHE_KEY, JSON.stringify(placeCache));
         }
@@ -2838,7 +2840,8 @@
             dayActivities.forEach(act => {
                 if (act.place?.place_id) {
                     const cached = getPlaceCache(act.place.place_id);
-                    const needsEnrich = act.place.opening_hours === undefined || act.place.opening_hours === null;
+                    const needsEnrich = act.place.opening_hours === undefined || act.place.opening_hours === null
+                                        || act.place.price_level === undefined || act.place.price_level === null;
                     if (needsEnrich && !cached) {
                         enrichActivityPlace(act);
                     } else if (cached && needsEnrich) {
