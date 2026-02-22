@@ -2961,6 +2961,8 @@
                 `;
                 list.appendChild(optBtn);
             }
+            // Restaurer l'état du dropdown suggestions après re-render
+            setTimeout(() => applySuggestionsDropdownState(), 0);
         }
 
         // Guard anti-boucle : set des place_ids en cours de fetch
@@ -3057,10 +3059,13 @@
             // Statut ouverture — détecter H24
             let statusChip = '<div class="' + GREY + '">🕐<span>N/D</span></div>';
             if (place) {
+                const isNatural = (place.types||[]).some(t => ['natural_feature','park','national_park','mountain','hiking_area','campground'].includes(t));
                 // Détecter H24 : "Open 24 hours" dans les horaires
                 const is24h = (place.opening_hours || []).some(h => /24 hours|24h|ouvert en permanence/i.test(h));
                 const aiLabel = place.ai_hours ? '<span style="font-size:8px;opacity:0.6">~indicatif</span>' : '';
-                if (is24h)
+                if (isNatural && !place.opening_hours && place.open_now === null)
+                    statusChip = '<div class="' + ACTIVE('bg-sky-50 text-sky-700 border border-sky-200') + '">🌿<span>Accès libre</span></div>';
+                else if (is24h)
                     statusChip = '<div class="' + ACTIVE('bg-blue-50 text-blue-700 border border-blue-200') + '">🕐<span>H24</span>' + aiLabel + '</div>';
                 else if (place.open_now === true)
                     statusChip = '<div class="' + ACTIVE('bg-green-50 text-green-700 border border-green-200') + '"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span><span>Ouvert</span>' + aiLabel + '</div>';
@@ -3487,12 +3492,19 @@
             document.getElementById('activity-info-modal').classList.add('hidden');
         }
 
+        let _suggestionsOpen = false;
+
         function toggleSuggestionsDropdown() {
+            _suggestionsOpen = !_suggestionsOpen;
+            applySuggestionsDropdownState();
+        }
+
+        function applySuggestionsDropdownState() {
             const dropdown = document.getElementById('suggestions-dropdown');
             const arrow = document.getElementById('suggestions-arrow');
             const text = document.getElementById('suggestions-arrow-text');
-            const isHidden = dropdown.classList.contains('hidden');
-            if (isHidden) {
+            if (!dropdown) return;
+            if (_suggestionsOpen) {
                 dropdown.classList.remove('hidden');
                 if (arrow) arrow.style.transform = 'rotate(180deg)';
                 if (text) text.textContent = 'masquer';
