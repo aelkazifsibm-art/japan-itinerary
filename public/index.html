@@ -2666,6 +2666,15 @@
                     </div>
                 `;
                 list.appendChild(suggestionsContainer);
+                // Appliquer l'état dropdown immédiatement après injection dans le DOM
+                if (_suggestionsOpen) {
+                    const dd = suggestionsContainer.querySelector('#suggestions-dropdown');
+                    const ar = suggestionsContainer.querySelector('#suggestions-arrow');
+                    const tx = suggestionsContainer.querySelector('#suggestions-arrow-text');
+                    if (dd) dd.classList.remove('hidden');
+                    if (ar) ar.style.transform = 'rotate(180deg)';
+                    if (tx) tx.textContent = 'masquer';
+                }
 
                 const grid = document.getElementById('planning-suggestions-grid');
                 citySuggestions[selectedCity].forEach(suggestion => {
@@ -2961,8 +2970,7 @@
                 `;
                 list.appendChild(optBtn);
             }
-            // Restaurer l'état du dropdown suggestions après re-render
-            setTimeout(() => applySuggestionsDropdownState(), 0);
+
         }
 
         // Guard anti-boucle : set des place_ids en cours de fetch
