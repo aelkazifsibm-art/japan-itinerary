@@ -2841,24 +2841,41 @@
                     </div>
 
                     <!-- Contenu principal -->
-                    <div class="flex-1 p-4 min-w-0">
-                        <div class="text-lg font-black text-gray-800 leading-snug pr-6">${act.title}</div>
-                        ${act.description ? `<div class="text-xs text-gray-400 mt-1 leading-snug">${act.description}</div>` : ''}
-                        <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold tracking-wide">📍 ${act.place?.name || 'Lieu non défini'}</div>
+                    <div class="flex-1 p-4 min-w-0 pr-12">
+                        <!-- Titre + bouton Maps en haut à droite -->
+                        <div class="text-lg font-black text-gray-800 leading-snug">${act.title}</div>
+                        ${act.description ? `<div class="text-xs text-gray-400 mt-0.5 leading-snug">${act.description}</div>` : ''}
+                        <div class="text-[10px] text-gray-300 mt-1.5 uppercase font-bold tracking-wide">📍 ${act.place?.name || 'Lieu non défini'}</div>
+
+                        <!-- Chips : Type · Horaires · Prix -->
                         ${buildPlaceChips(act.place)}
+
+                        <!-- Boutons actions -->
                         <div class="mt-3 flex gap-2 flex-wrap">
                             ${act.place ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}"
                                target="_blank"
                                onclick="event.stopPropagation()"
-                               class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-lg hover:bg-blue-200 transition-colors">
-                                🗺️ Itinéraire
+                               class="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl font-semibold hover:bg-blue-200 transition-colors">
+                                🕐 Horaires
                             </a>` : ''}
-                            <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-lg">
+                            <button onclick="event.stopPropagation(); showActivityInfo(act)"
+                                class="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-3 py-1.5 rounded-xl font-semibold hover:bg-purple-200 transition-colors">
                                 ℹ️ + d'infos
-                            </span>
+                            </button>
                         </div>
                     </div>
-                    <button onclick="event.stopPropagation(); deleteActivity(${act.id})" class="absolute top-3 right-3 text-gray-300 hover:text-red-400 transition-colors text-lg leading-none">✕</button>
+
+                    <!-- Bouton Maps cercle en haut à droite -->
+                    ${act.place ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}"
+                        target="_blank"
+                        onclick="event.stopPropagation()"
+                        class="absolute top-3 right-8 w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center shadow-md transition-all active:scale-90"
+                        title="Voir sur Google Maps">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                    </a>` : ''}
+                    <button onclick="event.stopPropagation(); deleteActivity(${act.id})" class="absolute top-3 right-1 text-gray-300 hover:text-red-400 transition-colors text-lg leading-none">✕</button>
                 `;
                 list.appendChild(card);
 
@@ -2948,27 +2965,11 @@
                 }
             }
 
-            // ── Horaires ──────────────────────────────────────────────────
-            let hoursChip = '';
-            if (place.opening_hours && place.opening_hours.length > 0) {
-                const dayNames = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-                const todayLine = place.opening_hours.find(h => h.startsWith(dayNames[new Date().getDay()]));
-                if (todayLine) {
-                    const hours = todayLine.replace(/^[^:]+:\s*/, '');
-                    const isOpen = place.open_now;
-                    const dot = isOpen === true ? '<span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>' : isOpen === false ? '<span class="w-1.5 h-1.5 rounded-full bg-red-400 inline-block"></span>' : '';
-                    hoursChip = '<span class="inline-flex items-center gap-1.5 text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2.5 py-1 rounded-full font-semibold">' + dot + '🕐 ' + hours + '</span>';
-                }
-            }
-            if (!hoursChip) {
-                if (place.open_now === true)
-                    hoursChip = '<span class="inline-flex items-center gap-1.5 text-xs bg-green-50 border border-green-200 text-green-700 px-2.5 py-1 rounded-full font-semibold"><span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span> Ouvert maintenant</span>';
-                else if (place.open_now === false)
-                    hoursChip = '<span class="inline-flex items-center gap-1.5 text-xs bg-red-50 border border-red-200 text-red-600 px-2.5 py-1 rounded-full font-semibold"><span class="w-1.5 h-1.5 rounded-full bg-red-400 inline-block"></span> Fermé</span>';
-                else if (place.opening_hours === null)
-                    hoursChip = '<span class="inline-flex items-center gap-1.5 text-xs bg-gray-50 border border-gray-200 text-gray-400 px-2.5 py-1 rounded-full font-medium">🕐 Horaires N/A</span>';
-            }
-            if (hoursChip) chips.push(hoursChip);
+            // ── Statut ouverture ──────────────────────────────────────────
+            if (place.open_now === true)
+                chips.push('<span class="inline-flex items-center gap-1 text-xs bg-green-50 border border-green-200 text-green-700 px-2.5 py-1 rounded-full font-semibold"><span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span> Ouvert</span>');
+            else if (place.open_now === false)
+                chips.push('<span class="inline-flex items-center gap-1 text-xs bg-red-50 border border-red-200 text-red-600 px-2.5 py-1 rounded-full font-semibold"><span class="w-1.5 h-1.5 rounded-full bg-red-400 inline-block"></span> Fermé</span>');
 
             // ── Prix ──────────────────────────────────────────────────────
             if (place.price_level !== null && place.price_level !== undefined) {
@@ -2982,9 +2983,6 @@
                 const c = cfg[place.price_level] || cfg[1];
                 const priceText = place.price_level === 0 ? 'Gratuit' : c.symbol + ' · ' + c.label;
                 chips.push('<span class="inline-flex items-center gap-1.5 text-xs ' + c.cls + ' px-2.5 py-1 rounded-full font-semibold">' + c.icon + ' ' + priceText + '</span>');
-            } else if (place.price_level === null && place.place_id) {
-                // En attente d'enrichissement
-                chips.push('<span class="inline-flex items-center gap-1.5 text-xs bg-gray-50 border border-gray-200 text-gray-400 px-2.5 py-1 rounded-full font-medium">💴 Prix N/A</span>');
             }
 
             if (!chips.length) return '';
