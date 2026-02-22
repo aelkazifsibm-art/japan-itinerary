@@ -2823,7 +2823,7 @@
                 card.onclick = () => showActivityInfo(act);
                 card.innerHTML = `
                     <div class="flex" style="min-height:130px">
-                        <!-- ── Colonne timeline gauche — agrandie ── -->
+                        <!-- ── Colonne timeline gauche ── -->
                         <div class="w-20 flex-shrink-0 flex flex-col items-center py-4 bg-gray-50 border-r border-gray-100">
                             <span class="text-sm font-black text-gray-800">${arriveTime}</span>
                             <div class="relative flex flex-col items-center flex-1 my-2 w-full" style="min-height:40px">
@@ -2838,13 +2838,17 @@
 
                         <!-- ── Contenu centre ── -->
                         <div class="flex-1 min-w-0 px-3 py-3 flex flex-col justify-between">
+                            <!-- Titre + type chip inline -->
                             <div>
-                                <div class="text-sm font-black text-gray-800 leading-tight pr-2">${act.title}</div>
+                                <div class="flex items-start gap-2 flex-wrap">
+                                    <span class="text-sm font-black text-gray-800 leading-tight">${act.title}</span>
+                                    ${buildTypeChip(act.place)}
+                                </div>
                                 <div class="text-[10px] text-gray-400 mt-0.5 truncate">📍 ${act.place?.name || '—'}</div>
                             </div>
-                            <!-- Chips 3 colonnes -->
-                            <div class="grid grid-cols-3 gap-1 mt-2">
-                                ${buildPlaceChipsGrid(act.place)}
+                            <!-- 2 chips : statut + prix, pleine hauteur -->
+                            <div class="grid grid-cols-2 gap-1.5 mt-2 flex-1" style="align-items:stretch">
+                                ${buildStatusPriceChips(act.place)}
                             </div>
                             <!-- Bouton infos -->
                             <button onclick="event.stopPropagation(); showActivityInfo(act)"
@@ -2853,23 +2857,21 @@
                             </button>
                         </div>
 
-                        <!-- ── Colonne droite : ✕ suppr en haut, Maps en bas ── -->
-                        <div class="w-12 flex-shrink-0 flex flex-col items-center justify-between py-3 border-l border-gray-100 bg-gray-50">
-                            <!-- Croix suppression en haut -->
-                            <button onclick="event.stopPropagation(); confirmDeleteActivity(${act.id}, '${act.title.replace(/'/g, "\'")}')"
-                                class="flex flex-col items-center gap-0.5 group">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 group-hover:text-red-400 group-hover:bg-red-50 transition-all text-lg">✕</div>
-                            </button>
-                            <!-- Maps en bas -->
+                        <!-- ── Colonne droite : Maps pleine hauteur + ✕ ── -->
+                        <div class="w-12 flex-shrink-0 flex flex-col border-l border-gray-100 overflow-hidden rounded-r-2xl">
+                            <!-- Maps pleine hauteur sauf croix -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
-                                class="flex flex-col items-center gap-0.5 group" title="Google Maps">
-                                <div class="w-8 h-8 rounded-full bg-blue-500 group-hover:bg-blue-600 flex items-center justify-center shadow-md transition-colors">
-                                    <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                                    </svg>
-                                </div>
-                                <span class="text-[9px] text-blue-400 font-medium leading-none">Maps</span>
-                            </a>` : '<div class="w-8 h-8"></div>'}
+                                class="flex-1 flex flex-col items-center justify-center gap-1 bg-blue-500 hover:bg-blue-600 transition-colors" title="Google Maps">
+                                <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                                </svg>
+                                <span class="text-[9px] text-white font-bold">Maps</span>
+                            </a>` : '<div class="flex-1"></div>'}
+                            <!-- Croix en bas -->
+                            <button onclick="event.stopPropagation(); confirmDeleteActivity(${act.id}, '${act.title.replace(/'/g, "\'")}')"
+                                class="h-9 flex items-center justify-center bg-gray-50 hover:bg-red-50 border-t border-gray-100 transition-colors">
+                                <span class="text-gray-300 hover:text-red-400 text-base">✕</span>
+                            </button>
                         </div>
                     </div>
                 `;
@@ -2935,6 +2937,67 @@
             } catch(e) { /* silencieux */ }
         }
 
+                // Type chip inline avec le titre
+        function buildTypeChip(place) {
+            if (!place) return '';
+            const typeMap = [
+                ['Temple',     ['temple','shrine','place_of_worship','buddhist_temple','hindu_temple','shinto_shrine']],
+                ['Château',    ['castle']],
+                ['Musée',      ['museum','art_gallery']],
+                ['Histoire',   ['historical_landmark','cemetery','monument','ruins','historic_site']],
+                ['Parc',       ['park','botanical_garden','campground']],
+                ['Nature',     ['natural_feature','national_park','forest','waterfall','lake','river']],
+                ['Rando',      ['hiking_area','mountain']],
+                ['Plage',      ['beach','waterfront']],
+                ['Onsen',      ['spa','health','beauty_salon','hot_spring']],
+                ['Resto',      ['restaurant','food','meal_delivery','meal_takeaway']],
+                ['Izakaya',    ['bar','night_club','liquor_store']],
+                ['Café',       ['cafe','bakery','coffee_shop']],
+                ['Shopping',   ['shopping_mall','store','supermarket','market','clothing_store','department_store']],
+                ['Zoo/Aqua',   ['zoo','aquarium']],
+                ['Spectacle',  ['movie_theater','performing_arts_theater','casino','stadium','amusement_park']],
+                ['Quartier',   ['neighborhood','sublocality','political','locality','geocode','tourist_attraction','point_of_interest']],
+            ];
+            const em = {'Temple':'⛩️','Château':'🏯','Musée':'🎨','Histoire':'🏛️','Parc':'🌿','Nature':'🌸','Rando':'⛰️','Plage':'🌊','Onsen':'♨️','Resto':'🍜','Izakaya':'🍶','Café':'☕','Shopping':'🛍️','Zoo/Aqua':'🐾','Spectacle':'🎭','Quartier':'🏙️'};
+            for (const [label, kw] of typeMap) {
+                if ((place.types||[]).some(t => kw.includes(t))) {
+                    return '<span class="inline-flex items-center gap-0.5 text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">' + (em[label]||'📍') + ' ' + label + '</span>';
+                }
+            }
+            return '';
+        }
+
+        // 2 chips pleine hauteur : statut ouverture + prix
+        function buildStatusPriceChips(place) {
+            const GREY = 'flex flex-col items-center justify-center gap-0.5 text-[10px] bg-gray-100 text-gray-400 py-2 px-1 rounded-lg font-medium text-center';
+            const ACTIVE = (cls) => 'flex flex-col items-center justify-center gap-0.5 text-[10px] ' + cls + ' py-2 px-1 rounded-lg font-semibold text-center';
+
+            // Statut ouverture
+            let statusChip = '<div class="' + GREY + '">🕐<span>N/D</span></div>';
+            if (place) {
+                if (place.open_now === true)
+                    statusChip = '<div class="' + ACTIVE('bg-green-50 text-green-700 border border-green-200') + '"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span><span>Ouvert</span></div>';
+                else if (place.open_now === false)
+                    statusChip = '<div class="' + ACTIVE('bg-red-50 text-red-600 border border-red-200') + '"><span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span><span>Fermé</span></div>';
+            }
+
+            // Prix
+            let priceChip = '<div class="' + GREY + '">💴<span>N/D</span></div>';
+            if (place && place.price_level !== null && place.price_level !== undefined) {
+                const cfg = [
+                    {t:'Gratuit', i:'🎟️', cls:'bg-green-50 text-green-700 border border-green-200'},
+                    {t:'€',       i:'💴',  cls:'bg-sky-50 text-sky-700 border border-sky-200'},
+                    {t:'€€',      i:'💴',  cls:'bg-yellow-50 text-yellow-700 border border-yellow-200'},
+                    {t:'€€€',     i:'💴',  cls:'bg-orange-50 text-orange-700 border border-orange-200'},
+                    {t:'€€€€',    i:'💎',  cls:'bg-red-50 text-red-700 border border-red-200'},
+                ];
+                const c = cfg[place.price_level] || cfg[1];
+                priceChip = '<div class="' + ACTIVE(c.cls) + '">' + c.i + '<span>' + c.t + '</span></div>';
+            }
+
+            return statusChip + priceChip;
+        }
+
                 // Chips en grille 3 colonnes — taille identique garanie par grid
         function buildPlaceChipsGrid(place) {
             const GREY = 'col-span-1 flex items-center justify-center gap-1 text-[10px] bg-gray-100 text-gray-400 py-1 px-1 rounded-lg font-medium text-center';
@@ -2945,22 +3008,23 @@
             if (place) {
                 const typeMap = [
                     ['Temple',     ['temple','shrine','place_of_worship','buddhist_temple','hindu_temple','shinto_shrine']],
-                    ['Château',    ['castle','historic_site']],
+                    ['Château',    ['castle']],
                     ['Musée',      ['museum','art_gallery']],
-                    ['Histoire',   ['historical_landmark','cemetery','monument','ruins']],
-                    ['Parc',       ['park','garden','botanical_garden','campground']],
-                    ['Rando',      ['natural_feature','mountain','hiking_area','national_park']],
+                    ['Histoire',   ['historical_landmark','cemetery','monument','ruins','historic_site']],
+                    ['Parc',       ['park','botanical_garden','campground']],
+                    ['🌸 Nature',  ['natural_feature','national_park','forest','waterfall','lake','river']],
+                    ['Rando',      ['hiking_area','mountain']],
                     ['Plage',      ['beach','waterfront']],
                     ['Onsen',      ['spa','health','beauty_salon','hot_spring']],
                     ['Resto',      ['restaurant','food','meal_delivery','meal_takeaway']],
-                    ['Bar/Izakaya',['bar','night_club','liquor_store']],
+                    ['Izakaya',    ['bar','night_club','liquor_store']],
                     ['Café',       ['cafe','bakery','coffee_shop']],
-                    ['Shopping',   ['shopping_mall','store','supermarket','market','clothing_store']],
-                    ['Expérience', ['amusement_park','zoo','aquarium','bowling_alley','stadium']],
-                    ['Spectacle',  ['movie_theater','performing_arts_theater','casino']],
-                    ['Excursion',  ['travel_agency','tourist_attraction','point_of_interest']],
+                    ['Shopping',   ['shopping_mall','store','supermarket','market','clothing_store','department_store']],
+                    ['Zoo/Aqua',   ['zoo','aquarium']],
+                    ['Spectacle',  ['movie_theater','performing_arts_theater','casino','stadium','amusement_park']],
+                    ['Quartier',   ['neighborhood','sublocality','political','locality','geocode','tourist_attraction','point_of_interest']],
                 ];
-                const em = {'Temple':'⛩️','Château':'🏯','Musée':'🎨','Histoire':'🏛️','Parc':'🌿','Rando':'⛰️','Plage':'🌊','Onsen':'♨️','Resto':'🍜','Bar/Izakaya':'🍶','Café':'☕','Shopping':'🛍️','Expérience':'🎪','Spectacle':'🎭','Excursion':'🚢'};
+                const em = {'Temple':'⛩️','Château':'🏯','Musée':'🎨','Histoire':'🏛️','Parc':'🌿','🌸 Nature':'🌸','Rando':'⛰️','Plage':'🌊','Onsen':'♨️','Resto':'🍜','Izakaya':'🍶','Café':'☕','Shopping':'🛍️','Zoo/Aqua':'🐾','Spectacle':'🎭','Quartier':'🏙️'};
                 for (const [label, kw] of typeMap) {
                     if ((place.types||[]).some(t => kw.includes(t))) {
                         typeChip = '<div class="' + ACTIVE('bg-indigo-100 text-indigo-700') + '">' + (em[label]||'📍') + ' ' + label + '</div>';
@@ -3005,22 +3069,23 @@
             if (place) {
                 const typeMap = [
                     ['Temple',     ['temple','shrine','place_of_worship','buddhist_temple','hindu_temple','shinto_shrine']],
-                    ['Château',    ['castle','historic_site']],
+                    ['Château',    ['castle']],
                     ['Musée',      ['museum','art_gallery']],
-                    ['Histoire',   ['historical_landmark','cemetery','monument','ruins']],
-                    ['Parc',       ['park','garden','botanical_garden','campground']],
-                    ['Rando',      ['natural_feature','mountain','hiking_area','national_park']],
+                    ['Histoire',   ['historical_landmark','cemetery','monument','ruins','historic_site']],
+                    ['Parc',       ['park','botanical_garden','campground']],
+                    ['🌸 Nature',  ['natural_feature','national_park','forest','waterfall','lake','river']],
+                    ['Rando',      ['hiking_area','mountain']],
                     ['Plage',      ['beach','waterfront']],
                     ['Onsen',      ['spa','health','beauty_salon','hot_spring']],
                     ['Resto',      ['restaurant','food','meal_delivery','meal_takeaway']],
-                    ['Bar/Izakaya',['bar','night_club','liquor_store']],
+                    ['Izakaya',    ['bar','night_club','liquor_store']],
                     ['Café',       ['cafe','bakery','coffee_shop']],
-                    ['Shopping',   ['shopping_mall','store','supermarket','market','clothing_store']],
-                    ['Expérience', ['amusement_park','zoo','aquarium','bowling_alley','stadium']],
-                    ['Spectacle',  ['movie_theater','performing_arts_theater','casino']],
-                    ['Excursion',  ['travel_agency','tourist_attraction','point_of_interest']],
+                    ['Shopping',   ['shopping_mall','store','supermarket','market','clothing_store','department_store']],
+                    ['Zoo/Aqua',   ['zoo','aquarium']],
+                    ['Spectacle',  ['movie_theater','performing_arts_theater','casino','stadium','amusement_park']],
+                    ['Quartier',   ['neighborhood','sublocality','political','locality','geocode','tourist_attraction','point_of_interest']],
                 ];
-                const typeEmoji = {'Temple':'⛩️','Château':'🏯','Musée':'🎨','Histoire':'🏛️','Parc':'🌿','Rando':'⛰️','Plage':'🌊','Onsen':'♨️','Resto':'🍜','Bar/Izakaya':'🍶','Café':'☕','Shopping':'🛍️','Expérience':'🎪','Spectacle':'🎭','Excursion':'🚢'};
+                const typeEmoji = {'Temple':'⛩️','Château':'🏯','Musée':'🎨','Histoire':'🏛️','Parc':'🌿','🌸 Nature':'🌸','Rando':'⛰️','Plage':'🌊','Onsen':'♨️','Resto':'🍜','Izakaya':'🍶','Café':'☕','Shopping':'🛍️','Zoo/Aqua':'🐾','Spectacle':'🎭','Quartier':'🏙️'};
                 for (const [label, keywords] of typeMap) {
                     if ((place.types||[]).some(t => keywords.includes(t))) {
                         typeChip = '<span class="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full font-bold">' + (typeEmoji[label]||'📍') + ' ' + label + '</span>';
