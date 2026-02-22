@@ -2823,17 +2823,17 @@
                 card.onclick = () => showActivityInfo(act);
                 card.innerHTML = `
                     <div class="flex" style="min-height:130px">
-                        <!-- ── Colonne timeline gauche ── -->
-                        <div class="w-16 flex-shrink-0 flex flex-col items-center py-4 bg-gray-50 border-r border-gray-100">
-                            <span class="text-xs font-black text-gray-700">${arriveTime}</span>
+                        <!-- ── Colonne timeline gauche — agrandie ── -->
+                        <div class="w-20 flex-shrink-0 flex flex-col items-center py-4 bg-gray-50 border-r border-gray-100">
+                            <span class="text-sm font-black text-gray-800">${arriveTime}</span>
                             <div class="relative flex flex-col items-center flex-1 my-2 w-full" style="min-height:40px">
                                 <div style="position:absolute;left:calc(50% - 1px);top:0;bottom:0;width:2px;background:linear-gradient(to bottom,#c084fc,#f472b6);border-radius:9999px"></div>
-                                <div class="absolute top-1/2 -translate-y-1/2 bg-white border border-purple-200 rounded-lg px-1.5 py-0.5 shadow-sm z-10">
-                                    <div class="text-xs font-black text-purple-600 leading-none text-center">${dur}</div>
-                                    <div class="text-[9px] text-purple-400 leading-none text-center">min</div>
+                                <div class="absolute top-1/2 -translate-y-1/2 bg-white border-2 border-purple-300 rounded-xl px-2 py-1 shadow-sm z-10">
+                                    <div class="text-sm font-black text-purple-600 leading-none text-center">${dur}</div>
+                                    <div class="text-[10px] text-purple-400 leading-none text-center font-medium">min</div>
                                 </div>
                             </div>
-                            <span class="text-xs font-bold text-gray-400">${leaveTime}</span>
+                            <span class="text-sm font-bold text-gray-400">${leaveTime}</span>
                         </div>
 
                         <!-- ── Contenu centre ── -->
@@ -2853,9 +2853,14 @@
                             </button>
                         </div>
 
-                        <!-- ── Colonne droite : Maps + suppr ── -->
+                        <!-- ── Colonne droite : ✕ suppr en haut, Maps en bas ── -->
                         <div class="w-12 flex-shrink-0 flex flex-col items-center justify-between py-3 border-l border-gray-100 bg-gray-50">
-                            <!-- Bouton Maps bien visible -->
+                            <!-- Croix suppression en haut -->
+                            <button onclick="event.stopPropagation(); confirmDeleteActivity(${act.id}, '${act.title.replace(/'/g, "\'")}')"
+                                class="flex flex-col items-center gap-0.5 group">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 group-hover:text-red-400 group-hover:bg-red-50 transition-all text-lg">✕</div>
+                            </button>
+                            <!-- Maps en bas -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
                                 class="flex flex-col items-center gap-0.5 group" title="Google Maps">
                                 <div class="w-8 h-8 rounded-full bg-blue-500 group-hover:bg-blue-600 flex items-center justify-center shadow-md transition-colors">
@@ -2865,11 +2870,6 @@
                                 </div>
                                 <span class="text-[9px] text-blue-400 font-medium leading-none">Maps</span>
                             </a>` : '<div class="w-8 h-8"></div>'}
-                            <!-- Bouton supprimer -->
-                            <button onclick="event.stopPropagation(); deleteActivity(${act.id})"
-                                class="flex flex-col items-center gap-0.5 group">
-                                <div class="w-7 h-7 rounded-full flex items-center justify-center text-gray-300 group-hover:text-red-400 group-hover:bg-red-50 transition-all text-base">✕</div>
-                            </button>
                         </div>
                     </div>
                 `;
@@ -3177,7 +3177,21 @@
             return `${hours}h${mins}`;
         }
 
-        function deleteActivity(id) {
+
+        function confirmDeleteActivity(id, name) {
+            document.getElementById('delete-confirm-name').textContent = name;
+            document.getElementById('delete-confirm-btn').onclick = () => {
+                deleteActivity(id);
+                closeDeleteConfirm();
+            };
+            document.getElementById('delete-confirm-modal').classList.remove('hidden');
+        }
+
+        function closeDeleteConfirm() {
+            document.getElementById('delete-confirm-modal').classList.add('hidden');
+        }
+
+                function deleteActivity(id) {
             activities = activities.filter(a => a.id !== id);
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
             renderPlanning();
@@ -3865,5 +3879,24 @@
             }, 1500);
         };
     </script>
+
+    <!-- MODAL CONFIRMATION SUPPRESSION ACTIVITÉ -->
+    <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[500] hidden flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xs p-6 text-center">
+            <div class="text-4xl mb-3">🗑️</div>
+            <div class="text-base font-black text-gray-800 mb-1">Supprimer cette activité ?</div>
+            <div id="delete-confirm-name" class="text-sm text-gray-500 mb-5 font-medium"></div>
+            <div class="flex gap-3">
+                <button onclick="closeDeleteConfirm()"
+                    class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors">
+                    Annuler
+                </button>
+                <button id="delete-confirm-btn"
+                    class="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold text-sm hover:bg-red-600 active:scale-95 transition-all shadow-lg">
+                    Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
