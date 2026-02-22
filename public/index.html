@@ -3965,6 +3965,10 @@
             setTimeout(() => peekFab(), 100);
         }
 
+        function updateVoyageTab() {
+            renderStaysList();
+        }
+
         function switchConfigTab(tabName) {
             document.querySelectorAll('.config-content').forEach(c => c.classList.add('hidden'));
             document.querySelectorAll('.config-tab-bottom').forEach(b => {
