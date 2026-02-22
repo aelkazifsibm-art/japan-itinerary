@@ -2845,7 +2845,7 @@
                 card.innerHTML = `
                     <div class="flex" style="min-height:130px">
                         <!-- ── Colonne timeline gauche ── -->
-                        <div class="w-20 flex-shrink-0 flex flex-col items-center py-4 bg-gray-50 border-r border-gray-100">
+                        <div class="w-20 flex-shrink-0 flex flex-col items-center py-4 bg-blue-50 border-r border-blue-100">
                             <span class="text-sm font-black text-gray-800">${arriveTime}</span>
                             <div class="relative flex flex-col items-center flex-1 my-2 w-full" style="min-height:40px">
                                 <div style="position:absolute;left:calc(50% - 1px);top:0;bottom:0;width:2px;background:linear-gradient(to bottom,#c084fc,#f472b6);border-radius:9999px"></div>
@@ -2882,11 +2882,11 @@
                         <div class="w-12 flex-shrink-0 flex flex-col border-l border-gray-100 overflow-hidden rounded-r-2xl">
                             <!-- Maps pleine hauteur sauf croix -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
-                                class="flex-1 flex flex-col items-center justify-center gap-1 bg-slate-600 hover:bg-slate-700 transition-colors" title="Google Maps">
-                                <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                class="flex-1 flex flex-col items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 transition-colors" title="Google Maps">
+                                <svg class="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                                 </svg>
-                                <span class="text-[9px] text-white font-bold">Maps</span>
+                                <span class="text-[9px] text-slate-500 font-bold">Maps</span>
                             </a>` : '<div class="flex-1"></div>'}
                             <!-- Croix en bas -->
                             <button onclick="event.stopPropagation(); confirmDeleteActivity(${act.id}, '${act.title.replace(/'/g, "\'")}')"
@@ -3012,16 +3012,20 @@
             const GREY = 'flex flex-col items-center justify-center gap-0.5 text-[10px] bg-gray-100 text-gray-400 py-2 px-1 rounded-lg font-medium text-center';
             const ACTIVE = (cls) => 'flex flex-col items-center justify-center gap-0.5 text-[10px] ' + cls + ' py-2 px-1 rounded-lg font-semibold text-center';
 
-            // Statut ouverture
+            // Statut ouverture — détecter H24
             let statusChip = '<div class="' + GREY + '">🕐<span>N/D</span></div>';
             if (place) {
-                if (place.open_now === true)
+                // Détecter H24 : "Open 24 hours" dans les horaires
+                const is24h = (place.opening_hours || []).some(h => /24 hours|24h|ouvert en permanence/i.test(h));
+                if (is24h)
+                    statusChip = '<div class="' + ACTIVE('bg-blue-50 text-blue-700 border border-blue-200') + '">🕐<span>H24</span></div>';
+                else if (place.open_now === true)
                     statusChip = '<div class="' + ACTIVE('bg-green-50 text-green-700 border border-green-200') + '"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span><span>Ouvert</span></div>';
                 else if (place.open_now === false)
                     statusChip = '<div class="' + ACTIVE('bg-red-50 text-red-600 border border-red-200') + '"><span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span><span>Fermé</span></div>';
             }
 
-            // Prix
+            // Prix — "Gratuit" explicite si price_level = 0
             let priceChip = '<div class="' + GREY + '">💴<span>N/D</span></div>';
             if (place && place.price_level !== null && place.price_level !== undefined) {
                 const cfg = [
