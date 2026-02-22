@@ -2944,16 +2944,23 @@
             let typeChip = '<div class="' + GREY + '">📍 N/D</div>';
             if (place) {
                 const typeMap = [
-                    ['Temple',     ['temple','shrine','place_of_worship','buddhist_temple','hindu_temple']],
-                    ['Marché',     ['market','food_market','shopping_mall','store','supermarket']],
-                    ['Parc',       ['park','garden','natural_feature','campground']],
+                    ['Temple',     ['temple','shrine','place_of_worship','buddhist_temple','hindu_temple','shinto_shrine']],
+                    ['Château',    ['castle','historic_site']],
                     ['Musée',      ['museum','art_gallery']],
-                    ['Restaurant', ['restaurant','food','cafe','bakery','bar']],
-                    ['Château',    ['castle']],
-                    ['Onsen',      ['spa','health']],
-                    ['Montagne',   ['mountain','hiking_area']],
+                    ['Histoire',   ['historical_landmark','cemetery','monument','ruins']],
+                    ['Parc',       ['park','garden','botanical_garden','campground']],
+                    ['Rando',      ['natural_feature','mountain','hiking_area','national_park']],
+                    ['Plage',      ['beach','waterfront']],
+                    ['Onsen',      ['spa','health','beauty_salon','hot_spring']],
+                    ['Resto',      ['restaurant','food','meal_delivery','meal_takeaway']],
+                    ['Bar/Izakaya',['bar','night_club','liquor_store']],
+                    ['Café',       ['cafe','bakery','coffee_shop']],
+                    ['Shopping',   ['shopping_mall','store','supermarket','market','clothing_store']],
+                    ['Expérience', ['amusement_park','zoo','aquarium','bowling_alley','stadium']],
+                    ['Spectacle',  ['movie_theater','performing_arts_theater','casino']],
+                    ['Excursion',  ['travel_agency','tourist_attraction','point_of_interest']],
                 ];
-                const em = {'Temple':'⛩️','Marché':'🛍️','Parc':'🌿','Musée':'🎨','Restaurant':'🍜','Château':'🏯','Onsen':'♨️','Montagne':'⛰️'};
+                const em = {'Temple':'⛩️','Château':'🏯','Musée':'🎨','Histoire':'🏛️','Parc':'🌿','Rando':'⛰️','Plage':'🌊','Onsen':'♨️','Resto':'🍜','Bar/Izakaya':'🍶','Café':'☕','Shopping':'🛍️','Expérience':'🎪','Spectacle':'🎭','Excursion':'🚢'};
                 for (const [label, kw] of typeMap) {
                     if ((place.types||[]).some(t => kw.includes(t))) {
                         typeChip = '<div class="' + ACTIVE('bg-indigo-100 text-indigo-700') + '">' + (em[label]||'📍') + ' ' + label + '</div>';
@@ -2997,16 +3004,23 @@
             let typeChip = '<span class="' + GREY + '">📍 Type N/D</span>';
             if (place) {
                 const typeMap = [
-                    ['Temple',     ['temple','shrine','place_of_worship','buddhist_temple','hindu_temple']],
-                    ['Marché',     ['market','food_market','shopping_mall','store','supermarket']],
-                    ['Parc',       ['park','garden','natural_feature','campground']],
+                    ['Temple',     ['temple','shrine','place_of_worship','buddhist_temple','hindu_temple','shinto_shrine']],
+                    ['Château',    ['castle','historic_site']],
                     ['Musée',      ['museum','art_gallery']],
-                    ['Restaurant', ['restaurant','food','cafe','bakery','bar']],
-                    ['Château',    ['castle']],
-                    ['Onsen',      ['spa','health']],
-                    ['Montagne',   ['mountain','hiking_area']],
+                    ['Histoire',   ['historical_landmark','cemetery','monument','ruins']],
+                    ['Parc',       ['park','garden','botanical_garden','campground']],
+                    ['Rando',      ['natural_feature','mountain','hiking_area','national_park']],
+                    ['Plage',      ['beach','waterfront']],
+                    ['Onsen',      ['spa','health','beauty_salon','hot_spring']],
+                    ['Resto',      ['restaurant','food','meal_delivery','meal_takeaway']],
+                    ['Bar/Izakaya',['bar','night_club','liquor_store']],
+                    ['Café',       ['cafe','bakery','coffee_shop']],
+                    ['Shopping',   ['shopping_mall','store','supermarket','market','clothing_store']],
+                    ['Expérience', ['amusement_park','zoo','aquarium','bowling_alley','stadium']],
+                    ['Spectacle',  ['movie_theater','performing_arts_theater','casino']],
+                    ['Excursion',  ['travel_agency','tourist_attraction','point_of_interest']],
                 ];
-                const typeEmoji = {'Temple':'⛩️','Marché':'🛍️','Parc':'🌿','Musée':'🎨','Restaurant':'🍜','Château':'🏯','Onsen':'♨️','Montagne':'⛰️'};
+                const typeEmoji = {'Temple':'⛩️','Château':'🏯','Musée':'🎨','Histoire':'🏛️','Parc':'🌿','Rando':'⛰️','Plage':'🌊','Onsen':'♨️','Resto':'🍜','Bar/Izakaya':'🍶','Café':'☕','Shopping':'🛍️','Expérience':'🎪','Spectacle':'🎭','Excursion':'🚢'};
                 for (const [label, keywords] of typeMap) {
                     if ((place.types||[]).some(t => keywords.includes(t))) {
                         typeChip = '<span class="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full font-bold">' + (typeEmoji[label]||'📍') + ' ' + label + '</span>';
