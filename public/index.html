@@ -2906,11 +2906,11 @@
                         <div class="flex-1 min-w-0 px-3 py-3 flex flex-col justify-between">
                             <!-- Titre + type chip inline -->
                             <div>
-                                <div class="flex items-start gap-2 flex-wrap">
-                                    <span class="text-sm font-black text-gray-800 leading-tight">${act.title}</span>
+                                <div class="text-sm font-black text-gray-800 leading-tight truncate">${act.title}</div>
+                                <div class="flex items-center gap-1.5 mt-0.5">
                                     ${buildTypeChip(act.place)}
+                                    <span class="text-[10px] text-gray-400 truncate">📍 ${act.place?.name || '—'}</span>
                                 </div>
-                                <div class="text-[10px] text-gray-400 mt-0.5 truncate">📍 ${act.place?.name || '—'}</div>
                             </div>
                             <!-- 2 chips : statut + prix, pleine hauteur -->
                             <div class="grid grid-cols-2 gap-1.5 mt-2 flex-1" style="align-items:stretch">
