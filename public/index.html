@@ -1031,6 +1031,17 @@
     <script>
         // ========== DONNÉES GLOBALES ==========
         let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
+        // Migration : remettre opening_hours null → undefined pour forcer re-enrichissement
+        let _migrated = false;
+        activities.forEach(act => {
+            if (act.place && act.place.opening_hours === null && act.place.price_level === null) {
+                delete act.place.opening_hours;
+                delete act.place.price_level;
+                delete act.place.open_now;
+                _migrated = true;
+            }
+        });
+        if (_migrated) localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
         let tripData = JSON.parse(localStorage.getItem('japan_trip_info_v5') || 'null');
         let currentDayIndex = 0;
         let selectedPlace = null;
@@ -2973,8 +2984,9 @@
 
         async function fetchPlaceDetails(placeId) {
             try {
-                const res = await fetch('/api/place-details?place_id=' + placeId);
+                const res = await fetch('/api/places/details?place_id=' + placeId);
                 const data = await res.json();
+                console.log('[PlaceDetails] place_id=' + placeId, 'status=', data.ok, 'data=', data);
                 if (!data.ok) return null;
                 const placeData = {
                     opening_hours: data.place.opening_hours,
@@ -2982,9 +2994,12 @@
                     price_level:   data.place.price_level,
                     types:         data.place.types
                 };
-                setPlaceCache(placeId, placeData); // Sauvegarder en cache 7j
+                setPlaceCache(placeId, placeData);
                 return placeData;
-            } catch(e) { return null; }
+            } catch(e) {
+                console.error('[PlaceDetails] fetch error:', e);
+                return null;
+            }
         }
 
         // Forcer le rafraîchissement des infos d'une activité (ignore le cache)
