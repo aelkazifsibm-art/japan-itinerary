@@ -2906,10 +2906,7 @@
                         <div class="flex-1 min-w-0 px-3 py-3 flex flex-col justify-between">
                             <!-- Titre + type chip inline -->
                             <div>
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <span class="text-sm font-black text-gray-800 leading-tight truncate">${act.title}</span>
-                                    ${buildTypeChip(act.place)}
-                                </div>
+                                <div class="text-sm font-black text-gray-800 leading-tight">${act.title}</div>
                                 <div class="text-[10px] text-gray-400 mt-0.5 truncate">📍 ${act.place?.name || '—'}</div>
                             </div>
                             <!-- 2 chips : statut + prix, pleine hauteur -->
@@ -2923,9 +2920,13 @@
                             </button>
                         </div>
 
-                        <!-- ── Colonne droite : Maps pleine hauteur + ✕ ── -->
+                        <!-- ── Colonne droite : type chip + Maps + ✕ ── -->
                         <div class="w-12 flex-shrink-0 flex flex-col border-l border-gray-100 overflow-hidden rounded-r-2xl">
-                            <!-- Maps pleine hauteur sauf croix -->
+                            <!-- Type chip en haut -->
+                            <div class="flex items-center justify-center px-1 pt-2 pb-1">
+                                ${buildTypeChip(act.place)}
+                            </div>
+                            <!-- Maps pleine hauteur -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
                                 class="flex-1 flex flex-col items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 transition-colors" title="Google Maps">
                                 <svg class="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="currentColor">
@@ -3107,15 +3108,17 @@
             let priceChip = '<div class="' + GREY + '">💴<span>N/D</span></div>';
             if (place && place.price_level !== null && place.price_level !== undefined) {
                 const cfg = [
-                    {t:'Gratuit', i:'🎟️', cls:'bg-green-50 text-green-700 border border-green-200'},
-                    {t:'€',       i:'💴',  cls:'bg-sky-50 text-sky-700 border border-sky-200'},
-                    {t:'€€',      i:'💴',  cls:'bg-yellow-50 text-yellow-700 border border-yellow-200'},
-                    {t:'€€€',     i:'💴',  cls:'bg-orange-50 text-orange-700 border border-orange-200'},
-                    {t:'€€€€',    i:'💎',  cls:'bg-red-50 text-red-700 border border-red-200'},
+                    {t:'Gratuit', cls:'bg-green-50 text-green-700 border border-green-200'},
+                    {t:'€',       cls:'bg-sky-50 text-sky-700 border border-sky-200'},
+                    {t:'€€',      cls:'bg-yellow-50 text-yellow-700 border border-yellow-200'},
+                    {t:'€€€',     cls:'bg-orange-50 text-orange-700 border border-orange-200'},
+                    {t:'€€€€',    cls:'bg-red-50 text-red-700 border border-red-200'},
                 ];
                 const c = cfg[place.price_level] || cfg[1];
-                const detail = place.price_detail ? '<span style="font-size:8px;opacity:0.7;line-height:1.1">' + place.price_detail + '</span>' : '';
-                priceChip = '<div class="' + ACTIVE(c.cls) + '" title="' + (place.price_detail || '') + '">' + c.i + '<span>' + c.t + '</span>' + detail + '</div>';
+                const detail = place.price_detail
+                    ? '<span style="font-size:8px;opacity:0.7;line-height:1.2;max-width:100%;overflow:hidden;display:block;text-overflow:ellipsis;white-space:nowrap">' + place.price_detail + '</span>'
+                    : '';
+                priceChip = '<div class="' + ACTIVE(c.cls) + '" title="' + (place.price_detail || '') + '"><span>' + c.t + '</span>' + detail + '</div>';
             }
 
             return statusChip + priceChip;
