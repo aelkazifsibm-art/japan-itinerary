@@ -1053,7 +1053,7 @@
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
-        const PLACE_CACHE_KEY = 'japan_place_cache_v7';
+        const PLACE_CACHE_KEY = 'japan_place_cache_v8';
         const PLACE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
         let placeCache = JSON.parse(localStorage.getItem(PLACE_CACHE_KEY) || '{}');
 
@@ -2857,7 +2857,8 @@
                 if (act.place?.place_id) {
                     const cached = getPlaceCache(act.place.place_id);
                     const needsEnrich = act.place.opening_hours === undefined || act.place.opening_hours === null
-                                        || act.place.price_level === undefined || act.place.price_level === null;
+                                        || act.place.price_level === undefined || act.place.price_level === null
+                                        || act.place.rating_source !== 'google'; // re-fetch si note pas encore depuis Google
                     if (needsEnrich && !cached) {
                         enrichActivityPlace(act);
                     } else if (cached && needsEnrich) {
@@ -3037,6 +3038,7 @@
                     price_eur:      data.place.price_eur     || null,
                     rating:         data.place.rating        || null,
                     review_count:   data.place.review_count  || null,
+                    rating_source:  data.place.rating_source || null,
                     visit_duration: data.place.visit_duration|| null,
                     types:          data.place.types,
                     ai_hours:       data.place.ai_hours || false

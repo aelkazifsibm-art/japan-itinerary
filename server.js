@@ -231,6 +231,7 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
                 price_eur:       price_eur       || null,
                 rating:          rating          || null,
                 review_count:    review_count    || null,
+                rating_source:   rating ? 'google' : null,
                 visit_duration:  visit_duration  || null,
                 types: p.types || [],
                 ai_hours
