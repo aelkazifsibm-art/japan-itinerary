@@ -2909,7 +2909,6 @@
                             <div>
                                 <div class="text-sm font-black text-gray-800 leading-tight">${act.title}</div>
                                 <div class="text-[10px] text-gray-400 mt-0.5 truncate">📍 ${act.place?.name || '—'}</div>
-                                ${buildRatingBar(act.place)}
                             </div>
                             <!-- 2 chips : statut + prix, pleine hauteur -->
                             <div class="grid grid-cols-2 gap-1.5 mt-2 flex-1" style="align-items:stretch">
@@ -2924,10 +2923,9 @@
 
                         <!-- ── Colonne droite : type chip + Maps + ✕ ── -->
                         <div class="w-16 flex-shrink-0 flex flex-col border-l border-gray-100 overflow-hidden rounded-r-2xl">
-                            <!-- Type chip + note Google -->
-                            <div class="flex flex-col items-center justify-center px-1 pt-2 pb-1 gap-1">
+                            <!-- Type chip en haut -->
+                            <div class="flex items-center justify-center px-1 pt-2 pb-1">
                                 ${buildTypeChip(act.place)}
-                                ${act.place?.rating ? `<div class="text-center leading-none"><span class="text-amber-400 font-black text-[10px]">${act.place.rating.toFixed(1)}★</span><div class="text-[8px] text-gray-400">${act.place.review_count ? '('+act.place.review_count.toLocaleString()+')' : ''}</div></div>` : ''}
                             </div>
                             <!-- Maps pleine hauteur -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
@@ -3064,15 +3062,16 @@
         function buildRatingBar(place) {
             if (!place) return '';
             const parts = [];
-            if (place.rating) {
-                parts.push('<span class="text-amber-400 font-bold text-[10px]">' + place.rating.toFixed(1) + ' ★</span>'
-                         + (place.review_count ? '<span class="text-gray-400 text-[10px]">(' + place.review_count.toLocaleString() + ')</span>' : ''));
-            }
             if (place.visit_duration) {
                 const dur = place.visit_duration >= 60
                     ? Math.floor(place.visit_duration/60)+'h'+(place.visit_duration%60 ? String(place.visit_duration%60).padStart(2,'0') : '')
                     : place.visit_duration+'min';
-                parts.push('<span class="text-gray-300 text-[10px]">·</span><span class="text-gray-400 text-[10px]">⏱ ' + dur + '</span>');
+                parts.push('<span class="text-gray-400 text-[10px]">⏱ ' + dur + '</span>');
+            }
+            if (place.price_eur) {
+                if (parts.length) parts.push('<span class="text-gray-300 text-[10px]">·</span>');
+                parts.push('<span class="text-indigo-500 font-bold text-[10px]">' + place.price_eur.toFixed(0) + '€</span>'
+                    + (place.price_detail ? '<span class="text-gray-400 text-[9px]"> ' + place.price_detail.split(',')[0] + '</span>' : ''));
             }
             if (!parts.length) return '';
             return '<div class="flex items-center gap-1 mt-0.5 flex-wrap">' + parts.join('') + '</div>';
@@ -3108,7 +3107,7 @@
             return '';
         }
 
-        // 2 chips pleine hauteur : statut ouverture + prix
+        // 2 chips pleine hauteur : [gauche] statut+prix | [droite] note+avis
         function buildStatusPriceChips(place) {
             const GREY = 'flex flex-col items-center justify-center gap-0.5 text-[10px] bg-gray-100 text-gray-400 py-2 px-1 rounded-lg font-medium text-center';
             const ACTIVE = (cls) => 'flex flex-col items-center justify-center gap-0.5 text-[10px] ' + cls + ' py-2 px-1 rounded-lg font-semibold text-center';
@@ -3157,7 +3156,16 @@
                 priceChip = '<div class="' + ACTIVE(c.cls) + '" title="' + (place.price_detail || '') + '">' + priceLabel + '</div>';
             }
 
-            return statusChip + priceChip;
+            // Chip droite : note + avis (remplace l'ancienne price chip)
+            let noteChip = '<div class="' + GREY + '">★<span>N/D</span></div>';
+            if (place && place.rating) {
+                noteChip = '<div class="' + ACTIVE('bg-amber-50 text-amber-700 border border-amber-200') + '">'
+                    + '<span class="font-black text-[11px]">' + place.rating.toFixed(1) + '★</span>'
+                    + (place.review_count ? '<span class="text-[8px] opacity-70">(' + place.review_count.toLocaleString() + ')</span>' : '')
+                    + '</div>';
+            }
+
+            return statusChip + noteChip;
         }
 
                 // Chips en grille 3 colonnes — taille identique garanie par grid
@@ -3445,10 +3453,44 @@
             const content = document.getElementById('info-modal-content');
             
             title.textContent = activity.title;
+
+            // Bloc données rapides (déjà en cache, affichage immédiat)
+            const place = activity.place;
+            const dur = place?.visit_duration
+                ? (place.visit_duration >= 60
+                    ? Math.floor(place.visit_duration/60)+'h'+(place.visit_duration%60 ? String(place.visit_duration%60).padStart(2,'0') : '')
+                    : place.visit_duration+'min')
+                : null;
+            const hoursToday = (() => {
+                if (!place?.opening_hours?.length) return null;
+                const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+                const today = days[new Date().getDay()];
+                return place.opening_hours.find(h => h.startsWith(today)) || place.opening_hours[0];
+            })();
+            const quickInfoBlocks = [
+                place?.rating ? `<div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                    <span class="text-amber-500 font-black">${place.rating.toFixed(1)} ★</span>
+                    ${place.review_count ? `<span class="text-gray-500 text-xs">${place.review_count.toLocaleString()} avis Google</span>` : ''}
+                </div>` : '',
+                dur ? `<div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+                    <span class="text-blue-600">⏱</span><span class="text-blue-700 text-xs font-semibold">${dur} de visite</span>
+                </div>` : '',
+                place?.price_eur ? `<div class="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                    <span class="text-green-600 font-black">${place.price_eur.toFixed(0)}€</span>
+                    ${place.price_detail ? `<span class="text-gray-500 text-xs">${place.price_detail}</span>` : ''}
+                </div>` : (place?.price_level === 0 ? `<div class="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                    <span class="text-green-600 font-black">Gratuit</span>
+                </div>` : ''),
+                hoursToday ? `<div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                    <span class="text-gray-500">🕐</span><span class="text-gray-700 text-xs">${hoursToday}</span>
+                </div>` : '',
+            ].filter(Boolean).join('');
+
             content.innerHTML = `
-                <div class="text-center py-8">
+                ${quickInfoBlocks ? `<div class="flex flex-wrap gap-2 mb-4">${quickInfoBlocks}</div>` : ''}
+                <div class="text-center py-6">
                     <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-primary"></div>
-                    <div class="text-sm text-gray-500 mt-2">Analyse en cours...</div>
+                    <div class="text-sm text-gray-500 mt-2">Analyse IA en cours...</div>
                 </div>
             `;
             
@@ -3470,6 +3512,7 @@
                 
                 if (data.success) {
                     const info = data.info;
+                    const quickInfoBlocksCurrent = content.querySelector ? (document.getElementById('info-modal-content').innerHTML.match(/(<div class="flex flex-wrap gap-2 mb-4">[\s\S]*?<\/div><\/div>)/) || [''])[0] : '';
                     
                     // Niveau d'affluence
                     const crowdColors = {
@@ -3486,6 +3529,7 @@
                     const crowdLabel = crowdLabels[info.crowd_level] || 'Inconnue';
                     
                     content.innerHTML = `
+                        ${quickInfoBlocks ? `<div class="flex flex-wrap gap-2 mb-4">${quickInfoBlocks}</div>` : ''}
                         <!-- Affluence -->
                         <div class="bg-${crowdColor}-50 border-2 border-${crowdColor}-200 rounded-xl p-4">
                             <div class="flex items-center gap-2 mb-2">
