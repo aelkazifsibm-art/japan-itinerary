@@ -161,20 +161,25 @@ app.get("/api/places/details", async (req, res) => {
                 const tokyoTime = new Date().toLocaleString('fr-FR', {timeZone: 'Asia/Tokyo'});
                 const aiRes = await openai.chat.completions.create({
                     model: "gpt-4o-search-preview",
-                    max_tokens: 400,
+                    max_tokens: 600,
                     messages: [{
                         role: "system",
-                        content: "Tu es un assistant de voyage expert au Japon. Cherche les informations sur le web puis réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour."
+                        content: "Tu es un assistant de voyage expert au Japon. Cherche sur le web (Google, Viator, TripAdvisor, site officiel) puis réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour."
                     }, {
                         role: "user",
-                        content: `Recherche les horaires d'ouverture officiels et le prix d'entrée de : "${p.name}", ${p.formatted_address}.
+                        content: `Recherche sur le web toutes les infos pour : "${p.name}", ${p.formatted_address}.
 Heure actuelle à Tokyo : ${tokyoTime}.
+Cherche sur Viator, TripAdvisor, Google Maps et le site officiel.
 Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
 {
   "opening_hours": ["Lundi: 06:00 - 17:00", ...] ou null,
   "open_now": true/false/null,
   "price_level": 0 si gratuit, 1 si <1000¥, 2 si 1000-2000¥, 3 si 2000-4000¥, 4 si >4000¥, null si inconnu,
-  "price_detail": "ex: 500¥ adulte, gratuit enfant" ou null
+  "price_detail": "ex: 1800¥ adulte, 600¥ enfant" ou null,
+  "price_eur": 12.50 (prix adulte en euros, nombre décimal) ou null,
+  "rating": 4.6 (note sur 5) ou null,
+  "review_count": 9825 (nombre d'avis) ou null,
+  "visit_duration": 90 (durée typique de visite en minutes) ou null
 }`
                     }]
                 });
@@ -184,6 +189,10 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
                 if (parsed.open_now !== undefined && open_now === null) open_now = parsed.open_now;
                 if (needsPrice && parsed.price_level !== undefined && parsed.price_level !== null) price_level = parsed.price_level;
                 if (parsed.price_detail) p._price_detail = parsed.price_detail;
+                if (parsed.price_eur)     p._price_eur     = parsed.price_eur;
+                if (parsed.rating)        p._rating        = parsed.rating;
+                if (parsed.review_count)  p._review_count  = parsed.review_count;
+                if (parsed.visit_duration)p._visit_duration= parsed.visit_duration;
                 ai_hours = true;
             } catch(aiErr) {
                 console.warn("OpenAI search fallback failed:", aiErr.message);
@@ -215,7 +224,11 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
                 opening_hours,
                 open_now,
                 price_level,
-                price_detail: p._price_detail || null,
+                price_detail:    p._price_detail    || null,
+                price_eur:       p._price_eur       || null,
+                rating:          p._rating          || null,
+                review_count:    p._review_count    || null,
+                visit_duration:  p._visit_duration  || null,
                 types: p.types || [],
                 ai_hours
             }

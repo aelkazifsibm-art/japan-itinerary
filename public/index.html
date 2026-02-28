@@ -1053,7 +1053,7 @@
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
-        const PLACE_CACHE_KEY = 'japan_place_cache_v5';
+        const PLACE_CACHE_KEY = 'japan_place_cache_v6';
         const PLACE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
         let placeCache = JSON.parse(localStorage.getItem(PLACE_CACHE_KEY) || '{}');
 
@@ -2908,6 +2908,7 @@
                             <div>
                                 <div class="text-sm font-black text-gray-800 leading-tight">${act.title}</div>
                                 <div class="text-[10px] text-gray-400 mt-0.5 truncate">📍 ${act.place?.name || '—'}</div>
+                                ${buildRatingBar(act.place)}
                             </div>
                             <!-- 2 chips : statut + prix, pleine hauteur -->
                             <div class="grid grid-cols-2 gap-1.5 mt-2 flex-1" style="align-items:stretch">
@@ -3029,12 +3030,16 @@
                 console.log('[PlaceDetails] place_id=' + placeId, 'status=', data.ok, 'data=', data);
                 if (!data.ok) return null;
                 const placeData = {
-                    opening_hours: data.place.opening_hours,
-                    open_now:      data.place.open_now,
-                    price_level:   data.place.price_level,
-                    price_detail:  data.place.price_detail || null,
-                    types:         data.place.types,
-                    ai_hours:      data.place.ai_hours || false
+                    opening_hours:  data.place.opening_hours,
+                    open_now:       data.place.open_now,
+                    price_level:    data.place.price_level,
+                    price_detail:   data.place.price_detail  || null,
+                    price_eur:      data.place.price_eur     || null,
+                    rating:         data.place.rating        || null,
+                    review_count:   data.place.review_count  || null,
+                    visit_duration: data.place.visit_duration|| null,
+                    types:          data.place.types,
+                    ai_hours:       data.place.ai_hours || false
                 };
                 setPlaceCache(placeId, placeData);
                 return placeData;
@@ -3052,7 +3057,27 @@
             await enrichActivityPlace(act);
         }
 
-                // Type chip inline avec le titre
+                // Barre note + avis + durée
+        function buildRatingBar(place) {
+            if (!place) return '';
+            const parts = [];
+            if (place.rating) {
+                const stars = '★'.repeat(Math.round(place.rating)) + '☆'.repeat(5 - Math.round(place.rating));
+                parts.push('<span class="text-amber-400 font-bold text-[10px]">' + place.rating.toFixed(1) + '</span>'
+                         + '<span class="text-amber-400 text-[9px]">★</span>'
+                         + (place.review_count ? '<span class="text-gray-400 text-[10px]">(' + place.review_count.toLocaleString() + ')</span>' : ''));
+            }
+            if (place.visit_duration) {
+                parts.push('<span class="text-gray-300 text-[10px]">·</span><span class="text-gray-400 text-[10px]">⏱ ' + (place.visit_duration >= 60 ? Math.floor(place.visit_duration/60)+'h'+(place.visit_duration%60?String(place.visit_duration%60).padStart(2,'0'):'') : place.visit_duration+'min') + '</span>');
+            }
+            if (place.price_eur) {
+                parts.push('<span class="text-gray-300 text-[10px]">·</span><span class="text-indigo-500 font-bold text-[10px]">' + place.price_eur.toFixed(0) + '€</span>');
+            }
+            if (!parts.length) return '';
+            return '<div class="flex items-center gap-1 mt-0.5 flex-wrap">' + parts.join('') + '</div>';
+        }
+
+        // Type chip inline avec le titre
         function buildTypeChip(place) {
             if (!place) return '';
             const typeMap = [
