@@ -2924,9 +2924,10 @@
 
                         <!-- ── Colonne droite : type chip + Maps + ✕ ── -->
                         <div class="w-16 flex-shrink-0 flex flex-col border-l border-gray-100 overflow-hidden rounded-r-2xl">
-                            <!-- Type chip en haut -->
-                            <div class="flex items-center justify-center px-1 pt-2 pb-1">
+                            <!-- Type chip + note Google -->
+                            <div class="flex flex-col items-center justify-center px-1 pt-2 pb-1 gap-1">
                                 ${buildTypeChip(act.place)}
+                                ${act.place?.rating ? `<div class="text-center leading-none"><span class="text-amber-400 font-black text-[10px]">${act.place.rating.toFixed(1)}★</span><div class="text-[8px] text-gray-400">${act.place.review_count ? '('+act.place.review_count.toLocaleString()+')' : ''}</div></div>` : ''}
                             </div>
                             <!-- Maps pleine hauteur -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
@@ -3064,16 +3065,14 @@
             if (!place) return '';
             const parts = [];
             if (place.rating) {
-                const stars = '★'.repeat(Math.round(place.rating)) + '☆'.repeat(5 - Math.round(place.rating));
-                parts.push('<span class="text-amber-400 font-bold text-[10px]">' + place.rating.toFixed(1) + '</span>'
-                         + '<span class="text-amber-400 text-[9px]">★</span>'
+                parts.push('<span class="text-amber-400 font-bold text-[10px]">' + place.rating.toFixed(1) + ' ★</span>'
                          + (place.review_count ? '<span class="text-gray-400 text-[10px]">(' + place.review_count.toLocaleString() + ')</span>' : ''));
             }
             if (place.visit_duration) {
-                parts.push('<span class="text-gray-300 text-[10px]">·</span><span class="text-gray-400 text-[10px]">⏱ ' + (place.visit_duration >= 60 ? Math.floor(place.visit_duration/60)+'h'+(place.visit_duration%60?String(place.visit_duration%60).padStart(2,'0'):'') : place.visit_duration+'min') + '</span>');
-            }
-            if (place.price_eur) {
-                parts.push('<span class="text-gray-300 text-[10px]">·</span><span class="text-indigo-500 font-bold text-[10px]">' + place.price_eur.toFixed(0) + '€</span>');
+                const dur = place.visit_duration >= 60
+                    ? Math.floor(place.visit_duration/60)+'h'+(place.visit_duration%60 ? String(place.visit_duration%60).padStart(2,'0') : '')
+                    : place.visit_duration+'min';
+                parts.push('<span class="text-gray-300 text-[10px]">·</span><span class="text-gray-400 text-[10px]">⏱ ' + dur + '</span>');
             }
             if (!parts.length) return '';
             return '<div class="flex items-center gap-1 mt-0.5 flex-wrap">' + parts.join('') + '</div>';
@@ -3145,10 +3144,16 @@
                 const detail = place.price_detail
                     ? '<span style="font-size:8px;opacity:0.7;line-height:1.2;max-width:100%;overflow:hidden;display:block;text-overflow:ellipsis;white-space:nowrap">' + place.price_detail + '</span>'
                     : '';
-                // Si price_detail disponible, il prime sur le symbole €
-                const priceLabel = detail
-                    ? detail  // texte détaillé uniquement
-                    : '<span>' + c.t + '</span>';
+                // Prix en € en priorité, sinon price_detail, sinon symbole €
+                let priceLabel;
+                if (place.price_eur) {
+                    priceLabel = '<span class="font-black text-[11px]">' + place.price_eur.toFixed(0) + '€</span>'
+                               + (place.price_detail ? '<span style="font-size:8px;opacity:0.7;display:block;line-height:1.2">' + place.price_detail.split(',')[0] + '</span>' : '');
+                } else if (detail) {
+                    priceLabel = detail;
+                } else {
+                    priceLabel = '<span>' + c.t + '</span>';
+                }
                 priceChip = '<div class="' + ACTIVE(c.cls) + '" title="' + (place.price_detail || '') + '">' + priceLabel + '</div>';
             }
 
