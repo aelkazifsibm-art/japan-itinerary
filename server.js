@@ -140,7 +140,7 @@ app.get("/api/places/details", async (req, res) => {
 
         const u = new URL("https://maps.googleapis.com/maps/api/place/details/json");
         u.searchParams.set("place_id", placeId);
-        u.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,current_opening_hours,price_level,types,editorial_summary,business_status");
+        u.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,current_opening_hours,price_level,types,editorial_summary,business_status,rating,user_ratings_total");
         u.searchParams.set("language", "fr");
         u.searchParams.set("key", key);
 
@@ -152,6 +152,11 @@ app.get("/api/places/details", async (req, res) => {
         let open_now      = p.current_opening_hours?.open_now ?? p.opening_hours?.open_now ?? null;
         let price_level   = p.price_level ?? null;
         let ai_hours      = false;
+        // Note et avis directement depuis Google Maps (source la plus fiable)
+        let rating        = p.rating ?? null;
+        let review_count  = p.user_ratings_total ?? null;
+        let visit_duration = null;
+        let price_eur     = null;
 
         // ── Fallback OpenAI web search si Google n'a pas les horaires/prix ─
         const needsHours = !opening_hours;
@@ -167,19 +172,18 @@ app.get("/api/places/details", async (req, res) => {
                         content: "Tu es un assistant de voyage expert au Japon. Cherche sur le web (Google, Viator, TripAdvisor, site officiel) puis réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour."
                     }, {
                         role: "user",
-                        content: `Recherche sur le web toutes les infos pour : "${p.name}", ${p.formatted_address}.
+                        content: `Recherche sur le web les infos pour : "${p.name}", ${p.formatted_address}.
 Heure actuelle à Tokyo : ${tokyoTime}.
-Cherche sur Viator, TripAdvisor, Google Maps et le site officiel.
+IMPORTANT: cherche le prix d'ENTRÉE DIRECTE (billet d'entrée officiel), PAS les visites guidées.
+Sources prioritaires : site officiel du lieu, Google Maps, Japan-guide.com.
 Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
 {
   "opening_hours": ["Lundi: 06:00 - 17:00", ...] ou null,
   "open_now": true/false/null,
   "price_level": 0 si gratuit, 1 si <1000¥, 2 si 1000-2000¥, 3 si 2000-4000¥, 4 si >4000¥, null si inconnu,
-  "price_detail": "ex: 1800¥ adulte, 600¥ enfant" ou null,
-  "price_eur": 12.50 (prix adulte en euros, nombre décimal) ou null,
-  "rating": 4.6 (note sur 5) ou null,
-  "review_count": 9825 (nombre d'avis) ou null,
-  "visit_duration": 90 (durée typique de visite en minutes) ou null
+  "price_detail": "ex: 800¥ adulte, 400¥ enfant" ou null,
+  "price_eur": 5.00 (prix adulte entrée directe en euros) ou null,
+  "visit_duration": 90 (durée typique de visite en minutes, sans visite guidée) ou null
 }`
                     }]
                 });
@@ -188,11 +192,10 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
                 if (needsHours && parsed.opening_hours) opening_hours = parsed.opening_hours;
                 if (parsed.open_now !== undefined && open_now === null) open_now = parsed.open_now;
                 if (needsPrice && parsed.price_level !== undefined && parsed.price_level !== null) price_level = parsed.price_level;
-                if (parsed.price_detail) p._price_detail = parsed.price_detail;
-                if (parsed.price_eur)     p._price_eur     = parsed.price_eur;
-                if (parsed.rating)        p._rating        = parsed.rating;
-                if (parsed.review_count)  p._review_count  = parsed.review_count;
-                if (parsed.visit_duration)p._visit_duration= parsed.visit_duration;
+                if (parsed.price_detail)   p._price_detail  = parsed.price_detail;
+                if (parsed.price_eur)      price_eur        = parsed.price_eur;
+                // Ne pas écraser la note Google si elle existe déjà (plus fiable)
+                if (parsed.visit_duration) visit_duration   = parsed.visit_duration;
                 ai_hours = true;
             } catch(aiErr) {
                 console.warn("OpenAI search fallback failed:", aiErr.message);
@@ -224,11 +227,11 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
                 opening_hours,
                 open_now,
                 price_level,
-                price_detail:    p._price_detail    || null,
-                price_eur:       p._price_eur       || null,
-                rating:          p._rating          || null,
-                review_count:    p._review_count    || null,
-                visit_duration:  p._visit_duration  || null,
+                price_detail:    p._price_detail || null,
+                price_eur:       price_eur       || null,
+                rating:          rating          || null,
+                review_count:    review_count    || null,
+                visit_duration:  visit_duration  || null,
                 types: p.types || [],
                 ai_hours
             }

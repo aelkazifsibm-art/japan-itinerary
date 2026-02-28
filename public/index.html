@@ -1053,7 +1053,7 @@
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
-        const PLACE_CACHE_KEY = 'japan_place_cache_v6';
+        const PLACE_CACHE_KEY = 'japan_place_cache_v7';
         const PLACE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
         let placeCache = JSON.parse(localStorage.getItem(PLACE_CACHE_KEY) || '{}');
 
