@@ -3205,7 +3205,7 @@
                     + '<span class="text-[8px] opacity-70 mt-0.5">🎟 Réserver</span></a>';
             }
             // Pas de lien → flip au clic
-            return '<div class="' + BASE + ' ' + c.cls + ' price-flip-chip" style="perspective:400px" onclick="event.stopPropagation();flipPriceChip(this,'' + pid + '')" title="Cliquer pour info réservation">'
+            return '<div class="' + BASE + ' ' + c.cls + ' price-flip-chip" data-pid="' + pid + '" onclick="event.stopPropagation();flipPriceChip(this)" title="Cliquer pour info réservation">'
                 + '<div class="price-flip-front w-full h-full flex flex-col items-center justify-center">'
                 + '<span class="font-black text-[12px] leading-none">' + priceStr + '</span>'
                 + (place.price_detail ? '<span class="text-[8px] opacity-70 mt-0.5 truncate max-w-full px-0.5">' + place.price_detail.split(',')[0] + '</span>' : '')
@@ -3217,7 +3217,8 @@
                 + '</div>';
         }
 
-        function flipPriceChip(el, pid) {
+        function flipPriceChip(el) {
+            const pid = el.getAttribute('data-pid') || '';
             const front = el.querySelector('.price-flip-front');
             const back = el.querySelector('.price-flip-back');
             if (!front || !back) return;
