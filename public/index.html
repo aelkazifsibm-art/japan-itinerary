@@ -2913,7 +2913,7 @@
                         <!-- ── Col droite : + d'infos + Maps ── -->
                         <div class="w-14 flex-shrink-0 flex flex-col border-l border-gray-100 overflow-hidden rounded-r-2xl">
                             <!-- Demi-haut : + d'infos -->
-                            <button onclick="event.stopPropagation(); showActivityInfo(act)"
+                            <button data-act-id="${act.id}" onclick="event.stopPropagation(); showActivityById(this.dataset.actId)"
                                 class="flex-1 flex flex-col items-center justify-center gap-1 bg-purple-50 hover:bg-purple-100 transition-colors border-b border-gray-100">
                                 <span class="text-base">ℹ️</span>
                                 <span class="text-[9px] text-purple-500 font-bold leading-none">+ d'infos</span>
@@ -3164,9 +3164,9 @@
             const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-11 w-full transition-all active:scale-95';
             if (!place || !place.rating)
                 return '<div class="' + BASE + ' bg-gray-100 text-gray-400">★<span class=\"text-[9px]\">N/D</span></div>';
-            const gUrl = placeId
-                ? 'https://www.google.com/maps/place/?q=place_id:' + placeId
-                : ('https://www.google.com/search?q=' + encodeURIComponent((place.name||'') + ' avis'));
+            // Sur mobile, place_id brut dans l'URL ne fonctionne pas bien → recherche par nom
+            const gUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(place.name || '')
+                + (placeId ? '&query_place_id=' + placeId : '');
             return '<a href="' + gUrl + '" target="_blank" onclick="event.stopPropagation()" class="' + BASE + ' bg-amber-50 text-amber-700 border border-amber-200 cursor-pointer hover:bg-amber-100">'
                 + '<span class="font-black text-[12px] leading-none">' + place.rating.toFixed(1) + ' ★</span>'
                 + (place.review_count ? '<span class="text-[8px] opacity-70 mt-0.5">' + (place.review_count >= 1000 ? (place.review_count/1000).toFixed(1)+'k' : place.review_count) + ' avis</span>' : '')
@@ -3474,6 +3474,16 @@
             `;
         }
 
+        // Met à jour les heures des blocs nav sans re-render complet (évite la boucle infinie)
+        let _navUpdateTimer = null;
+        function _updateNavTimesOnly() {
+            clearTimeout(_navUpdateTimer);
+            _navUpdateTimer = setTimeout(() => {
+                // Re-render une seule fois après que tous les calculs parallèles soient finis
+                renderPlanning();
+            }, 800);
+        }
+
         async function calculateNav(from, to, elementId, departureTime, arrivalTime) {
             const cacheKey = `${from.place_id}-${to.place_id}`;
 
@@ -3504,8 +3514,8 @@
                     };
                     localStorage.setItem('japan_route_cache_v2', JSON.stringify(routeCache));
                     if (el) renderNavBlock(el, routeCache[cacheKey], departureTime, arrivalTime);
-                    // Recalculer le planning pour mettre à jour les heures en cascade
-                    renderPlanning();
+                    // Mettre à jour uniquement les blocs nav existants sans re-render complet
+                    _updateNavTimesOnly();
                 } else {
                     if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
                 }
@@ -3594,6 +3604,11 @@
         }
 
         // ========== MODAL INFOS ACTIVITÉ ==========
+        function showActivityById(actId) {
+            const act = activities.find(a => String(a.id) === String(actId));
+            if (act) showActivityInfo(act);
+        }
+
         async function showActivityInfo(activity) {
             const modal = document.getElementById('activity-info-modal');
             const title = document.getElementById('info-modal-title');
