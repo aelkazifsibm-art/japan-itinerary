@@ -30,9 +30,8 @@
             border-radius: 14px;
             padding: 8px 14px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             box-shadow: 0 2px 8px rgba(37,99,235,0.25);
         }
 
@@ -1057,7 +1056,7 @@
         // stays[] = [{ city, hotelName, address, place, price, currency, startDay, endDay }]
         let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
         let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '{}');
-        let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
+        let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v3') || '{}');
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
         const PLACE_CACHE_KEY = 'japan_place_cache_v9';
@@ -3482,29 +3481,19 @@
             return `${hh}:${mm}`;
         }
 
-                function renderNavBlock(el, data, departureTime, arrivalTime) {
+        function renderNavBlock(el, data, departureTime, arrivalTime) {
+            if (!data || !data.total_minutes) return;
             const arrival = arrivalTime || (departureTime ? addMinutesToTime(departureTime, data.total_minutes) : null);
-            const modeIcons = { walk: '🚶', metro: '🚇', train: '🚄', bus: '🚌', taxi: '🚕' };
-            const modeIcon  = modeIcons[data.mode] || '🚇';
-            let segments = '';
-            if (data.walk_from_min > 0) segments += '🚶 ' + data.walk_from_min + 'min';
-            if (data.transit_min > 0)   segments += (segments ? ' + ' : '') + modeIcon + ' ' + data.transit_min + 'min';
-            if (data.walk_to_min > 0)   segments += (segments ? ' + ' : '') + '🚶 ' + data.walk_to_min + 'min';
-            if (!segments) segments = data.summary || (data.total_minutes + 'min');
-
+            const modeIcon = data.mode === 'walk' ? '🚶' : ({ metro:'🚇', train:'🚄', bus:'🚌', taxi:'🚕' }[data.mode] || '🚇');
             const pill = el.querySelector('.nav-info-pill');
             if (pill) {
                 pill.innerHTML =
-                    '<div class="flex items-center gap-1 text-white">' +
-                        '<span class="text-xs">⏱</span>' +
-                        '<span class="text-xs font-black">' + data.total_minutes + ' min</span>' +
-                        (departureTime ? '<span class="text-[10px] opacity-50">' + departureTime + '</span>' : '') +
-                    '</div>' +
-                    '<span class="text-[10px] text-white/70 flex-1 text-center">' + segments + '</span>' +
-                    (arrival ? '<span class="text-xs font-black text-white">🏁 ' + arrival + '</span>' : '');
+                    '<span class="text-sm">⏱</span>' +
+                    '<span class="text-xs font-black text-white">' + data.total_minutes + ' min</span>' +
+                    (departureTime ? '<span class="text-[10px] text-white/60"> dep. ' + departureTime + '</span>' : '') +
+                    '<span class="text-white/40 mx-1">' + modeIcon + '</span>' +
+                    (arrival ? '<span class="text-xs font-black text-white ml-auto">🏁 ' + arrival + '</span>' : '');
             }
-
-
         }
 
 
@@ -3546,7 +3535,7 @@
                         walk_to_min:   j.walk_to_min,
                         mode:          j.mode
                     };
-                    localStorage.setItem('japan_route_cache_v2', JSON.stringify(routeCache));
+                    localStorage.setItem('japan_route_cache_v3', JSON.stringify(routeCache));
                     if (el) renderNavBlock(el, routeCache[cacheKey], departureTime, arrivalTime);
                     // Mettre à jour uniquement les blocs nav existants sans re-render complet
                     _updateNavTimesOnly();
