@@ -35,22 +35,7 @@
             gap: 8px;
             box-shadow: 0 2px 8px rgba(37,99,235,0.25);
         }
-        .nav-steps-zone {
-            position: relative;
-            height: 48px;
-            overflow: visible;
-        }
-        @keyframes inkDrop {
-            0%   { opacity: 0; transform: scale(0.2) rotate(var(--rot)); }
-            50%  { opacity: 0.5; transform: scale(1.05) rotate(var(--rot)); }
-            100% { opacity: 0.35; transform: scale(1) rotate(var(--rot)); }
-        }
-        .step-mark {
-            position: absolute;
-            width: 13px;
-            height: 20px;
-            animation: inkDrop 0.3s ease-out var(--delay) both;
-        }
+
 
         
         /* Swipe gesture animations */
@@ -2977,7 +2962,6 @@
                             <div class="nav-info-pill">
                                 <span class="animate-pulse text-xs text-white/70">Calcul…</span>
                             </div>
-                            <div class="nav-steps-zone" id="steps-${navId}"></div>
                         `;
                         list.appendChild(navBlock);
                         // dep = fin de visite act[i]   arr = arrivée act[i+1]
@@ -3520,73 +3504,9 @@
                     (arrival ? '<span class="text-xs font-black text-white">🏁 ' + arrival + '</span>' : '');
             }
 
-            // Traces de pas — récupérer le container par ID pour éviter le problème de scope
-            const stepsEl = document.getElementById('steps-' + el.id);
-            if (stepsEl && !stepsEl._drawn) {
-                stepsEl._drawn = true;
-                drawFootsteps(stepsEl, data.mode);
-            }
+
         }
 
-        // ── Traces de pas style encre japonaise, déclenchées au scroll ──────
-        function drawFootsteps(zone, mode) {
-            // SVG empreinte pied (style tampon encre, épuré)
-            function footSVG(flip) {
-                const f = flip ? 'scale(-1,1) translate(-18,0)' : '';
-                return '<svg viewBox="0 0 18 30" xmlns="http://www.w3.org/2000/svg">'
-                    + '<g transform="' + f + '" fill="#6B5535">'
-                    // plante
-                    + '<ellipse cx="9" cy="20" rx="5.5" ry="8" opacity="0.55"/>'
-                    // talon
-                    + '<ellipse cx="9" cy="26" rx="4" ry="3" opacity="0.65"/>'
-                    // orteils
-                    + '<ellipse cx="5"   cy="11" rx="2"   ry="2.5" opacity="0.5"/>'
-                    + '<ellipse cx="7.5" cy="9"  rx="1.8" ry="2.3" opacity="0.5"/>'
-                    + '<ellipse cx="10"  cy="8.5" rx="1.7" ry="2.2" opacity="0.5"/>'
-                    + '<ellipse cx="12.5" cy="9.5" rx="1.5" ry="2"  opacity="0.5"/>'
-                    + '</g></svg>';
-            }
-
-            // SVG empreinte chaussure pour transport
-            function shoeSVG(flip) {
-                const f = flip ? 'scale(-1,1) translate(-18,0)' : '';
-                return '<svg viewBox="0 0 18 30" xmlns="http://www.w3.org/2000/svg">'
-                    + '<g transform="' + f + '" fill="#4A3728" opacity="0.45">'
-                    + '<path d="M9 2 C6 2 4 5 4 9 C4 16 6 22 8 26 C8.5 28 9 29 9 29 C12 29 14 26 14 22 C14 16 12 10 11 7 C10 4 9.5 2 9 2Z"/>'
-                    + '</g></svg>';
-            }
-
-            const isWalk = !mode || mode === 'walk';
-
-            // Disposition : zigzag horizontal sur 48px de haut
-            // Utiliser des % pour éviter dépendance clientWidth
-            const steps = [
-                { pct: 42, y: 34, flip: false, delay: 0 },
-                { pct: 56, y: 34, flip: true,  delay: 100 },
-                { pct: 40, y: 20, flip: false, delay: 200 },
-                { pct: 58, y: 20, flip: true,  delay: 300 },
-                { pct: 41, y:  6, flip: false, delay: 400 },
-                { pct: 57, y:  6, flip: true,  delay: 500 },
-            ];
-
-            const obs = new IntersectionObserver(function(entries) {
-                entries.forEach(function(entry) {
-                    if (!entry.isIntersecting) return;
-                    obs.disconnect();
-                    steps.forEach(function(s) {
-                        const el = document.createElement('div');
-                        el.className = 'step-mark';
-                        el.style.cssText = 'left:' + s.pct + '%;top:' + s.y + 'px;'
-                            + '--rot:' + (s.flip ? -8 : 8) + 'deg;'
-                            + '--delay:' + s.delay + 'ms;'
-                            + 'transform:translateX(-50%)';
-                        el.innerHTML = isWalk ? footSVG(s.flip) : shoeSVG(s.flip);
-                        zone.appendChild(el);
-                    });
-                });
-            }, { threshold: 0.1, rootMargin: '0px 0px -20px 0px' });
-            obs.observe(zone);
-        }
 
         // Met à jour les heures des blocs nav sans re-render complet (évite la boucle infinie)
         let _navUpdateTimer = null;
