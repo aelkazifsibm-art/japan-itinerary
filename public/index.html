@@ -23,48 +23,33 @@
         .suggestion-item:hover { background: #f8f9fa; color: var(--primary); }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* ── Traces de pas style Carte du Maraudeur ── */
-        .footstep-trail {
-            position: relative;
-            overflow: hidden;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 16px !important;
-            border-radius: 0 !important;
-            z-index: 5;
-        }
-        .footstep-trail .nav-info-bar {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            border-radius: 16px;
-            padding: 10px 14px;
-            margin-bottom: 6px;
+        /* ── Bloc trajet + traces de pas ── */
+        .nav-travel-block { position: relative; }
+        .nav-info-pill {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-radius: 14px;
+            padding: 8px 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.25);
         }
-        .footstep-canvas {
-            display: block;
-            width: 100%;
-            height: 52px;
-            pointer-events: none;
-        }
-        @keyframes stepAppear {
-            0%   { opacity: 0; transform: scale(0.3) rotate(var(--r)); }
-            60%  { opacity: 0.55; transform: scale(1.1) rotate(var(--r)); }
-            100% { opacity: 0.4; transform: scale(1) rotate(var(--r)); }
-        }
-        .footstep-svg {
-            position: absolute;
-            animation: stepAppear 0.35s ease-out forwards;
-            opacity: 0;
-            transform-origin: center;
-        }
-        .footstep-trail-container {
+        .nav-steps-zone {
             position: relative;
-            height: 52px;
-            overflow: hidden;
+            height: 48px;
+            overflow: visible;
+        }
+        @keyframes inkDrop {
+            0%   { opacity: 0; transform: scale(0.2) rotate(var(--rot)); }
+            50%  { opacity: 0.5; transform: scale(1.05) rotate(var(--rot)); }
+            100% { opacity: 0.35; transform: scale(1) rotate(var(--rot)); }
+        }
+        .step-mark {
+            position: absolute;
+            width: 13px;
+            height: 20px;
+            animation: inkDrop 0.3s ease-out var(--delay) both;
         }
 
         
@@ -2983,15 +2968,12 @@
                         const navId    = `nav-${act.id}-${nextAct.id}`;
                         const navBlock = document.createElement('div');
                         navBlock.id        = navId;
-                        navBlock.className = "footstep-trail -my-1 relative z-10";
+                        navBlock.className = "nav-travel-block mx-4 my-1 relative z-10";
                         navBlock.innerHTML = `
-                            <div class="nav-info-bar text-white">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-sm">⏱️</span>
-                                    <span class="text-xs animate-pulse opacity-70">Calcul…</span>
-                                </div>
+                            <div class="nav-info-pill">
+                                <span class="animate-pulse text-xs text-white/70">Calcul…</span>
                             </div>
-                            <div class="footstep-trail-container" id="steps-${navId}"></div>
+                            <div class="nav-steps-zone" id="steps-${navId}"></div>
                         `;
                         list.appendChild(navBlock);
                         // dep = fin de visite act[i]   arr = arrivée act[i+1]
@@ -3122,29 +3104,41 @@
         function buildTypeChip2x2(place) {
             const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-11 w-full bg-indigo-50 text-indigo-700 border border-indigo-200';
             if (!place || !place.types) return '<div class="' + BASE + ' bg-gray-100 text-gray-400">📍<span class=\"text-[9px]\">Type N/D</span></div>';
-            const typeMap = {
-                temple:'⛩️ Temple', shrine:'⛩️ Temple', buddhist_temple:'⛩️ Temple', shinto_shrine:'⛩️ Temple', place_of_worship:'⛩️ Temple',
-                castle:'🏯 Château',
-                museum:'🎨 Musée', art_gallery:'🎨 Musée',
-                historical_landmark:'🏛️ Histoire', monument:'🏛️ Histoire', ruins:'🏛️ Histoire', cemetery:'🏛️ Histoire',
-                park:'🌿 Parc', botanical_garden:'🌿 Parc', campground:'🌿 Parc',
-                national_park:'🌸 Nature', natural_feature:'🌸 Nature', forest:'🌸 Nature', waterfall:'🌸 Nature',
-                hiking_area:'⛰️ Rando', mountain:'⛰️ Rando',
-                beach:'🌊 Plage', waterfront:'🌊 Plage',
-                spa:'♨️ Onsen', health:'♨️ Onsen', hot_spring:'♨️ Onsen',
-                restaurant:'🍜 Resto', food:'🍜 Resto', meal_delivery:'🍜 Resto', meal_takeaway:'🍜 Resto',
-                bar:'🍶 Izakaya', night_club:'🍶 Izakaya', liquor_store:'🍶 Izakaya',
-                cafe:'☕ Café', bakery:'☕ Café', coffee_shop:'☕ Café',
-                shopping_mall:'🛍️ Shopping', store:'🛍️ Shopping', market:'🛍️ Shopping', clothing_store:'🛍️ Shopping', department_store:'🛍️ Shopping',
-                zoo:'🐾 Zoo/Aqua', aquarium:'🐾 Zoo/Aqua',
-                amusement_park:'🎡 Parc Attr.', theme_park:'🎡 Parc Attr.',
-                movie_theater:'🎭 Spectacle', performing_arts_theater:'🎭 Spectacle', stadium:'🎭 Spectacle',
-                neighborhood:'🏙️ Quartier', sublocality:'🏙️ Quartier', tourist_attraction:'🏙️ Quartier', point_of_interest:'🏙️ Quartier', locality:'🏙️ Quartier',
-            };
-            for (const t of (place.types||[])) { if (typeMap[t]) {
-                const parts = typeMap[t].split(' ');
-                return '<div class="' + BASE + '"><span class="text-base leading-none">' + parts[0] + '</span><span class="text-[9px] mt-0.5">' + parts.slice(1).join(' ') + '</span></div>';
-            }}
+            // Ordre de priorité : du plus spécifique au plus générique
+            const typeRules = [
+                ['⛩️','Temple',    ['temple','shrine','buddhist_temple','shinto_shrine','hindu_temple','place_of_worship']],
+                ['🏯','Château',   ['castle']],
+                ['🎨','Musée',     ['museum','art_gallery']],
+                ['🏛️','Histoire',  ['historical_landmark','monument','ruins','cemetery','church','mosque']],
+                ['⛰️','Rando',    ['hiking_area','mountain']],
+                ['🌊','Plage',     ['beach','waterfront']],
+                ['♨️','Onsen',    ['spa','hot_spring','onsen']],
+                ['🌿','Parc',      ['park','botanical_garden','campground','garden']],
+                ['🌸','Nature',    ['national_park','natural_feature','forest','waterfall']],
+                ['🍜','Resto',     ['restaurant','meal_delivery','meal_takeaway','japanese_restaurant']],
+                ['🍶','Izakaya',   ['bar','night_club','liquor_store','izakaya']],
+                ['☕','Café',      ['cafe','bakery','coffee_shop','tea_house']],
+                ['🛍️','Shopping',  ['shopping_mall','clothing_store','department_store','electronics_store']],
+                ['🏪','Marché',    ['market','grocery_or_supermarket','supermarket','food','convenience_store','market_place']],
+                ['🐾','Zoo/Aqua',  ['zoo','aquarium']],
+                ['🎡','Parc Attr.',['amusement_park','theme_park']],
+                ['🎭','Spectacle', ['movie_theater','performing_arts_theater','stadium','event_venue']],
+                ['🏙️','Quartier', ['neighborhood','sublocality','locality','geocode','administrative_area_level_1']],
+                ['📍','Lieu',      ['tourist_attraction','point_of_interest','establishment']],
+            ];
+            const types = place.types || [];
+            for (const [emoji, label, kws] of typeRules) {
+                if (kws.some(k => types.includes(k))) {
+                    return '<div class="' + BASE + '"><span class="text-base leading-none">' + emoji + '</span><span class="text-[9px] mt-0.5">' + label + '</span></div>';
+                }
+            }
+            // Fallback : lire le nom du lieu pour deviner
+            const name = (place.name || '').toLowerCase();
+            if (/temple|ji$|dera$|jinja|shrine|torii/i.test(name)) return '<div class="' + BASE + '"><span class="text-base">⛩️</span><span class="text-[9px] mt-0.5">Temple</span></div>';
+            if (/market|marché|ichiba|morning/i.test(name)) return '<div class="' + BASE + '"><span class="text-base">🏪</span><span class="text-[9px] mt-0.5">Marché</span></div>';
+            if (/castle|château|jo$/i.test(name)) return '<div class="' + BASE + '"><span class="text-base">🏯</span><span class="text-[9px] mt-0.5">Château</span></div>';
+            if (/museum|musée|bijutsukan/i.test(name)) return '<div class="' + BASE + '"><span class="text-base">🎨</span><span class="text-[9px] mt-0.5">Musée</span></div>';
+            if (/park|parc|garden|jardin|koen/i.test(name)) return '<div class="' + BASE + '"><span class="text-base">🌿</span><span class="text-[9px] mt-0.5">Parc</span></div>';
             return '<div class="' + BASE + '"><span class="text-base">📍</span><span class="text-[9px] mt-0.5">Lieu</span></div>';
         }
 
@@ -3506,107 +3500,89 @@
             const modeIcons = { walk: '🚶', metro: '🚇', train: '🚄', bus: '🚌', taxi: '🚕' };
             const modeIcon  = modeIcons[data.mode] || '🚇';
             let segments = '';
-            if (data.walk_from_min > 0) segments += `🚶 ${data.walk_from_min}min`;
-            if (data.transit_min > 0)   segments += `${segments ? ' + ' : ''}${modeIcon} ${data.transit_min}min`;
-            if (data.walk_to_min > 0)   segments += `${segments ? ' + ' : ''}🚶 ${data.walk_to_min}min`;
-            if (!segments) segments = data.summary || `${data.total_minutes}min`;
+            if (data.walk_from_min > 0) segments += '🚶 ' + data.walk_from_min + 'min';
+            if (data.transit_min > 0)   segments += (segments ? ' + ' : '') + modeIcon + ' ' + data.transit_min + 'min';
+            if (data.walk_to_min > 0)   segments += (segments ? ' + ' : '') + '🚶 ' + data.walk_to_min + 'min';
+            if (!segments) segments = data.summary || (data.total_minutes + 'min');
 
-            // Mettre à jour la barre d'info bleue
-            const bar = el.querySelector('.nav-info-bar');
-            if (bar) {
-                bar.innerHTML = `
-                    <div class="flex items-center gap-1.5 text-white">
-                        <span class="text-sm">⏱️</span>
-                        <span class="text-sm font-black">${data.total_minutes} min</span>
-                        ${departureTime ? `<span class="text-[10px] opacity-60">dep. ${departureTime}</span>` : ''}
-                    </div>
-                    <div class="flex items-center gap-1.5 text-white text-xs opacity-80">${segments}</div>
-                    ${arrival ? `<div class="flex items-center gap-1 text-white"><span class="text-sm">🏁</span><span class="text-sm font-black">${arrival}</span></div>` : ''}
-                `;
-            } else {
-                // Fallback si structure ancienne
-                el.innerHTML = `<div class="flex justify-between items-center text-white text-xs p-3"><span>⏱️ ${data.total_minutes} min</span><span>${segments}</span></div>`;
+            const pill = el.querySelector('.nav-info-pill');
+            if (pill) {
+                pill.innerHTML =
+                    '<div class="flex items-center gap-1 text-white">' +
+                        '<span class="text-xs">⏱</span>' +
+                        '<span class="text-xs font-black">' + data.total_minutes + ' min</span>' +
+                        (departureTime ? '<span class="text-[10px] opacity-50">' + departureTime + '</span>' : '') +
+                    '</div>' +
+                    '<span class="text-[10px] text-white/70 flex-1 text-center">' + segments + '</span>' +
+                    (arrival ? '<span class="text-xs font-black text-white">🏁 ' + arrival + '</span>' : '');
             }
 
-            // Traces de pas dans le container dédié
-            const stepsContainerId = 'steps-' + el.id;
-            const stepsEl = document.getElementById(stepsContainerId);
-            if (stepsEl) drawFootsteps(stepsEl, data.mode);
+            // Traces de pas — récupérer le container par ID pour éviter le problème de scope
+            const stepsEl = document.getElementById('steps-' + el.id);
+            if (stepsEl && !stepsEl._drawn) {
+                stepsEl._drawn = true;
+                drawFootsteps(stepsEl, data.mode);
+            }
         }
 
-        // ── Dessine les traces de pas SVG avec animation au scroll ──────────
-        function drawFootsteps(container, mode) {
-            container.innerHTML = '';
-            // Empreinte de pied gauche et droit en SVG (style empreinte japonaise encre)
-            const footprintSVG = (side) => {
-                const mx = side === 'L' ? -1 : 1; // miroir gauche/droite
-                return `<svg viewBox="0 0 18 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g transform="scale(${mx},1) translate(${mx < 0 ? -18 : 0},0)" opacity="0.38">
-                        <!-- Plante du pied -->
-                        <ellipse cx="9" cy="18" rx="6.5" ry="9" fill="#8B7355" opacity="0.7"/>
-                        <!-- Talon -->
-                        <ellipse cx="9" cy="24" rx="4.5" ry="3.5" fill="#6B5535" opacity="0.8"/>
-                        <!-- Orteils -->
-                        <ellipse cx="5"  cy="9"  rx="2.2" ry="2.8" fill="#8B7355" opacity="0.65"/>
-                        <ellipse cx="8"  cy="7"  rx="2"   ry="2.6" fill="#8B7355" opacity="0.65"/>
-                        <ellipse cx="11" cy="7.5" rx="1.9" ry="2.5" fill="#8B7355" opacity="0.65"/>
-                        <ellipse cx="13.5" cy="9" rx="1.7" ry="2.2" fill="#8B7355" opacity="0.65"/>
-                    </g>
-                </svg>`;
-            };
-
-            // Pour le mode train/metro, pas style chaussure (moins pieds nus)
-            const shoeprint = (side) => {
-                const mx = side === 'L' ? -1 : 1;
-                return `<svg viewBox="0 0 20 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g transform="scale(${mx},1) translate(${mx < 0 ? -20 : 0},0)" opacity="0.32">
-                        <path d="M10 2 C6 2 3 6 3 11 C3 18 5 24 7 28 C8 31 9 33 10 33 C13 33 17 30 17 26 C17 20 15 14 14 9 C13 5 12 2 10 2Z"
-                              fill="#5B4A3A" opacity="0.75"/>
-                        <ellipse cx="10" cy="28" rx="5" ry="4" fill="#3D2E1E" opacity="0.6"/>
-                    </g>
-                </svg>`;
-            };
-
-            const isWalk = !mode || mode === 'walk';
-            const getSVG = (side) => isWalk ? footprintSVG(side) : shoeprint(side);
-
-            // Générer les pas en zigzag
-            const steps = [];
-            const W = container.clientWidth || 280;
-            const H = 52;
-            const numSteps = 9;
-            const stepW = 14, stepH = 22;
-            const baseX = W / 2;
-            const offsetX = 10; // décalage gauche/droite
-
-            for (let i = 0; i < numSteps; i++) {
-                const side = i % 2 === 0 ? 'R' : 'L';
-                const xSign = side === 'R' ? 1 : -1;
-                const progress = i / (numSteps - 1); // 0 → 1 (haut → bas)
-                const y = H - 4 - (progress * (H - stepH - 4));
-                const x = baseX + xSign * offsetX - stepW / 2;
-                // Légère rotation alternée pour le naturel
-                const rot = xSign * (6 + Math.random() * 4);
-                steps.push({ x, y, side, rot, delay: i * 120 });
+        // ── Traces de pas style encre japonaise, déclenchées au scroll ──────
+        function drawFootsteps(zone, mode) {
+            // SVG empreinte pied (style tampon encre, épuré)
+            function footSVG(flip) {
+                const f = flip ? 'scale(-1,1) translate(-18,0)' : '';
+                return '<svg viewBox="0 0 18 30" xmlns="http://www.w3.org/2000/svg">'
+                    + '<g transform="' + f + '" fill="#6B5535">'
+                    // plante
+                    + '<ellipse cx="9" cy="20" rx="5.5" ry="8" opacity="0.55"/>'
+                    // talon
+                    + '<ellipse cx="9" cy="26" rx="4" ry="3" opacity="0.65"/>'
+                    // orteils
+                    + '<ellipse cx="5"   cy="11" rx="2"   ry="2.5" opacity="0.5"/>'
+                    + '<ellipse cx="7.5" cy="9"  rx="1.8" ry="2.3" opacity="0.5"/>'
+                    + '<ellipse cx="10"  cy="8.5" rx="1.7" ry="2.2" opacity="0.5"/>'
+                    + '<ellipse cx="12.5" cy="9.5" rx="1.5" ry="2"  opacity="0.5"/>'
+                    + '</g></svg>';
             }
 
-            // Observer le scroll pour animer les pas
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting && !container._animated) {
-                        container._animated = true;
-                        steps.forEach(s => {
-                            const wrapper = document.createElement('div');
-                            wrapper.style.cssText = `position:absolute;left:${s.x}px;top:${s.y}px;width:${stepW}px;height:${stepH}px;--r:${s.rot}deg;animation:stepAppear 0.35s ease-out ${s.delay}ms forwards;opacity:0;transform-origin:center;transform:scale(0.3) rotate(${s.rot}deg)`;
-                            wrapper.innerHTML = getSVG(s.side);
-                            wrapper.querySelector('svg').style.cssText = 'width:100%;height:100%';
-                            container.appendChild(wrapper);
-                        });
-                        observer.disconnect();
-                    }
+            // SVG empreinte chaussure pour transport
+            function shoeSVG(flip) {
+                const f = flip ? 'scale(-1,1) translate(-18,0)' : '';
+                return '<svg viewBox="0 0 18 30" xmlns="http://www.w3.org/2000/svg">'
+                    + '<g transform="' + f + '" fill="#4A3728" opacity="0.45">'
+                    + '<path d="M9 2 C6 2 4 5 4 9 C4 16 6 22 8 26 C8.5 28 9 29 9 29 C12 29 14 26 14 22 C14 16 12 10 11 7 C10 4 9.5 2 9 2Z"/>'
+                    + '</g></svg>';
+            }
+
+            const isWalk = !mode || mode === 'walk';
+
+            // Disposition : zigzag horizontal sur 48px de haut
+            // Utiliser des % pour éviter dépendance clientWidth
+            const steps = [
+                { pct: 42, y: 34, flip: false, delay: 0 },
+                { pct: 56, y: 34, flip: true,  delay: 100 },
+                { pct: 40, y: 20, flip: false, delay: 200 },
+                { pct: 58, y: 20, flip: true,  delay: 300 },
+                { pct: 41, y:  6, flip: false, delay: 400 },
+                { pct: 57, y:  6, flip: true,  delay: 500 },
+            ];
+
+            const obs = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (!entry.isIntersecting) return;
+                    obs.disconnect();
+                    steps.forEach(function(s) {
+                        const el = document.createElement('div');
+                        el.className = 'step-mark';
+                        el.style.cssText = 'left:' + s.pct + '%;top:' + s.y + 'px;'
+                            + '--rot:' + (s.flip ? -8 : 8) + 'deg;'
+                            + '--delay:' + s.delay + 'ms;'
+                            + 'transform:translateX(-50%)';
+                        el.innerHTML = isWalk ? footSVG(s.flip) : shoeSVG(s.flip);
+                        zone.appendChild(el);
+                    });
                 });
-            }, { threshold: 0.3 });
-            observer.observe(container);
+            }, { threshold: 0.1, rootMargin: '0px 0px -20px 0px' });
+            obs.observe(zone);
         }
 
         // Met à jour les heures des blocs nav sans re-render complet (évite la boucle infinie)
