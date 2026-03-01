@@ -2889,62 +2889,55 @@
                 card.className = "bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-shadow";
                 card.onclick = () => showActivityInfo(act);
                 card.innerHTML = `
-                    <div class="flex" style="min-height:130px">
-                        <!-- ── Colonne timeline gauche ── -->
-                        <div class="w-20 flex-shrink-0 flex flex-col items-center py-4 bg-blue-50 border-r border-blue-100">
-                            <span class="text-sm font-black text-gray-800">${arriveTime}</span>
-                            <div class="relative flex flex-col items-center flex-1 my-2 w-full" style="min-height:40px">
+                    <div class="flex" style="min-height:150px">
+                        <!-- ── Col gauche : timeline ── -->
+                        <div class="w-16 flex-shrink-0 flex flex-col items-center py-3 bg-blue-50 border-r border-blue-100">
+                            <span class="text-xs font-black text-gray-800">${arriveTime}</span>
+                            <div class="relative flex flex-col items-center flex-1 my-1 w-full" style="min-height:30px">
                                 <div style="position:absolute;left:calc(50% - 1px);top:0;bottom:0;width:2px;background:linear-gradient(to bottom,#c084fc,#f472b6);border-radius:9999px"></div>
-                                <div class="absolute top-1/2 -translate-y-1/2 bg-white border-2 border-purple-300 rounded-xl px-2 py-1 shadow-sm z-10">
-                                    <div class="text-sm font-black text-purple-600 leading-none text-center">${dur}</div>
-                                    <div class="text-[10px] text-purple-400 leading-none text-center font-medium">min</div>
+                                <div class="absolute top-1/2 -translate-y-1/2 bg-white border-2 border-purple-300 rounded-lg px-1.5 py-0.5 shadow-sm z-10 text-center">
+                                    <div class="text-xs font-black text-purple-600 leading-none">${dur}</div>
+                                    <div class="text-[9px] text-purple-400 leading-none font-medium">min</div>
                                 </div>
                             </div>
-                            <span class="text-sm font-bold text-gray-400">${leaveTime}</span>
+                            <span class="text-xs font-bold text-gray-400">${leaveTime}</span>
                         </div>
 
-                        <!-- ── Contenu centre ── -->
-                        <div class="flex-1 min-w-0 px-3 py-3 flex flex-col justify-between">
-                            <!-- Titre + type chip inline -->
+                        <!-- ── Centre : titre + grille 2x2 ── -->
+                        <div class="flex-1 min-w-0 px-2 py-2 flex flex-col justify-between">
                             <div>
-                                <div class="text-sm font-black text-gray-800 leading-tight">${act.title}</div>
-                                <div class="text-[10px] text-gray-400 mt-0.5 truncate">📍 ${act.place?.name || '—'}</div>
+                                <div class="text-sm font-black text-gray-800 leading-tight truncate">${act.title}</div>
+                                <div class="text-[10px] text-gray-400 truncate">📍 ${act.place?.name || '—'}</div>
                             </div>
-                            <!-- 3 chips égales : Horaires | Note | Prix -->
-                            <div class="grid grid-cols-3 gap-1 mt-2" style="grid-auto-rows:1fr">
-                                ${buildHoursChip(act.place, act.id)}
-                                ${buildRatingChip(act.place)}
+                            <!-- Grille 2x2 : Note | Prix / Horaires | Type -->
+                            <div class="grid grid-cols-2 gap-1 mt-1.5">
+                                ${buildRatingChip(act.place, act.place?.place_id)}
                                 ${buildPriceChip(act.place)}
+                                ${buildHoursChip(act.place, act.id)}
+                                ${buildTypeChip2x2(act.place)}
                             </div>
-                            <!-- Bouton infos -->
-                            <button onclick="event.stopPropagation(); showActivityInfo(act)"
-                                class="mt-2 w-full text-xs bg-purple-50 text-purple-600 border border-purple-100 py-1.5 rounded-lg font-semibold hover:bg-purple-100 transition-colors">
-                                ℹ️ + d'infos
-                            </button>
                         </div>
 
-                        <!-- ── Colonne droite : type chip + Maps + ✕ ── -->
-                        <div class="w-16 flex-shrink-0 flex flex-col border-l border-gray-100 overflow-hidden rounded-r-2xl">
-                            <!-- Type chip en haut -->
-                            <div class="flex items-center justify-center px-1 pt-2 pb-1">
-                                ${buildTypeChip(act.place)}
-                            </div>
-                            <!-- Maps pleine hauteur -->
+                        <!-- ── Col droite : + d'infos + Maps ── -->
+                        <div class="w-14 flex-shrink-0 flex flex-col border-l border-gray-100 overflow-hidden rounded-r-2xl">
+                            <!-- Demi-haut : + d'infos -->
+                            <button onclick="event.stopPropagation(); showActivityInfo(act)"
+                                class="flex-1 flex flex-col items-center justify-center gap-1 bg-purple-50 hover:bg-purple-100 transition-colors border-b border-gray-100">
+                                <span class="text-base">ℹ️</span>
+                                <span class="text-[9px] text-purple-500 font-bold leading-none">+ d'infos</span>
+                            </button>
+                            <!-- Demi-bas : Maps -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
-                                class="flex-1 flex flex-col items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 transition-colors" title="Google Maps">
-                                <svg class="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="currentColor">
+                                class="flex-1 flex flex-col items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 transition-colors">
+                                <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                                 </svg>
                                 <span class="text-[9px] text-slate-500 font-bold">Maps</span>
-                            </a>` : '<div class="flex-1"></div>'}
-                            <!-- Croix en bas -->
-                            <button onclick="event.stopPropagation(); confirmDeleteActivity(${act.id}, '${act.title.replace(/'/g, "\'")}')"
-                                class="h-9 flex items-center justify-center bg-gray-50 hover:bg-red-50 border-t border-gray-100 transition-colors">
-                                <span class="text-gray-300 hover:text-red-400 text-base">✕</span>
-                            </button>
+                            </a>` : '<div class="flex-1 bg-slate-50"></div>'}
                         </div>
                     </div>
                 `;
+                initActivitySwipe(card, act.id, act.title);
                 list.appendChild(card);
 
                 // Bloc trajet entre act[i] et act[i+1]
@@ -3079,7 +3072,37 @@
             return '<div class="flex items-center gap-1 mt-0.5 flex-wrap">' + parts.join('') + '</div>';
         }
 
-        // Type chip inline avec le titre
+        // Chip type pour grille 2x2 (chip 4)
+        function buildTypeChip2x2(place) {
+            const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-11 w-full bg-indigo-50 text-indigo-700 border border-indigo-200';
+            if (!place || !place.types) return '<div class="' + BASE + ' bg-gray-100 text-gray-400">📍<span class=\"text-[9px]\">Type N/D</span></div>';
+            const typeMap = {
+                temple:'⛩️ Temple', shrine:'⛩️ Temple', buddhist_temple:'⛩️ Temple', shinto_shrine:'⛩️ Temple', place_of_worship:'⛩️ Temple',
+                castle:'🏯 Château',
+                museum:'🎨 Musée', art_gallery:'🎨 Musée',
+                historical_landmark:'🏛️ Histoire', monument:'🏛️ Histoire', ruins:'🏛️ Histoire', cemetery:'🏛️ Histoire',
+                park:'🌿 Parc', botanical_garden:'🌿 Parc', campground:'🌿 Parc',
+                national_park:'🌸 Nature', natural_feature:'🌸 Nature', forest:'🌸 Nature', waterfall:'🌸 Nature',
+                hiking_area:'⛰️ Rando', mountain:'⛰️ Rando',
+                beach:'🌊 Plage', waterfront:'🌊 Plage',
+                spa:'♨️ Onsen', health:'♨️ Onsen', hot_spring:'♨️ Onsen',
+                restaurant:'🍜 Resto', food:'🍜 Resto', meal_delivery:'🍜 Resto', meal_takeaway:'🍜 Resto',
+                bar:'🍶 Izakaya', night_club:'🍶 Izakaya', liquor_store:'🍶 Izakaya',
+                cafe:'☕ Café', bakery:'☕ Café', coffee_shop:'☕ Café',
+                shopping_mall:'🛍️ Shopping', store:'🛍️ Shopping', market:'🛍️ Shopping', clothing_store:'🛍️ Shopping', department_store:'🛍️ Shopping',
+                zoo:'🐾 Zoo/Aqua', aquarium:'🐾 Zoo/Aqua',
+                amusement_park:'🎡 Parc Attr.', theme_park:'🎡 Parc Attr.',
+                movie_theater:'🎭 Spectacle', performing_arts_theater:'🎭 Spectacle', stadium:'🎭 Spectacle',
+                neighborhood:'🏙️ Quartier', sublocality:'🏙️ Quartier', tourist_attraction:'🏙️ Quartier', point_of_interest:'🏙️ Quartier', locality:'🏙️ Quartier',
+            };
+            for (const t of (place.types||[])) { if (typeMap[t]) {
+                const parts = typeMap[t].split(' ');
+                return '<div class="' + BASE + '"><span class="text-base leading-none">' + parts[0] + '</span><span class="text-[9px] mt-0.5">' + parts.slice(1).join(' ') + '</span></div>';
+            }}
+            return '<div class="' + BASE + '"><span class="text-base">📍</span><span class="text-[9px] mt-0.5">Lieu</span></div>';
+        }
+
+                // Type chip inline avec le titre
         function buildTypeChip(place) {
             if (!place) return '';
             const typeMap = [
@@ -3114,7 +3137,7 @@
 
         // ── Chip 1 : Horaires du jour (cliquable → semaine) ──────────────
         function buildHoursChip(place, actId) {
-            const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-12 w-full cursor-pointer transition-all active:scale-95';
+            const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-11 w-full cursor-pointer transition-all active:scale-95';
             if (!place || !place.opening_hours || !place.opening_hours.length) {
                 if (place && (place.types||[]).some(t => ['neighborhood','sublocality','political','natural_feature','park'].includes(t)))
                     return '<div class="' + BASE + ' bg-sky-50 text-sky-700 border border-sky-200">🌿<span>Accès libre</span></div>';
@@ -3142,25 +3165,30 @@
                 + '</div>';
         }
 
-        // ── Chip 2 : Note Google ──────────────────────────────────────────
-        function buildRatingChip(place) {
-            const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-12 w-full';
+        // ── Chip 1 : Note Google (cliquable → fiche Google) ─────────────
+        function buildRatingChip(place, placeId) {
+            const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-11 w-full transition-all active:scale-95';
             if (!place || !place.rating)
-                return '<div class="' + BASE + ' bg-gray-100 text-gray-400">★<span>N/D</span></div>';
-            return '<div class="' + BASE + ' bg-amber-50 text-amber-700 border border-amber-200">'
-                + '<span class="font-black text-[11px]">' + place.rating.toFixed(1) + ' ★</span>'
-                + (place.review_count ? '<span class="text-[8px] opacity-70">' + (place.review_count >= 1000 ? (place.review_count/1000).toFixed(1)+'k' : place.review_count) + ' avis</span>' : '')
-                + '</div>';
+                return '<div class="' + BASE + ' bg-gray-100 text-gray-400">★<span class=\"text-[9px]\">N/D</span></div>';
+            const gUrl = placeId
+                ? 'https://www.google.com/maps/place/?q=place_id:' + placeId
+                : ('https://www.google.com/search?q=' + encodeURIComponent((place.name||'') + ' avis'));
+            return '<a href="' + gUrl + '" target="_blank" onclick="event.stopPropagation()" class="' + BASE + ' bg-amber-50 text-amber-700 border border-amber-200 cursor-pointer hover:bg-amber-100">'
+                + '<span class="font-black text-[12px] leading-none">' + place.rating.toFixed(1) + ' ★</span>'
+                + (place.review_count ? '<span class="text-[8px] opacity-70 mt-0.5">' + (place.review_count >= 1000 ? (place.review_count/1000).toFixed(1)+'k' : place.review_count) + ' avis</span>' : '')
+                + '</a>';
         }
 
-        // ── Chip 3 : Prix ─────────────────────────────────────────────────
+        // ── Chip 2 : Prix (flip → réservation ou "sans réservation") ────
+        const _priceFlipped = {};
         function buildPriceChip(place) {
-            const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-12 w-full';
+            const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-11 w-full transition-all active:scale-95 cursor-pointer';
             if (!place || (place.price_level === null || place.price_level === undefined))
-                return '<div class="' + BASE + ' bg-gray-100 text-gray-400">💴<span>N/D</span></div>';
+                return '<div class="' + BASE + ' bg-gray-100 text-gray-400">💴<span class=\"text-[9px]\">N/D</span></div>';
             if (place.price_level === 0)
                 return '<div class="' + BASE + ' bg-green-50 text-green-700 border border-green-200">'
-                    + '<span class="font-black">Gratuit</span></div>';
+                    + '<span class="font-black text-[11px]">Gratuit</span>'
+                    + '<span class="text-[8px] opacity-60">Accès libre</span></div>';
             const cfg = [null,
                 {cls:'bg-sky-50 text-sky-700 border border-sky-200'},
                 {cls:'bg-yellow-50 text-yellow-700 border border-yellow-200'},
@@ -3169,11 +3197,39 @@
             ];
             const c = cfg[place.price_level] || cfg[1];
             const priceStr = place.price_eur ? place.price_eur.toFixed(0) + '€' : ['','€','€€','€€€','€€€€'][place.price_level];
-            const detail = place.price_detail ? place.price_detail.split(',')[0] : '';
-            return '<div class="' + BASE + ' ' + c.cls + '" title="' + (place.price_detail||'') + '">'
-                + '<span class="font-black text-[11px]">' + priceStr + '</span>'
-                + (detail ? '<span class="text-[8px] opacity-70 truncate max-w-full px-0.5">' + detail + '</span>' : '')
+            const bookingUrl = place.booking_url || null;
+            const pid = place.place_id || '';
+            if (bookingUrl) {
+                return '<a href="' + bookingUrl + '" target="_blank" onclick="event.stopPropagation()" class="' + BASE + ' ' + c.cls + ' hover:brightness-95">'
+                    + '<span class="font-black text-[12px] leading-none">' + priceStr + '</span>'
+                    + '<span class="text-[8px] opacity-70 mt-0.5">🎟 Réserver</span></a>';
+            }
+            // Pas de lien → flip au clic
+            return '<div class="' + BASE + ' ' + c.cls + ' price-flip-chip" style="perspective:400px" onclick="event.stopPropagation();flipPriceChip(this,'' + pid + '')" title="Cliquer pour info réservation">'
+                + '<div class="price-flip-front w-full h-full flex flex-col items-center justify-center">'
+                + '<span class="font-black text-[12px] leading-none">' + priceStr + '</span>'
+                + (place.price_detail ? '<span class="text-[8px] opacity-70 mt-0.5 truncate max-w-full px-0.5">' + place.price_detail.split(',')[0] + '</span>' : '')
+                + '</div>'
+                + '<div class="price-flip-back w-full h-full flex flex-col items-center justify-center hidden bg-blue-100 text-blue-700 rounded-lg">'
+                + '<span class="text-base">🚶</span>'
+                + '<span class="text-[8px] font-bold text-center leading-tight px-1">Sans réservation</span>'
+                + '</div>'
                 + '</div>';
+        }
+
+        function flipPriceChip(el, pid) {
+            const front = el.querySelector('.price-flip-front');
+            const back = el.querySelector('.price-flip-back');
+            if (!front || !back) return;
+            const isFlipped = !back.classList.contains('hidden');
+            if (isFlipped) {
+                back.classList.add('hidden');
+                front.classList.remove('hidden');
+                el.style.background = '';
+            } else {
+                front.classList.add('hidden');
+                back.classList.remove('hidden');
+            }
         }
 
         // ── Modal horaires semaine ────────────────────────────────────────
@@ -3725,60 +3781,62 @@
         let swipeElement = null;
         let completedActivities = JSON.parse(localStorage.getItem('japan_completed_v1') || '[]');
 
-        function initActivitySwipe(element, activityId) {
+        function initActivitySwipe(element, activityId, actTitle) {
             let touchStartX = 0;
             let touchCurrentX = 0;
+            let touchStartY = 0;
             let isSwiping = false;
-            
+            let swipeDir = null; // 'left' | 'right'
+
             element.addEventListener('touchstart', (e) => {
                 touchStartX = e.touches[0].clientX;
-                swipeStartY = e.touches[0].clientY;
+                touchStartY = e.touches[0].clientY;
                 isSwiping = false;
-            });
-            
+                swipeDir = null;
+                element.style.transition = 'none';
+            }, {passive:true});
+
             element.addEventListener('touchmove', (e) => {
                 if (!touchStartX) return;
-                
                 touchCurrentX = e.touches[0].clientX;
-                const touchCurrentY = e.touches[0].clientY;
-                const diffX = touchStartX - touchCurrentX;
-                const diffY = Math.abs(swipeStartY - touchCurrentY);
-                
-                // Vérifier que c'est un swipe horizontal (pas vertical)
-                if (Math.abs(diffX) > 30 && diffY < 50) {
+                const diffX = touchCurrentX - touchStartX;
+                const diffY = Math.abs(e.touches[0].clientY - touchStartY);
+                if (Math.abs(diffX) > 20 && diffY < 60) {
                     isSwiping = true;
                     e.preventDefault();
-                    
-                    // Déplacer l'élément avec le doigt (swipe vers la gauche)
-                    if (diffX > 0) {
-                        element.style.transform = `translateX(-${diffX}px)`;
-                        element.classList.add('swiping');
+                    swipeDir = diffX > 0 ? 'right' : 'left';
+                    // Couleur de fond selon direction
+                    if (swipeDir === 'right') {
+                        element.style.background = 'linear-gradient(to right, #dcfce7, white)';
+                    } else {
+                        element.style.background = 'linear-gradient(to left, #fee2e2, white)';
                     }
+                    element.style.transform = 'translateX(' + diffX + 'px)';
                 }
-            });
-            
+            }, {passive:false});
+
             element.addEventListener('touchend', (e) => {
+                element.style.transition = 'transform 0.3s ease, background 0.3s ease';
                 if (!isSwiping) {
                     element.style.transform = '';
-                    element.classList.remove('swiping');
+                    element.style.background = '';
                     return;
                 }
-                
-                const diffX = touchStartX - touchCurrentX;
-                
-                // Si swipe > 100px vers la gauche, marquer comme complété
-                if (diffX > 100) {
+                const diffX = touchCurrentX - touchStartX;
+                if (swipeDir === 'left' && diffX < -90) {
+                    // Swipe gauche → suppression
+                    element.style.transform = 'translateX(-110%)';
+                    setTimeout(() => confirmDeleteActivity(activityId, actTitle), 300);
+                    setTimeout(() => { element.style.transform=''; element.style.background=''; }, 600);
+                } else if (swipeDir === 'right' && diffX > 90) {
+                    // Swipe droite → complétion
                     completeActivity(activityId, element);
                 } else {
-                    // Sinon, revenir en place
                     element.style.transform = '';
-                    element.classList.remove('swiping');
+                    element.style.background = '';
                 }
-                
-                touchStartX = 0;
-                touchCurrentX = 0;
-                isSwiping = false;
-            });
+                touchStartX = 0; touchCurrentX = 0; isSwiping = false; swipeDir = null;
+            }, {passive:true});
         }
 
         function completeActivity(activityId, element) {
