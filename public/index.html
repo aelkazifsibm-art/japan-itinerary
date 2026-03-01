@@ -78,26 +78,19 @@
 
         /* Activité complétée */
         .activity-completed {
-            background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%) !important;
+            background: linear-gradient(135deg, rgba(134,220,100,0.22), rgba(100,200,120,0.15)) !important;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
+            opacity: 0.85;
         }
         
-        .activity-completed::before {
-            content: '✓';
+        .activity-completed::after {
+            content: '';
             position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 30px;
-            height: 30px;
-            background: rgba(76, 175, 80, 0.9);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 18px;
+            inset: 0;
+            border-radius: inherit;
+            border: 2px solid rgba(100,200,120,0.5);
+            pointer-events: none;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
@@ -1053,7 +1046,7 @@
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v2') || '{}');
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
-        const PLACE_CACHE_KEY = 'japan_place_cache_v8';
+        const PLACE_CACHE_KEY = 'japan_place_cache_v9';
         const PLACE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
         let placeCache = JSON.parse(localStorage.getItem(PLACE_CACHE_KEY) || '{}');
 
@@ -2886,8 +2879,7 @@
                 const mapsUrl = act.place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}` : '';
 
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-shadow";
-                card.onclick = () => showActivityInfo(act);
+                card.className = "bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow";
                 card.innerHTML = `
                     <div class="flex" style="min-height:150px">
                         <!-- ── Col gauche : timeline ── -->
@@ -3032,8 +3024,10 @@
                     price_eur:      data.place.price_eur     || null,
                     rating:         data.place.rating        || null,
                     review_count:   data.place.review_count  || null,
-                    rating_source:  data.place.rating_source || null,
-                    visit_duration: data.place.visit_duration|| null,
+                    rating_source:    data.place.rating_source    || null,
+                    visit_duration:   data.place.visit_duration   || null,
+                    booking_url:      data.place.booking_url      || null,
+                    booking_required: data.place.booking_required !== undefined ? data.place.booking_required : null,
                     types:          data.place.types,
                     ai_hours:       data.place.ai_hours || false
                 };
@@ -3198,19 +3192,24 @@
             const c = cfg[place.price_level] || cfg[1];
             const priceStr = place.price_eur ? place.price_eur.toFixed(0) + '€' : ['','€','€€','€€€','€€€€'][place.price_level];
             const bookingUrl = place.booking_url || null;
+            const bookingRequired = place.booking_required;
             const pid = place.place_id || '';
             if (bookingUrl) {
                 return '<a href="' + bookingUrl + '" target="_blank" onclick="event.stopPropagation()" class="' + BASE + ' ' + c.cls + ' hover:brightness-95">'
                     + '<span class="font-black text-[12px] leading-none">' + priceStr + '</span>'
                     + '<span class="text-[8px] opacity-70 mt-0.5">🎟 Réserver</span></a>';
             }
-            // Pas de lien → flip au clic
-            return '<div class="' + BASE + ' ' + c.cls + ' price-flip-chip" data-pid="' + pid + '" onclick="event.stopPropagation();flipPriceChip(this)" title="Cliquer pour info réservation">'
+            if (bookingRequired === false) {
+                return '<div class="' + BASE + ' bg-emerald-50 text-emerald-700 border border-emerald-200">'
+                    + '<span class="font-black text-[11px] leading-none">' + priceStr + '</span>'
+                    + '<span class="text-[8px] mt-0.5">🚶 Sans résa</span></div>';
+            }
+            return '<div class="' + BASE + ' ' + c.cls + ' price-flip-chip" data-pid="' + pid + '" onclick="event.stopPropagation();flipPriceChip(this)" title="Tap pour info réservation">'
                 + '<div class="price-flip-front w-full h-full flex flex-col items-center justify-center">'
                 + '<span class="font-black text-[12px] leading-none">' + priceStr + '</span>'
                 + (place.price_detail ? '<span class="text-[8px] opacity-70 mt-0.5 truncate max-w-full px-0.5">' + place.price_detail.split(',')[0] + '</span>' : '')
                 + '</div>'
-                + '<div class="price-flip-back w-full h-full flex flex-col items-center justify-center hidden bg-blue-100 text-blue-700 rounded-lg">'
+                + '<div class="price-flip-back w-full h-full flex flex-col items-center justify-center hidden bg-emerald-50 text-emerald-700 rounded-lg">'
                 + '<span class="text-base">🚶</span>'
                 + '<span class="text-[8px] font-bold text-center leading-tight px-1">Sans réservation</span>'
                 + '</div>'
@@ -3678,6 +3677,11 @@
                     
                     content.innerHTML = `
                         ${quickInfoBlocks ? `<div class="flex flex-wrap gap-2 mb-4">${quickInfoBlocks}</div>` : ''}
+                        ${info.why_visit ? `
+                        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4">
+                            <div class="text-xs font-bold text-indigo-700 mb-1">✨ Pourquoi visiter</div>
+                            <p class="text-sm text-indigo-900 leading-relaxed">${info.why_visit}</p>
+                        </div>` : ''}
                         <!-- Affluence -->
                         <div class="bg-${crowdColor}-50 border-2 border-${crowdColor}-200 rounded-xl p-4">
                             <div class="flex items-center gap-2 mb-2">
@@ -3806,11 +3810,15 @@
                     isSwiping = true;
                     e.preventDefault();
                     swipeDir = diffX > 0 ? 'right' : 'left';
-                    // Couleur de fond selon direction
+                    const pct = Math.min(Math.abs(diffX) / 120, 1); // 0→1
                     if (swipeDir === 'right') {
-                        element.style.background = 'linear-gradient(to right, #dcfce7, white)';
+                        // Vert progressif (complétion)
+                        const g = Math.round(220 + pct * 35);
+                        element.style.background = 'linear-gradient(to right, rgba(134,' + g + ',100,' + (0.15 + pct*0.5) + '), white)';
                     } else {
-                        element.style.background = 'linear-gradient(to left, #fee2e2, white)';
+                        // Rouge progressif (suppression)
+                        const r = Math.round(200 + pct * 55);
+                        element.style.background = 'linear-gradient(to left, rgba(' + r + ',60,60,' + (0.15 + pct*0.5) + '), white)';
                     }
                     element.style.transform = 'translateX(' + diffX + 'px)';
                 }
@@ -3841,23 +3849,23 @@
         }
 
         function completeActivity(activityId, element) {
-            // Ajouter à la liste des complétés
             if (!completedActivities.includes(activityId)) {
                 completedActivities.push(activityId);
                 localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
             }
-            
-            // Animation de complétion
-            element.style.transform = 'translateX(-100%)';
-            
-            setTimeout(() => {
-                element.style.transform = '';
-                element.classList.remove('swiping');
-                element.classList.add('activity-completed');
-                
-                // Animation confetti
-                createConfetti(element);
-            }, 300);
+            element.style.transition = 'transform 0.25s ease, background 0.4s ease, opacity 0.4s ease';
+            element.style.transform = 'translateX(0)';
+            element.style.background = 'linear-gradient(135deg, rgba(134,220,100,0.25), rgba(100,200,120,0.18))';
+            element.classList.remove('swiping');
+            element.classList.add('activity-completed');
+            // Checkmark overlay
+            const ck = document.createElement('div');
+            ck.className = 'absolute top-2 right-2 w-7 h-7 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-black shadow pointer-events-none';
+            ck.style.cssText = 'z-index:10;opacity:0;transition:opacity 0.3s ease 0.1s';
+            ck.textContent = '✓';
+            element.style.position = 'relative';
+            element.appendChild(ck);
+            setTimeout(() => { ck.style.opacity = '1'; }, 50);
         }
 
         function createConfetti(element) {

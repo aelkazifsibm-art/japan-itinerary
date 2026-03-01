@@ -175,7 +175,7 @@ app.get("/api/places/details", async (req, res) => {
                         content: `Recherche sur le web les infos pour : "${p.name}", ${p.formatted_address}.
 Heure actuelle à Tokyo : ${tokyoTime}.
 IMPORTANT: cherche le prix d'ENTRÉE DIRECTE (billet d'entrée officiel), PAS les visites guidées.
-Sources prioritaires : site officiel du lieu, Google Maps, Japan-guide.com.
+Sources prioritaires : site officiel, Japan-guide.com, Klook, Voyagin, GetYourGuide.
 Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
 {
   "opening_hours": ["Lundi: 06:00 - 17:00", ...] ou null,
@@ -183,7 +183,9 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
   "price_level": 0 si gratuit, 1 si <1000¥, 2 si 1000-2000¥, 3 si 2000-4000¥, 4 si >4000¥, null si inconnu,
   "price_detail": "ex: 800¥ adulte, 400¥ enfant" ou null,
   "price_eur": 5.00 (prix adulte entrée directe en euros) ou null,
-  "visit_duration": 90 (durée typique de visite en minutes, sans visite guidée) ou null
+  "visit_duration": 90 (durée typique en minutes) ou null,
+  "booking_url": "https://..." (URL directe billet officiel ou Klook/Voyagin si disponible) ou null,
+  "booking_required": true si réservation nécessaire, false si entrée libre/sans réservation
 }`
                     }]
                 });
@@ -192,10 +194,11 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
                 if (needsHours && parsed.opening_hours) opening_hours = parsed.opening_hours;
                 if (parsed.open_now !== undefined && open_now === null) open_now = parsed.open_now;
                 if (needsPrice && parsed.price_level !== undefined && parsed.price_level !== null) price_level = parsed.price_level;
-                if (parsed.price_detail)   p._price_detail  = parsed.price_detail;
-                if (parsed.price_eur)      price_eur        = parsed.price_eur;
-                // Ne pas écraser la note Google si elle existe déjà (plus fiable)
-                if (parsed.visit_duration) visit_duration   = parsed.visit_duration;
+                if (parsed.price_detail)    p._price_detail    = parsed.price_detail;
+                if (parsed.price_eur)       price_eur          = parsed.price_eur;
+                if (parsed.booking_url)     p._booking_url     = parsed.booking_url;
+                if (parsed.booking_required !== undefined) p._booking_required = parsed.booking_required;
+                if (parsed.visit_duration)  visit_duration     = parsed.visit_duration;
                 ai_hours = true;
             } catch(aiErr) {
                 console.warn("OpenAI search fallback failed:", aiErr.message);
@@ -227,9 +230,11 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
                 opening_hours,
                 open_now,
                 price_level,
-                price_detail:    p._price_detail || null,
-                price_eur:       price_eur       || null,
-                rating:          rating          || null,
+                price_detail:     p._price_detail     || null,
+                price_eur:        price_eur          || null,
+                booking_url:      p._booking_url     || null,
+                booking_required: p._booking_required !== undefined ? p._booking_required : null,
+                rating:           rating             || null,
                 review_count:    review_count    || null,
                 rating_source:   rating ? 'google' : null,
                 visit_duration:  visit_duration  || null,
@@ -402,10 +407,11 @@ app.post("/api/activity-info", async (req, res) => {
             messages: [
                 { 
                     role: "system", 
-                    content: `Tu es un expert du tourisme au Japon. 
-                    Analyse le lieu demandé et fournis des informations pratiques.
+                    content: `Tu es un expert du tourisme au Japon.
+                    Analyse le lieu et fournis des informations pratiques + un paragraphe de présentation.
                     Format JSON strict :
                     {
+                        "why_visit": "Court paragraphe (2-3 phrases) sur pourquoi ce lieu est incontournable, son histoire ou son intérêt culturel.",
                         "crowd_level": "low|medium|high",
                         "best_times": ["09:00-10:00", "15:00-16:00"],
                         "rules": ["Règle 1", "Règle 2"],
