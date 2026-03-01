@@ -23,6 +23,50 @@
         .suggestion-item:hover { background: #f8f9fa; color: var(--primary); }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* ── Traces de pas style Carte du Maraudeur ── */
+        .footstep-trail {
+            position: relative;
+            overflow: hidden;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 16px !important;
+            border-radius: 0 !important;
+            z-index: 5;
+        }
+        .footstep-trail .nav-info-bar {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border-radius: 16px;
+            padding: 10px 14px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .footstep-canvas {
+            display: block;
+            width: 100%;
+            height: 52px;
+            pointer-events: none;
+        }
+        @keyframes stepAppear {
+            0%   { opacity: 0; transform: scale(0.3) rotate(var(--r)); }
+            60%  { opacity: 0.55; transform: scale(1.1) rotate(var(--r)); }
+            100% { opacity: 0.4; transform: scale(1) rotate(var(--r)); }
+        }
+        .footstep-svg {
+            position: absolute;
+            animation: stepAppear 0.35s ease-out forwards;
+            opacity: 0;
+            transform-origin: center;
+        }
+        .footstep-trail-container {
+            position: relative;
+            height: 52px;
+            overflow: hidden;
+        }
+
         
         /* Swipe gesture animations */
         .swipe-container { 
@@ -2939,8 +2983,16 @@
                         const navId    = `nav-${act.id}-${nextAct.id}`;
                         const navBlock = document.createElement('div');
                         navBlock.id        = navId;
-                        navBlock.className = "bg-nav text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md";
-                        navBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet...</div>`;
+                        navBlock.className = "footstep-trail -my-1 relative z-10";
+                        navBlock.innerHTML = `
+                            <div class="nav-info-bar text-white">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-sm">⏱️</span>
+                                    <span class="text-xs animate-pulse opacity-70">Calcul…</span>
+                                </div>
+                            </div>
+                            <div class="footstep-trail-container" id="steps-${navId}"></div>
+                        `;
                         list.appendChild(navBlock);
                         // dep = fin de visite act[i]   arr = arrivée act[i+1]
                         calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i + 1]);
@@ -3450,28 +3502,111 @@
         }
 
                 function renderNavBlock(el, data, departureTime, arrivalTime) {
-            // RÈGLE ABSOLUE : l'heure d'arrivée est toujours fournie par realTimes, jamais recalculée ici
             const arrival = arrivalTime || (departureTime ? addMinutesToTime(departureTime, data.total_minutes) : null);
             const modeIcons = { walk: '🚶', metro: '🚇', train: '🚄', bus: '🚌', taxi: '🚕' };
-            const modeIcon = modeIcons[data.mode] || '🚇';
-
+            const modeIcon  = modeIcons[data.mode] || '🚇';
             let segments = '';
             if (data.walk_from_min > 0) segments += `🚶 ${data.walk_from_min}min`;
             if (data.transit_min > 0)   segments += `${segments ? ' + ' : ''}${modeIcon} ${data.transit_min}min`;
             if (data.walk_to_min > 0)   segments += `${segments ? ' + ' : ''}🚶 ${data.walk_to_min}min`;
             if (!segments) segments = data.summary || `${data.total_minutes}min`;
 
-            el.innerHTML = `
-                <div class="flex justify-between items-center mb-1">
-                    <div class="flex items-center gap-1.5">
+            // Mettre à jour la barre d'info bleue
+            const bar = el.querySelector('.nav-info-bar');
+            if (bar) {
+                bar.innerHTML = `
+                    <div class="flex items-center gap-1.5 text-white">
                         <span class="text-sm">⏱️</span>
                         <span class="text-sm font-black">${data.total_minutes} min</span>
-                        ${departureTime ? `<span class="text-xs opacity-60">dep. ${departureTime}</span>` : ''}
+                        ${departureTime ? `<span class="text-[10px] opacity-60">dep. ${departureTime}</span>` : ''}
                     </div>
-                    ${arrival ? `<div class="flex items-center gap-1"><span class="text-sm">🏁</span><span class="text-sm font-black">${arrival}</span></div>` : ''}
-                </div>
-                <div class="text-xs opacity-75">${segments}</div>
-            `;
+                    <div class="flex items-center gap-1.5 text-white text-xs opacity-80">${segments}</div>
+                    ${arrival ? `<div class="flex items-center gap-1 text-white"><span class="text-sm">🏁</span><span class="text-sm font-black">${arrival}</span></div>` : ''}
+                `;
+            } else {
+                // Fallback si structure ancienne
+                el.innerHTML = `<div class="flex justify-between items-center text-white text-xs p-3"><span>⏱️ ${data.total_minutes} min</span><span>${segments}</span></div>`;
+            }
+
+            // Traces de pas dans le container dédié
+            const stepsContainerId = 'steps-' + el.id;
+            const stepsEl = document.getElementById(stepsContainerId);
+            if (stepsEl) drawFootsteps(stepsEl, data.mode);
+        }
+
+        // ── Dessine les traces de pas SVG avec animation au scroll ──────────
+        function drawFootsteps(container, mode) {
+            container.innerHTML = '';
+            // Empreinte de pied gauche et droit en SVG (style empreinte japonaise encre)
+            const footprintSVG = (side) => {
+                const mx = side === 'L' ? -1 : 1; // miroir gauche/droite
+                return `<svg viewBox="0 0 18 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g transform="scale(${mx},1) translate(${mx < 0 ? -18 : 0},0)" opacity="0.38">
+                        <!-- Plante du pied -->
+                        <ellipse cx="9" cy="18" rx="6.5" ry="9" fill="#8B7355" opacity="0.7"/>
+                        <!-- Talon -->
+                        <ellipse cx="9" cy="24" rx="4.5" ry="3.5" fill="#6B5535" opacity="0.8"/>
+                        <!-- Orteils -->
+                        <ellipse cx="5"  cy="9"  rx="2.2" ry="2.8" fill="#8B7355" opacity="0.65"/>
+                        <ellipse cx="8"  cy="7"  rx="2"   ry="2.6" fill="#8B7355" opacity="0.65"/>
+                        <ellipse cx="11" cy="7.5" rx="1.9" ry="2.5" fill="#8B7355" opacity="0.65"/>
+                        <ellipse cx="13.5" cy="9" rx="1.7" ry="2.2" fill="#8B7355" opacity="0.65"/>
+                    </g>
+                </svg>`;
+            };
+
+            // Pour le mode train/metro, pas style chaussure (moins pieds nus)
+            const shoeprint = (side) => {
+                const mx = side === 'L' ? -1 : 1;
+                return `<svg viewBox="0 0 20 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g transform="scale(${mx},1) translate(${mx < 0 ? -20 : 0},0)" opacity="0.32">
+                        <path d="M10 2 C6 2 3 6 3 11 C3 18 5 24 7 28 C8 31 9 33 10 33 C13 33 17 30 17 26 C17 20 15 14 14 9 C13 5 12 2 10 2Z"
+                              fill="#5B4A3A" opacity="0.75"/>
+                        <ellipse cx="10" cy="28" rx="5" ry="4" fill="#3D2E1E" opacity="0.6"/>
+                    </g>
+                </svg>`;
+            };
+
+            const isWalk = !mode || mode === 'walk';
+            const getSVG = (side) => isWalk ? footprintSVG(side) : shoeprint(side);
+
+            // Générer les pas en zigzag
+            const steps = [];
+            const W = container.clientWidth || 280;
+            const H = 52;
+            const numSteps = 9;
+            const stepW = 14, stepH = 22;
+            const baseX = W / 2;
+            const offsetX = 10; // décalage gauche/droite
+
+            for (let i = 0; i < numSteps; i++) {
+                const side = i % 2 === 0 ? 'R' : 'L';
+                const xSign = side === 'R' ? 1 : -1;
+                const progress = i / (numSteps - 1); // 0 → 1 (haut → bas)
+                const y = H - 4 - (progress * (H - stepH - 4));
+                const x = baseX + xSign * offsetX - stepW / 2;
+                // Légère rotation alternée pour le naturel
+                const rot = xSign * (6 + Math.random() * 4);
+                steps.push({ x, y, side, rot, delay: i * 120 });
+            }
+
+            // Observer le scroll pour animer les pas
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !container._animated) {
+                        container._animated = true;
+                        steps.forEach(s => {
+                            const wrapper = document.createElement('div');
+                            wrapper.style.cssText = `position:absolute;left:${s.x}px;top:${s.y}px;width:${stepW}px;height:${stepH}px;--r:${s.rot}deg;animation:stepAppear 0.35s ease-out ${s.delay}ms forwards;opacity:0;transform-origin:center;transform:scale(0.3) rotate(${s.rot}deg)`;
+                            wrapper.innerHTML = getSVG(s.side);
+                            wrapper.querySelector('svg').style.cssText = 'width:100%;height:100%';
+                            container.appendChild(wrapper);
+                        });
+                        observer.disconnect();
+                    }
+                });
+            }, { threshold: 0.3 });
+            observer.observe(container);
         }
 
         // Met à jour les heures des blocs nav sans re-render complet (évite la boucle infinie)
