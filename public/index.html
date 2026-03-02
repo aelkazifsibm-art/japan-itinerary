@@ -1933,13 +1933,20 @@
             }
         }
 
+        // Flag : le touch a démarré sur une tuile activité (swipe tuile prioritaire)
+        let _touchOnCard = false;
+
         document.addEventListener('touchstart', e => {
+            // Ignorer si le touch commence sur une tuile ou un bouton interactif
+            _touchOnCard = !!e.target.closest('.activity-card, button, a, input, [data-act-id]');
             touchStartX = e.changedTouches[0].screenX;
         });
 
         document.addEventListener('touchend', e => {
             touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
+            // Ne pas changer de jour si le swipe vient d'une tuile
+            if (!_touchOnCard) handleSwipe();
+            _touchOnCard = false;
         });
 
         // ========== MODAL ACTIVITÉ ==========
@@ -2917,7 +2924,7 @@
 
                 const theme = getActivityTheme(act.place);
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl overflow-hidden";
+                card.className = "bg-white rounded-2xl overflow-hidden activity-card";
                 card.style.cssText = "border: 2px solid " + theme.border + "; box-shadow: 0 1px 8px " + theme.border + "30;";
                 card.innerHTML = `
                     <div class="flex" style="min-height:112px">
@@ -3912,6 +3919,8 @@
                 isSwiping = false;
                 swipeDir = null;
                 element.style.transition = 'none';
+                // Marquer que ce touch est sur une tuile → le swipe global sera ignoré
+                _touchOnCard = true;
             }, {passive:true});
 
             element.addEventListener('touchmove', (e) => {
