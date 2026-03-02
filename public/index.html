@@ -1084,101 +1084,101 @@
         // ========== BASE DE DONNÉES SUGGESTIONS ==========
         const citySuggestions = {
             tokyo: [
-                { name: "Senso-ji Temple", query: "Senso-ji Temple, Asakusa, Tokyo, Japan", emoji: "⛩️", image: "🏮", fatigue: "balade", must_see: true },
-                { name: "Shibuya Crossing", query: "Shibuya Crossing, Tokyo, Japan", emoji: "🚶", image: "🌆", fatigue: "balade", must_see: true },
-                { name: "Tokyo Skytree", query: "Tokyo Skytree, Tokyo, Japan", emoji: "🗼", image: "🌃", fatigue: "balade", must_see: true },
-                { name: "Meiji Shrine", query: "Meiji Shrine, Harajuku, Tokyo, Japan", emoji: "⛩️", image: "🌲", fatigue: "balade", must_see: true },
-                { name: "Tsukiji Outer Market", query: "Tsukiji Outer Market, Tokyo, Japan", emoji: "🐟", image: "🍣", fatigue: "exploration", must_see: true },
-                { name: "Akihabara", query: "Akihabara Electric Town, Tokyo, Japan", emoji: "🎮", image: "⚡", fatigue: "balade", must_see: false },
-                { name: "Harajuku & Takeshita", query: "Takeshita Street, Harajuku, Tokyo, Japan", emoji: "🎀", image: "🛍️", fatigue: "balade", must_see: false },
-                { name: "Shinjuku Gyoen", query: "Shinjuku Gyoen National Garden, Tokyo, Japan", emoji: "🌸", image: "🌿", fatigue: "balade", must_see: false },
-                { name: "Ueno Park & Musée", query: "Ueno Park, Tokyo, Japan", emoji: "🦒", image: "🌸", fatigue: "exploration", must_see: false },
-                { name: "Odaiba", query: "Odaiba, Tokyo, Japan", emoji: "🏝️", image: "🌉", fatigue: "exploration", must_see: false },
-                { name: "Yanaka Ginza", query: "Yanaka Ginza Shopping Street, Tokyo, Japan", emoji: "🏘️", image: "🏮", fatigue: "balade", must_see: false },
-                { name: "Roppongi Hills", query: "Roppongi Hills, Tokyo, Japan", emoji: "🎨", image: "🌃", fatigue: "balade", must_see: false },
-                { name: "Mont Takao", query: "Mount Takao, Tokyo, Japan", emoji: "🌲", image: "🏔️", fatigue: "randonnée", must_see: false },
-                { name: "Nikko Day Trip", query: "Nikko, Tochigi, Japan", emoji: "🏔️", image: "🍂", fatigue: "randonnée", must_see: false }
+                { name: "Senso-ji Temple", query: "Senso-ji Temple, Asakusa, Tokyo, Japan", emoji: "⛩️", image: "🏮", fatigue: "balade", must_see: true, theme: "contempler" },
+                { name: "Shibuya Crossing", query: "Shibuya Crossing, Tokyo, Japan", emoji: "🚶", image: "🌆", fatigue: "balade", must_see: true, theme: "explorer" },
+                { name: "Tokyo Skytree", query: "Tokyo Skytree, Tokyo, Japan", emoji: "🗼", image: "🌃", fatigue: "balade", must_see: true, theme: "contempler" },
+                { name: "Meiji Shrine", query: "Meiji Shrine, Harajuku, Tokyo, Japan", emoji: "⛩️", image: "🌲", fatigue: "balade", must_see: true, theme: "contempler" },
+                { name: "Tsukiji Outer Market", query: "Tsukiji Outer Market, Tokyo, Japan", emoji: "🐟", image: "🍣", fatigue: "exploration", must_see: true, theme: "restaurer" },
+                { name: "Akihabara", query: "Akihabara Electric Town, Tokyo, Japan", emoji: "🎮", image: "⚡", fatigue: "balade", must_see: false, theme: "explorer" },
+                { name: "Harajuku & Takeshita", query: "Takeshita Street, Harajuku, Tokyo, Japan", emoji: "🎀", image: "🛍️", fatigue: "balade", must_see: false, theme: "explorer" },
+                { name: "Shinjuku Gyoen", query: "Shinjuku Gyoen National Garden, Tokyo, Japan", emoji: "🌸", image: "🌿", fatigue: "balade", must_see: false, theme: "promener" },
+                { name: "Ueno Park & Musée", query: "Ueno Park, Tokyo, Japan", emoji: "🦒", image: "🌸", fatigue: "exploration", must_see: false, theme: "contempler" },
+                { name: "Odaiba", query: "Odaiba, Tokyo, Japan", emoji: "🏝️", image: "🌉", fatigue: "exploration", must_see: false, theme: "explorer" },
+                { name: "Yanaka Ginza", query: "Yanaka Ginza Shopping Street, Tokyo, Japan", emoji: "🏘️", image: "🏮", fatigue: "balade", must_see: false, theme: "explorer" },
+                { name: "Roppongi Hills", query: "Roppongi Hills, Tokyo, Japan", emoji: "🎨", image: "🌃", fatigue: "balade", must_see: false, theme: "contempler" },
+                { name: "Mont Takao", query: "Mount Takao, Tokyo, Japan", emoji: "🌲", image: "🏔️", fatigue: "randonnée", must_see: false, theme: "promener" },
+                { name: "Nikko Day Trip", query: "Nikko, Tochigi, Japan", emoji: "🏔️", image: "🍂", fatigue: "randonnée", must_see: false, theme: "contempler" }
             ],
             kyoto: [
-                { name: "Fushimi Inari", query: "Fushimi Inari Shrine, Kyoto, Japan", emoji: "⛩️", image: "🦊", fatigue: "randonnée", must_see: true },
-                { name: "Kinkaku-ji", query: "Kinkaku-ji Golden Pavilion, Kyoto, Japan", emoji: "🏯", image: "✨", fatigue: "balade", must_see: true },
-                { name: "Arashiyama Bamboo", query: "Arashiyama Bamboo Grove, Kyoto, Japan", emoji: "🎋", image: "🌿", fatigue: "exploration", must_see: true },
-                { name: "Gion District", query: "Gion District, Kyoto, Japan", emoji: "👘", image: "🏮", fatigue: "balade", must_see: true },
-                { name: "Kiyomizu-dera", query: "Kiyomizu-dera Temple, Kyoto, Japan", emoji: "⛩️", image: "🏔️", fatigue: "exploration", must_see: true },
-                { name: "Nishiki Market", query: "Nishiki Market, Kyoto, Japan", emoji: "🍜", image: "🥢", fatigue: "balade", must_see: false },
-                { name: "Philosopher's Path", query: "Philosopher's Path, Kyoto, Japan", emoji: "🌸", image: "🛤️", fatigue: "balade", must_see: false },
-                { name: "Ryoan-ji", query: "Ryoan-ji Temple, Kyoto, Japan", emoji: "🪨", image: "🌿", fatigue: "balade", must_see: false },
-                { name: "Nijo Castle", query: "Nijo Castle, Kyoto, Japan", emoji: "🏯", image: "🌸", fatigue: "exploration", must_see: false },
-                { name: "Tenryu-ji", query: "Tenryu-ji Temple, Arashiyama, Kyoto, Japan", emoji: "🌿", image: "⛩️", fatigue: "balade", must_see: false },
-                { name: "Kurama Onsen", query: "Kurama Onsen, Kyoto, Japan", emoji: "♨️", image: "🌲", fatigue: "randonnée", must_see: false },
-                { name: "Nara Day Trip", query: "Nara, Japan", emoji: "🦌", image: "🌳", fatigue: "exploration", must_see: false }
+                { name: "Fushimi Inari", query: "Fushimi Inari Shrine, Kyoto, Japan", emoji: "⛩️", image: "🦊", fatigue: "randonnée", must_see: true, theme: "contempler" },
+                { name: "Kinkaku-ji", query: "Kinkaku-ji Golden Pavilion, Kyoto, Japan", emoji: "🏯", image: "✨", fatigue: "balade", must_see: true, theme: "contempler" },
+                { name: "Arashiyama Bamboo", query: "Arashiyama Bamboo Grove, Kyoto, Japan", emoji: "🎋", image: "🌿", fatigue: "exploration", must_see: true, theme: "promener" },
+                { name: "Gion District", query: "Gion District, Kyoto, Japan", emoji: "👘", image: "🏮", fatigue: "balade", must_see: true, theme: "explorer" },
+                { name: "Kiyomizu-dera", query: "Kiyomizu-dera Temple, Kyoto, Japan", emoji: "⛩️", image: "🏔️", fatigue: "exploration", must_see: true, theme: "contempler" },
+                { name: "Nishiki Market", query: "Nishiki Market, Kyoto, Japan", emoji: "🍜", image: "🥢", fatigue: "balade", must_see: false, theme: "restaurer" },
+                { name: "Philosopher's Path", query: "Philosopher's Path, Kyoto, Japan", emoji: "🌸", image: "🛤️", fatigue: "balade", must_see: false, theme: "promener" },
+                { name: "Ryoan-ji", query: "Ryoan-ji Temple, Kyoto, Japan", emoji: "🪨", image: "🌿", fatigue: "balade", must_see: false, theme: "contempler" },
+                { name: "Nijo Castle", query: "Nijo Castle, Kyoto, Japan", emoji: "🏯", image: "🌸", fatigue: "exploration", must_see: false, theme: "contempler" },
+                { name: "Tenryu-ji", query: "Tenryu-ji Temple, Arashiyama, Kyoto, Japan", emoji: "🌿", image: "⛩️", fatigue: "balade", must_see: false, theme: "contempler" },
+                { name: "Kurama Onsen", query: "Kurama Onsen, Kyoto, Japan", emoji: "♨️", image: "🌲", fatigue: "randonnée", must_see: false, theme: "detendre" },
+                { name: "Nara Day Trip", query: "Nara, Japan", emoji: "🦌", image: "🌳", fatigue: "exploration", must_see: false, theme: "promener" }
             ],
             osaka: [
-                { name: "Osaka Castle", query: "Osaka Castle, Osaka, Japan", emoji: "🏯", image: "🌸", fatigue: "exploration", must_see: true },
-                { name: "Dotonbori", query: "Dotonbori, Osaka, Japan", emoji: "🍜", image: "🏮", fatigue: "balade", must_see: true },
-                { name: "Kuromon Market", query: "Kuromon Ichiba Market, Osaka, Japan", emoji: "🦞", image: "🍢", fatigue: "balade", must_see: true },
-                { name: "Shinsekai", query: "Shinsekai District, Osaka, Japan", emoji: "🗼", image: "🎡", fatigue: "balade", must_see: false },
-                { name: "Umeda Sky Building", query: "Umeda Sky Building, Osaka, Japan", emoji: "🏙️", image: "🌃", fatigue: "balade", must_see: false },
-                { name: "Sumiyoshi Taisha", query: "Sumiyoshi Taisha Shrine, Osaka, Japan", emoji: "⛩️", image: "🌊", fatigue: "balade", must_see: false },
-                { name: "Namba Yashiro", query: "Hozen-ji Yokocho, Osaka, Japan", emoji: "🕯️", image: "🏮", fatigue: "balade", must_see: false },
-                { name: "Universal Studios", query: "Universal Studios Japan, Osaka, Japan", emoji: "🎡", image: "🎢", fatigue: "exploration", must_see: false },
-                { name: "Tennoji Zoo & Park", query: "Tennoji Park, Osaka, Japan", emoji: "🌳", image: "🦁", fatigue: "balade", must_see: false },
-                { name: "Kyobashi Night Life", query: "Kyobashi, Osaka, Japan", emoji: "🍺", image: "🌙", fatigue: "balade", must_see: false }
+                { name: "Osaka Castle", query: "Osaka Castle, Osaka, Japan", emoji: "🏯", image: "🌸", fatigue: "exploration", must_see: true, theme: "contempler" },
+                { name: "Dotonbori", query: "Dotonbori, Osaka, Japan", emoji: "🍜", image: "🏮", fatigue: "balade", must_see: true, theme: "restaurer" },
+                { name: "Kuromon Market", query: "Kuromon Ichiba Market, Osaka, Japan", emoji: "🦞", image: "🍢", fatigue: "balade", must_see: true, theme: "restaurer" },
+                { name: "Shinsekai", query: "Shinsekai District, Osaka, Japan", emoji: "🗼", image: "🎡", fatigue: "balade", must_see: false, theme: "explorer" },
+                { name: "Umeda Sky Building", query: "Umeda Sky Building, Osaka, Japan", emoji: "🏙️", image: "🌃", fatigue: "balade", must_see: false, theme: "contempler" },
+                { name: "Sumiyoshi Taisha", query: "Sumiyoshi Taisha Shrine, Osaka, Japan", emoji: "⛩️", image: "🌊", fatigue: "balade", must_see: false, theme: "contempler" },
+                { name: "Namba Yashiro", query: "Hozen-ji Yokocho, Osaka, Japan", emoji: "🕯️", image: "🏮", fatigue: "balade", must_see: false, theme: "explorer" },
+                { name: "Universal Studios", query: "Universal Studios Japan, Osaka, Japan", emoji: "🎡", image: "🎢", fatigue: "exploration", must_see: false, theme: "explorer" },
+                { name: "Tennoji Zoo & Park", query: "Tennoji Park, Osaka, Japan", emoji: "🌳", image: "🦁", fatigue: "balade", must_see: false, theme: "promener" },
+                { name: "Kyobashi Night Life", query: "Kyobashi, Osaka, Japan", emoji: "🍺", image: "🌙", fatigue: "balade", must_see: false, theme: "restaurer" }
             ],
             nara: [
                 { name: "Nara Park & Cerfs", query: "Nara Park, Nara, Japan", emoji: "🦌", image: "🌳", fatigue: "balade", must_see: true },
                 { name: "Todai-ji Temple", query: "Todai-ji Temple, Nara, Japan", emoji: "🏛️", image: "🗿", fatigue: "exploration", must_see: true },
                 { name: "Kasuga Taisha", query: "Kasuga Taisha Shrine, Nara, Japan", emoji: "⛩️", image: "🏮", fatigue: "balade", must_see: true },
-                { name: "Naramachi", query: "Naramachi District, Nara, Japan", emoji: "🏘️", image: "🏮", fatigue: "balade", must_see: false },
-                { name: "Yoshiki-en Garden", query: "Yoshiki-en Garden, Nara, Japan", emoji: "🌸", image: "🏞️", fatigue: "balade", must_see: false },
-                { name: "Isuien Garden", query: "Isuien Garden, Nara, Japan", emoji: "🌿", image: "🏞️", fatigue: "balade", must_see: false },
-                { name: "Nigatsu-do", query: "Nigatsu-do Hall, Nara, Japan", emoji: "🕯️", image: "⛩️", fatigue: "exploration", must_see: false }
+                { name: "Naramachi", query: "Naramachi District, Nara, Japan", emoji: "🏘️", image: "🏮", fatigue: "balade", must_see: false, theme: "explorer" },
+                { name: "Yoshiki-en Garden", query: "Yoshiki-en Garden, Nara, Japan", emoji: "🌸", image: "🏞️", fatigue: "balade", must_see: false, theme: "promener" },
+                { name: "Isuien Garden", query: "Isuien Garden, Nara, Japan", emoji: "🌿", image: "🏞️", fatigue: "balade", must_see: false, theme: "promener" },
+                { name: "Nigatsu-do", query: "Nigatsu-do Hall, Nara, Japan", emoji: "🕯️", image: "⛩️", fatigue: "exploration", must_see: false, theme: "contempler" }
             ],
             hiroshima: [
                 { name: "Peace Memorial Park", query: "Hiroshima Peace Memorial Park, Hiroshima, Japan", emoji: "☮️", image: "🕊️", fatigue: "balade", must_see: true },
                 { name: "Dôme de la Bombe", query: "Atomic Bomb Dome, Hiroshima, Japan", emoji: "🏚️", image: "🕊️", fatigue: "balade", must_see: true },
                 { name: "Miyajima & Itsukushima", query: "Itsukushima Shrine, Miyajima, Japan", emoji: "⛩️", image: "🌊", fatigue: "randonnée", must_see: true },
-                { name: "Hiroshima Castle", query: "Hiroshima Castle, Hiroshima, Japan", emoji: "🏯", image: "🌸", fatigue: "exploration", must_see: false },
-                { name: "Shukkeien Garden", query: "Shukkeien Garden, Hiroshima, Japan", emoji: "🌸", image: "🏞️", fatigue: "balade", must_see: false },
-                { name: "Marché Hondori", query: "Hondori Shopping Street, Hiroshima, Japan", emoji: "🛍️", image: "🏙️", fatigue: "balade", must_see: false }
+                { name: "Hiroshima Castle", query: "Hiroshima Castle, Hiroshima, Japan", emoji: "🏯", image: "🌸", fatigue: "exploration", must_see: false, theme: "contempler" },
+                { name: "Shukkeien Garden", query: "Shukkeien Garden, Hiroshima, Japan", emoji: "🌸", image: "🏞️", fatigue: "balade", must_see: false, theme: "promener" },
+                { name: "Marché Hondori", query: "Hondori Shopping Street, Hiroshima, Japan", emoji: "🛍️", image: "🏙️", fatigue: "balade", must_see: false, theme: "restaurer" }
             ],
             hakone: [
                 { name: "Lac Ashi & Vue Fuji", query: "Lake Ashi, Hakone, Japan", emoji: "🚢", image: "🗻", fatigue: "balade", must_see: true },
                 { name: "Owakudani", query: "Owakudani Valley, Hakone, Japan", emoji: "🌋", image: "♨️", fatigue: "exploration", must_see: true },
                 { name: "Hakone Ropeway", query: "Hakone Ropeway, Hakone, Japan", emoji: "🚡", image: "🏔️", fatigue: "balade", must_see: true },
-                { name: "Hakone Shrine", query: "Hakone Shrine, Hakone, Japan", emoji: "⛩️", image: "🌊", fatigue: "balade", must_see: false },
-                { name: "Open Air Museum", query: "Hakone Open Air Museum, Hakone, Japan", emoji: "🎨", image: "🏔️", fatigue: "exploration", must_see: false },
-                { name: "Onsen Ryokan", query: "Gora Hakone, Japan", emoji: "♨️", image: "🌸", fatigue: "balade", must_see: false },
-                { name: "Mont Fuji (vue)", query: "Fujisan, Fuji, Shizuoka, Japan", emoji: "🗻", image: "❄️", fatigue: "randonnée", must_see: false }
+                { name: "Hakone Shrine", query: "Hakone Shrine, Hakone, Japan", emoji: "⛩️", image: "🌊", fatigue: "balade", must_see: false, theme: "contempler" },
+                { name: "Open Air Museum", query: "Hakone Open Air Museum, Hakone, Japan", emoji: "🎨", image: "🏔️", fatigue: "exploration", must_see: false, theme: "contempler" },
+                { name: "Onsen Ryokan", query: "Gora Hakone, Japan", emoji: "♨️", image: "🌸", fatigue: "balade", must_see: false, theme: "detendre" },
+                { name: "Mont Fuji (vue)", query: "Fujisan, Fuji, Shizuoka, Japan", emoji: "🗻", image: "❄️", fatigue: "randonnée", must_see: false, theme: "promener" }
             ],
             nikko: [
                 { name: "Toshogu Shrine", query: "Nikko Toshogu Shrine, Nikko, Japan", emoji: "⛩️", image: "🏮", fatigue: "exploration", must_see: true },
                 { name: "Kegon Falls", query: "Kegon Falls, Nikko, Japan", emoji: "💧", image: "🌊", fatigue: "balade", must_see: true },
-                { name: "Lac Chuzenji", query: "Lake Chuzenji, Nikko, Japan", emoji: "🏞️", image: "🍂", fatigue: "balade", must_see: false },
-                { name: "Shinkyo Bridge", query: "Shinkyo Bridge, Nikko, Japan", emoji: "🌉", image: "🍁", fatigue: "balade", must_see: false },
-                { name: "Rinnoji Temple", query: "Rinnoji Temple, Nikko, Japan", emoji: "🏛️", image: "🌿", fatigue: "balade", must_see: false },
-                { name: "Senjogahara Marsh", query: "Senjogahara Marshland, Nikko, Japan", emoji: "🌾", image: "🌿", fatigue: "randonnée", must_see: false }
+                { name: "Lac Chuzenji", query: "Lake Chuzenji, Nikko, Japan", emoji: "🏞️", image: "🍂", fatigue: "balade", must_see: false, theme: "promener" },
+                { name: "Shinkyo Bridge", query: "Shinkyo Bridge, Nikko, Japan", emoji: "🌉", image: "🍁", fatigue: "balade", must_see: false, theme: "contempler" },
+                { name: "Rinnoji Temple", query: "Rinnoji Temple, Nikko, Japan", emoji: "🏛️", image: "🌿", fatigue: "balade", must_see: false, theme: "contempler" },
+                { name: "Senjogahara Marsh", query: "Senjogahara Marshland, Nikko, Japan", emoji: "🌾", image: "🌿", fatigue: "randonnée", must_see: false, theme: "promener" }
             ],
             kamakura: [
                 { name: "Grand Bouddha", query: "Kotoku-in Temple Great Buddha, Kamakura, Japan", emoji: "🗿", image: "☸️", fatigue: "balade", must_see: true },
                 { name: "Tsurugaoka Hachimangu", query: "Tsurugaoka Hachimangu Shrine, Kamakura, Japan", emoji: "⛩️", image: "🌳", fatigue: "exploration", must_see: true },
-                { name: "Hasedera Temple", query: "Hasedera Temple, Kamakura, Japan", emoji: "⛩️", image: "🌸", fatigue: "exploration", must_see: false },
-                { name: "Île d'Enoshima", query: "Enoshima Island, Kamakura, Japan", emoji: "🏝️", image: "🌊", fatigue: "randonnée", must_see: false },
-                { name: "Plage de Yuigahama", query: "Yuigahama Beach, Kamakura, Japan", emoji: "🏖️", image: "🌊", fatigue: "balade", must_see: false },
-                { name: "Hokokuji (bambous)", query: "Hokokuji Temple, Kamakura, Japan", emoji: "🎋", image: "🌿", fatigue: "balade", must_see: false }
+                { name: "Hasedera Temple", query: "Hasedera Temple, Kamakura, Japan", emoji: "⛩️", image: "🌸", fatigue: "exploration", must_see: false, theme: "contempler" },
+                { name: "Île d'Enoshima", query: "Enoshima Island, Kamakura, Japan", emoji: "🏝️", image: "🌊", fatigue: "randonnée", must_see: false, theme: "promener" },
+                { name: "Plage de Yuigahama", query: "Yuigahama Beach, Kamakura, Japan", emoji: "🏖️", image: "🌊", fatigue: "balade", must_see: false, theme: "promener" },
+                { name: "Hokokuji (bambous)", query: "Hokokuji Temple, Kamakura, Japan", emoji: "🎋", image: "🌿", fatigue: "balade", must_see: false, theme: "promener" }
             ],
             takayama: [
                 { name: "Vieille Ville Sanmachi", query: "Sanmachi Suji Old Town, Takayama, Japan", emoji: "🏘️", image: "🏮", fatigue: "balade", must_see: true },
                 { name: "Marchés du Matin", query: "Takayama Morning Markets, Takayama, Japan", emoji: "🛒", image: "🥬", fatigue: "balade", must_see: true },
-                { name: "Takayama Jinya", query: "Takayama Jinya, Takayama, Japan", emoji: "🏛️", image: "🏯", fatigue: "balade", must_see: false },
-                { name: "Higashiyama Trail", query: "Higashiyama Walking Course, Takayama, Japan", emoji: "🥾", image: "⛩️", fatigue: "randonnée", must_see: false },
-                { name: "Hida Folk Village", query: "Hida Folk Village, Takayama, Japan", emoji: "🏡", image: "⛄", fatigue: "exploration", must_see: false },
-                { name: "Shirakawa-go", query: "Shirakawa-go, Ono District, Gifu, Japan", emoji: "❄️", image: "🏔️", fatigue: "exploration", must_see: false }
+                { name: "Takayama Jinya", query: "Takayama Jinya, Takayama, Japan", emoji: "🏛️", image: "🏯", fatigue: "balade", must_see: false, theme: "contempler" },
+                { name: "Higashiyama Trail", query: "Higashiyama Walking Course, Takayama, Japan", emoji: "🥾", image: "⛩️", fatigue: "randonnée", must_see: false, theme: "promener" },
+                { name: "Hida Folk Village", query: "Hida Folk Village, Takayama, Japan", emoji: "🏡", image: "⛄", fatigue: "exploration", must_see: false, theme: "explorer" },
+                { name: "Shirakawa-go", query: "Shirakawa-go, Ono District, Gifu, Japan", emoji: "❄️", image: "🏔️", fatigue: "exploration", must_see: false, theme: "contempler" }
             ],
             kanazawa: [
                 { name: "Kenrokuen Garden", query: "Kenrokuen Garden, Kanazawa, Japan", emoji: "🌸", image: "🏞️", fatigue: "exploration", must_see: true },
                 { name: "Higashi Chaya", query: "Higashi Chaya District, Kanazawa, Japan", emoji: "🏮", image: "👘", fatigue: "balade", must_see: true },
-                { name: "Kanazawa Castle", query: "Kanazawa Castle, Kanazawa, Japan", emoji: "🏯", image: "🌸", fatigue: "exploration", must_see: false },
+                { name: "Kanazawa Castle", query: "Kanazawa Castle, Kanazawa, Japan", emoji: "🏯", image: "🌸", fatigue: "exploration", must_see: false, theme: "contempler" },
                 { name: "Omicho Market", query: "Omicho Market, Kanazawa, Japan", emoji: "🦀", image: "🍣", fatigue: "balade", must_see: true },
                 { name: "Myoryuji (Ninja Temple)", query: "Myoryuji Temple, Kanazawa, Japan", emoji: "🥷", image: "🏯", fatigue: "balade", must_see: false },
                 { name: "Nishi Chaya", query: "Nishi Chaya District, Kanazawa, Japan", emoji: "🍵", image: "👘", fatigue: "balade", must_see: false },
@@ -2691,25 +2691,34 @@
 
                 const grid = document.getElementById('planning-suggestions-grid');
                 citySuggestions[selectedCity].forEach(suggestion => {
-                    const tile = document.createElement('div');
-                    tile.className = "bg-white rounded-xl p-3 border-2 border-purple-100 cursor-pointer hover:border-primary hover:shadow-lg transition-all active:scale-95";
-                    tile.onclick = () => selectSuggestionInModal(suggestion.name, suggestion.query, suggestion.image);
-                    const fatigueBadges = {
-                        balade:      { icon: '🚶', label: 'Balade',      bg: 'bg-green-100 text-green-700' },
-                        exploration: { icon: '🧭', label: 'Exploration', bg: 'bg-yellow-100 text-yellow-700' },
-                        randonnée:   { icon: '🥾', label: 'Randonnée',  bg: 'bg-orange-100 text-orange-700' }
+                    const themeColors = {
+                        contempler: { border: '#fb923c', bg: '#fff7ed', text: '#ea580c' },
+                        restaurer:  { border: '#f472b6', bg: '#fdf2f8', text: '#db2777' },
+                        promener:   { border: '#4ade80', bg: '#f0fdf4', text: '#16a34a' },
+                        explorer:   { border: '#38bdf8', bg: '#f0f9ff', text: '#0284c7' },
+                        detendre:   { border: '#c084fc', bg: '#faf5ff', text: '#9333ea' },
                     };
-                    const fb = fatigueBadges[suggestion.fatigue] || { icon: '', label: '', bg: '' };
+                    const tc = themeColors[suggestion.theme] || themeColors.explorer;
+                    const fatigueBadges = {
+                        balade:      { icon: '🚶', label: 'Balade' },
+                        exploration: { icon: '🧭', label: 'Exploration' },
+                        randonnée:   { icon: '🥾', label: 'Rando' }
+                    };
+                    const fb = fatigueBadges[suggestion.fatigue] || { icon: '🗺️', label: '' };
+                    const tile = document.createElement('div');
+                    tile.className = "rounded-xl p-3 cursor-pointer transition-all active:scale-95";
+                    tile.style.cssText = `background:${tc.bg};border:2px solid ${tc.border};box-shadow:0 1px 6px ${tc.border}25`;
+                    tile.onclick = () => selectSuggestionInModal(suggestion.name, suggestion.query, suggestion.image);
                     tile.innerHTML = `
                         <div class="relative">
-                            ${suggestion.must_see ? '<span class="absolute -top-1 -right-1 text-xs bg-amber-400 text-white px-1.5 py-0.5 rounded-full font-bold shadow-sm">★</span>' : ''}
-                            <div class="text-4xl mb-2 text-center">${suggestion.image}</div>
+                            ${suggestion.must_see ? `<span class="absolute -top-1 -right-1 text-[9px] text-white px-1.5 py-0.5 rounded-full font-black shadow-sm" style="background:#f59e0b">★</span>` : ''}
+                            <div class="text-3xl mb-1.5 text-center">${suggestion.image}</div>
                         </div>
-                        <div class="text-xs font-bold text-gray-800 text-center leading-tight mb-1.5">${suggestion.emoji} ${suggestion.name}</div>
-                        <div class="flex items-center justify-center gap-1">
-                            <span class="text-[10px] ${fb.bg} px-1.5 py-0.5 rounded-full font-medium">${fb.icon} ${fb.label}</span>
+                        <div class="font-black text-center leading-tight mb-2" style="font-size:11px;color:#111">${suggestion.name}</div>
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="font-bold rounded-full px-1.5 py-0.5 leading-none" style="font-size:9px;background:${tc.border}18;color:${tc.text}">${fb.icon} ${fb.label}</span>
+                            ${suggestion.must_see ? `<span class="font-black leading-none" style="font-size:9px;color:#d97706">Incon.</span>` : ''}
                         </div>
-                        ${suggestion.must_see ? '<div class="text-[10px] text-amber-600 font-bold text-center mt-1">Incontournable</div>' : ''}
                     `;
                     grid.appendChild(tile);
                 });
@@ -2799,13 +2808,13 @@
             for (let k = 1; k < dayActivities.length; k++) {
                 const prev    = dayActivities[k - 1];
                 const curr    = dayActivities[k];
-                const prevEnd = addMinutesToTime(realTimes[k - 1], prev.duration_minutes || 90);
+                // Durée cohérente : visit_duration prioritaire, puis duration_minutes, puis 90
+                const prevDur = prev.place?.visit_duration || prev.duration_minutes || 90;
+                const prevEnd = addMinutesToTime(realTimes[k - 1], prevDur);
                 let   travel  = 0;
-                if (prev.place && curr.place) {
-                    if (prev.place?.place_id && curr.place?.place_id) {
-                        const ck = `${prev.place.place_id}-${curr.place.place_id}`;
-                        travel = routeCache[ck]?.total_minutes || 0;
-                    }
+                if (prev.place?.place_id && curr.place?.place_id) {
+                    const ck = `${prev.place.place_id}-${curr.place.place_id}`;
+                    travel = routeCache[ck]?.total_minutes || 0;
                 }
                 realTimes[k] = addMinutesToTime(prevEnd, travel);
             }
@@ -3521,14 +3530,17 @@
         }
 
 
-        // Met à jour les heures des blocs nav sans re-render complet (évite la boucle infinie)
+        // Après un calcul de trajet, on re-render SEULEMENT si c'est le premier réseau
+        // pour mettre à jour realTimes (les heures). On utilise un flag pour éviter la boucle.
+        let _pendingNavCount = 0;
         let _navUpdateTimer = null;
         function _updateNavTimesOnly() {
+            _pendingNavCount++;
             clearTimeout(_navUpdateTimer);
             _navUpdateTimer = setTimeout(() => {
-                // Re-render une seule fois après que tous les calculs parallèles soient finis
+                _pendingNavCount = 0;
                 renderPlanning();
-            }, 800);
+            }, 1200); // délai plus long pour grouper tous les retours réseau
         }
 
         async function calculateNav(from, to, elementId, departureTime, arrivalTime) {
@@ -3537,7 +3549,7 @@
             if (routeCache[cacheKey]) {
                 const el = document.getElementById(elementId);
                 if (el) renderNavBlock(el, routeCache[cacheKey], departureTime, arrivalTime);
-                return;
+                return; // Pas de _updateNavTimesOnly ici — évite la boucle
             }
 
             try {
@@ -3561,7 +3573,7 @@
                     };
                     localStorage.setItem('japan_route_cache_v3', JSON.stringify(routeCache));
                     if (el) renderNavBlock(el, routeCache[cacheKey], departureTime, arrivalTime);
-                    // Mettre à jour uniquement les blocs nav existants sans re-render complet
+                    // Re-render différé pour recalculer les realTimes avec les vraies durées
                     _updateNavTimesOnly();
                 } else {
                     if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
