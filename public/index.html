@@ -90,10 +90,44 @@
         }
 
         /* Activité complétée */
+        /* Long press ready : pulse violet */
+        @keyframes longpress-pulse {
+            0%, 100% { box-shadow: 0 8px 28px rgba(139,92,246,0.35); }
+            50%       { box-shadow: 0 8px 36px rgba(139,92,246,0.6); }
+        }
+        .longpress-ready {
+            animation: longpress-pulse 0.6s ease-in-out infinite;
+        }
+
+        /* Hint de swipe (valider / supprimer) */
+        .activity-card[data-swipe-hint]:not([data-swipe-hint=""])::after {
+            content: attr(data-swipe-hint);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 15px;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            pointer-events: none;
+            z-index: 10;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
+        }
+        .activity-card {
+            position: relative;
+        }
+
         /* Drag hint : indicateur de position lors du réordonnancement */
         .activity-card {
-            touch-action: pan-y;
+            touch-action: none;
             user-select: none;
+            -webkit-user-select: none;
+        }
+        /* Permettre le scroll de la liste en dehors des tuiles */
+        #planning-list {
+            touch-action: pan-y;
         }
 
                 .activity-completed {
@@ -3927,7 +3961,7 @@
         function initActivitySwipe(element, activityId, actTitle) {
             let touchStartX = 0, touchStartY = 0;
             let touchCurrentX = 0, touchCurrentY = 0;
-            let mode = null; // null | 'longpress' | 'swipe' | 'drag'
+            let mode = null; // null | 'none' | 'longpress' | 'swipe' | 'drag'
             let longPressTimer = null;
             let swipeDir = null;
             let dragActive = false;
@@ -3935,25 +3969,61 @@
             let dragOffsetY = 0;
             let longPressActive = false;
 
-            // ── Vibration si disponible ───────────────────────────────────────
-            function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
+            function vibrate(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch(e){} }
 
-            // ── Feedback visuel long press ────────────────────────────────────
-            function startLongPressVisual() {
-                element.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
-                element.style.transform = 'scale(1.02)';
-                element.style.boxShadow = '0 8px 24px rgba(0,0,0,0.18)';
-                element.style.zIndex = '50';
+            // ── Overlay de couleur (évite le conflit avec bg-white de Tailwind) ─
+            const overlay = document.createElement('div');
+            overlay.style.cssText = [
+                'position:absolute', 'inset:0', 'border-radius:inherit',
+                'pointer-events:none', 'z-index:5',
+                'opacity:0', 'transition:opacity 0.15s ease, background 0.1s ease'
+            ].join(';');
+            element.style.position = 'relative';
+            element.appendChild(overlay);
+
+            // ── Label hint centré (✓ Valider / ✕ Supprimer) ─────────────────
+            const hint = document.createElement('div');
+            hint.style.cssText = [
+                'position:absolute', 'inset:0', 'display:flex',
+                'align-items:center', 'justify-content:center',
+                'font-size:16px', 'font-weight:900', 'color:white',
+                'text-shadow:0 1px 6px rgba(0,0,0,0.4)',
+                'letter-spacing:0.5px', 'pointer-events:none',
+                'z-index:6', 'opacity:0', 'transition:opacity 0.15s ease'
+            ].join(';');
+            element.appendChild(hint);
+
+            function setOverlay(color, alpha, hintText) {
+                overlay.style.background = color;
+                overlay.style.opacity = alpha;
+                hint.textContent = hintText;
+                hint.style.opacity = hintText ? Math.min(1, alpha * 1.8) : 0;
             }
 
-            function resetVisual() {
-                element.style.transition = 'transform 0.25s ease, background 0.3s ease, box-shadow 0.25s ease, opacity 0.3s ease';
+            function clearOverlay() {
+                overlay.style.transition = 'opacity 0.25s ease';
+                overlay.style.opacity = 0;
+                hint.style.opacity = 0;
+                hint.textContent = '';
                 element.style.transform = '';
-                element.style.background = '';
                 element.style.boxShadow = '';
-                element.style.zIndex = '';
-                element.style.opacity = '';
+                element.style.outline = '';
+                element.style.outlineOffset = '';
+                element.classList.remove('longpress-ready');
                 longPressActive = false;
+            }
+
+            function startLongPressVisual() {
+                element.style.transition = 'transform 0.12s ease, box-shadow 0.12s ease';
+                element.style.transform = 'scale(1.03)';
+                element.style.zIndex = '50';
+                // Outline violet clignotant
+                element.style.outline = '3px solid rgba(139,92,246,0.85)';
+                element.style.outlineOffset = '2px';
+                element.classList.add('longpress-ready');
+                // Overlay violet très léger pour indiquer "sélectionné"
+                overlay.style.transition = 'opacity 0.12s ease, background 0.1s ease';
+                setOverlay('rgba(139,92,246,0.18)', '1', '');
             }
 
             element.addEventListener('touchstart', (e) => {
@@ -3962,21 +4032,17 @@
                 touchStartY = e.touches[0].clientY;
                 touchCurrentX = touchStartX;
                 touchCurrentY = touchStartY;
-                mode = null;
-                swipeDir = null;
-                dragActive = false;
-                longPressActive = false;
-                element.style.transition = 'none';
+                mode = null; swipeDir = null;
+                dragActive = false; longPressActive = false;
                 _touchOnCard = true;
 
-                // Long press : 420ms
                 longPressTimer = setTimeout(() => {
                     longPressActive = true;
                     mode = 'longpress';
-                    vibrate(40);
+                    vibrate(50);
                     startLongPressVisual();
-                }, 420);
-            }, {passive:true});
+                }, 400);
+            }, {passive: true});
 
             element.addEventListener('touchmove', (e) => {
                 if (e.touches.length > 1) return;
@@ -3987,86 +4053,90 @@
                 const absDiffX = Math.abs(diffX);
                 const absDiffY = Math.abs(diffY);
 
-                // Mouvement avant long press → annuler le timer
-                if (!longPressActive && (absDiffX > 8 || absDiffY > 8)) {
-                    clearTimeout(longPressTimer);
-                    longPressTimer = null;
-                    mode = 'none'; // swipe sans long press = navigation jour
+                // Mouvement avant long press → annuler (navigation jour autorisée)
+                if (!longPressActive) {
+                    if (absDiffX > 6 || absDiffY > 6) {
+                        clearTimeout(longPressTimer);
+                        mode = 'none';
+                    }
                     return;
                 }
 
-                if (!longPressActive) return;
+                e.preventDefault();
 
-                if (mode === 'longpress' || mode === 'swipe' || mode === 'drag') {
-                    e.preventDefault();
-
-                    // Déterminer le mode au premier mouvement significatif après long press
-                    if (mode === 'longpress') {
-                        if (absDiffX > 12 && absDiffX > absDiffY * 1.5) {
-                            mode = 'swipe';
-                        } else if (absDiffY > 12 && absDiffY > absDiffX * 1.5) {
-                            mode = 'drag';
-                            vibrate(20);
-                            startDrag(e);
-                        }
-                    }
-
-                    if (mode === 'swipe') {
-                        swipeDir = diffX > 0 ? 'right' : 'left';
-                        const pct = Math.min(absDiffX / 120, 1);
-                        if (swipeDir === 'right') {
-                            element.style.background = 'linear-gradient(to right, rgba(74,222,128,' + (0.25 + pct*0.45) + '), rgba(255,255,255,0.9))';
-                        } else {
-                            element.style.background = 'linear-gradient(to left, rgba(248,113,113,' + (0.25 + pct*0.45) + '), rgba(255,255,255,0.9))';
-                        }
-                        element.style.transform = 'scale(1.02) translateX(' + diffX + 'px)';
-                    }
-
-                    if (mode === 'drag') {
-                        moveDrag(e);
+                // Déterminer le mode
+                if (mode === 'longpress') {
+                    if (absDiffX > 10 && absDiffX > absDiffY * 1.2) {
+                        mode = 'swipe';
+                        element.style.outline = '';
+                        element.classList.remove('longpress-ready');
+                    } else if (absDiffY > 10 && absDiffY > absDiffX * 1.2) {
+                        mode = 'drag';
+                        vibrate(25);
+                        element.style.outline = '';
+                        element.classList.remove('longpress-ready');
+                        startDrag(e);
                     }
                 }
-            }, {passive:false});
+
+                if (mode === 'swipe') {
+                    swipeDir = diffX > 0 ? 'right' : 'left';
+                    const pct = Math.min(absDiffX / 100, 1);
+
+                    if (swipeDir === 'right') {
+                        setOverlay('rgba(22,163,74,' + (0.4 + pct*0.5) + ')', '1',
+                            pct > 0.35 ? '✓  Valider' : '');
+                        element.style.boxShadow = '0 6px 24px rgba(22,163,74,' + (0.25 + pct*0.45) + ')';
+                    } else {
+                        setOverlay('rgba(220,38,38,' + (0.4 + pct*0.5) + ')', '1',
+                            pct > 0.35 ? '✕  Supprimer' : '');
+                        element.style.boxShadow = '0 6px 24px rgba(220,38,38,' + (0.25 + pct*0.45) + ')';
+                    }
+                    element.style.transform = 'scale(1.02) translateX(' + (diffX * 0.7) + 'px)';
+                }
+
+                if (mode === 'drag') moveDrag(e);
+
+            }, {passive: false});
 
             element.addEventListener('touchend', (e) => {
                 clearTimeout(longPressTimer);
-                longPressTimer = null;
                 _touchOnCard = false;
 
-                if (mode === 'swipe' && longPressActive) {
+                if (mode === 'swipe') {
                     const diffX = touchCurrentX - touchStartX;
-                    element.style.transition = 'transform 0.25s ease, background 0.3s ease, box-shadow 0.25s ease';
-
-                    if (swipeDir === 'left' && diffX < -80) {
+                    if (swipeDir === 'right' && diffX > 80) {
+                        // Validation : garder l'overlay vert, laisser completeActivity s'en occuper
+                        element.style.transform = 'translateX(110%)';
+                        overlay.style.opacity = 0;
+                        hint.style.opacity = 0;
+                        setTimeout(() => completeActivity(activityId, element), 200);
+                        setTimeout(() => clearOverlay(), 700);
+                    } else if (swipeDir === 'left' && diffX < -80) {
                         // Suppression
                         element.style.transform = 'translateX(-110%)';
                         element.style.opacity = '0';
-                        setTimeout(() => confirmDeleteActivity(activityId, actTitle), 300);
-                        setTimeout(() => resetVisual(), 600);
-                    } else if (swipeDir === 'right' && diffX > 80) {
-                        // Complétion
-                        completeActivity(activityId, element);
-                        setTimeout(() => resetVisual(), 400);
+                        setTimeout(() => confirmDeleteActivity(activityId, actTitle), 250);
+                        setTimeout(() => clearOverlay(), 700);
                     } else {
-                        resetVisual();
+                        clearOverlay();
                     }
                 } else if (mode === 'drag') {
                     endDrag();
                 } else {
-                    resetVisual();
+                    clearOverlay();
                 }
 
-                mode = null;
-                swipeDir = null;
-            }, {passive:true});
+                mode = null; swipeDir = null;
+            }, {passive: true});
 
             element.addEventListener('touchcancel', () => {
                 clearTimeout(longPressTimer);
                 if (dragActive) endDrag(true);
-                else resetVisual();
+                else clearOverlay();
                 mode = null;
                 _touchOnCard = false;
-            }, {passive:true});
+            }, {passive: true});
 
             // ── DRAG VERTICAL ─────────────────────────────────────────────────
             function startDrag(e) {
@@ -4074,7 +4144,6 @@
                 const rect = element.getBoundingClientRect();
                 dragOffsetY = e.touches[0].clientY - rect.top;
 
-                // Clone fantôme
                 dragClone = element.cloneNode(true);
                 dragClone.style.cssText = [
                     'position:fixed',
@@ -4082,53 +4151,34 @@
                     'top:' + rect.top + 'px',
                     'width:' + rect.width + 'px',
                     'z-index:999',
-                    'opacity:0.92',
+                    'opacity:0.93',
                     'pointer-events:none',
-                    'box-shadow:0 12px 32px rgba(0,0,0,0.22)',
-                    'transform:scale(1.03)',
+                    'box-shadow:0 14px 36px rgba(0,0,0,0.25)',
+                    'transform:scale(1.04)',
                     'transition:none',
                     'border-radius:16px'
                 ].join(';');
                 document.body.appendChild(dragClone);
-
-                // Rendre l'original translucide
-                element.style.opacity = '0.3';
+                element.style.opacity = '0.28';
                 element.style.transform = 'scale(0.97)';
             }
 
             function moveDrag(e) {
                 if (!dragActive || !dragClone) return;
-                const y = e.touches[0].clientY - dragOffsetY;
-                dragClone.style.top = y + 'px';
+                dragClone.style.top = (e.touches[0].clientY - dragOffsetY) + 'px';
 
-                // Trouver la tuile cible
                 const cards = Array.from(document.querySelectorAll('.activity-card'));
                 const midY = e.touches[0].clientY;
-                let targetCard = null;
-                let targetBefore = true;
-
+                document.querySelectorAll('.activity-card').forEach(c => {
+                    c.style.borderTop = ''; c.style.borderBottom = '';
+                });
                 for (const card of cards) {
                     if (card === element) continue;
                     const r = card.getBoundingClientRect();
-                    const cardMidY = r.top + r.height / 2;
-                    if (Math.abs(midY - cardMidY) < r.height * 0.6) {
-                        targetCard = card;
-                        targetBefore = midY < cardMidY;
+                    if (Math.abs(midY - (r.top + r.height/2)) < r.height * 0.55) {
+                        if (midY < r.top + r.height/2) card.style.borderTop = '3px solid #8b5cf6';
+                        else card.style.borderBottom = '3px solid #8b5cf6';
                         break;
-                    }
-                }
-
-                // Indicateur visuel sur la cible
-                document.querySelectorAll('.drag-target-top, .drag-target-bottom').forEach(el => {
-                    el.classList.remove('drag-target-top', 'drag-target-bottom');
-                    el.style.borderTop = '';
-                    el.style.borderBottom = '';
-                });
-                if (targetCard) {
-                    if (targetBefore) {
-                        targetCard.style.borderTop = '3px solid #8b5cf6';
-                    } else {
-                        targetCard.style.borderBottom = '3px solid #8b5cf6';
                     }
                 }
             }
@@ -4136,38 +4186,26 @@
             function endDrag(cancel) {
                 dragActive = false;
                 if (dragClone) { dragClone.remove(); dragClone = null; }
-
-                // Nettoyer les indicateurs
-                document.querySelectorAll('.activity-card').forEach(el => {
-                    el.style.borderTop = '';
-                    el.style.borderBottom = '';
+                document.querySelectorAll('.activity-card').forEach(c => {
+                    c.style.borderTop = ''; c.style.borderBottom = '';
                 });
-
                 element.style.opacity = '';
                 element.style.transform = '';
-                element.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
 
-                if (cancel) return;
-
-                // Trouver la position cible
-                const cards = Array.from(document.querySelectorAll('.activity-card'));
-                const midY = touchCurrentY;
-                let targetId = null;
-                let insertBefore = true;
-
-                for (const card of cards) {
-                    if (card === element) continue;
-                    const r = card.getBoundingClientRect();
-                    const cardMidY = r.top + r.height / 2;
-                    if (Math.abs(midY - cardMidY) < r.height * 0.6) {
-                        targetId = parseInt(card.dataset.actId || card.querySelector('[data-act-id]')?.dataset.actId);
-                        insertBefore = midY < cardMidY;
-                        break;
+                if (!cancel) {
+                    const cards = Array.from(document.querySelectorAll('.activity-card'));
+                    const midY = touchCurrentY;
+                    let targetId = null, insertBefore = true;
+                    for (const card of cards) {
+                        if (card === element) continue;
+                        const r = card.getBoundingClientRect();
+                        if (Math.abs(midY - (r.top + r.height/2)) < r.height * 0.55) {
+                            targetId = parseInt(card.dataset.actId);
+                            insertBefore = midY < r.top + r.height/2;
+                            break;
+                        }
                     }
-                }
-
-                if (targetId && targetId !== activityId) {
-                    reorderActivity(activityId, targetId, insertBefore);
+                    if (targetId && targetId !== activityId) reorderActivity(activityId, targetId, insertBefore);
                 }
             }
         }
