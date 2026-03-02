@@ -91,12 +91,9 @@
 
         /* Activité complétée */
         /* Long press ready : pulse violet */
-        @keyframes longpress-pulse {
-            0%, 100% { box-shadow: 0 8px 28px rgba(139,92,246,0.35); }
-            50%       { box-shadow: 0 8px 36px rgba(139,92,246,0.6); }
-        }
+        /* Pas d'animation pulse : trop fugace, confusant */
         .longpress-ready {
-            animation: longpress-pulse 0.6s ease-in-out infinite;
+            /* touch-action géré en CSS, visuel géré en JS */
         }
 
         /* Hint de swipe (valider / supprimer) */
@@ -121,13 +118,12 @@
 
         /* Drag hint : indicateur de position lors du réordonnancement */
         .activity-card {
-            touch-action: none;
+            touch-action: pan-y;  /* scroll vertical OK par défaut */
             user-select: none;
             -webkit-user-select: none;
         }
-        /* Permettre le scroll de la liste en dehors des tuiles */
-        #planning-list {
-            touch-action: pan-y;
+        .activity-card.longpress-ready {
+            touch-action: none;   /* bloque tout après long press activé */
         }
 
                 .activity-completed {
@@ -4005,25 +4001,31 @@
                 overlay.style.opacity = 0;
                 hint.style.opacity = 0;
                 hint.textContent = '';
+                hint.style.fontSize = '16px';
+                hint.style.fontWeight = '900';
+                element.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
                 element.style.transform = '';
                 element.style.boxShadow = '';
                 element.style.outline = '';
                 element.style.outlineOffset = '';
-                element.classList.remove('longpress-ready');
+                element.style.zIndex = '';
+                element.classList.remove('longpress-ready'); // reactive touch-action:pan-y
                 longPressActive = false;
             }
 
             function startLongPressVisual() {
-                element.style.transition = 'transform 0.12s ease, box-shadow 0.12s ease';
+                // Ajouter la classe AVANT les styles pour que touch-action:none soit actif
+                element.classList.add('longpress-ready'); // active touch-action:none via CSS
+                element.style.transition = 'transform 0.15s ease, box-shadow 0.2s ease';
                 element.style.transform = 'scale(1.03)';
                 element.style.zIndex = '50';
-                // Outline violet clignotant
-                element.style.outline = '3px solid rgba(139,92,246,0.85)';
-                element.style.outlineOffset = '2px';
-                element.classList.add('longpress-ready');
-                // Overlay violet très léger pour indiquer "sélectionné"
-                overlay.style.transition = 'opacity 0.12s ease, background 0.1s ease';
-                setOverlay('rgba(139,92,246,0.18)', '1', '');
+                element.style.outline = '3px solid rgba(139,92,246,0.8)';
+                element.style.outlineOffset = '3px';
+                // Overlay violet persistant : signal clair "sélectionné, tu peux swiper"
+                overlay.style.transition = 'opacity 0.2s ease, background 0.1s ease';
+                setOverlay('rgba(139,92,246,0.22)', '1', '↔ Glisse pour valider ou supprimer');
+                hint.style.fontSize = '12px';
+                hint.style.fontWeight = '700';
             }
 
             element.addEventListener('touchstart', (e) => {
@@ -4053,15 +4055,17 @@
                 const absDiffX = Math.abs(diffX);
                 const absDiffY = Math.abs(diffY);
 
-                // Mouvement avant long press → annuler (navigation jour autorisée)
+                // Mouvement avant long press confirmé → annuler le timer, laisser défiler
                 if (!longPressActive) {
-                    if (absDiffX > 6 || absDiffY > 6) {
+                    if (absDiffX > 8 || absDiffY > 8) {
                         clearTimeout(longPressTimer);
+                        longPressTimer = null;
                         mode = 'none';
                     }
-                    return;
+                    return; // scroll normal, pas de preventDefault
                 }
 
+                // Long press actif : bloquer le scroll natif
                 e.preventDefault();
 
                 // Déterminer le mode
@@ -4082,17 +4086,20 @@
                 if (mode === 'swipe') {
                     swipeDir = diffX > 0 ? 'right' : 'left';
                     const pct = Math.min(absDiffX / 100, 1);
+                    // Reset le hint style au cas où il était en mode instruction
+                    hint.style.fontSize = '16px';
+                    hint.style.fontWeight = '900';
 
                     if (swipeDir === 'right') {
-                        setOverlay('rgba(22,163,74,' + (0.4 + pct*0.5) + ')', '1',
-                            pct > 0.35 ? '✓  Valider' : '');
-                        element.style.boxShadow = '0 6px 24px rgba(22,163,74,' + (0.25 + pct*0.45) + ')';
+                        setOverlay('rgba(22,163,74,' + (0.45 + pct * 0.45) + ')', '1',
+                            pct > 0.3 ? '✓  Valider' : '');
+                        element.style.boxShadow = '0 6px 24px rgba(22,163,74,' + (0.3 + pct * 0.4) + ')';
                     } else {
-                        setOverlay('rgba(220,38,38,' + (0.4 + pct*0.5) + ')', '1',
-                            pct > 0.35 ? '✕  Supprimer' : '');
-                        element.style.boxShadow = '0 6px 24px rgba(220,38,38,' + (0.25 + pct*0.45) + ')';
+                        setOverlay('rgba(220,38,38,' + (0.45 + pct * 0.45) + ')', '1',
+                            pct > 0.3 ? '✕  Supprimer' : '');
+                        element.style.boxShadow = '0 6px 24px rgba(220,38,38,' + (0.3 + pct * 0.4) + ')';
                     }
-                    element.style.transform = 'scale(1.02) translateX(' + (diffX * 0.7) + 'px)';
+                    element.style.transform = 'scale(1.02) translateX(' + (diffX * 0.65) + 'px)';
                 }
 
                 if (mode === 'drag') moveDrag(e);
