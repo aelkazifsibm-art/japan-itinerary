@@ -127,29 +127,20 @@
         }
 
                 .activity-completed {
-            position: relative;
-            overflow: hidden;
-            opacity: 0.88;
-        }
-        /* Fond vert transparent granulé */
-        .activity-completed::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: rgba(74,222,128,0.22);
-            /* Granulé CSS via SVG inline */
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
-            background-size: 120px;
-            border-radius: inherit;
-            pointer-events: none;
-            z-index: 1;
+            /* Fond vert granulé via background direct — pas de pseudo-élément qui déborde */
+            background: 
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E"),
+                linear-gradient(135deg, rgba(74,222,128,0.18) 0%, rgba(134,239,172,0.12) 100%)
+                !important;
+            background-size: 100px, 100% !important;
+            opacity: 0.9;
         }
         .activity-completed::after {
             content: '';
             position: absolute;
             inset: 0;
             border-radius: inherit;
-            border: 2px solid rgba(74,222,128,0.7) !important;
+            border: 0 !important; /* géré via card.style.cssText */
             pointer-events: none;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
@@ -2976,9 +2967,14 @@
 
                 const theme = getActivityTheme(act.place);
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl overflow-hidden activity-card";
+                const isCompleted = completedActivities.includes(act.id);
+                card.className = "rounded-2xl overflow-hidden activity-card" + (isCompleted ? " activity-completed" : " bg-white");
                 card.dataset.actId = act.id;
-                card.style.cssText = "border: 2px solid " + theme.border + "; box-shadow: 0 1px 8px " + theme.border + "30;";
+                if (isCompleted) {
+                    card.style.cssText = "border: 2px solid #4ade80; box-shadow: 0 1px 12px rgba(74,222,128,0.35);";
+                } else {
+                    card.style.cssText = "border: 2px solid " + theme.border + "; box-shadow: 0 1px 8px " + theme.border + "30;";
+                }
                 card.innerHTML = `
                     <div class="flex" style="min-height:112px">
 
@@ -3017,12 +3013,17 @@
 
                         <!-- ── Col droite : + | pin ── -->
                         <div class="flex-shrink-0 flex flex-col border-l" style="width:clamp(44px,12vw,54px);border-color:${theme.border}25">
-                            <!-- + -->
-                            <button data-act-id="${act.id}" onclick="event.stopPropagation(); showActivityById(this.dataset.actId)"
-                                class="flex-1 flex items-center justify-center border-b transition-colors active:brightness-95"
-                                style="background:${theme.infoBtn};border-color:${theme.border}22">
-                                <div class="flex items-center justify-center font-semibold rounded-full" style="width:clamp(22px,6vw,26px);height:clamp(22px,6vw,26px);font-size:clamp(14px,4vw,17px);border:1.5px solid ${theme.border};color:${theme.lineFrom};background:white">+</div>
-                            </button>
+                            <!-- + ou ✓ selon état -->
+                            ${isCompleted
+                                ? `<div class="flex-1 flex items-center justify-center border-b" style="background:#f0fdf4;border-color:#4ade8022">
+                                       <div class="flex items-center justify-center font-black text-white rounded-full" style="width:clamp(22px,6vw,26px);height:clamp(22px,6vw,26px);font-size:clamp(13px,3.5vw,16px);background:#22c55e">✓</div>
+                                   </div>`
+                                : `<button data-act-id="${act.id}" onclick="event.stopPropagation(); showActivityById(this.dataset.actId)"
+                                       class="flex-1 flex items-center justify-center border-b transition-colors active:brightness-95"
+                                       style="background:${theme.infoBtn};border-color:${theme.border}22">
+                                       <div class="flex items-center justify-center font-semibold rounded-full" style="width:clamp(22px,6vw,26px);height:clamp(22px,6vw,26px);font-size:clamp(14px,4vw,17px);border:1.5px solid ${theme.border};color:${theme.lineFrom};background:white">+</div>
+                                   </button>`
+                            }
                             <!-- Pin Maps -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
                                 class="flex-1 flex items-center justify-center transition-colors" style="background:${theme.timelineBg}">
@@ -4275,19 +4276,8 @@
                 completedActivities.push(activityId);
                 localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
             }
-            element.style.transition = 'transform 0.25s ease, background 0.4s ease, opacity 0.4s ease';
-            element.style.transform = 'translateX(0)';
-            element.style.background = 'linear-gradient(135deg, rgba(134,220,100,0.25), rgba(100,200,120,0.18))';
-            element.classList.remove('swiping');
-            element.classList.add('activity-completed');
-            // Checkmark overlay
-            const ck = document.createElement('div');
-            ck.className = 'absolute top-2 right-2 w-7 h-7 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-black shadow pointer-events-none';
-            ck.style.cssText = 'z-index:10;opacity:0;transition:opacity 0.3s ease 0.1s';
-            ck.textContent = '✓';
-            element.style.position = 'relative';
-            element.appendChild(ck);
-            setTimeout(() => { ck.style.opacity = '1'; }, 50);
+            // Laisser renderPlanning gérer le rendu — pas de manipulation DOM directe
+            setTimeout(() => renderPlanning(), 350);
         }
 
         function createConfetti(element) {
