@@ -2626,15 +2626,11 @@
             renderPlanning();
         }
 
-        let _renderInProgress = false;
-        async function renderPlanning() {
-            // Anti-réentrance : si un render est déjà en cours, on le reporte
-            if (_renderInProgress) {
-                clearTimeout(window._deferredRenderTimer);
-                window._deferredRenderTimer = setTimeout(() => renderPlanning(), 100);
-                return;
-            }
-            _renderInProgress = true;
+        // Token d'annulation : chaque render crée un token unique.
+        // Si un nouveau render démarre, l'ancien est annulé proprement.
+        let _renderToken = 0;
+        function renderPlanning() {
+            const myToken = ++_renderToken;
             const list = document.getElementById('planning-list');
             list.innerHTML = '';
 
@@ -3025,7 +3021,6 @@
                 list.appendChild(optBtn);
             }
 
-            _renderInProgress = false;
         } // fin renderPlanning
 
         // Guard anti-boucle : set des place_ids en cours de fetch
@@ -3571,9 +3566,9 @@
                 _navRenderScheduled = false;
                 // Délai minimal pour grouper les derniers cache-hits simultanés
                 clearTimeout(window._navRerenderTimer);
-                window._navRerenderTimer = setTimeout(async () => {
+                window._navRerenderTimer = setTimeout(() => {
                     window._navRerender = true;
-                    await renderPlanning();
+                    renderPlanning();
                     window._navRerender = false;
                 }, 50);
             }
