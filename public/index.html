@@ -2886,9 +2886,10 @@
                 const actStored  = activities.find(a => a.id === dayActivities[i].id) || dayActivities[i];
                 const act        = actStored;
                 const arriveTime = realTimes[i];
-                const leaveTime  = addMinutesToTime(arriveTime, act.duration_minutes || 90);
-
-                const dur = act.duration_minutes || 90;
+                // Durée : visit_duration (données réelles) > duration_minutes (saisi/IA) > 90min défaut
+                const visitDur = act.place?.visit_duration || act.duration_minutes || 90;
+                const leaveTime  = addMinutesToTime(arriveTime, visitDur);
+                const dur = visitDur;
                 const mapsUrl = act.place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}` : '';
 
                 const theme = getActivityTheme(act.place);
@@ -2900,28 +2901,28 @@
 
                         <!-- ── Col gauche : timeline ── -->
                         <div class="flex-shrink-0 flex flex-col items-center py-3 border-r" style="width:clamp(56px,15vw,68px);background:${theme.timelineBg};border-color:${theme.border}30">
-                            <span class="font-black text-gray-800 tabular-nums" style="font-size:clamp(11px,3vw,13px)">${arriveTime}</span>
+                            <span class="font-black text-gray-800 tabular-nums" style="font-size:clamp(12px,3.5vw,15px)">${arriveTime}</span>
                             <div class="relative flex-1 w-full my-1.5" style="min-height:30px">
                                 <div style="position:absolute;left:calc(50% - 1px);top:0;bottom:0;width:2px;background:linear-gradient(to bottom,${theme.lineFrom},${theme.lineTo});border-radius:9px"></div>
                                 <div class="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 z-10 bg-white rounded-lg text-center" style="border:1.5px solid ${theme.border};padding:3px 5px;box-shadow:0 1px 4px ${theme.border}25;min-width:34px">
-                                    <div class="font-black leading-none tabular-nums" style="font-size:clamp(13px,3.5vw,15px);color:${theme.lineFrom}">${dur}</div>
+                                    <div class="font-black leading-none tabular-nums" style="font-size:clamp(15px,4vw,18px);color:${theme.lineFrom}">${dur}</div>
                                     <div class="font-semibold leading-none uppercase tracking-widest" style="font-size:7px;color:${theme.lineTo};margin-top:2px">min</div>
                                 </div>
                             </div>
-                            <span class="font-bold text-gray-400 tabular-nums" style="font-size:clamp(11px,3vw,13px)">${leaveTime}</span>
+                            <span class="font-bold text-gray-400 tabular-nums" style="font-size:clamp(12px,3.5vw,15px)">${leaveTime}</span>
                         </div>
 
                         <!-- ── Centre : titre + lieu + note + chips ── -->
                         <div class="flex-1 min-w-0 flex flex-col justify-between px-3 py-3">
                             <!-- Ligne 1 : titre -->
                             <div>
-                                <div class="font-black text-gray-900 leading-tight truncate" style="font-size:clamp(14px,3.8vw,16px);letter-spacing:-0.2px">${act.title}</div>
+                                <div class="font-black text-gray-900 leading-tight truncate" style="font-size:clamp(15px,4.5vw,18px);letter-spacing:-0.3px">${act.title}</div>
                                 <!-- Ligne 2 : note (position fixe) + lieu -->
-                                <div class="flex items-center gap-2 mt-1">
+                                <div class="flex items-center gap-2 mt-1.5">
                                     ${act.place?.rating
-                                        ? `<span class="font-black tabular-nums flex-shrink-0 rounded-md px-1.5 py-0.5 text-white leading-none" style="font-size:11px;background:${theme.lineFrom}">${act.place.rating.toFixed(1)}</span>`
-                                        : `<span class="flex-shrink-0 rounded-md px-1.5 py-0.5 bg-gray-100 text-gray-400 leading-none" style="font-size:11px">–</span>`}
-                                    <span class="text-gray-400 truncate" style="font-size:clamp(10px,2.6vw,11px)">${act.place?.name || '—'}</span>
+                                        ? `<span class="font-black tabular-nums flex-shrink-0 rounded-md px-1.5 py-0.5 text-white leading-none" style="font-size:12px;background:${theme.lineFrom}">${act.place.rating.toFixed(1)}</span>`
+                                        : `<span class="flex-shrink-0 rounded-md px-1.5 py-0.5 bg-gray-100 text-gray-400 leading-none" style="font-size:12px">–</span>`}
+                                    <span class="truncate font-medium" style="font-size:clamp(11px,3vw,13px);color:#4b5563">${act.place?.name || '—'}</span>
                                 </div>
                             </div>
                             <!-- chips horaires + prix -->
@@ -2941,9 +2942,9 @@
                             </button>
                             <!-- Pin Maps -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
-                                class="flex-1 flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors">
-                                <svg style="width:clamp(17px,4.5vw,20px);height:clamp(17px,4.5vw,20px)" viewBox="0 0 24 24" fill="#94a3b8"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                            </a>` : '<div class="flex-1 bg-gray-50"></div>'}
+                                class="flex-1 flex items-center justify-center transition-colors" style="background:${theme.timelineBg}">
+                                <svg style="width:clamp(18px,4.5vw,22px);height:clamp(18px,4.5vw,22px)" viewBox="0 0 24 24" fill="${theme.border}"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                            </a>` : `<div class="flex-1" style="background:${theme.timelineBg}"></div>`}
                         </div>
                     </div>
                 `;
