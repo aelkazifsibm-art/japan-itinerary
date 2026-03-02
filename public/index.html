@@ -1987,12 +1987,17 @@
             // Ignorer si le touch commence sur une tuile ou un bouton interactif
             _touchOnCard = !!e.target.closest('.activity-card, button, a, input, [data-act-id]');
             touchStartX = e.changedTouches[0].screenX;
+            window._touchStartY = e.changedTouches[0].screenY;
         });
 
         document.addEventListener('touchend', e => {
             touchEndX = e.changedTouches[0].screenX;
-            // Ne pas changer de jour si le swipe vient d'une tuile
-            if (!_touchOnCard) handleSwipe();
+            const horizDiff = Math.abs(touchEndX - touchStartX);
+            const vertDiff  = Math.abs(e.changedTouches[0].screenY - (window._touchStartY || 0));
+            // Navigation jour uniquement si : pas sur une carte ET swipe surtout horizontal
+            if (!_touchOnCard && horizDiff > 50 && horizDiff > vertDiff * 1.5) {
+                handleSwipe();
+            }
             _touchOnCard = false;
         });
 
@@ -4108,7 +4113,8 @@
 
             element.addEventListener('touchend', (e) => {
                 clearTimeout(longPressTimer);
-                _touchOnCard = false;
+                // NE PAS remettre _touchOnCard = false ici
+                // Le global touchend le fera après avoir décidé de la navigation
 
                 if (mode === 'swipe') {
                     const diffX = touchCurrentX - touchStartX;
@@ -4120,11 +4126,13 @@
                         setTimeout(() => completeActivity(activityId, element), 200);
                         setTimeout(() => clearOverlay(), 700);
                     } else if (swipeDir === 'left' && diffX < -80) {
-                        // Suppression
+                        // Suppression directe (l'overlay rouge était déjà la confirmation visuelle)
+                        element.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
                         element.style.transform = 'translateX(-110%)';
                         element.style.opacity = '0';
-                        setTimeout(() => confirmDeleteActivity(activityId, actTitle), 250);
-                        setTimeout(() => clearOverlay(), 700);
+                        setTimeout(() => {
+                            deleteActivity(activityId);
+                        }, 250);
                     } else {
                         clearOverlay();
                     }
@@ -4142,7 +4150,7 @@
                 if (dragActive) endDrag(true);
                 else clearOverlay();
                 mode = null;
-                _touchOnCard = false;
+                _touchOnCard = false; // cancel = on peut resetter
             }, {passive: true});
 
             // ── DRAG VERTICAL ─────────────────────────────────────────────────
