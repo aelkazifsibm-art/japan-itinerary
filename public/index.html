@@ -90,19 +90,36 @@
         }
 
         /* Activité complétée */
-        .activity-completed {
-            background: linear-gradient(135deg, rgba(134,220,100,0.18), rgba(100,200,120,0.10)) !important;
-            position: relative;
-            overflow: visible;
-            opacity: 0.82;
+        /* Drag hint : indicateur de position lors du réordonnancement */
+        .activity-card {
+            touch-action: pan-y;
+            user-select: none;
         }
-        
+
+                .activity-completed {
+            position: relative;
+            overflow: hidden;
+            opacity: 0.88;
+        }
+        /* Fond vert transparent granulé */
+        .activity-completed::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(74,222,128,0.22);
+            /* Granulé CSS via SVG inline */
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
+            background-size: 120px;
+            border-radius: inherit;
+            pointer-events: none;
+            z-index: 1;
+        }
         .activity-completed::after {
             content: '';
             position: absolute;
             inset: 0;
             border-radius: inherit;
-            border: 2px solid rgba(74,222,128,0.6) !important;
+            border: 2px solid rgba(74,222,128,0.7) !important;
             pointer-events: none;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
@@ -2925,6 +2942,7 @@
                 const theme = getActivityTheme(act.place);
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-2xl overflow-hidden activity-card";
+                card.dataset.actId = act.id;
                 card.style.cssText = "border: 2px solid " + theme.border + "; box-shadow: 0 1px 8px " + theme.border + "30;";
                 card.innerHTML = `
                     <div class="flex" style="min-height:112px">
@@ -3907,67 +3925,296 @@
         let completedActivities = JSON.parse(localStorage.getItem('japan_completed_v1') || '[]');
 
         function initActivitySwipe(element, activityId, actTitle) {
-            let touchStartX = 0;
-            let touchCurrentX = 0;
-            let touchStartY = 0;
-            let isSwiping = false;
-            let swipeDir = null; // 'left' | 'right'
+            let touchStartX = 0, touchStartY = 0;
+            let touchCurrentX = 0, touchCurrentY = 0;
+            let mode = null; // null | 'longpress' | 'swipe' | 'drag'
+            let longPressTimer = null;
+            let swipeDir = null;
+            let dragActive = false;
+            let dragClone = null;
+            let dragOffsetY = 0;
+            let longPressActive = false;
+
+            // ── Vibration si disponible ───────────────────────────────────────
+            function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
+
+            // ── Feedback visuel long press ────────────────────────────────────
+            function startLongPressVisual() {
+                element.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
+                element.style.transform = 'scale(1.02)';
+                element.style.boxShadow = '0 8px 24px rgba(0,0,0,0.18)';
+                element.style.zIndex = '50';
+            }
+
+            function resetVisual() {
+                element.style.transition = 'transform 0.25s ease, background 0.3s ease, box-shadow 0.25s ease, opacity 0.3s ease';
+                element.style.transform = '';
+                element.style.background = '';
+                element.style.boxShadow = '';
+                element.style.zIndex = '';
+                element.style.opacity = '';
+                longPressActive = false;
+            }
 
             element.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 1) return;
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
-                isSwiping = false;
+                touchCurrentX = touchStartX;
+                touchCurrentY = touchStartY;
+                mode = null;
                 swipeDir = null;
+                dragActive = false;
+                longPressActive = false;
                 element.style.transition = 'none';
-                // Marquer que ce touch est sur une tuile → le swipe global sera ignoré
                 _touchOnCard = true;
+
+                // Long press : 420ms
+                longPressTimer = setTimeout(() => {
+                    longPressActive = true;
+                    mode = 'longpress';
+                    vibrate(40);
+                    startLongPressVisual();
+                }, 420);
             }, {passive:true});
 
             element.addEventListener('touchmove', (e) => {
-                if (!touchStartX) return;
+                if (e.touches.length > 1) return;
                 touchCurrentX = e.touches[0].clientX;
+                touchCurrentY = e.touches[0].clientY;
                 const diffX = touchCurrentX - touchStartX;
-                const diffY = Math.abs(e.touches[0].clientY - touchStartY);
-                if (Math.abs(diffX) > 20 && diffY < 60) {
-                    isSwiping = true;
+                const diffY = touchCurrentY - touchStartY;
+                const absDiffX = Math.abs(diffX);
+                const absDiffY = Math.abs(diffY);
+
+                // Mouvement avant long press → annuler le timer
+                if (!longPressActive && (absDiffX > 8 || absDiffY > 8)) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                    mode = 'none'; // swipe sans long press = navigation jour
+                    return;
+                }
+
+                if (!longPressActive) return;
+
+                if (mode === 'longpress' || mode === 'swipe' || mode === 'drag') {
                     e.preventDefault();
-                    swipeDir = diffX > 0 ? 'right' : 'left';
-                    const pct = Math.min(Math.abs(diffX) / 120, 1); // 0→1
-                    if (swipeDir === 'right') {
-                        // Vert progressif (complétion)
-                        const g = Math.round(220 + pct * 35);
-                        element.style.background = 'linear-gradient(to right, rgba(134,' + g + ',100,' + (0.15 + pct*0.5) + '), white)';
-                    } else {
-                        // Rouge progressif (suppression)
-                        const r = Math.round(200 + pct * 55);
-                        element.style.background = 'linear-gradient(to left, rgba(' + r + ',60,60,' + (0.15 + pct*0.5) + '), white)';
+
+                    // Déterminer le mode au premier mouvement significatif après long press
+                    if (mode === 'longpress') {
+                        if (absDiffX > 12 && absDiffX > absDiffY * 1.5) {
+                            mode = 'swipe';
+                        } else if (absDiffY > 12 && absDiffY > absDiffX * 1.5) {
+                            mode = 'drag';
+                            vibrate(20);
+                            startDrag(e);
+                        }
                     }
-                    element.style.transform = 'translateX(' + diffX + 'px)';
+
+                    if (mode === 'swipe') {
+                        swipeDir = diffX > 0 ? 'right' : 'left';
+                        const pct = Math.min(absDiffX / 120, 1);
+                        if (swipeDir === 'right') {
+                            element.style.background = 'linear-gradient(to right, rgba(74,222,128,' + (0.25 + pct*0.45) + '), rgba(255,255,255,0.9))';
+                        } else {
+                            element.style.background = 'linear-gradient(to left, rgba(248,113,113,' + (0.25 + pct*0.45) + '), rgba(255,255,255,0.9))';
+                        }
+                        element.style.transform = 'scale(1.02) translateX(' + diffX + 'px)';
+                    }
+
+                    if (mode === 'drag') {
+                        moveDrag(e);
+                    }
                 }
             }, {passive:false});
 
             element.addEventListener('touchend', (e) => {
-                element.style.transition = 'transform 0.3s ease, background 0.3s ease';
-                if (!isSwiping) {
-                    element.style.transform = '';
-                    element.style.background = '';
-                    return;
-                }
-                const diffX = touchCurrentX - touchStartX;
-                if (swipeDir === 'left' && diffX < -90) {
-                    // Swipe gauche → suppression
-                    element.style.transform = 'translateX(-110%)';
-                    setTimeout(() => confirmDeleteActivity(activityId, actTitle), 300);
-                    setTimeout(() => { element.style.transform=''; element.style.background=''; }, 600);
-                } else if (swipeDir === 'right' && diffX > 90) {
-                    // Swipe droite → complétion
-                    completeActivity(activityId, element);
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+                _touchOnCard = false;
+
+                if (mode === 'swipe' && longPressActive) {
+                    const diffX = touchCurrentX - touchStartX;
+                    element.style.transition = 'transform 0.25s ease, background 0.3s ease, box-shadow 0.25s ease';
+
+                    if (swipeDir === 'left' && diffX < -80) {
+                        // Suppression
+                        element.style.transform = 'translateX(-110%)';
+                        element.style.opacity = '0';
+                        setTimeout(() => confirmDeleteActivity(activityId, actTitle), 300);
+                        setTimeout(() => resetVisual(), 600);
+                    } else if (swipeDir === 'right' && diffX > 80) {
+                        // Complétion
+                        completeActivity(activityId, element);
+                        setTimeout(() => resetVisual(), 400);
+                    } else {
+                        resetVisual();
+                    }
+                } else if (mode === 'drag') {
+                    endDrag();
                 } else {
-                    element.style.transform = '';
-                    element.style.background = '';
+                    resetVisual();
                 }
-                touchStartX = 0; touchCurrentX = 0; isSwiping = false; swipeDir = null;
+
+                mode = null;
+                swipeDir = null;
             }, {passive:true});
+
+            element.addEventListener('touchcancel', () => {
+                clearTimeout(longPressTimer);
+                if (dragActive) endDrag(true);
+                else resetVisual();
+                mode = null;
+                _touchOnCard = false;
+            }, {passive:true});
+
+            // ── DRAG VERTICAL ─────────────────────────────────────────────────
+            function startDrag(e) {
+                dragActive = true;
+                const rect = element.getBoundingClientRect();
+                dragOffsetY = e.touches[0].clientY - rect.top;
+
+                // Clone fantôme
+                dragClone = element.cloneNode(true);
+                dragClone.style.cssText = [
+                    'position:fixed',
+                    'left:' + rect.left + 'px',
+                    'top:' + rect.top + 'px',
+                    'width:' + rect.width + 'px',
+                    'z-index:999',
+                    'opacity:0.92',
+                    'pointer-events:none',
+                    'box-shadow:0 12px 32px rgba(0,0,0,0.22)',
+                    'transform:scale(1.03)',
+                    'transition:none',
+                    'border-radius:16px'
+                ].join(';');
+                document.body.appendChild(dragClone);
+
+                // Rendre l'original translucide
+                element.style.opacity = '0.3';
+                element.style.transform = 'scale(0.97)';
+            }
+
+            function moveDrag(e) {
+                if (!dragActive || !dragClone) return;
+                const y = e.touches[0].clientY - dragOffsetY;
+                dragClone.style.top = y + 'px';
+
+                // Trouver la tuile cible
+                const cards = Array.from(document.querySelectorAll('.activity-card'));
+                const midY = e.touches[0].clientY;
+                let targetCard = null;
+                let targetBefore = true;
+
+                for (const card of cards) {
+                    if (card === element) continue;
+                    const r = card.getBoundingClientRect();
+                    const cardMidY = r.top + r.height / 2;
+                    if (Math.abs(midY - cardMidY) < r.height * 0.6) {
+                        targetCard = card;
+                        targetBefore = midY < cardMidY;
+                        break;
+                    }
+                }
+
+                // Indicateur visuel sur la cible
+                document.querySelectorAll('.drag-target-top, .drag-target-bottom').forEach(el => {
+                    el.classList.remove('drag-target-top', 'drag-target-bottom');
+                    el.style.borderTop = '';
+                    el.style.borderBottom = '';
+                });
+                if (targetCard) {
+                    if (targetBefore) {
+                        targetCard.style.borderTop = '3px solid #8b5cf6';
+                    } else {
+                        targetCard.style.borderBottom = '3px solid #8b5cf6';
+                    }
+                }
+            }
+
+            function endDrag(cancel) {
+                dragActive = false;
+                if (dragClone) { dragClone.remove(); dragClone = null; }
+
+                // Nettoyer les indicateurs
+                document.querySelectorAll('.activity-card').forEach(el => {
+                    el.style.borderTop = '';
+                    el.style.borderBottom = '';
+                });
+
+                element.style.opacity = '';
+                element.style.transform = '';
+                element.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+
+                if (cancel) return;
+
+                // Trouver la position cible
+                const cards = Array.from(document.querySelectorAll('.activity-card'));
+                const midY = touchCurrentY;
+                let targetId = null;
+                let insertBefore = true;
+
+                for (const card of cards) {
+                    if (card === element) continue;
+                    const r = card.getBoundingClientRect();
+                    const cardMidY = r.top + r.height / 2;
+                    if (Math.abs(midY - cardMidY) < r.height * 0.6) {
+                        targetId = parseInt(card.dataset.actId || card.querySelector('[data-act-id]')?.dataset.actId);
+                        insertBefore = midY < cardMidY;
+                        break;
+                    }
+                }
+
+                if (targetId && targetId !== activityId) {
+                    reorderActivity(activityId, targetId, insertBefore);
+                }
+            }
+        }
+
+
+        function reorderActivity(draggedId, targetId, insertBefore) {
+            const dayActs = activities.filter(a => a.dayIndex === currentDayIndex && !a.time_flexible);
+            const dragged = activities.find(a => a.id === draggedId);
+            const target  = activities.find(a => a.id === targetId);
+            if (!dragged || !target) return;
+
+            // Recalculer les heures en fonction de la nouvelle position
+            // Extraire les activités du jour triées par heure actuelle
+            const dayFixed = activities
+                .filter(a => a.dayIndex === currentDayIndex && !a.time_flexible)
+                .sort((a, b) => a.time.localeCompare(b.time));
+
+            // Retirer le dragged de la liste
+            const without = dayFixed.filter(a => a.id !== draggedId);
+            const targetIdx = without.findIndex(a => a.id === targetId);
+            if (targetIdx === -1) return;
+
+            // Insérer avant ou après la cible
+            const insertIdx = insertBefore ? targetIdx : targetIdx + 1;
+            without.splice(insertIdx, 0, dragged);
+
+            // Réassigner les heures : ancrage sur la première heure, espacer par durée + trajet
+            // Garder l'heure de la première activité comme ancrage
+            const anchorTime = without[0].time;
+            // On ne change que l'ordre dans activities[], les heures seront recalculées par renderPlanning
+            // Stratégie : décaler les heures pour que l'ordre soit respecté
+            without.forEach((act, idx) => {
+                const globalIdx = activities.findIndex(a => a.id === act.id);
+                if (globalIdx >= 0) {
+                    // Réassigner un time qui respecte l'ordre (H:mm incrémental de 1 min)
+                    // renderPlanning recalculera via realTimes
+                    const baseH = parseInt(anchorTime.split(':')[0]);
+                    const baseM = parseInt(anchorTime.split(':')[1]);
+                    const offsetMin = idx; // 1 minute d'écart symbolique pour l'ordre
+                    const newMin = baseM + offsetMin;
+                    const newH = baseH + Math.floor(newMin / 60);
+                    activities[globalIdx].time = String(newH % 24).padStart(2,'0') + ':' + String(newMin % 60).padStart(2,'0');
+                }
+            });
+
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            renderPlanning();
         }
 
         function completeActivity(activityId, element) {
