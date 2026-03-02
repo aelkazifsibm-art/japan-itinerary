@@ -2809,7 +2809,8 @@
                 const prev    = dayActivities[k - 1];
                 const curr    = dayActivities[k];
                 // Durée cohérente : visit_duration prioritaire, puis duration_minutes, puis 90
-                const prevDur = prev.place?.visit_duration || prev.duration_minutes || 90;
+                const _pd = prev.place?.visit_duration || prev.duration_minutes || 90;
+                const prevDur = Math.min(480, Math.max(15, parseInt(_pd) || 90));
                 const prevEnd = addMinutesToTime(realTimes[k - 1], prevDur);
                 let   travel  = 0;
                 if (prev.place?.place_id && curr.place?.place_id) {
@@ -2898,7 +2899,8 @@
                 const act        = actStored;
                 const arriveTime = realTimes[i];
                 // Durée : visit_duration (données réelles) > duration_minutes (saisi/IA) > 90min défaut
-                const visitDur = act.place?.visit_duration || act.duration_minutes || 90;
+                const _rawDur = act.place?.visit_duration || act.duration_minutes || 90;
+                const visitDur = Math.min(480, Math.max(15, parseInt(_rawDur) || 90));
                 const leaveTime  = addMinutesToTime(arriveTime, visitDur);
                 const dur = visitDur;
                 const mapsUrl = act.place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}` : '';
@@ -3027,12 +3029,15 @@
                 const idx = activities.findIndex(a => a.id === act.id);
                 if (idx >= 0) {
                     activities[idx].place = { ...activities[idx].place, ...placeData };
-                    // Mettre à jour duration_minutes avec la durée recommandée si disponible
+                    // Mettre à jour duration_minutes avec la durée recommandée (clamp 15-480min)
                     if (placeData.visit_duration && placeData.visit_duration > 0) {
-                        activities[idx].duration_minutes = placeData.visit_duration;
+                        const clamped = Math.min(480, Math.max(15, parseInt(placeData.visit_duration) || 90));
+                        activities[idx].duration_minutes = clamped;
                     }
                     localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
-                    renderPlanning();
+                    // Debounce le re-render pour éviter les cascades quand plusieurs enrichissements arrivent
+                    clearTimeout(window._enrichRenderTimer);
+                    window._enrichRenderTimer = setTimeout(() => renderPlanning(), 400);
                     // Si encore incomplet après enrichissement, retry automatique (délai 2s)
                     const p = activities[idx].place;
                     if ((p.opening_hours === null || p.opening_hours === undefined) ||
@@ -3122,42 +3127,42 @@
             const name = (place.name || '').toLowerCase();
             const addr = (place.formatted_address || '').toLowerCase();
 
-            // Se détendre : onsen, spa
-            if (types.some(t => ['spa','hot_spring','health','beauty_salon'].includes(t))
-                || /onsen|hot.spring|sento|ofuro|rotenburo|bain|bath/i.test(name))
+            // ── Ordre : types spécifiques d'abord, génériques à la fin ──────
+
+            // 1. Se détendre : onsen, spa
+            if (types.some(t => ['spa','hot_spring','beauty_salon'].includes(t))
+                || /onsen|hot.spring|sento|ofuro|rotenburo/i.test(name))
                 return THEMES.detendre;
 
-            // Se restaurer : resto, izakaya, café — avant contempler car overlaps
-            if (types.some(t => ['restaurant','meal_delivery','meal_takeaway','japanese_restaurant',
-                'bar','night_club','liquor_store','cafe','bakery','coffee_shop','tea_house','food_court'].includes(t))
-                || /ramen|sushi|izakaya|yakitori|tonkatsu|tempura|udon|soba|café|cafe|restaurant|tsukemen|kaiseki|teppanyaki|nabe|yakiniku|donburi|bentô|bento|patisserie|boulangerie|tea house|teahouse/i.test(name))
-                return THEMES.restaurer;
-
-            // Contempler : temple, château, musée, histoire, spectacle
-            if (types.some(t => ['temple','shrine','buddhist_temple','shinto_shrine','hindu_temple','place_of_worship',
-                'castle','museum','art_gallery','historical_landmark','landmark','monument','ruins','cemetery',
-                'movie_theater','performing_arts_theater','stadium','event_venue','church','mosque',
-                'tourist_attraction'].includes(t))
-                || /temple|ji$|dera$|jinja|shrine|torii|castle|château|jo$|museum|musée|bijutsukan|koen.*ji|gallery|galerie|expo|exhibition|theatre|théâtre|kabuki|noh|bunraku|aquarium/i.test(name)
-                || /senso|asakusa|fushimi|kinkaku|ginkaku|meiji|tosho|todai|horyuji|itsukushima|nikko|nara|horyu|daitoku/i.test(name))
-                return THEMES.contempler;
-
-            // Se promener : parc, rando, plage, nature
+            // 2. Se promener : parc, nature — AVANT contempler car tourist_attraction pollue
             if (types.some(t => ['park','botanical_garden','campground','garden','hiking_area','mountain',
                 'beach','waterfront','national_park','natural_feature','forest','waterfall','lake'].includes(t))
-                || /park|parc|garden|jardin|koen|beach|plage|forest|bamboo|arashiyama|mountain|yama|fuji|alps|gorge|rivière|river|lake|mer|sea|île|island|trail|sentier/i.test(name))
+                || /park|parc|garden|jardin|gyoen|koen|beach|plage|forest|bamboo|arashiyama|mountain|yama|fuji|trail|sentier|île|island|gorge|river|rivière/i.test(name))
                 return THEMES.promener;
 
-            // Explorer : quartier, shopping, marchés, zoo
+            // 3. Se restaurer : resto, izakaya, café
+            if (types.some(t => ['restaurant','meal_delivery','meal_takeaway','japanese_restaurant',
+                'bar','night_club','liquor_store','cafe','bakery','coffee_shop','tea_house','food_court'].includes(t))
+                || /ramen|sushi|izakaya|yakitori|tonkatsu|tempura|udon|soba|café|cafe|restaurant|kaiseki|teppanyaki|yakiniku|donburi|bento|boulangerie|teahouse/i.test(name))
+                return THEMES.restaurer;
+
+            // 4. Explorer : quartier, shopping, marchés, zoo, parc attraction
             if (types.some(t => ['shopping_mall','clothing_store','department_store','electronics_store',
                 'market','grocery_or_supermarket','supermarket','convenience_store',
-                'zoo','amusement_park','theme_park','neighborhood','sublocality','locality',
-                'point_of_interest','establishment'].includes(t))
-                || /market|marché|ichiba|shopping|harajuku|akihabara|shibuya|shinjuku|ginza|omotesando|nakameguro|zoo|anime|manga|game|don quijote|daiso|muji/i.test(name))
+                'zoo','aquarium','amusement_park','theme_park','neighborhood','sublocality'].includes(t))
+                || /market|marché|ichiba|shopping|harajuku|akihabara|shibuya|ginza|omotesando|nakameguro|zoo|aquarium|anime|manga|don quijote|daiso|muji/i.test(name))
                 return THEMES.explorer;
 
-            // Défaut : contempler (jamais de gris)
-            return THEMES.contempler;
+            // 5. Contempler : temple, musée, monument, château, spectacle
+            if (types.some(t => ['temple','shrine','buddhist_temple','shinto_shrine','hindu_temple','place_of_worship',
+                'castle','museum','art_gallery','historical_landmark','landmark','monument','ruins','cemetery',
+                'movie_theater','performing_arts_theater','stadium','event_venue','church','mosque'].includes(t))
+                || /temple|ji$|dera$|jinja|shrine|torii|castle|château|jo$|museum|musée|bijutsukan|gallery|galerie|expo|theatre|théâtre|kabuki|noh/i.test(name)
+                || /senso|fushimi|kinkaku|ginkaku|meiji|tosho|todai|horyuji|itsukushima|kiyomizu|ryoan|tenryu|daitoku/i.test(name))
+                return THEMES.contempler;
+
+            // Défaut : explorer (bleu — neutre et non-spécifique)
+            return THEMES.explorer;
         }
 
                 // Type chip inline avec le titre
@@ -3532,15 +3537,14 @@
 
         // Après un calcul de trajet, on re-render SEULEMENT si c'est le premier réseau
         // pour mettre à jour realTimes (les heures). On utilise un flag pour éviter la boucle.
-        let _pendingNavCount = 0;
         let _navUpdateTimer = null;
         function _updateNavTimesOnly() {
-            _pendingNavCount++;
+            // Re-render une seule fois après que tous les calculs réseau soient groupés
+            // Délai long pour éviter la boucle enrich→render→calculateNav→render
             clearTimeout(_navUpdateTimer);
             _navUpdateTimer = setTimeout(() => {
-                _pendingNavCount = 0;
                 renderPlanning();
-            }, 1200); // délai plus long pour grouper tous les retours réseau
+            }, 2000);
         }
 
         async function calculateNav(from, to, elementId, departureTime, arrivalTime) {
