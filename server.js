@@ -360,6 +360,8 @@ Réponds UNIQUEMENT avec ce JSON :
 
         // Calcul arithmétique — serveur est maître du total
         transit = Math.max(1, parseInt(r.transit_min) || Math.round(distKm * 3));
+        // Clamp transit entre 1 et 120min (sécurité anti-valeurs IA aberrantes)
+        transit = Math.min(120, transit);
         mode    = r.mode || 'metro';
         const modeEmoji = { metro: '🚇', train: '🚄', bus: '🚌' }[mode] || '🚇';
         const totalReal = walkFrom + transit + walkTo;

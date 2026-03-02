@@ -1056,7 +1056,7 @@
         // stays[] = [{ city, hotelName, address, place, price, currency, startDay, endDay }]
         let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
         let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '{}');
-        let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v3') || '{}');
+        let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v4') || '{}');
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
         const PLACE_CACHE_KEY = 'japan_place_cache_v10';
@@ -2815,7 +2815,8 @@
                 let   travel  = 0;
                 if (prev.place?.place_id && curr.place?.place_id) {
                     const ck = `${prev.place.place_id}-${curr.place.place_id}`;
-                    travel = routeCache[ck]?.total_minutes || 0;
+                    const rawTravel = routeCache[ck]?.total_minutes || 0;
+                    travel = Math.min(180, Math.max(0, parseInt(rawTravel) || 0));
                 }
                 realTimes[k] = addMinutesToTime(prevEnd, travel);
             }
@@ -2885,8 +2886,9 @@
                         if (idx >= 0) {
                             activities[idx].place = { ...activities[idx].place, ...cached };
                             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
-                            // Re-render pour afficher les données mises à jour
-                            setTimeout(() => renderPlanning(), 0);
+                            // Debounce pour afficher les données mises à jour
+                            clearTimeout(window._enrichRenderTimer);
+                            window._enrichRenderTimer = setTimeout(() => renderPlanning(), 600);
                         }
                     }
                 }
@@ -2922,7 +2924,7 @@
                                     <div class="font-semibold leading-none uppercase tracking-widest" style="font-size:7px;color:${theme.lineTo};margin-top:2px">min</div>
                                 </div>
                             </div>
-                            <span class="font-bold text-gray-400 tabular-nums" style="font-size:clamp(12px,3.5vw,15px)">${leaveTime}</span>
+                            <span class="font-black text-gray-800 tabular-nums" style="font-size:clamp(12px,3.5vw,15px)">${leaveTime}</span>
                         </div>
 
                         <!-- ── Centre : titre + lieu + note + chips ── -->
@@ -3526,26 +3528,23 @@
             else modeLabel = 'En transport';
             const pill = el.querySelector('.nav-info-pill');
             if (pill) {
+                // Formater la durée : minutes si < 60, sinon Xh[Ymin]
+                const totalMin = data.total_minutes;
+                const durStr = totalMin >= 60
+                    ? Math.floor(totalMin/60) + 'h' + (totalMin%60 ? String(totalMin%60).padStart(2,'0') : '')
+                    : totalMin + ' min';
                 pill.innerHTML =
-                    '<span style="font-size:13px">⏱</span>' +
-                    '<span class="font-black text-white" style="font-size:13px">' + data.total_minutes + ' min</span>' +
-                    '<span class="text-white/55" style="font-size:11px"> · ' + modeLabel + '</span>' +
-                    (arrival ? '<span class="font-black text-white ml-auto" style="font-size:12px">🏁 ' + arrival + '</span>' : '');
+                    '<span class="font-black text-white" style="font-size:14px">' + durStr + '</span>' +
+                    '<span class="text-white/60" style="font-size:11px"> · ' + modeLabel + '</span>';
             }
         }
 
 
         // Après un calcul de trajet, on re-render SEULEMENT si c'est le premier réseau
         // pour mettre à jour realTimes (les heures). On utilise un flag pour éviter la boucle.
-        let _navUpdateTimer = null;
-        function _updateNavTimesOnly() {
-            // Re-render une seule fois après que tous les calculs réseau soient groupés
-            // Délai long pour éviter la boucle enrich→render→calculateNav→render
-            clearTimeout(_navUpdateTimer);
-            _navUpdateTimer = setTimeout(() => {
-                renderPlanning();
-            }, 2000);
-        }
+        // Plus de re-render depuis calculateNav — évite la boucle infinie
+        // Les heures seront recalculées au prochain render naturel (ajout/suppression/etc.)
+        function _updateNavTimesOnly() { /* no-op intentionnel */ }
 
         async function calculateNav(from, to, elementId, departureTime, arrivalTime) {
             const cacheKey = `${from.place_id}-${to.place_id}`;
@@ -3566,16 +3565,18 @@
                 const el = document.getElementById(elementId);
 
                 if (j.success) {
+                    // Clamp total_minutes entre 1 et 180min (sécurité anti-valeurs aberrantes)
+                    const safeTotalMin = Math.min(180, Math.max(1, parseInt(j.total_minutes) || 0));
                     routeCache[cacheKey] = {
                         summary:       j.summary,
                         details:       j.details,
-                        total_minutes: j.total_minutes,
-                        walk_from_min: j.walk_from_min,
-                        transit_min:   j.transit_min,
-                        walk_to_min:   j.walk_to_min,
+                        total_minutes: safeTotalMin,
+                        walk_from_min: Math.min(60, Math.max(0, parseInt(j.walk_from_min) || 0)),
+                        transit_min:   Math.min(150, Math.max(0, parseInt(j.transit_min) || 0)),
+                        walk_to_min:   Math.min(60, Math.max(0, parseInt(j.walk_to_min) || 0)),
                         mode:          j.mode
                     };
-                    localStorage.setItem('japan_route_cache_v3', JSON.stringify(routeCache));
+                    localStorage.setItem('japan_route_cache_v4', JSON.stringify(routeCache));
                     if (el) renderNavBlock(el, routeCache[cacheKey], departureTime, arrivalTime);
                     // Re-render différé pour recalculer les realTimes avec les vraies durées
                     _updateNavTimesOnly();
