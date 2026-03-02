@@ -127,23 +127,10 @@
         }
 
                 .activity-completed {
-            /* Fond vert granulé via background direct — pas de pseudo-élément qui déborde */
-            background: 
-                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E"),
-                linear-gradient(135deg, rgba(74,222,128,0.18) 0%, rgba(134,239,172,0.12) 100%)
-                !important;
-            background-size: 100px, 100% !important;
-            opacity: 0.9;
+            background: white !important;
+            opacity: 0.80;
         }
-        .activity-completed::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            border: 0 !important; /* géré via card.style.cssText */
-            pointer-events: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
+
 
         /* Animation confetti */
         @keyframes confetti-fall {
@@ -2968,10 +2955,11 @@
                 const theme = getActivityTheme(act.place);
                 const card = document.createElement('div');
                 const isCompleted = completedActivities.includes(act.id);
-                card.className = "rounded-2xl overflow-hidden activity-card" + (isCompleted ? " activity-completed" : " bg-white");
+                card.className = "bg-white rounded-2xl overflow-hidden activity-card" + (isCompleted ? " activity-completed" : "");
                 card.dataset.actId = act.id;
                 if (isCompleted) {
-                    card.style.cssText = "border: 2px solid #4ade80; box-shadow: 0 1px 12px rgba(74,222,128,0.35);";
+                    // Même layout, liseré vert épais uniquement
+                    card.style.cssText = "border: 2.5px solid #22c55e; box-shadow: 0 1px 10px rgba(34,197,94,0.2);";
                 } else {
                     card.style.cssText = "border: 2px solid " + theme.border + "; box-shadow: 0 1px 8px " + theme.border + "30;";
                 }
@@ -2995,7 +2983,7 @@
                         <div class="flex-1 min-w-0 flex flex-col justify-between px-3 py-3">
                             <!-- Ligne 1 : titre -->
                             <div>
-                                <div class="font-black text-gray-900 leading-tight truncate" style="font-size:clamp(15px,4.5vw,18px);letter-spacing:-0.3px">${act.title}</div>
+                                <div class="font-black text-${isCompleted ? 'line-through text-green-700 opacity-70' : 'text-gray-900'} leading-tight truncate" style="font-size:clamp(15px,4.5vw,18px);letter-spacing:-0.3px">${act.title}</div>
                                 <!-- Ligne 2 : note (position fixe) + lieu -->
                                 <div class="flex items-center gap-2 mt-1.5">
                                     ${act.place?.rating
@@ -4092,18 +4080,26 @@
                 if (mode === 'swipe') {
                     swipeDir = diffX > 0 ? 'right' : 'left';
                     const pct = Math.min(absDiffX / 100, 1);
-                    // Reset le hint style au cas où il était en mode instruction
                     hint.style.fontSize = '16px';
                     hint.style.fontWeight = '900';
+                    const alreadyDone = completedActivities.includes(activityId);
 
-                    if (swipeDir === 'right') {
-                        setOverlay('rgba(22,163,74,' + (0.45 + pct * 0.45) + ')', '1',
-                            pct > 0.3 ? '✓  Valider' : '');
-                        element.style.boxShadow = '0 6px 24px rgba(22,163,74,' + (0.3 + pct * 0.4) + ')';
+                    if (swipeDir === 'left') {
+                        // Gauche → Valider (vert) ou Dé-valider (bleu)
+                        if (alreadyDone) {
+                            setOverlay('rgba(96,165,250,' + (0.45 + pct*0.45) + ')', '1',
+                                pct > 0.3 ? '↩  Dé-valider' : '');
+                            element.style.boxShadow = '0 6px 24px rgba(96,165,250,' + (0.3+pct*0.4) + ')';
+                        } else {
+                            setOverlay('rgba(22,163,74,' + (0.45 + pct*0.45) + ')', '1',
+                                pct > 0.3 ? '✓  Valider' : '');
+                            element.style.boxShadow = '0 6px 24px rgba(22,163,74,' + (0.3+pct*0.4) + ')';
+                        }
                     } else {
-                        setOverlay('rgba(220,38,38,' + (0.45 + pct * 0.45) + ')', '1',
+                        // Droite → Supprimer
+                        setOverlay('rgba(220,38,38,' + (0.45 + pct*0.45) + ')', '1',
                             pct > 0.3 ? '✕  Supprimer' : '');
-                        element.style.boxShadow = '0 6px 24px rgba(220,38,38,' + (0.3 + pct * 0.4) + ')';
+                        element.style.boxShadow = '0 6px 24px rgba(220,38,38,' + (0.3+pct*0.4) + ')';
                     }
                     element.style.transform = 'scale(1.02) translateX(' + (diffX * 0.65) + 'px)';
                 }
@@ -4114,26 +4110,36 @@
 
             element.addEventListener('touchend', (e) => {
                 clearTimeout(longPressTimer);
-                // NE PAS remettre _touchOnCard = false ici
-                // Le global touchend le fera après avoir décidé de la navigation
 
                 if (mode === 'swipe') {
                     const diffX = touchCurrentX - touchStartX;
-                    if (swipeDir === 'right' && diffX > 80) {
-                        // Validation : garder l'overlay vert, laisser completeActivity s'en occuper
-                        element.style.transform = 'translateX(110%)';
+                    const alreadyDone = completedActivities.includes(activityId);
+
+                    if (swipeDir === 'left' && diffX < -80) {
+                        const alreadyDoneEnd = completedActivities.includes(activityId);
+                        // Fade out overlay, reset transform, puis re-render
+                        overlay.style.transition = 'opacity 0.2s ease';
                         overlay.style.opacity = 0;
                         hint.style.opacity = 0;
-                        setTimeout(() => completeActivity(activityId, element), 200);
-                        setTimeout(() => clearOverlay(), 700);
-                    } else if (swipeDir === 'left' && diffX < -80) {
-                        // Suppression directe (l'overlay rouge était déjà la confirmation visuelle)
-                        element.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
-                        element.style.transform = 'translateX(-110%)';
-                        element.style.opacity = '0';
+                        element.style.transition = 'transform 0.2s ease';
+                        element.style.transform = 'translateX(0)';
+
                         setTimeout(() => {
-                            deleteActivity(activityId);
-                        }, 250);
+                            clearOverlay();
+                            // Toggle
+                            const idx = completedActivities.indexOf(activityId);
+                            if (idx === -1) completedActivities.push(activityId);
+                            else           completedActivities.splice(idx, 1);
+                            localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
+                            renderPlanning();
+                        }, 220);
+
+                    } else if (swipeDir === 'right' && diffX > 80) {
+                        // Droite → Suppression directe
+                        element.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+                        element.style.transform = 'translateX(110%)';
+                        element.style.opacity = '0';
+                        setTimeout(() => deleteActivity(activityId), 250);
                     } else {
                         clearOverlay();
                     }
@@ -4272,12 +4278,14 @@
         }
 
         function completeActivity(activityId, element) {
-            if (!completedActivities.includes(activityId)) {
-                completedActivities.push(activityId);
-                localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
+            const idx = completedActivities.indexOf(activityId);
+            if (idx === -1) {
+                completedActivities.push(activityId); // valider
+            } else {
+                completedActivities.splice(idx, 1);   // dévalider
             }
-            // Laisser renderPlanning gérer le rendu — pas de manipulation DOM directe
-            setTimeout(() => renderPlanning(), 350);
+            localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
+            renderPlanning();
         }
 
         function createConfetti(element) {
