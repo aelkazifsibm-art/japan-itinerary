@@ -2854,6 +2854,10 @@
                     <span class="font-black text-white animate-pulse" style="font-size:12px">Calcul trajet hôtel…</span>
                 </div>`;
                 list.appendChild(hotelNavBlock);
+                if (!window._navRerender) {
+                    _navPending++;
+                    _navRenderScheduled = true;
+                }
                 calculateNav(stay0.place, act0.place, hotelNavId, hotelDepart, realTimes[0]);
             } else if (stay0) {
                 // Hôtel sans place validée — carte simple
@@ -2988,7 +2992,13 @@
                         `;
                         list.appendChild(navBlock);
                         // dep = fin de visite act[i]   arr = arrivée act[i+1]
-                        calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i + 1]);
+                        if (!window._navRerender) {
+                            _navPending++;
+                            _navRenderScheduled = true;
+                            calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i + 1]);
+                        } else {
+                            calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i + 1]);
+                        }
                     }
                 }
             }
@@ -3542,9 +3552,23 @@
 
         // Après un calcul de trajet, on re-render SEULEMENT si c'est le premier réseau
         // pour mettre à jour realTimes (les heures). On utilise un flag pour éviter la boucle.
-        // Plus de re-render depuis calculateNav — évite la boucle infinie
-        // Les heures seront recalculées au prochain render naturel (ajout/suppression/etc.)
-        function _updateNavTimesOnly() { /* no-op intentionnel */ }
+        // Compteur de requêtes réseau en cours pour calculateNav
+        let _navPending = 0;
+        let _navRenderScheduled = false;
+
+        function _navRequestDone() {
+            _navPending = Math.max(0, _navPending - 1);
+            if (_navPending === 0 && _navRenderScheduled) {
+                _navRenderScheduled = false;
+                // Re-render unique une fois tous les trajets connus
+                // Flag pour éviter de relancer des requêtes réseau depuis ce re-render
+                window._navRerender = true;
+                renderPlanning();
+                window._navRerender = false;
+            }
+        }
+
+        function _updateNavTimesOnly() { /* no-op — géré par _navRequestDone */ }
 
         async function calculateNav(from, to, elementId, departureTime, arrivalTime) {
             const cacheKey = `${from.place_id}-${to.place_id}`;
@@ -3552,7 +3576,9 @@
             if (routeCache[cacheKey]) {
                 const el = document.getElementById(elementId);
                 if (el) renderNavBlock(el, routeCache[cacheKey], departureTime, arrivalTime);
-                return; // Pas de _updateNavTimesOnly ici — évite la boucle
+                // Cache hit : décrémenter le compteur (le trajet est "connu")
+                _navRequestDone();
+                return;
             }
 
             try {
@@ -3578,14 +3604,16 @@
                     };
                     localStorage.setItem('japan_route_cache_v4', JSON.stringify(routeCache));
                     if (el) renderNavBlock(el, routeCache[cacheKey], departureTime, arrivalTime);
-                    // Re-render différé pour recalculer les realTimes avec les vraies durées
-                    _updateNavTimesOnly();
+                    // Décrémenter le compteur → déclenche re-render quand tous les trajets sont connus
+                    _navRequestDone();
                 } else {
                     if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
+                    _navRequestDone();
                 }
             } catch (e) {
                 const el = document.getElementById(elementId);
                 if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur réseau</div>`;
+                _navRequestDone();
             }
         }
 
