@@ -2626,7 +2626,15 @@
             renderPlanning();
         }
 
+        let _renderInProgress = false;
         async function renderPlanning() {
+            // Anti-réentrance : si un render est déjà en cours, on le reporte
+            if (_renderInProgress) {
+                clearTimeout(window._deferredRenderTimer);
+                window._deferredRenderTimer = setTimeout(() => renderPlanning(), 100);
+                return;
+            }
+            _renderInProgress = true;
             const list = document.getElementById('planning-list');
             list.innerHTML = '';
 
@@ -2956,8 +2964,8 @@
                             <!-- + -->
                             <button data-act-id="${act.id}" onclick="event.stopPropagation(); showActivityById(this.dataset.actId)"
                                 class="flex-1 flex items-center justify-center border-b transition-colors active:brightness-95"
-                                style="background:${theme.infoBtn};border-color:${theme.border}25">
-                                <div class="flex items-center justify-center font-black text-white rounded-full" style="width:clamp(26px,7vw,30px);height:clamp(26px,7vw,30px);font-size:clamp(16px,4.5vw,20px);background:${theme.lineFrom}">+</div>
+                                style="background:${theme.infoBtn};border-color:${theme.border}22">
+                                <div class="flex items-center justify-center font-semibold rounded-full" style="width:clamp(22px,6vw,26px);height:clamp(22px,6vw,26px);font-size:clamp(14px,4vw,17px);border:1.5px solid ${theme.border};color:${theme.lineFrom};background:white">+</div>
                             </button>
                             <!-- Pin Maps -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
@@ -3018,6 +3026,9 @@
             }
 
         }
+
+            _renderInProgress = false;
+        } // fin renderPlanning
 
         // Guard anti-boucle : set des place_ids en cours de fetch
         const _enrichingIds = new Set();
@@ -3560,11 +3571,13 @@
             _navPending = Math.max(0, _navPending - 1);
             if (_navPending === 0 && _navRenderScheduled) {
                 _navRenderScheduled = false;
-                // Re-render unique une fois tous les trajets connus
-                // Flag pour éviter de relancer des requêtes réseau depuis ce re-render
-                window._navRerender = true;
-                renderPlanning();
-                window._navRerender = false;
+                // Délai minimal pour grouper les derniers cache-hits simultanés
+                clearTimeout(window._navRerenderTimer);
+                window._navRerenderTimer = setTimeout(async () => {
+                    window._navRerender = true;
+                    await renderPlanning();
+                    window._navRerender = false;
+                }, 50);
             }
         }
 
