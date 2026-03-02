@@ -2837,10 +2837,12 @@
                 const hotelNavId    = `nav-hotel-${act0.id}`;
                 const hotelNavBlock = document.createElement('div');
                 hotelNavBlock.id        = hotelNavId;
-                hotelNavBlock.className = "bg-orange-500 text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md mb-4";
-                hotelNavBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet depuis l'hôtel...</div>`;
+                hotelNavBlock.className = "nav-travel-block mx-4 mb-3 relative z-10";
+                hotelNavBlock.innerHTML = `<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)">
+                    <span style="font-size:13px">🏨</span>
+                    <span class="font-black text-white animate-pulse" style="font-size:12px">Calcul trajet hôtel…</span>
+                </div>`;
                 list.appendChild(hotelNavBlock);
-                // dep = hotelDepart  arr = realTimes[0]
                 calculateNav(stay0.place, act0.place, hotelNavId, hotelDepart, realTimes[0]);
             } else if (stay0) {
                 // Hôtel sans place validée — carte simple
@@ -2949,6 +2951,13 @@
                     </div>
                 `;
                 initActivitySwipe(card, act.id, act.title);
+                // Double-clic → fiche Google Maps du lieu
+                if (mapsUrl) {
+                    card.addEventListener('dblclick', function(e) {
+                        e.stopPropagation();
+                        window.open(mapsUrl, '_blank');
+                    });
+                }
                 list.appendChild(card);
 
                 // Bloc trajet entre act[i] et act[i+1]
@@ -2977,14 +2986,9 @@
                 optBtn.className = 'mt-6 mb-2';
                 optBtn.innerHTML = `
                     <button onclick="optimizeDaySchedule()"
-                        class="w-full group relative overflow-hidden bg-gradient-to-r from-violet-600 via-purple-500 to-pink-500 text-white py-4 rounded-2xl font-black text-sm shadow-lg hover:shadow-purple-400/40 hover:shadow-xl active:scale-95 transition-all duration-300 flex items-center justify-center gap-3">
-                        <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <span class="text-xl">🧠</span>
-                        <div class="text-left">
-                            <div class="font-black leading-tight">Optimiser ma journée</div>
-                            <div class="text-white/70 text-[11px] font-normal">Horaires · Trajets · Marges de respiration</div>
-                        </div>
-                        <span class="ml-auto text-white/60 text-lg">→</span>
+                        class="w-full relative overflow-hidden bg-gradient-to-r from-violet-600 via-purple-500 to-pink-500 text-white py-3 px-5 rounded-2xl shadow-lg active:scale-95 transition-all duration-200">
+                        <div class="font-black text-sm leading-tight">Optimiser ma journée</div>
+                        <div class="text-white/70 text-[11px] font-normal mt-0.5">Horaires · Trajets · Marges de respiration</div>
                     </button>
                 `;
                 list.appendChild(optBtn);
@@ -3097,44 +3101,54 @@
         // 5 familles : contempler(orange) · restaurer(rose) · promener(vert) · explorer(bleu) · détendre(violet)
         function getActivityTheme(place) {
             const THEMES = {
-                contempler: { border:'#fb923c', timelineBg:'#fff7ed', lineFrom:'#fb923c', lineTo:'#f43f5e', chipBorder:'#fb923c', infoBtn:'#fff7ed' },
-                restaurer:  { border:'#f472b6', timelineBg:'#fdf2f8', lineFrom:'#f472b6', lineTo:'#ec4899', chipBorder:'#f472b6', infoBtn:'#fdf2f8' },
-                promener:   { border:'#4ade80', timelineBg:'#f0fdf4', lineFrom:'#4ade80', lineTo:'#059669', chipBorder:'#4ade80', infoBtn:'#f0fdf4' },
-                explorer:   { border:'#38bdf8', timelineBg:'#f0f9ff', lineFrom:'#38bdf8', lineTo:'#0284c7', chipBorder:'#38bdf8', infoBtn:'#f0f9ff' },
-                detendre:   { border:'#c084fc', timelineBg:'#faf5ff', lineFrom:'#c084fc', lineTo:'#7c3aed', chipBorder:'#c084fc', infoBtn:'#faf5ff' },
-                default:    { border:'#e2e8f0', timelineBg:'#f8fafc', lineFrom:'#c084fc', lineTo:'#f472b6', chipBorder:'#e2e8f0', infoBtn:'#f8fafc' },
+                contempler: { border:'#fb923c', timelineBg:'#fff7ed', lineFrom:'#ea580c', lineTo:'#dc2626', infoBtn:'#fff7ed' },
+                restaurer:  { border:'#f472b6', timelineBg:'#fdf2f8', lineFrom:'#db2777', lineTo:'#be185d', infoBtn:'#fdf2f8' },
+                promener:   { border:'#4ade80', timelineBg:'#f0fdf4', lineFrom:'#16a34a', lineTo:'#166534', infoBtn:'#f0fdf4' },
+                explorer:   { border:'#38bdf8', timelineBg:'#f0f9ff', lineFrom:'#0284c7', lineTo:'#075985', infoBtn:'#f0f9ff' },
+                detendre:   { border:'#c084fc', timelineBg:'#faf5ff', lineFrom:'#9333ea', lineTo:'#6b21a8', infoBtn:'#faf5ff' },
             };
-            if (!place) return THEMES.default;
+            // Fallback : contempler (orange) par défaut plutôt que gris
+            if (!place) return THEMES.contempler;
             const types = place.types || [];
             const name = (place.name || '').toLowerCase();
-            // Contempler : temple, château, musée, histoire, spectacle
-            if (types.some(t => ['temple','shrine','buddhist_temple','shinto_shrine','hindu_temple','place_of_worship',
-                'castle','museum','art_gallery','historical_landmark','monument','ruins','cemetery',
-                'movie_theater','performing_arts_theater','stadium','event_venue','church','mosque'].includes(t))
-                || /temple|ji$|dera$|jinja|shrine|torii|castle|château|jo$|museum|musée|bijutsukan/i.test(name))
-                return THEMES.contempler;
-            // Se restaurer : resto, izakaya, café
-            if (types.some(t => ['restaurant','meal_delivery','meal_takeaway','japanese_restaurant',
-                'bar','night_club','liquor_store','cafe','bakery','coffee_shop','tea_house','food'].includes(t))
-                || /ramen|sushi|izakaya|yakitori|tonkatsu|tempura|udon|soba|café|cafe|restaurant/i.test(name))
-                return THEMES.restaurer;
-            // Se promener : parc, rando, plage, nature
-            if (types.some(t => ['park','botanical_garden','campground','garden','hiking_area','mountain',
-                'beach','waterfront','national_park','natural_feature','forest','waterfall'].includes(t))
-                || /park|parc|garden|jardin|koen|beach|plage|forest|bamboo|arashiyama|mountain/i.test(name))
-                return THEMES.promener;
-            // Explorer : quartier, shopping, zoo, parc attraction
-            if (types.some(t => ['shopping_mall','clothing_store','department_store','electronics_store',
-                'market','grocery_or_supermarket','supermarket','convenience_store',
-                'zoo','aquarium','amusement_park','theme_park',
-                'neighborhood','sublocality','locality'].includes(t))
-                || /market|marché|ichiba|shopping|harajuku|akihabara|shibuya|zoo|aquarium/i.test(name))
-                return THEMES.explorer;
+            const addr = (place.formatted_address || '').toLowerCase();
+
             // Se détendre : onsen, spa
             if (types.some(t => ['spa','hot_spring','health','beauty_salon'].includes(t))
-                || /onsen|hot spring|spa|bain|sento|ofuro|rotenburo/i.test(name))
+                || /onsen|hot.spring|sento|ofuro|rotenburo|bain|bath/i.test(name))
                 return THEMES.detendre;
-            return THEMES.default;
+
+            // Se restaurer : resto, izakaya, café — avant contempler car overlaps
+            if (types.some(t => ['restaurant','meal_delivery','meal_takeaway','japanese_restaurant',
+                'bar','night_club','liquor_store','cafe','bakery','coffee_shop','tea_house','food_court'].includes(t))
+                || /ramen|sushi|izakaya|yakitori|tonkatsu|tempura|udon|soba|café|cafe|restaurant|tsukemen|kaiseki|teppanyaki|nabe|yakiniku|donburi|bentô|bento|patisserie|boulangerie|tea house|teahouse/i.test(name))
+                return THEMES.restaurer;
+
+            // Contempler : temple, château, musée, histoire, spectacle
+            if (types.some(t => ['temple','shrine','buddhist_temple','shinto_shrine','hindu_temple','place_of_worship',
+                'castle','museum','art_gallery','historical_landmark','landmark','monument','ruins','cemetery',
+                'movie_theater','performing_arts_theater','stadium','event_venue','church','mosque',
+                'tourist_attraction'].includes(t))
+                || /temple|ji$|dera$|jinja|shrine|torii|castle|château|jo$|museum|musée|bijutsukan|koen.*ji|gallery|galerie|expo|exhibition|theatre|théâtre|kabuki|noh|bunraku|aquarium/i.test(name)
+                || /senso|asakusa|fushimi|kinkaku|ginkaku|meiji|tosho|todai|horyuji|itsukushima|nikko|nara|horyu|daitoku/i.test(name))
+                return THEMES.contempler;
+
+            // Se promener : parc, rando, plage, nature
+            if (types.some(t => ['park','botanical_garden','campground','garden','hiking_area','mountain',
+                'beach','waterfront','national_park','natural_feature','forest','waterfall','lake'].includes(t))
+                || /park|parc|garden|jardin|koen|beach|plage|forest|bamboo|arashiyama|mountain|yama|fuji|alps|gorge|rivière|river|lake|mer|sea|île|island|trail|sentier/i.test(name))
+                return THEMES.promener;
+
+            // Explorer : quartier, shopping, marchés, zoo
+            if (types.some(t => ['shopping_mall','clothing_store','department_store','electronics_store',
+                'market','grocery_or_supermarket','supermarket','convenience_store',
+                'zoo','amusement_park','theme_park','neighborhood','sublocality','locality',
+                'point_of_interest','establishment'].includes(t))
+                || /market|marché|ichiba|shopping|harajuku|akihabara|shibuya|shinjuku|ginza|omotesando|nakameguro|zoo|anime|manga|game|don quijote|daiso|muji/i.test(name))
+                return THEMES.explorer;
+
+            // Défaut : contempler (jamais de gris)
+            return THEMES.contempler;
         }
 
                 // Type chip inline avec le titre
