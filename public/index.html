@@ -90,6 +90,22 @@
         }
 
         /* Activité complétée */
+
+        /* ── Dark mode ───────────────────────────────────────────────── */
+        .dark .bg-white { background: #1e293b !important; }
+        .dark .bg-gray-100, .dark .bg-gray-50 { background: #334155 !important; }
+        .dark .text-gray-800, .dark .text-gray-700 { color: #e2e8f0 !important; }
+        .dark .text-gray-500, .dark .text-gray-400 { color: #94a3b8 !important; }
+        .dark .border-gray-100, .dark .border-gray-200 { border-color: #475569 !important; }
+        .dark .rounded-2xl.overflow-hidden.activity-card { background: #1e293b !important; border-color: #475569 !important; }
+        .dark #planning-list { background: transparent; }
+        .dark .nav-info-pill { opacity: 0.9; }
+        .dark .rounded-2xl { color: #e2e8f0; }
+        /* Header jours */
+        .dark .fixed.bottom-0 { background: linear-gradient(135deg, #312e81, #4c1d95) !important; }
+        /* Suggestions panel */
+        .dark .bg-gradient-to-r.from-purple-50 { background: linear-gradient(to right, #1e1b4b, #2d1b69) !important; }
+
         /* Long press ready : pulse violet */
         /* Pas d'animation pulse : trop fugace, confusant */
         .longpress-ready {
@@ -2438,13 +2454,16 @@
             document.body.appendChild(overlay);
 
             try {
+                const _modes = dayModes[currentDayIndex] || { fatigue: false, weather: false };
                 const res = await fetch('/api/optimize-day', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         activities: dayActivities,
                         day_index: currentDayIndex,
-                        hotel: getStayForDay(currentDayIndex) || null
+                        hotel: getStayForDay(currentDayIndex) || null,
+                        fatigue_mode: _modes.fatigue,
+                        weather_mode: _modes.weather
                     })
                 });
                 const data = await res.json();
@@ -2677,25 +2696,21 @@
             const selectedCity = getCityForDay(currentDayIndex);
             const modes = dayModes[currentDayIndex] || { fatigue: false, weather: false };
 
-            // Afficher les alertes de modes actifs
+            // Indicateur modes actifs — compact, sous le header
             if (modes.fatigue || modes.weather) {
-                const modeAlert = document.createElement('div');
-                modeAlert.className = "mb-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-4 border-2 border-yellow-200";
-                let modeText = '';
-                
-                if (modes.fatigue) {
-                    modeText += '<div class="flex items-center gap-2 mb-2"><span class="text-xl">😴</span><span class="font-bold text-blue-700">Mode Fatigue activé</span></div>';
-                    modeText += '<div class="text-xs text-blue-600">Les activités trop intenses sont signalées. Prenez votre temps !</div>';
-                }
-                
-                if (modes.weather) {
-                    if (modes.fatigue) modeText += '<div class="h-2"></div>';
-                    modeText += '<div class="flex items-center gap-2 mb-2"><span class="text-xl">🌦️</span><span class="font-bold text-sky-700">Adaptation Météo active</span></div>';
-                    modeText += '<div class="text-xs text-sky-600">Activités adaptées selon les conditions météo.</div>';
-                }
-                
-                modeAlert.innerHTML = modeText;
-                list.appendChild(modeAlert);
+                const modeBar = document.createElement('div');
+                modeBar.className = "mb-3 flex gap-2";
+                let chips = '';
+                if (modes.fatigue) chips += `
+                    <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs" style="background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe">
+                        😴 Mode Fatigue <span style="font-size:9px;opacity:0.7">actif</span>
+                    </div>`;
+                if (modes.weather) chips += `
+                    <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs" style="background:#f0f9ff;color:#0284c7;border:1.5px solid #bae6fd">
+                        🌦️ Adapt. Météo <span style="font-size:9px;opacity:0.7">actif</span>
+                    </div>`;
+                modeBar.innerHTML = chips;
+                list.appendChild(modeBar);
             }
 
             // Afficher les suggestions si une ville est choisie
@@ -3339,7 +3354,7 @@
             const bookingRequired = place.booking_required;
             const pid = place.place_id || '';
             if (bookingUrl) {
-                return '<button type="button" ontouchend="event.preventDefault();event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\')" onclick="event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\')" class="' + BASE + ' ' + c.cls + ' hover:brightness-95" style="cursor:pointer">'
+                return '<button type="button" ontouchstart="this._t0=Date.now()" ontouchend="if(!window._navSwipeBlocked&&(Date.now()-this._t0)<350){event.preventDefault();event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\');}" onclick="event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\')" class="' + BASE + ' ' + c.cls + ' hover:brightness-95" style="cursor:pointer">'
                     + '<span class="font-black text-[12px] leading-none">' + priceStr + '</span>'
                     + '<span class="text-[8px] opacity-70 mt-0.5">🎟 Réserver</span></button>';
             }
@@ -3977,11 +3992,14 @@
             // ── Overlay de couleur (évite le conflit avec bg-white de Tailwind) ─
             const overlay = document.createElement('div');
             overlay.style.cssText = [
-                'position:absolute', 'inset:0', 'border-radius:inherit',
+                'position:absolute', 'inset:0',
+                // border-radius explicite pour couvrir tous les coins de la card
+                'border-radius:14px',
                 'pointer-events:none', 'z-index:5',
-                'opacity:0', 'transition:opacity 0.15s ease, background 0.1s ease'
+                'opacity:0', 'transition:opacity 0.12s ease, background 0.08s ease'
             ].join(';');
-            element.style.position = 'relative';
+            // overflow:hidden sur la card pour que l'overlay soit bien clippé
+            element.style.cssText += ';position:relative;overflow:hidden';
             element.appendChild(overlay);
 
             // ── Label hint centré (✓ Valider / ✕ Supprimer) ─────────────────
@@ -3989,10 +4007,10 @@
             hint.style.cssText = [
                 'position:absolute', 'inset:0', 'display:flex',
                 'align-items:center', 'justify-content:center',
-                'font-size:16px', 'font-weight:900', 'color:white',
-                'text-shadow:0 1px 6px rgba(0,0,0,0.4)',
+                'font-size:17px', 'font-weight:900', 'color:white',
+                'text-shadow:0 2px 8px rgba(0,0,0,0.5)',
                 'letter-spacing:0.5px', 'pointer-events:none',
-                'z-index:6', 'opacity:0', 'transition:opacity 0.15s ease'
+                'z-index:6', 'opacity:0', 'transition:opacity 0.12s ease'
             ].join(';');
             element.appendChild(hint);
 
@@ -4436,14 +4454,22 @@
                 }
             });
             
+            // ── Prix d'entrée auto depuis les activités ──────────────────
+            let entriesTotal = 0;
+            activities.forEach(act => {
+                if (!act.place?.price_eur) return;
+                const p = parseFloat(act.place.price_eur);
+                if (p > 0 && !isNaN(p)) entriesTotal += p;
+            });
+
             // Calculer totaux par catégorie
             const transportTotal = (transportPerDay * totalDays);
             const mealsTotal = (mealsPerDay * totalDays);
             const activitiesTotal = (activitiesPerDay * totalDays);
             const shoppingTotal = (shoppingPerDay * totalDays);
-            
-            // Total général
-            const grandTotal = flight + hotelTotal + jrpass + transportTotal + mealsTotal + activitiesTotal + shoppingTotal + insurance + misc;
+
+            // Total général (activitiesPerDay + entrées réelles)
+            const grandTotal = flight + hotelTotal + jrpass + transportTotal + mealsTotal + activitiesTotal + entriesTotal + shoppingTotal + insurance + misc;
             
             // Afficher le total
             document.getElementById('total-budget-display').textContent = grandTotal.toFixed(0) + ' €';
@@ -4475,9 +4501,13 @@
                         <span class="font-bold">${mealsTotal.toFixed(0)} €</span>
                     </div>
                     <div class="flex justify-between">
-                        <span>🎫 Activités</span>
+                        <span>🎫 Activités (budget/j)</span>
                         <span class="font-bold">${activitiesTotal.toFixed(0)} €</span>
                     </div>
+                    ${entriesTotal > 0 ? `<div class="flex justify-between text-violet-700">
+                        <span>🎟 Entrées planifiées</span>
+                        <span class="font-bold">${entriesTotal.toFixed(0)} €</span>
+                    </div>` : ''}
                     <div class="flex justify-between">
                         <span>🛍️ Shopping</span>
                         <span class="font-bold">${shoppingTotal.toFixed(0)} €</span>
@@ -4709,10 +4739,33 @@
             if (sidebarToggle) { sidebarToggle.checked = toggle.checked; toggleWeatherMode(); }
         }
 
-        function toggleDarkMode() {
-            alert('🚧 Mode nuit en développement\nCette fonctionnalité sera disponible prochainement !');
-            document.getElementById('dark-mode-toggle').checked = false;
+        // ── Dark mode ─────────────────────────────────────────────────
+        let _darkMode = localStorage.getItem('japan_dark_mode') === '1';
+
+        function applyDarkMode(dark) {
+            const root = document.documentElement;
+            if (dark) {
+                root.classList.add('dark');
+                document.body.style.background = 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)';
+                document.body.style.color = '#e2e8f0';
+            } else {
+                root.classList.remove('dark');
+                document.body.style.background = '';
+                document.body.style.color = '';
+            }
+            // Toggle sync
+            const t = document.getElementById('dark-mode-toggle');
+            if (t) t.checked = dark;
         }
+
+        function toggleDarkMode() {
+            _darkMode = !_darkMode;
+            localStorage.setItem('japan_dark_mode', _darkMode ? '1' : '0');
+            applyDarkMode(_darkMode);
+        }
+
+        // Appliquer au chargement
+        if (_darkMode) applyDarkMode(true);
 
         function confirmResetAll() {
             const confirmModal = document.createElement('div');
