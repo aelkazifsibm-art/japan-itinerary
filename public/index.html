@@ -91,20 +91,61 @@
 
         /* Activité complétée */
 
-        /* ── Dark mode ───────────────────────────────────────────────── */
-        .dark .bg-white { background: #1e293b !important; }
-        .dark .bg-gray-100, .dark .bg-gray-50 { background: #334155 !important; }
-        .dark .text-gray-800, .dark .text-gray-700 { color: #e2e8f0 !important; }
-        .dark .text-gray-500, .dark .text-gray-400 { color: #94a3b8 !important; }
-        .dark .border-gray-100, .dark .border-gray-200 { border-color: #475569 !important; }
-        .dark .rounded-2xl.overflow-hidden.activity-card { background: #1e293b !important; border-color: #475569 !important; }
-        .dark #planning-list { background: transparent; }
-        .dark .nav-info-pill { opacity: 0.9; }
-        .dark .rounded-2xl { color: #e2e8f0; }
-        /* Header jours */
-        .dark .fixed.bottom-0 { background: linear-gradient(135deg, #312e81, #4c1d95) !important; }
+        /* ══ DARK MODE ═══════════════════════════════════════════════ */
+        html.dark body {
+            background: linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%) !important;
+            color: #e2e8f0;
+        }
+        /* Tuiles activités */
+        html.dark .activity-card {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        html.dark .activity-card.activity-completed {
+            background: #14291e !important;
+            border-color: #166534 !important;
+        }
+        /* Textes dans les tuiles */
+        html.dark .activity-card .text-gray-800,
+        html.dark .activity-card .text-gray-700,
+        html.dark .activity-card .font-black,
+        html.dark .activity-card .font-bold { color: #f1f5f9 !important; }
+        html.dark .activity-card .text-gray-500,
+        html.dark .activity-card .text-gray-400 { color: #94a3b8 !important; }
+        /* Chips horaires / gratuit */
+        html.dark .activity-card .bg-pink-50  { background: #3b1535 !important; }
+        html.dark .activity-card .bg-green-50,
+        html.dark .activity-card .bg-emerald-50 { background: #14291e !important; }
+        html.dark .activity-card .bg-blue-50   { background: #0c1f3f !important; }
+        html.dark .activity-card .bg-orange-50 { background: #2a1500 !important; }
+        /* Bloc hôtel */
+        html.dark .bg-orange-50 { background: #1c1209 !important; }
+        /* Blocs transport */
+        html.dark .nav-info-pill { opacity: 0.9; }
         /* Suggestions panel */
-        .dark .bg-gradient-to-r.from-purple-50 { background: linear-gradient(to right, #1e1b4b, #2d1b69) !important; }
+        html.dark .bg-gradient-to-r.from-purple-50,
+        html.dark [class*="from-purple-50"] { background: linear-gradient(to right,#1e1b4b,#2d1b69) !important; }
+        html.dark .bg-white { background: #1e293b !important; }
+        html.dark .bg-gray-50 { background: #0f172a !important; }
+        html.dark .bg-gray-100 { background: #1e293b !important; }
+        html.dark .border-gray-100,
+        html.dark .border-gray-200 { border-color: #334155 !important; }
+        html.dark .text-gray-800 { color: #f1f5f9 !important; }
+        html.dark .text-gray-700 { color: #e2e8f0 !important; }
+        html.dark .text-gray-600 { color: #cbd5e1 !important; }
+        html.dark .text-gray-500 { color: #94a3b8 !important; }
+        html.dark .text-gray-400 { color: #64748b !important; }
+        /* Bouton + dans les tuiles */
+        html.dark .activity-card button div { background: #334155 !important; border-color: #475569 !important; }
+        /* Bloc mode alerte */
+        html.dark .bg-yellow-50 { background: #1c1500 !important; }
+        /* Config screen */
+        html.dark #config-screen { background: #0f172a !important; color: #e2e8f0; }
+        html.dark #config-screen .bg-white { background: #1e293b !important; }
+        /* Modals */
+        html.dark .bg-white.rounded-3xl,
+        html.dark .bg-white.rounded-2xl { background: #1e293b !important; }
+        html.dark #day-navigation > div > div { /* gradient bar reste inchangé */ }
 
         /* Long press ready : pulse violet */
         /* Pas d'animation pulse : trop fugace, confusant */
@@ -228,140 +269,42 @@
         /* ── FAB ORGANIQUE ─────────────────────────────────── */
 
         /* Conteneur wrapper positionné sur le bord */
+        /* ── Bouton réglages fixe bas-droite ─────────────────────── */
         #fab-wrapper {
             position: fixed;
             bottom: 88px;
-            right: 0;
+            right: 16px;
             z-index: 250;
-            display: none; /* showFAB() l'active */
+            display: none;
         }
-
-        /* L'oreille : la partie visible au repos, demi-pill arrondie */
-        #fab-ear {
-            position: absolute;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 22px;
-            height: 52px;
-            background: linear-gradient(160deg, #c084fc, #a855f7, #ec4899);
-            border-radius: 14px 0 0 14px;
-            cursor: pointer;
-            z-index: 1;
-            box-shadow: -3px 0 16px rgba(168,85,247,0.35);
-            transition: width 0.25s ease, opacity 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #fab-ear::before {
-            content: '‹';
-            color: rgba(255,255,255,0.7);
-            font-size: 14px;
-            font-weight: bold;
-            margin-right: 1px;
-            transition: transform 0.3s ease, opacity 0.3s ease;
-        }
-        #fab-wrapper.revealed #fab-ear,
-        #fab-wrapper.active #fab-ear {
-            opacity: 0;
-            pointer-events: none;
-            width: 0;
-        }
-
-        /* Le bouton principal */
+        #fab-ear { display: none !important; }
         #fab-config {
-            position: relative;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #a855f7 0%, #d946ef 50%, #ec4899 100%);
-            box-shadow:
-                0 8px 32px rgba(168,85,247,0.45),
-                0 2px 8px rgba(0,0,0,0.15),
-                inset 0 1px 0 rgba(255,255,255,0.25);
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            box-shadow: 0 4px 20px rgba(168,85,247,0.45), 0 2px 8px rgba(0,0,0,0.15);
             border: none;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transform: translateX(64px); /* caché derrière le bord */
-            transition:
-                transform 0.5s cubic-bezier(0.34, 1.4, 0.64, 1),
-                box-shadow 0.3s ease,
-                background 0.4s ease;
-            will-change: transform;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
             outline: none;
             -webkit-tap-highlight-color: transparent;
         }
-
-        /* Halo pulsant au repos */
-        #fab-config::after {
-            content: '';
-            position: absolute;
-            inset: -6px;
-            border-radius: 50%;
-            background: transparent;
-            border: 2px solid rgba(168,85,247,0.3);
-            animation: fab-halo 2.5s ease-in-out infinite;
-            opacity: 0;
-        }
-        @keyframes fab-halo {
-            0%   { transform: scale(0.85); opacity: 0; }
-            40%  { opacity: 1; }
-            100% { transform: scale(1.4); opacity: 0; }
-        }
-
-        #fab-wrapper.revealed #fab-config {
-            transform: translateX(0) scale(1);
-            box-shadow:
-                0 12px 40px rgba(168,85,247,0.55),
-                0 4px 12px rgba(0,0,0,0.2),
-                inset 0 1px 0 rgba(255,255,255,0.3);
-        }
-
-        /* État actif (config ouverte) */
+        #fab-config:active { transform: scale(0.92); }
         #fab-wrapper.active #fab-config {
-            transform: translateX(0) rotate(90deg) !important;
             background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-            box-shadow:
-                0 12px 40px rgba(239,68,68,0.5),
-                0 4px 12px rgba(0,0,0,0.2) !important;
+            box-shadow: 0 4px 20px rgba(239,68,68,0.45), 0 2px 8px rgba(0,0,0,0.15) !important;
         }
-        #fab-wrapper.active #fab-config::after {
-            border-color: rgba(239,68,68,0.3);
-        }
-
-        /* Icône */
         #fab-icon {
             font-size: 22px;
             line-height: 1;
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             display: block;
-            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+            transition: transform 0.3s ease;
         }
-        #fab-wrapper.active #fab-icon {
-            transform: rotate(-90deg);
-        }
-
-        /* Reflet glossy sur le bouton */
-        #fab-config::before {
-            content: '';
-            position: absolute;
-            top: 6px;
-            left: 10px;
-            width: 36px;
-            height: 16px;
-            background: rgba(255,255,255,0.18);
-            border-radius: 50%;
-            filter: blur(2px);
-            pointer-events: none;
-        }
-
-        /* Bord droit - marge */
-        #fab-wrapper {
-            padding-right: 10px;
-        }
+        #fab-wrapper.active #fab-icon { transform: rotate(45deg); }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen pb-32 fuji-pattern">
@@ -774,8 +717,7 @@
 
     <!-- FAB (Floating Action Button) - Configuration -->
     <div id="fab-wrapper">
-        <div id="fab-ear" onclick="revealFab()"></div>
-        <button id="fab-config" onclick="toggleConfigFAB()" aria-label="Configuration">
+        <button id="fab-config" onclick="toggleConfigFAB()" aria-label="Réglages">
             <span id="fab-icon">⚙️</span>
         </button>
     </div>
@@ -4593,78 +4535,11 @@
         let configDayIndex = 0;
 
         function showFAB() {
-            const wrapper = document.getElementById('fab-wrapper');
-            wrapper.style.display = 'block';
-            // Petit délai pour que le display:block soit appliqué avant la transition
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    wrapper.classList.remove('active');
-                    // Reste en état caché (bouton translateX(64px))
-                });
-            });
-            initFabSwipe();
+            document.getElementById('fab-wrapper').style.display = 'block';
         }
-
-        function initFabSwipe() {
-            const wrapper = document.getElementById('fab-wrapper');
-            const fab = document.getElementById('fab-config');
-            if (wrapper.dataset.swipeInit) return;
-            wrapper.dataset.swipeInit = 'true';
-
-            let startX = null;
-            let startY = null;
-
-            // Touch sur toute la zone wrapper (oreille + bouton)
-            wrapper.addEventListener('touchstart', e => {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-            }, { passive: true });
-
-            wrapper.addEventListener('touchend', e => {
-                if (startX === null) return;
-                const dx = startX - e.changedTouches[0].clientX;
-                const dy = Math.abs(startY - e.changedTouches[0].clientY);
-                // Ignorer si scroll vertical
-                if (dy > 20 && dy > Math.abs(dx)) { startX = null; return; }
-
-                if (dx > 25 && !wrapper.classList.contains('active')) {
-                    revealFab(); startX = null; return;
-                }
-                if (dx < -25 && !wrapper.classList.contains('active')) {
-                    peekFab(); startX = null; return;
-                }
-                startX = null;
-            }, { passive: true });
-
-            // Desktop : hover sur le bouton révèle
-            fab.addEventListener('mouseenter', () => {
-                if (!wrapper.classList.contains('active')) revealFab();
-            });
-            wrapper.addEventListener('mouseleave', () => {
-                if (!wrapper.classList.contains('active')) {
-                    setTimeout(() => {
-                        if (!wrapper.matches(':hover')) peekFab();
-                    }, 300);
-                }
-            });
-        }
-
-        function revealFab() {
-            const wrapper = document.getElementById('fab-wrapper');
-            if (wrapper.classList.contains('active')) return;
-            wrapper.classList.add('revealed');
-            // Auto-peek après 4s si pas de clic
-            clearTimeout(window._fabPeekTimer);
-            window._fabPeekTimer = setTimeout(() => {
-                if (!wrapper.classList.contains('active')) peekFab();
-            }, 4000);
-        }
-
-        function peekFab() {
-            const wrapper = document.getElementById('fab-wrapper');
-            if (wrapper.classList.contains('active')) return;
-            wrapper.classList.remove('revealed');
-        }
+        function revealFab() {}
+        function peekFab() {}
+        function initFabSwipe() {}
 
         function toggleConfigFAB() {
             const configScreen = document.getElementById('config-screen');
@@ -4746,14 +4621,12 @@
             const root = document.documentElement;
             if (dark) {
                 root.classList.add('dark');
-                document.body.style.background = 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)';
-                document.body.style.color = '#e2e8f0';
+                // Forcer le fond du body via style (fuji-pattern peut override)
+                document.body.style.cssText = 'background:linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#0f172a 100%)!important;color:#e2e8f0';
             } else {
                 root.classList.remove('dark');
-                document.body.style.background = '';
-                document.body.style.color = '';
+                document.body.style.cssText = '';
             }
-            // Toggle sync
             const t = document.getElementById('dark-mode-toggle');
             if (t) t.checked = dark;
         }
