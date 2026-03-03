@@ -923,7 +923,7 @@
 
     <!-- MODAL FICHE SUGGESTION IA -->
     <div id="suggestion-preview-modal" class="fixed inset-0 bg-black bg-opacity-60 z-[350] hidden flex items-end justify-center sm:items-center p-0 sm:p-4">
-        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        <div id="suggestion-preview-inner" class="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden" style="background:white">
             <!-- Contenu chargé dynamiquement -->
             <div id="suggestion-preview-content"></div>
         </div>
@@ -2083,6 +2083,9 @@
             _previewPlace = null;
             _previewName = name;
             _previewImage = image || '📍';
+            const dk = document.documentElement.classList.contains('dark');
+            const _inner = document.getElementById('suggestion-preview-inner');
+            if (_inner) _inner.style.background = dk ? '#0f172a' : 'white';
 
             // Ouvrir le modal preview en état loading
             const modal = document.getElementById('suggestion-preview-modal');
@@ -2092,8 +2095,8 @@
             document.getElementById('suggestion-preview-content').innerHTML = `
                 <div class="p-8 text-center">
                     <div class="w-12 h-12 rounded-full border-4 border-purple-200 border-t-purple-500 animate-spin mx-auto mb-4"></div>
-                    <div class="font-bold text-gray-700">${name}</div>
-                    <div class="text-sm text-gray-400 mt-1">L'IA prépare votre fiche...</div>
+                    <div class="font-bold" style="color:${dk?'#f1f5f9':'#374151'}">${name}</div>
+                    <div class="text-sm mt-1" style="color:${dk?'#94a3b8':'#9ca3af'}">L'IA prépare votre fiche...</div>
                 </div>
             `;
             modal.classList.remove('hidden');
@@ -2132,49 +2135,49 @@
                         </div>
 
                         <!-- Stats -->
-                        <div class="p-5 space-y-3">
+                        <div class="p-5 space-y-3" style="background:${dk?'#0f172a':'white'}">
                             <!-- Heure idéale -->
-                            <div class="preview-stat flex items-start gap-3">
+                            <div class="preview-stat flex items-start gap-3 rounded-xl p-3" style="background:${dk?'#1e293b':'#faf5ff'};border:1px solid ${dk?'#4c1d95':'#ede9fe'}">
                                 <div class="text-2xl flex-shrink-0">⏰</div>
                                 <div>
-                                    <div class="font-black text-purple-800 text-base">Arriver à ${data.preview.best_time}</div>
-                                    <div class="text-xs text-purple-600 mt-0.5">${data.preview.best_time_reason}</div>
+                                    <div class="font-black text-base" style="color:${dk?'#c4b5fd':'#5b21b6'}">Arriver à ${data.preview.best_time}</div>
+                                    <div class="text-xs mt-0.5" style="color:${dk?'#a78bfa':'#7c3aed'}">${data.preview.best_time_reason}</div>
                                 </div>
                             </div>
 
                             <!-- Éviter -->
-                            <div class="preview-stat flex items-start gap-3">
+                            <div class="preview-stat flex items-start gap-3 rounded-xl p-3" style="background:${dk?'#1f0d0d':'#fff7f7'};border:1px solid ${dk?'#7f1d1d':'#fecaca'}">
                                 <div class="text-2xl flex-shrink-0">⚠️</div>
                                 <div>
-                                    <div class="font-bold text-gray-700 text-sm">Éviter <span class="text-red-500">${data.preview.avoid_time}</span></div>
-                                    <div class="text-xs text-gray-500 mt-0.5">${data.preview.avoid_reason}</div>
+                                    <div class="font-bold text-sm" style="color:${dk?'#e2e8f0':'#374151'}">Éviter <span style="color:#f87171">${data.preview.avoid_time}</span></div>
+                                    <div class="text-xs mt-0.5" style="color:${dk?'#94a3b8':'#6b7280'}">${data.preview.avoid_reason}</div>
                                 </div>
                             </div>
 
                             <!-- Durée + Intensité -->
                             <div class="grid grid-cols-2 gap-3">
-                                <div class="preview-stat text-center">
+                                <div class="preview-stat rounded-xl p-3 text-center" style="background:${dk?'#1e293b':'#f9fafb'};border:1px solid ${dk?'#334155':'#f3f4f6'}">
                                     <div class="text-xl mb-1">🕐</div>
-                                    <div class="text-xs" style="color:var(--budget-sub,#6b7280)">Durée</div>
-                                    <div class="font-bold text-gray-800 text-sm">${data.preview.duration}</div>
+                                    <div class="text-xs" style="color:${dk?'#94a3b8':'#6b7280'}">Durée</div>
+                                    <div class="font-bold text-sm" style="color:${dk?'#f1f5f9':'#1f2937'}">${data.preview.duration}</div>
                                 </div>
-                                <div class="preview-stat text-center">
+                                <div class="preview-stat rounded-xl p-3 text-center" style="background:${dk?'#1e293b':'#f9fafb'};border:1px solid ${dk?'#334155':'#f3f4f6'}">
                                     <div class="text-xl mb-1">${iIcon}</div>
-                                    <div class="text-xs" style="color:var(--budget-sub,#6b7280)">Intensité</div>
-                                    <div class="font-bold text-sm capitalize ${iColor} px-2 py-0.5 rounded-lg inline-block mt-0.5">${data.preview.intensity}</div>
+                                    <div class="text-xs" style="color:${dk?'#94a3b8':'#6b7280'}">Intensité</div>
+                                    <div class="font-bold text-sm capitalize px-2 py-0.5 rounded-lg inline-block mt-0.5 ${iColor}">${data.preview.intensity}</div>
                                 </div>
                             </div>
 
                             <!-- Conseil insider -->
-                            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+                            <div class="rounded-xl p-3 flex gap-2" style="background:${dk?'#1c1500':'#fffbeb'};border:1px solid ${dk?'#92400e':'#fde68a'}">
                                 <span class="text-lg flex-shrink-0">💡</span>
-                                <span class="text-xs text-amber-800">${data.preview.tip}</span>
+                                <span class="text-xs" style="color:${dk?'#fbbf24':'#92400e'}">${data.preview.tip}</span>
                             </div>
                         </div>
 
                         <!-- CTA -->
-                        <div class="px-5 pb-6 flex gap-3">
-                            <button onclick="closeSuggestionPreview()" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all">
+                        <div class="px-5 pb-6 flex gap-3" style="background:${dk?'#0f172a':'white'}">
+                            <button onclick="closeSuggestionPreview()" class="flex-1 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all" style="background:${_dkM?'#1e293b':'#f3f4f6'};color:${_dkM?'#cbd5e1':'#4b5563'}">
                                 Annuler
                             </button>
                             <button onclick="confirmSuggestion()" class="flex-2 flex-[2] bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-black text-sm shadow-lg hover:shadow-xl active:scale-95 transition-all">
@@ -2227,8 +2230,13 @@
             });
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
 
-            // Fermer le modal suggestion
+            // Fermer le modal suggestion + le dropdown
             closeSuggestionPreview();
+            // Fermer le panneau suggestions du planning
+            if (typeof _suggestionsOpen !== 'undefined' && _suggestionsOpen) {
+                _suggestionsOpen = false;
+                if (typeof applySuggestionsDropdownState === 'function') applySuggestionsDropdownState();
+            }
             // Animation de confirmation + render
             showAddConfirmation(_previewName, _previewBestTime, _previewImage);
             renderPlanning();
@@ -2474,6 +2482,21 @@
         function showOptimizationTimeline(optimized, daySummary, energyLevel, originalActivities) {
             const energyEmoji = { 'légère': '😌', 'modérée': '🚶', 'soutenue': '💪', 'intense': '🔥' };
             const eEmoji = energyEmoji[energyLevel] || '🧭';
+            const dk = document.documentElement.classList.contains('dark');
+            const cardBg    = dk ? '#1e293b' : 'white';
+            const cardText  = dk ? '#f1f5f9' : '#1f2937';
+            const cardSub   = dk ? '#94a3b8' : '#6b7280';
+            const changedBg = dk ? '#1e1b4b' : '#faf5ff';
+            const changedBd = dk ? '#4c1d95' : '#e9d5ff';
+            const changedBadgeBg = dk ? '#2e1065' : '#ede9fe';
+            const changedBadgeTxt = dk ? '#c4b5fd' : '#7c3aed';
+            const unchangedBg = dk ? '#1e293b' : '#f9fafb';
+            const unchangedTxt = dk ? '#64748b' : '#9ca3af';
+            const reasonTxt = dk ? '#a78bfa' : '#7c3aed';
+            const breathTxt = dk ? '#2dd4bf' : '#0d9488';
+            const breathSub = dk ? '#5eead4' : '#14b8a6';
+            const timeTxt   = dk ? '#a78bfa' : '#7c3aed';
+            const grayTimeTxt = dk ? '#64748b' : '#6b7280';
 
             // Construire la timeline
             let timelineHTML = '';
@@ -2484,28 +2507,21 @@
 
                 timelineHTML += `
                 <div class="flex gap-3">
-                    <!-- Colonne temps + trait -->
                     <div class="flex flex-col items-center w-14 flex-shrink-0">
-                        <div class="text-xs font-black ${changed ? 'text-purple-600' : 'text-gray-500'} whitespace-nowrap">${act.time}</div>
+                        <div class="text-xs font-black whitespace-nowrap" style="color:${changed ? timeTxt : grayTimeTxt}">${act.time}</div>
                         <div class="w-0.5 flex-1 bg-gradient-to-b from-purple-300 to-pink-200 mt-1 min-h-[20px]"></div>
                     </div>
-                    <!-- Carte activité -->
                     <div class="flex-1 pb-2">
-                        <div class="bg-white rounded-2xl p-3.5 border-2 ${changed ? 'border-purple-200 bg-purple-50/30' : 'border-gray-100'} shadow-sm mb-1">
+                        <div class="rounded-2xl p-3.5 border-2 shadow-sm mb-1" style="background:${changed ? changedBg : cardBg};border-color:${changed ? changedBd : (dk?'#334155':'#f3f4f6')}">
                             <div class="flex items-start justify-between gap-2">
-                                <div class="font-bold text-gray-800 text-sm leading-snug">${act.title}</div>
-                                ${changed ? `<span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold flex-shrink-0 mt-0.5">${origTime} → ${act.time}</span>` : '<span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">Inchangé</span>'}
+                                <div class="font-bold text-sm leading-snug" style="color:${cardText}">${act.title}</div>
+                                ${changed
+                                    ? '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 mt-0.5" style="background:' + changedBadgeBg + ';color:' + changedBadgeTxt + '">' + origTime + ' → ' + act.time + '</span>'
+                                    : '<span class="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style="background:' + unchangedBg + ';color:' + unchangedTxt + '">Inchangé</span>'}
                             </div>
-                            ${act.reason ? `<div class="text-[11px] text-purple-600 mt-1.5 leading-snug">💡 ${act.reason}</div>` : ''}
+                            ${act.reason ? '<div class="text-[11px] mt-1.5 leading-snug" style="color:' + reasonTxt + '">💡 ' + act.reason + '</div>' : ''}
                         </div>
-                        ${act.breathing_after_minutes > 0 ? `
-                        <div class="flex items-center gap-2 pl-2 py-1">
-                            <div class="text-base">🌬️</div>
-                            <div>
-                                <div class="text-[10px] font-bold text-teal-600">${act.breathing_after_minutes}min de respiration</div>
-                                <div class="text-[10px] text-teal-500">${act.breathing_reason}</div>
-                            </div>
-                        </div>` : ''}
+                        ${act.breathing_after_minutes > 0 ? '<div class="flex items-center gap-2 pl-2 py-1"><div class="text-base">🌬️</div><div><div class="text-[10px] font-bold" style="color:' + breathTxt + '">' + act.breathing_after_minutes + 'min de respiration</div><div class="text-[10px]" style="color:' + breathSub + '">' + act.breathing_reason + '</div></div></div>' : ''}
                     </div>
                 </div>`;
             });
@@ -2513,8 +2529,9 @@
             const modal = document.createElement('div');
             modal.id = 'optimization-modal';
             modal.className = 'fixed inset-0 bg-black/60 z-[350] flex items-end sm:items-center justify-center p-0 sm:p-4'; modal.style.display = 'flex'; modal.style.pointerEvents = '';
+            const _dkM = document.documentElement.classList.contains('dark');
             modal.innerHTML = `
-                <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh]">
+                <div class="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh]" style="background:${_dkM?'#0f172a':'white'}">
                     <!-- Header -->
                     <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-5 rounded-t-3xl sm:rounded-t-2xl flex-shrink-0">
                         <div class="flex justify-between items-start">
@@ -2530,16 +2547,16 @@
                     </div>
 
                     <!-- Timeline scrollable -->
-                    <div class="flex-1 overflow-y-auto p-5">
+                    <div class="flex-1 overflow-y-auto p-5" style="background:${_dkM?'#0f172a':'#f9fafb'}">
                         <div class="space-y-0">
                             ${timelineHTML}
                         </div>
                     </div>
 
                     <!-- Actions -->
-                    <div class="p-4 border-t flex gap-3 flex-shrink-0 bg-white rounded-b-3xl sm:rounded-b-2xl">
+                    <div class="p-4 flex gap-3 flex-shrink-0 rounded-b-3xl sm:rounded-b-2xl" style="border-top:1px solid ${_dkM?'#334155':'#f3f4f6'};background:${_dkM?'#0f172a':'white'}">
                         <button onclick="document.getElementById('optimization-modal').remove()" 
-                                class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all">
+                                class="flex-1 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all" style="background:${_dkM?'#1e293b':'#f3f4f6'};color:${_dkM?'#cbd5e1':'#4b5563'}">
                             Annuler
                         </button>
                         <button onclick="applyOptimization(${JSON.stringify(optimized).replace(/"/g, '&quot;')})"
@@ -3356,7 +3373,7 @@
             const bookingRequired = place.booking_required;
             const pid = place.place_id || '';
             if (bookingUrl) {
-                return '<button type="button" ontouchstart="this._t0=Date.now()" ontouchend="if(!window._navSwipeBlocked&&(Date.now()-this._t0)<350){event.preventDefault();event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\');}" onclick="event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\')" class="' + BASE + ' hover:brightness-95" style="' + chipStyle + ';cursor:pointer">'
+                return '<button type="button" ontouchstart="this._t0=Date.now();this._x0=event.touches[0].clientX;this._y0=event.touches[0].clientY" ontouchmove="this._moved=(Math.abs(event.touches[0].clientX-this._x0)>8||Math.abs(event.touches[0].clientY-this._y0)>8)" ontouchend="if(!this._moved&&!window._navSwipeBlocked&&!window._touchOnCard&&(Date.now()-this._t0)<400){event.preventDefault();event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\');}" onclick="event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\')" class="' + BASE + ' hover:brightness-95" style="' + chipStyle + ';cursor:pointer">'
                     + '<span class="font-black text-[12px] leading-none">' + priceStr + '</span>'
                     + '<span class="text-[8px] opacity-70 mt-0.5">🎟 Réserver</span></button>';
             }
@@ -4682,6 +4699,9 @@
                 root.style.setProperty('--budget-border', '#334155');
                 root.style.setProperty('--budget-text', '#f1f5f9');
                 root.style.setProperty('--budget-sub', '#94a3b8');
+                root.style.setProperty('--modal-bg', '#0f172a');
+                root.style.setProperty('--stat-bg', '#1e293b');
+                root.style.setProperty('--stat-border', '#334155');
             } else {
                 root.classList.remove('dark');
                 document.body.style.cssText = '';
@@ -4689,7 +4709,13 @@
                 root.style.setProperty('--budget-border', '#f3f4f6');
                 root.style.setProperty('--budget-text', '#1f2937');
                 root.style.setProperty('--budget-sub', '#6b7280');
+                root.style.setProperty('--modal-bg', 'white');
+                root.style.setProperty('--stat-bg', 'white');
+                root.style.setProperty('--stat-border', '#f3f4f6');
             }
+            // Mettre à jour les modals déjà ouverts
+            const prev = document.getElementById('suggestion-preview-inner');
+            if (prev) prev.style.background = dark ? '#0f172a' : 'white';
             const t = document.getElementById('dark-mode-toggle');
             if (t) t.checked = dark;
         }
