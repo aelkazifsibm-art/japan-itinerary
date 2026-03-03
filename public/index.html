@@ -91,6 +91,46 @@
 
         /* Activité complétée */
 
+
+        /* ── Inputs/Selects dark mode ────────────────────────────────── */
+        html.dark input[type="number"],
+        html.dark input[type="text"],
+        html.dark select {
+            background: #1e293b !important;
+            color: #f1f5f9 !important;
+            border-color: #475569 !important;
+        }
+        html.dark input::placeholder { color: #64748b !important; }
+        /* Config screen complet */
+        html.dark #config-screen {
+            background: #0f172a !important;
+        }
+        html.dark #config-screen h2,
+        html.dark #config-screen h3,
+        html.dark #config-screen .font-bold,
+        html.dark #config-screen .font-black { color: #f1f5f9 !important; }
+        html.dark #config-screen .text-gray-500,
+        html.dark #config-screen .text-gray-400 { color: #94a3b8 !important; }
+        html.dark #config-screen .text-gray-600 { color: #cbd5e1 !important; }
+        html.dark #config-screen .bg-white { background: #1e293b !important; }
+        html.dark #config-screen .bg-gray-50 { background: #0f172a !important; }
+        html.dark #config-screen .border-gray-200 { border-color: #334155 !important; }
+        /* Onglets config */
+        html.dark .config-tab { color: #94a3b8 !important; }
+        html.dark .config-tab.active-tab { color: #f1f5f9 !important; }
+        /* Budget total display */
+        html.dark #total-budget-display { color: white !important; }
+        html.dark #budget-per-day { color: rgba(255,255,255,0.8) !important; }
+        html.dark #budget-breakdown { color: #e2e8f0 !important; }
+        html.dark #budget-breakdown span { color: #94a3b8 !important; }
+        html.dark #budget-breakdown span.font-bold { color: #f1f5f9 !important; }
+        /* Avertissement jours sans séjour */
+        html.dark .bg-yellow-50 { background: #1c1500 !important; color: #fbbf24 !important; }
+        html.dark .text-yellow-700 { color: #fbbf24 !important; }
+        /* Sidebar */
+        html.dark #sidebar { background: #0f172a !important; }
+        html.dark #sidebar .bg-white { background: #1e293b !important; }
+
         /* ══ DARK MODE ═══════════════════════════════════════════════ */
         html.dark body {
             background: linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%) !important;
@@ -272,10 +312,14 @@
         /* ── Bouton réglages fixe bas-droite ─────────────────────── */
         #fab-wrapper {
             position: fixed;
-            bottom: 88px;
+            bottom: 16px;
             right: 16px;
-            z-index: 250;
+            z-index: 260; /* au-dessus de la day-navigation (z-50) */
             display: none;
+        }
+        /* Quand la nav des jours est visible, remonter le FAB au-dessus */
+        body.nav-visible #fab-wrapper {
+            bottom: 80px; /* hauteur nav ~70px + marge */
         }
         #fab-ear { display: none !important; }
         #fab-config {
@@ -530,13 +574,13 @@
 
             <!-- Onglet IA -->
             <div id="config-content-ia" class="config-content hidden p-4 space-y-3">
-                <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border-2 border-blue-200">
+                <div class="rounded-xl p-4 border-2" style="background:var(--budget-bg,#eff6ff);border-color:var(--budget-border,#bfdbfe)">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-3">
                             <span class="text-3xl">😴</span>
                             <div>
-                                <div class="font-bold text-blue-800">Mode Fatigue</div>
-                                <div class="text-xs text-blue-600">Optimise selon votre énergie</div>
+                                <div class="font-bold" style="color:var(--budget-text,#1e40af)">Mode Fatigue</div>
+                                <div class="text-xs" style="color:var(--budget-sub,#2563eb)">Optimise selon votre énergie</div>
                             </div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
@@ -546,13 +590,13 @@
                     </div>
                     <p class="text-xs text-gray-600">L'IA adapte le planning pour éviter trop d'activités intenses consécutives</p>
                 </div>
-                <div class="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-4 border-2 border-sky-200">
+                <div class="rounded-xl p-4 border-2 weather-card" style="background:var(--budget-bg,#f0f9ff);border-color:var(--budget-border,#bae6fd)">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-3">
                             <span class="text-3xl">🌦️</span>
                             <div>
-                                <div class="font-bold text-sky-800">Adaptation Météo</div>
-                                <div class="text-xs text-sky-600">Optimise selon la météo</div>
+                                <div class="font-bold" style="color:var(--budget-text,#0c4a6e)">Adaptation Météo</div>
+                                <div class="text-xs" style="color:var(--budget-sub,#0284c7)">Optimise selon la météo</div>
                             </div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
@@ -572,25 +616,25 @@
                     <div class="text-xs opacity-75 mt-1" id="budget-per-day">0 € / jour</div>
                 </div>
                 <div class="space-y-3">
-                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                    <div class="rounded-xl p-4 border-2 budget-item-card" style="background:var(--budget-bg,white);border-color:var(--budget-border,#f3f4f6)">
                         <div class="flex items-center gap-3">
                             <span class="text-2xl">✈️</span>
-                            <div class="flex-1"><div class="font-bold text-gray-800">Vols</div><div class="text-xs text-gray-500">Aller-retour</div></div>
+                            <div class="flex-1"><div class="font-bold" style="color:var(--budget-text,#1f2937)">Vols</div><div class="text-xs" style="color:var(--budget-sub,#6b7280)">Aller-retour</div></div>
                             <input type="number" id="budget-flight" onchange="calculateBudget()" placeholder="800" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
                             <span class="text-gray-600">€</span>
                         </div>
                     </div>
-                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                    <div class="rounded-xl p-4 border-2 budget-item-card" style="background:var(--budget-bg,white);border-color:var(--budget-border,#f3f4f6)">
                         <div class="flex items-center gap-3">
                             <span class="text-2xl">🏨</span>
-                            <div class="flex-1"><div class="font-bold text-gray-800">Hébergement</div><div class="text-xs text-gray-500">Total séjour</div></div>
+                            <div class="flex-1"><div class="font-bold" style="color:var(--budget-text,#1f2937)">Hébergement</div><div class="text-xs" style="color:var(--budget-sub,#6b7280)">Total séjour</div></div>
                             <div class="text-right"><div class="font-bold text-green-600" id="budget-hotel-total">0 €</div><div class="text-xs text-gray-400">Auto-calculé</div></div>
                         </div>
                     </div>
-                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                    <div class="rounded-xl p-4 border-2 budget-item-card" style="background:var(--budget-bg,white);border-color:var(--budget-border,#f3f4f6)">
                         <div class="flex items-center gap-3">
                             <span class="text-2xl">🚄</span>
-                            <div class="flex-1"><div class="font-bold text-gray-800">JR Pass</div><div class="text-xs text-gray-500">7 ou 14 jours</div></div>
+                            <div class="flex-1"><div class="font-bold" style="color:var(--budget-text,#1f2937)">JR Pass</div><div class="text-xs" style="color:var(--budget-sub,#6b7280)">7 ou 14 jours</div></div>
                             <select id="budget-jrpass" onchange="calculateBudget()" class="border-2 border-gray-200 rounded-lg p-2">
                                 <option value="0">Pas de pass</option>
                                 <option value="280">7 jours (280€)</option>
@@ -599,18 +643,18 @@
                             </select>
                         </div>
                     </div>
-                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                    <div class="rounded-xl p-4 border-2 budget-item-card" style="background:var(--budget-bg,white);border-color:var(--budget-border,#f3f4f6)">
                         <div class="flex items-center gap-3">
                             <span class="text-2xl">🚇</span>
-                            <div class="flex-1"><div class="font-bold text-gray-800">Transports locaux</div><div class="text-xs text-gray-500">Métro, bus par jour</div></div>
+                            <div class="flex-1"><div class="font-bold" style="color:var(--budget-text,#1f2937)">Transports locaux</div><div class="text-xs" style="color:var(--budget-sub,#6b7280)">Métro, bus par jour</div></div>
                             <input type="number" id="budget-transport" onchange="calculateBudget()" placeholder="15" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
                             <span class="text-gray-600">€/j</span>
                         </div>
                     </div>
-                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                    <div class="rounded-xl p-4 border-2 budget-item-card" style="background:var(--budget-bg,white);border-color:var(--budget-border,#f3f4f6)">
                         <div class="flex items-center gap-3">
                             <span class="text-2xl">🍜</span>
-                            <div class="flex-1"><div class="font-bold text-gray-800">Repas</div><div class="text-xs text-gray-500">Budget quotidien</div></div>
+                            <div class="flex-1"><div class="font-bold" style="color:var(--budget-text,#1f2937)">Repas</div><div class="text-xs" style="color:var(--budget-sub,#6b7280)">Budget quotidien</div></div>
                             <select id="budget-meals" onchange="calculateBudget()" class="border-2 border-gray-200 rounded-lg p-2">
                                 <option value="25">Économique (25€/j)</option>
                                 <option value="50" selected>Moyen (50€/j)</option>
@@ -619,34 +663,34 @@
                             </select>
                         </div>
                     </div>
-                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                    <div class="rounded-xl p-4 border-2 budget-item-card" style="background:var(--budget-bg,white);border-color:var(--budget-border,#f3f4f6)">
                         <div class="flex items-center gap-3">
                             <span class="text-2xl">🎫</span>
-                            <div class="flex-1"><div class="font-bold text-gray-800">Activités & Visites</div><div class="text-xs text-gray-500">Temples, musées</div></div>
+                            <div class="flex-1"><div class="font-bold" style="color:var(--budget-text,#1f2937)">Activités & Visites</div><div class="text-xs" style="color:var(--budget-sub,#6b7280)">Temples, musées</div></div>
                             <input type="number" id="budget-activities" onchange="calculateBudget()" placeholder="20" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
                             <span class="text-gray-600">€/j</span>
                         </div>
                     </div>
-                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                    <div class="rounded-xl p-4 border-2 budget-item-card" style="background:var(--budget-bg,white);border-color:var(--budget-border,#f3f4f6)">
                         <div class="flex items-center gap-3">
                             <span class="text-2xl">🛍️</span>
-                            <div class="flex-1"><div class="font-bold text-gray-800">Shopping</div><div class="text-xs text-gray-500">Souvenirs, vêtements</div></div>
+                            <div class="flex-1"><div class="font-bold" style="color:var(--budget-text,#1f2937)">Shopping</div><div class="text-xs" style="color:var(--budget-sub,#6b7280)">Souvenirs, vêtements</div></div>
                             <input type="number" id="budget-shopping" onchange="calculateBudget()" placeholder="30" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
                             <span class="text-gray-600">€/j</span>
                         </div>
                     </div>
-                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                    <div class="rounded-xl p-4 border-2 budget-item-card" style="background:var(--budget-bg,white);border-color:var(--budget-border,#f3f4f6)">
                         <div class="flex items-center gap-3">
                             <span class="text-2xl">🏥</span>
-                            <div class="flex-1"><div class="font-bold text-gray-800">Assurance voyage</div><div class="text-xs text-gray-500">Santé, annulation</div></div>
+                            <div class="flex-1"><div class="font-bold" style="color:var(--budget-text,#1f2937)">Assurance voyage</div><div class="text-xs" style="color:var(--budget-sub,#6b7280)">Santé, annulation</div></div>
                             <input type="number" id="budget-insurance" onchange="calculateBudget()" placeholder="50" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
                             <span class="text-gray-600">€</span>
                         </div>
                     </div>
-                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                    <div class="rounded-xl p-4 border-2 budget-item-card" style="background:var(--budget-bg,white);border-color:var(--budget-border,#f3f4f6)">
                         <div class="flex items-center gap-3">
                             <span class="text-2xl">💳</span>
-                            <div class="flex-1"><div class="font-bold text-gray-800">Divers</div><div class="text-xs text-gray-500">Imprévus, extras</div></div>
+                            <div class="flex-1"><div class="font-bold" style="color:var(--budget-text,#1f2937)">Divers</div><div class="text-xs" style="color:var(--budget-sub,#6b7280)">Imprévus, extras</div></div>
                             <input type="number" id="budget-misc" onchange="calculateBudget()" placeholder="100" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
                             <span class="text-gray-600">€</span>
                         </div>
@@ -929,7 +973,7 @@
                             <div class="border-2 border-gray-200 rounded-xl p-3 peer-checked:border-purple-500 peer-checked:bg-purple-50 transition-all text-center">
                                 <div class="text-2xl mb-1">⏰</div>
                                 <div class="text-sm font-bold">Flexible</div>
-                                <div class="text-xs text-gray-500">IA décide</div>
+                                <div class="text-xs" style="color:var(--budget-sub,#6b7280)">IA décide</div>
                             </div>
                         </label>
                         <label class="flex-1 cursor-pointer">
@@ -937,7 +981,7 @@
                             <div class="border-2 border-gray-200 rounded-xl p-3 peer-checked:border-orange-500 peer-checked:bg-orange-50 transition-all text-center">
                                 <div class="text-2xl mb-1">🔒</div>
                                 <div class="text-sm font-bold">Fixé</div>
-                                <div class="text-xs text-gray-500">Je choisis</div>
+                                <div class="text-xs" style="color:var(--budget-sub,#6b7280)">Je choisis</div>
                             </div>
                         </label>
                     </div>
@@ -1241,6 +1285,7 @@
             document.getElementById('main-header').classList.remove('hidden');
             document.getElementById('planning-list').classList.remove('hidden');
             document.getElementById('day-navigation').classList.remove('hidden');
+            document.body.classList.add('nav-visible');
             showFAB();
             
             updateDayNavigation();
@@ -1677,19 +1722,23 @@
                     const totalStr = stay.price ? ` · ${(stay.price * nights).toLocaleString()} ${stay.currency} total` : '';
 
                     const div = document.createElement('div');
-                    div.className = 'bg-white rounded-2xl p-4 border-2 border-purple-100 shadow-sm';
+                    const _dkS = document.documentElement.classList.contains('dark');
+                    div.className = 'rounded-2xl p-4 border-2 shadow-sm';
+                    div.style.cssText = _dkS
+                        ? 'background:#1a1333;border-color:#581c8780'
+                        : 'background:white;border-color:#ede9fe';
                     div.innerHTML = `
                         <div class="flex items-start justify-between gap-2">
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 mb-1">
                                     <span class="text-xl">${emoji}</span>
-                                    <span class="font-bold text-purple-800">${cityName}</span>
-                                    <span class="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-bold">J${stay.startDay+1}→J${stay.endDay+1}</span>
-                                    <span class="text-xs text-gray-400">${nights} nuit${nights>1?'s':''}</span>
+                                    <span class="font-bold" style="color:${_dkS?'#c4b5fd':'#6d28d9'}">${cityName}</span>
+                                    <span class="text-xs px-2 py-0.5 rounded-full font-bold" style="background:${_dkS?'#2e1065':'#ede9fe'};color:${_dkS?'#c4b5fd':'#7c3aed'}">J${stay.startDay+1}→J${stay.endDay+1}</span>
+                                    <span class="text-xs" style="color:${_dkS?'#64748b':'#9ca3af'}">${nights} nuit${nights>1?'s':''}</span>
                                 </div>
-                                ${stay.hotelName ? `<div class="text-sm font-semibold text-gray-700 truncate">🏨 ${stay.hotelName}</div>` : ''}
-                                ${stay.address ? `<div class="text-xs text-gray-400 truncate mt-0.5">📍 ${stay.address}</div>` : ''}
-                                ${priceStr ? `<div class="text-xs text-orange-600 font-bold mt-1">💰 ${priceStr}${totalStr}</div>` : ''}
+                                ${stay.hotelName ? `<div class="text-sm font-semibold truncate" style="color:${_dkS?'#e2e8f0':'#374151'}">🏨 ${stay.hotelName}</div>` : ''}
+                                ${stay.address ? `<div class="text-xs truncate mt-0.5" style="color:${_dkS?'#64748b':'#9ca3af'}">📍 ${stay.address}</div>` : ''}
+                                ${priceStr ? `<div class="text-xs font-bold mt-1" style="color:${_dkS?'#fb923c':'#ea580c'}">💰 ${priceStr}${totalStr}</div>` : ''}
                             </div>
                             <div class="flex flex-col gap-1 flex-shrink-0">
                                 <button onclick="editStay(${i})" class="text-blue-500 hover:text-blue-700 text-sm px-2 py-1 rounded hover:bg-blue-50">✏️</button>
@@ -2106,12 +2155,12 @@
                             <div class="grid grid-cols-2 gap-3">
                                 <div class="preview-stat text-center">
                                     <div class="text-xl mb-1">🕐</div>
-                                    <div class="text-xs text-gray-500">Durée</div>
+                                    <div class="text-xs" style="color:var(--budget-sub,#6b7280)">Durée</div>
                                     <div class="font-bold text-gray-800 text-sm">${data.preview.duration}</div>
                                 </div>
                                 <div class="preview-stat text-center">
                                     <div class="text-xl mb-1">${iIcon}</div>
-                                    <div class="text-xs text-gray-500">Intensité</div>
+                                    <div class="text-xs" style="color:var(--budget-sub,#6b7280)">Intensité</div>
                                     <div class="font-bold text-sm capitalize ${iColor} px-2 py-0.5 rounded-lg inline-block mt-0.5">${data.preview.intensity}</div>
                                 </div>
                             </div>
@@ -2841,17 +2890,21 @@
                 const hotelDepart = addMinutesToTime(realTimes[0], -hotelTravel);
 
                 const hotelCard = document.createElement('div');
-                hotelCard.className = "bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-4 border-2 border-orange-200 mb-4";
+                const _dk = document.documentElement.classList.contains('dark');
+                hotelCard.className = "rounded-2xl p-4 border-2 mb-4";
+                hotelCard.style.cssText = _dk
+                    ? "background:#1c1209;border-color:#c2410c60"
+                    : "background:linear-gradient(to right,#ffedd5,#fee2e2);border-color:#fdba7460";
                 hotelCard.innerHTML = `
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <div class="text-2xl">🏨</div>
                             <div>
-                                <div class="font-bold text-sm">${stay0.hotelName || 'Hôtel'}</div>
-                                <div class="text-xs text-gray-500">Point de départ</div>
+                                <div class="font-bold text-sm" style="color:${_dk?'#f1f5f9':'#1f2937'}">${stay0.hotelName || 'Hôtel'}</div>
+                                <div class="text-xs" style="color:${_dk?'#94a3b8':'#6b7280'}">Point de départ</div>
                             </div>
                         </div>
-                        ${hotelTravel > 0 ? `<div class="text-xs font-bold text-orange-600">Départ ${hotelDepart}</div>` : ''}
+                        ${hotelTravel > 0 ? `<div class="text-xs font-bold" style="color:${_dk?'#fb923c':'#ea580c'}">Départ ${hotelDepart}</div>` : ''}
                     </div>
                 `;
                 list.appendChild(hotelCard);
@@ -2879,7 +2932,7 @@
                         <div class="text-2xl">🏨</div>
                         <div>
                             <div class="font-bold text-sm">${stay0.hotelName || 'Hôtel'}</div>
-                            <div class="text-xs text-gray-500">Point de départ</div>
+                            <div class="text-xs" style="color:var(--budget-sub,#6b7280)">Point de départ</div>
                         </div>
                     </div>
                 `;
@@ -3232,7 +3285,8 @@
             const em = {'Temple':'⛩️','Château':'🏯','Musée':'🎨','Histoire':'🏛️','Parc':'🌿','Nature':'🌸','Rando':'⛰️','Plage':'🌊','Onsen':'♨️','Resto':'🍜','Izakaya':'🍶','Café':'☕','Shopping':'🛍️','Zoo/Aqua':'🐾','Spectacle':'🎭','Quartier':'🏙️'};
             for (const [label, kw] of typeMap) {
                 if ((place.types||[]).some(t => kw.includes(t))) {
-                    return '<span class="inline-flex items-center gap-0.5 text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">' + (em[label]||'📍') + ' ' + label + '</span>';
+                    const _dkT = document.documentElement.classList.contains('dark');
+                    return '<span class="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0" style="background:' + (_dkT?'#1e1b4b':'#e0e7ff') + ';color:' + (_dkT?'#a5b4fc':'#4338ca') + '">' + (em[label]||'📍') + ' ' + label + '</span>';
                 }
             }
             return '';
@@ -4424,7 +4478,7 @@
             const breakdown = document.getElementById('budget-breakdown');
             if (breakdown) {
                 breakdown.innerHTML = `
-                    <div class="flex justify-between">
+                    <div class="flex justify-between" style="color:var(--budget-text,#1f2937)">
                         <span>✈️ Vols</span>
                         <span class="font-bold">${flight.toFixed(0)} €</span>
                     </div>
@@ -4623,11 +4677,18 @@
             const root = document.documentElement;
             if (dark) {
                 root.classList.add('dark');
-                // Forcer le fond du body via style (fuji-pattern peut override)
                 document.body.style.cssText = 'background:linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#0f172a 100%)!important;color:#e2e8f0';
+                root.style.setProperty('--budget-bg', '#1e293b');
+                root.style.setProperty('--budget-border', '#334155');
+                root.style.setProperty('--budget-text', '#f1f5f9');
+                root.style.setProperty('--budget-sub', '#94a3b8');
             } else {
                 root.classList.remove('dark');
                 document.body.style.cssText = '';
+                root.style.setProperty('--budget-bg', 'white');
+                root.style.setProperty('--budget-border', '#f3f4f6');
+                root.style.setProperty('--budget-text', '#1f2937');
+                root.style.setProperty('--budget-sub', '#6b7280');
             }
             const t = document.getElementById('dark-mode-toggle');
             if (t) t.checked = dark;
@@ -4637,10 +4698,12 @@
             _darkMode = !_darkMode;
             localStorage.setItem('japan_dark_mode', _darkMode ? '1' : '0');
             applyDarkMode(_darkMode);
+            // Re-render pour que les couleurs JS (chips, tuiles) soient recalculées
+            if (typeof renderPlanning === 'function') renderPlanning();
         }
 
         // Appliquer au chargement
-        if (_darkMode) applyDarkMode(true);
+        applyDarkMode(_darkMode);
 
         function confirmResetAll() {
             const confirmModal = document.createElement('div');
@@ -4683,6 +4746,7 @@
                         document.getElementById('main-header').classList.remove('hidden');
                         document.getElementById('planning-list').classList.remove('hidden');
                         document.getElementById('day-navigation').classList.remove('hidden');
+            document.body.classList.add('nav-visible');
                         showFAB();
                         updateDayNavigation();
                         updateCitySelector();
