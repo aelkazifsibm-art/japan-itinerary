@@ -2931,35 +2931,35 @@
                     // Même layout, liseré vert épais uniquement
                     card.style.cssText = "border: 2.5px solid #22c55e; box-shadow: 0 1px 10px rgba(34,197,94,0.2);";
                 } else {
-                    card.style.cssText = "border: 2px solid " + theme.border + "; box-shadow: 0 1px 8px " + theme.border + "30;";
+                    card.style.cssText = "background:" + (document.documentElement.classList.contains('dark') ? '#1e293b' : 'white') + "; border: 2px solid " + theme.border + "; box-shadow: 0 1px 8px " + theme.border + "30;";
                 }
                 card.innerHTML = `
                     <div class="flex" style="min-height:112px">
 
                         <!-- ── Col gauche : timeline ── -->
                         <div class="flex-shrink-0 flex flex-col items-center py-3 border-r" style="width:clamp(56px,15vw,68px);background:${theme.timelineBg};border-color:${theme.border}30">
-                            <span class="font-black text-gray-800 tabular-nums" style="font-size:clamp(12px,3.5vw,15px)">${arriveTime}</span>
+                            <span class="font-black tabular-nums" style="font-size:clamp(12px,3.5vw,15px);color:${theme.textPrimary}">${arriveTime}</span>
                             <div class="relative flex-1 w-full my-1.5" style="min-height:30px">
                                 <div style="position:absolute;left:calc(50% - 1px);top:0;bottom:0;width:2px;background:linear-gradient(to bottom,${theme.lineFrom},${theme.lineTo});border-radius:9px"></div>
-                                <div class="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 z-10 bg-white rounded-lg text-center" style="border:1.5px solid ${theme.border};padding:3px 5px;box-shadow:0 1px 4px ${theme.border}25;min-width:34px">
+                                <div class="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 z-10 bg-white rounded-lg text-center" style="background:${theme.timeBg};border:1.5px solid ${theme.border};padding:3px 5px;box-shadow:0 1px 4px ${theme.border}25;min-width:34px">
                                     <div class="font-black leading-none tabular-nums" style="font-size:clamp(15px,4vw,18px);color:${theme.lineFrom}">${dur}</div>
                                     <div class="font-semibold leading-none uppercase tracking-widest" style="font-size:7px;color:${theme.lineTo};margin-top:2px">min</div>
                                 </div>
                             </div>
-                            <span class="font-black text-gray-800 tabular-nums" style="font-size:clamp(12px,3.5vw,15px)">${leaveTime}</span>
+                            <span class="font-black tabular-nums" style="font-size:clamp(12px,3.5vw,15px);color:${theme.textPrimary}">${leaveTime}</span>
                         </div>
 
                         <!-- ── Centre : titre + lieu + note + chips ── -->
                         <div class="flex-1 min-w-0 flex flex-col justify-between px-3 py-3">
                             <!-- Ligne 1 : titre -->
                             <div>
-                                <div class="font-black text-${isCompleted ? 'line-through text-green-700 opacity-70' : 'text-gray-900'} leading-tight truncate" style="font-size:clamp(15px,4.5vw,18px);letter-spacing:-0.3px">${act.title}</div>
+                                <div class="font-black text-${isCompleted ? 'line-through text-green-700 opacity-70' : 'text-gray-900'} leading-tight truncate" style="font-size:clamp(15px,4.5vw,18px);letter-spacing:-0.3px;color:${theme.textPrimary}">${act.title}</div>
                                 <!-- Ligne 2 : note (position fixe) + lieu -->
                                 <div class="flex items-center gap-2 mt-1.5">
                                     ${act.place?.rating
                                         ? `<span class="font-black tabular-nums flex-shrink-0 rounded-md px-1.5 py-0.5 text-white leading-none" style="font-size:12px;background:${theme.lineFrom}">${act.place.rating.toFixed(1)}</span>`
                                         : `<span class="flex-shrink-0 rounded-md px-1.5 py-0.5 bg-gray-100 text-gray-400 leading-none" style="font-size:12px">–</span>`}
-                                    <span class="truncate font-medium" style="font-size:clamp(11px,3vw,13px);color:#4b5563">${act.place?.name || '—'}</span>
+                                    <span class="truncate font-medium" style="font-size:clamp(11px,3vw,13px);color:${theme.textSecondary}">${act.place?.name || '—'}</span>
                                 </div>
                             </div>
                             <!-- chips horaires + prix -->
@@ -2970,7 +2970,7 @@
                         </div>
 
                         <!-- ── Col droite : + | pin ── -->
-                        <div class="flex-shrink-0 flex flex-col border-l" style="width:clamp(44px,12vw,54px);border-color:${theme.border}25">
+                        <div class="flex-shrink-0 flex flex-col border-l" style="width:clamp(44px,12vw,54px);border-color:${theme.border}25;background:${theme.infoBtn}">
                             <!-- + ou ✓ selon état -->
                             ${isCompleted
                                 ? `<div class="flex-1 flex items-center justify-center border-b" style="background:#f0fdf4;border-color:#4ade8022">
@@ -3149,12 +3149,20 @@
         // ── Thème couleur par famille d'activité ────────────────────────
         // 5 familles : contempler(orange) · restaurer(rose) · promener(vert) · explorer(bleu) · détendre(violet)
         function getActivityTheme(place) {
-            const THEMES = {
-                contempler: { border:'#fb923c', timelineBg:'#fff7ed', lineFrom:'#ea580c', lineTo:'#dc2626', infoBtn:'#fff7ed' },
-                restaurer:  { border:'#f472b6', timelineBg:'#fdf2f8', lineFrom:'#db2777', lineTo:'#be185d', infoBtn:'#fdf2f8' },
-                promener:   { border:'#4ade80', timelineBg:'#f0fdf4', lineFrom:'#16a34a', lineTo:'#166534', infoBtn:'#f0fdf4' },
-                explorer:   { border:'#38bdf8', timelineBg:'#f0f9ff', lineFrom:'#0284c7', lineTo:'#075985', infoBtn:'#f0f9ff' },
-                detendre:   { border:'#c084fc', timelineBg:'#faf5ff', lineFrom:'#9333ea', lineTo:'#6b21a8', infoBtn:'#faf5ff' },
+            const dark = document.documentElement.classList.contains('dark');
+            const THEMES = dark ? {
+                // Dark mode : fonds sombres, couleurs vives maintenues
+                contempler: { border:'#fb923c', timelineBg:'#1c1209', lineFrom:'#fb923c', lineTo:'#ea580c', infoBtn:'#1c1209', textPrimary:'#f1f5f9', textSecondary:'#94a3b8', timeBg:'#0f172a' },
+                restaurer:  { border:'#f472b6', timelineBg:'#1c0f18', lineFrom:'#f472b6', lineTo:'#db2777', infoBtn:'#1c0f18', textPrimary:'#f1f5f9', textSecondary:'#94a3b8', timeBg:'#0f172a' },
+                promener:   { border:'#4ade80', timelineBg:'#0d1f15', lineFrom:'#4ade80', lineTo:'#16a34a', infoBtn:'#0d1f15', textPrimary:'#f1f5f9', textSecondary:'#94a3b8', timeBg:'#0f172a' },
+                explorer:   { border:'#38bdf8', timelineBg:'#0a1929', lineFrom:'#38bdf8', lineTo:'#0284c7', infoBtn:'#0a1929', textPrimary:'#f1f5f9', textSecondary:'#94a3b8', timeBg:'#0f172a' },
+                detendre:   { border:'#c084fc', timelineBg:'#150d22', lineFrom:'#c084fc', lineTo:'#9333ea', infoBtn:'#150d22', textPrimary:'#f1f5f9', textSecondary:'#94a3b8', timeBg:'#0f172a' },
+            } : {
+                contempler: { border:'#fb923c', timelineBg:'#fff7ed', lineFrom:'#ea580c', lineTo:'#dc2626', infoBtn:'#fff7ed', textPrimary:'#1f2937', textSecondary:'#4b5563', timeBg:'white' },
+                restaurer:  { border:'#f472b6', timelineBg:'#fdf2f8', lineFrom:'#db2777', lineTo:'#be185d', infoBtn:'#fdf2f8', textPrimary:'#1f2937', textSecondary:'#4b5563', timeBg:'white' },
+                promener:   { border:'#4ade80', timelineBg:'#f0fdf4', lineFrom:'#16a34a', lineTo:'#166534', infoBtn:'#f0fdf4', textPrimary:'#1f2937', textSecondary:'#4b5563', timeBg:'white' },
+                explorer:   { border:'#38bdf8', timelineBg:'#f0f9ff', lineFrom:'#0284c7', lineTo:'#075985', infoBtn:'#f0f9ff', textPrimary:'#1f2937', textSecondary:'#4b5563', timeBg:'white' },
+                detendre:   { border:'#c084fc', timelineBg:'#faf5ff', lineFrom:'#9333ea', lineTo:'#6b21a8', infoBtn:'#faf5ff', textPrimary:'#1f2937', textSecondary:'#4b5563', timeBg:'white' },
             };
             // Fallback : contempler (orange) par défaut plutôt que gris
             if (!place) return THEMES.contempler;
@@ -3235,11 +3243,12 @@
 
         // ── Chip 1 : Horaires du jour (cliquable → semaine) ──────────────
         function buildHoursChip(place, actId) {
-            const BASE = 'flex items-center gap-1.5 rounded-xl text-[10px] font-bold py-1.5 px-2 flex-1 min-w-0 cursor-pointer transition-all active:scale-95';
+            const BASE = 'flex items-center gap-1.5 rounded-xl text-[10px] font-bold py-1.5 px-2 flex-1 min-w-0 cursor-pointer transition-all active:scale-95 border';
+            const dk = document.documentElement.classList.contains('dark');
             if (!place || !place.opening_hours || !place.opening_hours.length) {
                 if (place && (place.types||[]).some(t => ['neighborhood','sublocality','political','natural_feature','park'].includes(t)))
-                    return '<div class="' + BASE + ' bg-sky-50 text-sky-700 border border-sky-200"><span class="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0"></span><span>Accès libre</span></div>';
-                return '<div class="' + BASE + ' bg-gray-100 text-gray-400 border border-gray-200"><span>🕐 N/D</span></div>';
+                    return '<div class="' + BASE + '" style="background:' + (dk?'#0a1929':'#f0f9ff') + ';color:' + (dk?'#38bdf8':'#0369a1') + ';border-color:' + (dk?'#0284c7':'#bae6fd') + '"><span class="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0"></span><span>Accès libre</span></div>';
+                return '<div class="' + BASE + '" style="background:' + (dk?'#1e293b':'#f9fafb') + ';color:' + (dk?'#64748b':'#9ca3af') + ';border-color:' + (dk?'#334155':'#e5e7eb') + '"><span>🕐 N/D</span></div>';
             }
             _hoursCache[actId] = place.opening_hours;
             const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
@@ -3250,73 +3259,66 @@
             const is24h = hours.indexOf('24') >= 0;
             const isOpen = place.open_now === true;
             const isClosed = place.open_now === false;
-            const dotColor = isOpen ? 'bg-green-500' : (isClosed ? 'bg-red-400' : 'bg-gray-300');
-            const chipCls = isOpen ? 'bg-green-50 text-green-700 border border-green-200'
-                          : isClosed ? 'bg-red-50 text-red-600 border border-red-200'
-                          : 'bg-gray-50 text-gray-600 border border-gray-200';
-            return '<div class="' + BASE + ' ' + chipCls + '" onclick="event.stopPropagation(); showWeekHours(' + actId + ')">'
+            const dotColor = isOpen ? 'bg-green-500' : (isClosed ? 'bg-red-400' : 'bg-gray-400');
+            const bg    = isOpen ? (dk?'#0d1f15':'#f0fdf4') : isClosed ? (dk?'#1f0d0d':'#fef2f2') : (dk?'#1e293b':'#f9fafb');
+            const color = isOpen ? (dk?'#4ade80':'#15803d') : isClosed ? (dk?'#f87171':'#dc2626') : (dk?'#94a3b8':'#4b5563');
+            const bord  = isOpen ? (dk?'#166534':'#bbf7d0') : isClosed ? (dk?'#991b1b':'#fecaca') : (dk?'#334155':'#e5e7eb');
+            return '<div class="' + BASE + '" style="background:' + bg + ';color:' + color + ';border-color:' + bord + '" onclick="event.stopPropagation(); showWeekHours(' + actId + ')">'
                 + '<span class="w-1.5 h-1.5 rounded-full ' + dotColor + ' flex-shrink-0"></span>'
                 + '<span class="truncate">' + (is24h ? 'H24 · Accès libre' : hours) + '</span>'
                 + '</div>';
         }
-
-        // ── Chip 1 : Note Google (cliquable → fiche Google) ─────────────
         function buildRatingChip(place, placeId) {
-            const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-11 w-full transition-all active:scale-95';
+            const BASE = 'flex flex-col items-center justify-center text-center rounded-lg text-[10px] font-semibold h-11 w-full transition-all active:scale-95 border';
+            const dk = document.documentElement.classList.contains('dark');
             if (!place || !place.rating)
-                return '<div class="' + BASE + ' bg-gray-100 text-gray-400">★<span class=\"text-[9px]\">N/D</span></div>';
-            // Sur mobile, place_id brut dans l'URL ne fonctionne pas bien → recherche par nom
+                return '<div class="' + BASE + '" style="background:' + (dk?'#1e293b':'#f3f4f6') + ';color:' + (dk?'#64748b':'#9ca3af') + ';border-color:' + (dk?'#334155':'#e5e7eb') + '">★<span class="text-[9px]">N/D</span></div>';
             const gUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(place.name || '')
                 + (placeId ? '&query_place_id=' + placeId : '');
-            return '<a href="' + gUrl + '" target="_blank" onclick="event.stopPropagation()" class="' + BASE + ' bg-amber-50 text-amber-700 border border-amber-200 cursor-pointer hover:bg-amber-100">'
+            return '<a href="' + gUrl + '" target="_blank" onclick="event.stopPropagation()" class="' + BASE + ' cursor-pointer" style="background:' + (dk?'#1c1500':'#fffbeb') + ';color:' + (dk?'#fbbf24':'#92400e') + ';border-color:' + (dk?'#92400e':'#fde68a') + '">'
                 + '<span class="font-black text-[12px] leading-none">' + place.rating.toFixed(1) + ' ★</span>'
                 + (place.review_count ? '<span class="text-[8px] opacity-70 mt-0.5">' + (place.review_count >= 1000 ? (place.review_count/1000).toFixed(1)+'k' : place.review_count) + ' avis</span>' : '')
                 + '</a>';
         }
-
-        // ── Chip 2 : Prix (flip → réservation ou "sans réservation") ────
-        const _priceFlipped = {};
         function buildPriceChip(place) {
-            const BASE = 'flex flex-col items-center justify-center rounded-xl py-1.5 px-2 min-w-[52px] transition-all active:scale-95 cursor-pointer';
+            const BASE = 'flex flex-col items-center justify-center rounded-xl py-1.5 px-2 min-w-[52px] transition-all active:scale-95 cursor-pointer border';
+            const dk = document.documentElement.classList.contains('dark');
             if (!place || (place.price_level === null || place.price_level === undefined))
-                return '<div class="' + BASE + ' bg-gray-100 text-gray-400">💴<span class=\"text-[9px]\">N/D</span></div>';
+                return '<div class="' + BASE + '" style="background:' + (dk?'#1e293b':'#f3f4f6') + ';color:' + (dk?'#64748b':'#9ca3af') + ';border-color:' + (dk?'#334155':'#e5e7eb') + '">💴<span class="text-[9px]">N/D</span></div>';
             if (place.price_level === 0)
-                return '<div class="' + BASE + ' bg-green-50 text-green-700 border border-green-200">'
+                return '<div class="' + BASE + '" style="background:' + (dk?'#0d1f15':'#f0fdf4') + ';color:' + (dk?'#4ade80':'#15803d') + ';border-color:' + (dk?'#166534':'#bbf7d0') + '">'
                     + '<span class="font-black leading-none" style="font-size:12px">Gratuit</span>'
-                    + '<span class="opacity-60 leading-none mt-0.5" style="font-size:8px">Accès libre</span></div>';
-            const cfg = [null,
-                {cls:'bg-sky-50 text-sky-700 border border-sky-200'},
-                {cls:'bg-yellow-50 text-yellow-700 border border-yellow-200'},
-                {cls:'bg-orange-50 text-orange-700 border border-orange-200'},
-                {cls:'bg-red-50 text-red-700 border border-red-200'}
+                    + '<span class="opacity-70 leading-none mt-0.5" style="font-size:8px">Accès libre</span></div>';
+            const priceStyles = [null,
+                {bg: dk?'#0a1929':'#f0f9ff', color: dk?'#38bdf8':'#0369a1', border: dk?'#0284c7':'#bae6fd'},
+                {bg: dk?'#1c1500':'#fefce8', color: dk?'#fbbf24':'#92400e', border: dk?'#92400e':'#fde68a'},
+                {bg: dk?'#1c0e00':'#fff7ed', color: dk?'#fb923c':'#9a3412', border: dk?'#9a3412':'#fed7aa'},
+                {bg: dk?'#1f0d0d':'#fef2f2', color: dk?'#f87171':'#991b1b', border: dk?'#991b1b':'#fecaca'},
             ];
-            const c = cfg[place.price_level] || cfg[1];
+            const ps = priceStyles[place.price_level] || priceStyles[1];
+            const chipStyle = 'background:' + ps.bg + ';color:' + ps.color + ';border-color:' + ps.border;
             const priceStr = place.price_eur ? place.price_eur.toFixed(0) + '€' : ['','€','€€','€€€','€€€€'][place.price_level];
             const bookingUrl = place.booking_url || null;
             const bookingRequired = place.booking_required;
             const pid = place.place_id || '';
             if (bookingUrl) {
-                return '<button type="button" ontouchstart="this._t0=Date.now()" ontouchend="if(!window._navSwipeBlocked&&(Date.now()-this._t0)<350){event.preventDefault();event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\');}" onclick="event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\')" class="' + BASE + ' ' + c.cls + ' hover:brightness-95" style="cursor:pointer">'
+                return '<button type="button" ontouchstart="this._t0=Date.now()" ontouchend="if(!window._navSwipeBlocked&&(Date.now()-this._t0)<350){event.preventDefault();event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\');}" onclick="event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\')" class="' + BASE + ' hover:brightness-95" style="' + chipStyle + ';cursor:pointer">'
                     + '<span class="font-black text-[12px] leading-none">' + priceStr + '</span>'
                     + '<span class="text-[8px] opacity-70 mt-0.5">🎟 Réserver</span></button>';
             }
             if (bookingRequired === false) {
-                return '<div class="' + BASE + ' bg-emerald-50 text-emerald-700 border border-emerald-200">'
+                const emBg = dk?'#0d1f15':'#ecfdf5', emColor = dk?'#4ade80':'#065f46', emBord = dk?'#166534':'#a7f3d0';
+                return '<div class="' + BASE + '" style="background:' + emBg + ';color:' + emColor + ';border-color:' + emBord + '">'
                     + '<span class="font-black text-[11px] leading-none">' + priceStr + '</span>'
                     + '<span class="text-[8px] mt-0.5">🚶 Sans résa</span></div>';
             }
-            return '<div class="' + BASE + ' ' + c.cls + ' price-flip-chip" data-pid="' + pid + '" onclick="event.stopPropagation();flipPriceChip(this)" title="Tap pour info réservation">'
+            return '<div class="' + BASE + ' price-flip-chip" data-pid="' + pid + '" style="' + chipStyle + '" onclick="event.stopPropagation();flipPriceChip(this)">'
                 + '<div class="price-flip-front w-full flex flex-col items-center justify-center">'
                 + '<span class="font-black leading-none" style="font-size:13px">' + priceStr + '</span>'
                 + (place.price_detail ? '<span class="opacity-60 leading-none mt-0.5 text-center" style="font-size:7px;max-width:44px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + place.price_detail.split(',')[0].replace('adulte','ad.') + '</span>' : '')
                 + '</div>'
-                + '<div class="price-flip-back w-full flex flex-col items-center justify-center hidden bg-emerald-50 text-emerald-700 rounded-lg">'
-                + '<span style="font-size:14px">🚶</span>'
-                + '<span class="font-bold text-center leading-tight px-1" style="font-size:8px">Sans résa</span>'
-                + '</div>'
                 + '</div>';
         }
-
         function flipPriceChip(el) {
             const pid = el.getAttribute('data-pid') || '';
             const front = el.querySelector('.price-flip-front');
