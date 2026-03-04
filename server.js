@@ -156,7 +156,7 @@ app.get("/api/places/details", async (req, res) => {
 
         const u = new URL("https://maps.googleapis.com/maps/api/place/details/json");
         u.searchParams.set("place_id", placeId);
-        u.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,current_opening_hours,price_level,types,editorial_summary,business_status,rating,user_ratings_total");
+        u.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,current_opening_hours,price_level,types,editorial_summary,business_status,rating,user_ratings_total,photos");
         u.searchParams.set("language", "fr");
         u.searchParams.set("key", key);
 
@@ -255,7 +255,8 @@ Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
                 rating_source:   rating ? 'google' : null,
                 visit_duration:  visit_duration  || null,
                 types: p.types || [],
-                ai_hours
+                ai_hours,
+                photo_reference: p.photos?.[0]?.photo_reference || null
             }
         });
     } catch (e) {
@@ -570,7 +571,7 @@ Pour duration_minutes: base-toi sur les recommandations réelles (TripAdvisor, g
         // Obtenir les détails
         const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
         detailsUrl.searchParams.set("place_id", firstResult.place_id);
-        detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types");
+        detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types,photos,rating");
         detailsUrl.searchParams.set("language", "fr");
         detailsUrl.searchParams.set("key", serverKey);
         
@@ -598,7 +599,10 @@ Pour duration_minutes: base-toi sur les recommandations réelles (TripAdvisor, g
                     opening_hours: place.opening_hours?.weekday_text || null,
                     open_now: place.opening_hours?.open_now ?? null,
                     price_level: place.price_level ?? null,
-                    types: place.types || []
+                    types: place.types || [],
+                    photo_reference: place.photos?.[0]?.photo_reference || null,
+                    rating: place.rating || null,
+                    user_ratings_total: place.user_ratings_total || null
                 }
             }
         });
@@ -671,7 +675,7 @@ Génère une fiche de présentation avec :
         if (firstResult) {
             const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
             detailsUrl.searchParams.set("place_id", firstResult.place_id);
-            detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types");
+            detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types,photos,rating");
             detailsUrl.searchParams.set("language", "fr");
             detailsUrl.searchParams.set("key", serverKey);
             const detailsRes = await fetchJson(detailsUrl.toString());
@@ -797,6 +801,29 @@ JSON de réponse:
     }
 });
 
+
+
+// ── Proxy photo Google Places (évite CORS + cache navigateur) ──────────────
+app.get('/api/place-photo', async (req, res) => {
+    try {
+        const key = mustEnv('GOOGLE_MAPS_SERVER_KEY');
+        const ref = String(req.query.ref || '').trim();
+        const maxw = Math.min(800, parseInt(req.query.maxw) || 400);
+        if (!ref) return res.status(400).json({ error: 'missing ref' });
+
+        const url = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxw}&photoreference=${ref}&key=${key}`;
+        const r = await fetch(url);
+        if (!r.ok) return res.status(r.status).send('Photo unavailable');
+
+        // Cache 7 jours côté navigateur
+        res.set('Cache-Control', 'public, max-age=604800');
+        res.set('Content-Type', r.headers.get('content-type') || 'image/jpeg');
+        const buf = await r.arrayBuffer();
+        res.send(Buffer.from(buf));
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 // ── Expose clé Maps navigateur au client ─────────────────────────────────
 app.get('/api/maps-key', (req, res) => {

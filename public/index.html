@@ -308,6 +308,28 @@
         html.dark #map-popup-prog  { color: #94a3b8 !important; }
         #nav-map-btn.active { background: rgba(255,255,255,0.28) !important; }
 
+        /* Bandeau photo activité */
+        .card-photo-banner img { opacity: 0; }
+        .card-photo-banner img[src] { opacity: 0; }
+        /* Skeleton loader pendant chargement photo */
+        .card-photo-banner::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: photoSkeleton 1.5s infinite;
+        }
+        html.dark .card-photo-banner::before {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+        }
+        .card-photo-banner img[style*="opacity: 1"] ~ * { display: none; }
+        @keyframes photoSkeleton {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen pb-32 fuji-pattern">
@@ -3049,6 +3071,27 @@
                     card.style.cssText = "background:" + (document.documentElement.classList.contains('dark') ? '#1e293b' : 'white') + "; border: 2px solid " + theme.border + "; box-shadow: 0 1px 8px " + theme.border + "30;";
                 }
                 card.innerHTML = `
+                    ${act.place?.photo_reference ? `
+                    <div class="card-photo-banner" style="position:relative;height:118px;overflow:hidden;border-radius:0">
+                        <img
+                            src="/api/place-photo?ref=${encodeURIComponent(act.place.photo_reference)}&maxw=600"
+                            alt="${act.title}"
+                            loading="lazy"
+                            style="width:100%;height:100%;object-fit:cover;display:block;transition:opacity 0.4s"
+                            onload="this.style.opacity=1"
+                            onerror="this.closest('.card-photo-banner').remove()"
+                        />
+                        <!-- Gradient overlay bas pour lisibilité du titre -->
+                        <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,${theme.timelineBg}ee 100%)"></div>
+                        <!-- Badge thème en haut à droite -->
+                        <div style="position:absolute;top:8px;right:8px;background:${theme.lineFrom};color:white;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;backdrop-filter:blur(4px)">
+                            ${act.place?.types?.includes('restaurant') || act.place?.types?.includes('cafe') ? '🍜 Gastronomie'
+                              : act.place?.types?.some(t => ['park','natural_feature','beach'].includes(t)) ? '🌿 Nature'
+                              : act.place?.types?.some(t => ['temple','shrine','museum','castle'].includes(t)) ? '⛩️ Culture'
+                              : act.place?.types?.some(t => ['shopping_mall','market'].includes(t)) ? '🛍️ Shopping'
+                              : '📍 Lieu'}
+                        </div>
+                    </div>` : ''}
                     <div class="flex" style="min-height:112px">
 
                         <!-- ── Col gauche : timeline ── -->
@@ -5317,6 +5360,7 @@
             ];
 
             _mapLog('🗺️','Création de la carte Google Maps…');
+            _mapCurrentActIndex = 0; // reset index swipe
             _gmap = new google.maps.Map(document.getElementById('gmap'), {
                 center: { lat: avgLat, lng: avgLng },
                 zoom: 13,
@@ -5453,6 +5497,7 @@
             if (dayActs.length === 1) _gmap.setZoom(15);
 
             _mapInitialized = true;
+            _initMapSwipe();
         }
 
         function showMapPopup(act, num, color) {
@@ -5518,7 +5563,10 @@
                 popup.style.transform = 'translateY(0)';
             });
 
-            // Sync timeline
+            // Sync index swipe + timeline
+            const _geoActs = dayActivities.filter(a => getActCoords(a));
+            const _swipeIdx = _geoActs.findIndex(a => a.id === act.id);
+            if (_swipeIdx !== -1) _mapCurrentActIndex = _swipeIdx;
             _highlightTimelineStep(num - 1);
 
             // Pan vers le pin en tenant compte du popup
@@ -5582,7 +5630,8 @@
                         const c = getActCoords(dayActs[0]);
                         if (c) { _gmap.setCenter(c); _gmap.setZoom(15); }
                     }
-                    // Highlight la timeline
+                    // Sync swipe index + timeline
+                    _mapCurrentActIndex = step;
                     _highlightTimelineStep(step);
                 }
                 step++;
@@ -5662,6 +5711,105 @@
                     chip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
                 }
             });
+        }
+
+
+        // ═══════════════════════════════════════════════════════════
+        //  SWIPE HORIZONTAL sur la carte → naviguer entre activités
+        // ═══════════════════════════════════════════════════════════
+        let _mapSwipeStartX = 0;
+        let _mapSwipeStartY = 0;
+        let _mapSwipeActive = false;
+        let _mapCurrentActIndex = 0; // index dans dayActivities de l'activité affichée
+
+        function _initMapSwipe() {
+            const gmap = document.getElementById('gmap');
+            if (!gmap) return;
+
+            gmap.addEventListener('touchstart', (e) => {
+                if (e.touches.length !== 1) return;
+                _mapSwipeStartX = e.touches[0].clientX;
+                _mapSwipeStartY = e.touches[0].clientY;
+                _mapSwipeActive = true;
+            }, { passive: true });
+
+            gmap.addEventListener('touchmove', (e) => {
+                if (!_mapSwipeActive || e.touches.length !== 1) return;
+                const dx = e.touches[0].clientX - _mapSwipeStartX;
+                const dy = e.touches[0].clientY - _mapSwipeStartY;
+                // Si mouvement horizontal dominant (>40px, ratio >2:1) → swipe intent
+                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 2) {
+                    // Afficher indicateur visuel directionnel
+                    _showSwipeHint(dx > 0 ? 'prev' : 'next');
+                }
+            }, { passive: true });
+
+            gmap.addEventListener('touchend', (e) => {
+                if (!_mapSwipeActive) return;
+                _mapSwipeActive = false;
+                _hideSwipeHint();
+
+                const dx = e.changedTouches[0].clientX - _mapSwipeStartX;
+                const dy = e.changedTouches[0].clientY - _mapSwipeStartY;
+
+                // Seuil : 60px horizontal, ratio >2:1 vs vertical
+                if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+
+                const geoActs = dayActivities.filter(a => getActCoords(a));
+                if (geoActs.length < 2) return;
+
+                if (dx < 0) {
+                    // Swipe gauche → activité suivante
+                    _mapCurrentActIndex = Math.min(_mapCurrentActIndex + 1, geoActs.length - 1);
+                } else {
+                    // Swipe droite → activité précédente
+                    _mapCurrentActIndex = Math.max(_mapCurrentActIndex - 1, 0);
+                }
+
+                const act = geoActs[_mapCurrentActIndex];
+                const realIdx = dayActivities.findIndex(a => a.id === act.id);
+                const color = MAP_THEME_COLORS[getThemeKey(act)] || '#7c3aed';
+
+                // Pan animé vers le pin
+                const coords = getActCoords(act);
+                if (coords && _gmap) {
+                    _gmap.panTo(coords);
+                    // Zoom adaptatif
+                    if (_gmap.getZoom() < 14) _gmap.setZoom(15);
+                }
+
+                // Ouvrir le popup
+                showMapPopup(act, realIdx + 1, color);
+
+                // Feedback haptique
+                if (navigator.vibrate) navigator.vibrate(25);
+            }, { passive: true });
+        }
+
+        function _showSwipeHint(dir) {
+            let hint = document.getElementById('map-swipe-hint');
+            if (!hint) {
+                hint = document.createElement('div');
+                hint.id = 'map-swipe-hint';
+                hint.style.cssText = 'position:absolute;top:50%;transform:translateY(-50%);z-index:25;pointer-events:none;transition:opacity 0.2s;font-size:28px;opacity:0;text-shadow:0 2px 8px rgba(0,0,0,0.5)';
+                document.getElementById('map-view').appendChild(hint);
+            }
+            const geoActs = dayActivities.filter(a => getActCoords(a));
+            const canPrev = _mapCurrentActIndex > 0;
+            const canNext = _mapCurrentActIndex < geoActs.length - 1;
+            if (dir === 'prev') {
+                hint.style.left = '16px'; hint.style.right = '';
+                hint.textContent = canPrev ? '◀' : '🚫';
+            } else {
+                hint.style.right = '16px'; hint.style.left = '';
+                hint.textContent = canNext ? '▶' : '🚫';
+            }
+            hint.style.opacity = '1';
+        }
+
+        function _hideSwipeHint() {
+            const hint = document.getElementById('map-swipe-hint');
+            if (hint) hint.style.opacity = '0';
         }
 
         function _updateMapHeaderAmbiance() {
