@@ -264,9 +264,36 @@
         html.dark .border-gray-100,
         html.dark .border-gray-200 { border-color: #334155 !important; }
 
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+            to   { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
         /* ── Scrollbars en dark ── */
         html.dark ::-webkit-scrollbar { width: 4px; background: #0f172a; }
         html.dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+        /* ── FAB position fixe bas-droite ── */
+        #fab-wrapper {
+            position: fixed !important;
+            bottom: 16px !important;
+            right: 16px !important;
+            left: auto !important;
+            z-index: 260 !important;
+            display: none;
+        }
+        body.nav-visible #fab-wrapper {
+            bottom: 80px !important;
+        }
+
+        /* ── Empêcher la sélection de texte pendant longpress/swipe ── */
+        .activity-card,
+        .activity-card * {
+            -webkit-user-select: none !important;
+            -moz-user-select: none !important;
+            user-select: none !important;
+            -webkit-touch-callout: none !important;
+        }
+
 
     </style>
 </head>
@@ -449,13 +476,16 @@
     <!-- NAVIGATION DES JOURS (en bas, fixe) -->
     <div id="day-navigation" class="fixed bottom-0 left-0 right-0 bg-white shadow-2xl z-50 hidden border-t-2 border-gray-100">
         <div class="max-w-md mx-auto">
-            <div class="flex items-center justify-between bg-gradient-to-r from-purple-500 to-pink-500 p-4 text-white">
-                <button onclick="previousDay()" id="prev-day-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">←</button>
-                <div class="text-center flex-1 cursor-pointer" onclick="showDayPicker()">
-                    <div class="text-xs font-bold opacity-80" id="day-counter">JOUR 1/1</div>
-                    <div class="text-lg font-black" id="current-day-date">Chargement...</div>
+            <div class="flex items-center bg-gradient-to-r from-purple-500 to-pink-500 text-white" style="height:64px">
+                <button onclick="previousDay()" id="prev-day-btn" class="flex-shrink-0 flex items-center justify-center active:scale-95 transition-transform" style="width:52px;height:64px;font-size:22px">←</button>
+                <div class="flex-1 text-center cursor-pointer py-1 min-w-0" onclick="showDayPicker()">
+                    <div class="font-bold opacity-80 leading-none" style="font-size:10px" id="day-counter">JOUR 1/1</div>
+                    <div class="font-black leading-tight mt-0.5 truncate" style="font-size:15px" id="current-day-date">Chargement...</div>
                 </div>
-                <button onclick="nextDay()" id="next-day-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">→</button>
+                <button onclick="nextDay()" id="next-day-btn" class="flex-shrink-0 flex items-center justify-center active:scale-95 transition-transform" style="width:52px;height:64px;font-size:22px">→</button>
+                <button onclick="toggleConfigFAB()" class="flex-shrink-0 flex items-center justify-center active:scale-95 transition-all rounded-l-2xl" style="width:52px;height:64px;background:rgba(255,255,255,0.18);border-left:1px solid rgba(255,255,255,0.25)" aria-label="Réglages">
+                    <span style="font-size:20px">⚙️</span>
+                </button>
             </div>
         </div>
     </div>
@@ -2839,7 +2869,7 @@
                 hotelCard.className = "rounded-2xl p-4 border-2 mb-4";
                 hotelCard.style.cssText = _dk
                     ? "background:#1c1209;border-color:#c2410c60"
-                    : "background:linear-gradient(to right,#ffedd5,#fee2e2);border-color:#fdba7460";
+                    : "background:linear-gradient(to right,#fed7aa,#fecdd3);border-color:#fb923c80";
                 hotelCard.innerHTML = `
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
@@ -3363,7 +3393,7 @@
             const bookingRequired = place.booking_required;
             const pid = place.place_id || '';
             if (bookingUrl) {
-                return '<button type="button" ontouchstart="this._t0=Date.now();this._x0=event.touches[0].clientX;this._y0=event.touches[0].clientY" ontouchmove="this._moved=(Math.abs(event.touches[0].clientX-this._x0)>8||Math.abs(event.touches[0].clientY-this._y0)>8)" ontouchend="if(!this._moved&&!window._navSwipeBlocked&&!window._touchOnCard&&(Date.now()-this._t0)<400){event.preventDefault();event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\');}" onclick="event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\')" class="' + BASE + ' hover:brightness-95" style="' + chipStyle + ';cursor:pointer">'
+                return '<button type="button" ontouchstart="event.stopPropagation();this._t0=Date.now();this._x0=event.touches[0].clientX;this._y0=event.touches[0].clientY" ontouchmove="this._moved=(Math.abs(event.touches[0].clientX-this._x0)>8||Math.abs(event.touches[0].clientY-this._y0)>8)" ontouchend="if(!this._moved&&!window._navSwipeBlocked&&!window._touchOnCard&&(Date.now()-this._t0)<400){event.preventDefault();event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\');}" onclick="event.stopPropagation();window.open(\'' + bookingUrl + '\',\'_blank\')" class="' + BASE + ' hover:brightness-95" style="' + chipStyle + ';cursor:pointer">'
                     + '<span class="font-black text-[12px] leading-none">' + priceStr + '</span>'
                     + '<span class="text-[8px] opacity-70 mt-0.5">🎟 Réserver</span></button>';
             }
@@ -3373,7 +3403,7 @@
                     + '<span class="font-black text-[11px] leading-none">' + priceStr + '</span>'
                     + '<span class="text-[8px] mt-0.5">🚶 Sans résa</span></div>';
             }
-            return '<div class="' + BASE + ' price-flip-chip" data-pid="' + pid + '" style="' + chipStyle + '" onclick="event.stopPropagation();flipPriceChip(this)">'
+            return '<div class="' + BASE + ' price-flip-chip" data-pid="' + pid + '" style="' + chipStyle + '" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation();flipPriceChip(this)">'
                 + '<div class="price-flip-front w-full flex flex-col items-center justify-center">'
                 + '<span class="font-black leading-none" style="font-size:13px">' + priceStr + '</span>'
                 + (place.price_detail ? '<span class="opacity-60 leading-none mt-0.5 text-center" style="font-size:7px;max-width:44px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + place.price_detail.split(',')[0].replace('adulte','ad.') + '</span>' : '')
@@ -4060,18 +4090,25 @@
 
             element.addEventListener('touchstart', (e) => {
                 if (e.touches.length > 1) return;
+                // Ne pas démarrer le longpress si on touche un bouton/chip/lien
+                const target = e.target;
+                const isInteractive = target.closest('button, a, .price-flip-chip, [onclick]');
+                if (isInteractive) {
+                    window._touchOnCard = false;
+                    return;
+                }
+                window._touchOnCard = true;
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
                 touchCurrentX = touchStartX;
                 touchCurrentY = touchStartY;
                 mode = null; swipeDir = null;
                 dragActive = false; longPressActive = false;
-                // Ne bloquer la navigation que si longpress confirmé (pas sur simple touch)
 
                 longPressTimer = setTimeout(() => {
                     longPressActive = true;
                     mode = 'longpress';
-                    window._navSwipeBlocked = true; // bloquer nav jour pendant longpress
+                    window._navSwipeBlocked = true;
                     vibrate(50);
                     startLongPressVisual();
                 }, 400);
@@ -4276,47 +4313,98 @@
 
 
         function reorderActivity(draggedId, targetId, insertBefore) {
-            const dayActs = activities.filter(a => a.dayIndex === currentDayIndex && !a.time_flexible);
             const dragged = activities.find(a => a.id === draggedId);
             const target  = activities.find(a => a.id === targetId);
             if (!dragged || !target) return;
 
-            // Recalculer les heures en fonction de la nouvelle position
-            // Extraire les activités du jour triées par heure actuelle
-            const dayFixed = activities
-                .filter(a => a.dayIndex === currentDayIndex && !a.time_flexible)
+            // Toutes les activités du jour triées par heure
+            const dayAll = activities
+                .filter(a => a.dayIndex === currentDayIndex)
                 .sort((a, b) => a.time.localeCompare(b.time));
 
-            // Retirer le dragged de la liste
-            const without = dayFixed.filter(a => a.id !== draggedId);
+            // Retirer le dragged puis insérer à la bonne position
+            const without = dayAll.filter(a => a.id !== draggedId);
             const targetIdx = without.findIndex(a => a.id === targetId);
             if (targetIdx === -1) return;
-
-            // Insérer avant ou après la cible
             const insertIdx = insertBefore ? targetIdx : targetIdx + 1;
             without.splice(insertIdx, 0, dragged);
 
-            // Réassigner les heures : ancrage sur la première heure, espacer par durée + trajet
-            // Garder l'heure de la première activité comme ancrage
-            const anchorTime = without[0].time;
-            // On ne change que l'ordre dans activities[], les heures seront recalculées par renderPlanning
-            // Stratégie : décaler les heures pour que l'ordre soit respecté
-            without.forEach((act, idx) => {
-                const globalIdx = activities.findIndex(a => a.id === act.id);
-                if (globalIdx >= 0) {
-                    // Réassigner un time qui respecte l'ordre (H:mm incrémental de 1 min)
-                    // renderPlanning recalculera via realTimes
-                    const baseH = parseInt(anchorTime.split(':')[0]);
-                    const baseM = parseInt(anchorTime.split(':')[1]);
-                    const offsetMin = idx; // 1 minute d'écart symbolique pour l'ordre
-                    const newMin = baseM + offsetMin;
-                    const newH = baseH + Math.floor(newMin / 60);
-                    activities[globalIdx].time = String(newH % 24).padStart(2,'0') + ':' + String(newMin % 60).padStart(2,'0');
-                }
-            });
+            // Recalcul intelligent des heures :
+            // On garde l'heure de chaque activité sauf le dragged qu'on recale
+            // entre ses deux voisins (interpolation)
+            const prev = without[insertIdx - 1];
+            const next = without[insertIdx + 1];
+
+            let newTime = dragged.time; // fallback
+            if (prev && next) {
+                // Milieu entre fin du précédent et début du suivant
+                const prevH = parseInt(prev.time.split(':')[0]);
+                const prevM = parseInt(prev.time.split(':')[1]);
+                const prevEndMin = prevH * 60 + prevM + (prev.duration_minutes || 90) + 15; // +15min tampon
+                const nextH = parseInt(next.time.split(':')[0]);
+                const nextM = parseInt(next.time.split(':')[1]);
+                const nextStartMin = nextH * 60 + nextM;
+                const midMin = Math.round((prevEndMin + nextStartMin) / 2);
+                const clampedMin = Math.max(prevEndMin, Math.min(midMin, nextStartMin - 1));
+                newTime = String(Math.floor(clampedMin / 60) % 24).padStart(2,'0') + ':' + String(clampedMin % 60).padStart(2,'0');
+            } else if (prev) {
+                // Juste après le précédent
+                const prevH = parseInt(prev.time.split(':')[0]);
+                const prevM = parseInt(prev.time.split(':')[1]);
+                const afterMin = prevH * 60 + prevM + (prev.duration_minutes || 90) + 15;
+                newTime = String(Math.floor(afterMin / 60) % 24).padStart(2,'0') + ':' + String(afterMin % 60).padStart(2,'0');
+            } else if (next) {
+                // Juste avant le suivant
+                const nextH = parseInt(next.time.split(':')[0]);
+                const nextM = parseInt(next.time.split(':')[1]);
+                const beforeMin = Math.max(0, nextH * 60 + nextM - (dragged.duration_minutes || 90) - 15);
+                newTime = String(Math.floor(beforeMin / 60) % 24).padStart(2,'0') + ':' + String(beforeMin % 60).padStart(2,'0');
+            }
+
+            // Mettre à jour l'heure du dragged
+            const globalIdx = activities.findIndex(a => a.id === draggedId);
+            if (globalIdx >= 0) {
+                activities[globalIdx].time = newTime;
+                activities[globalIdx].time_flexible = false; // fixer l'heure choisie
+            }
 
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
             renderPlanning();
+
+            // ── Proposer l'optimisation IA après le réordonnancement ───────
+            setTimeout(() => showDragOptimPrompt(draggedId, dragged.title, newTime), 400);
+        }
+
+        function showDragOptimPrompt(draggedId, actTitle, newTime) {
+            // Petit toast en bas avec une proposition d'optimiser
+            const existing = document.getElementById('drag-optim-toast');
+            if (existing) existing.remove();
+
+            const dk = document.documentElement.classList.contains('dark');
+            const toast = document.createElement('div');
+            toast.id = 'drag-optim-toast';
+            toast.style.cssText = [
+                'position:fixed',
+                'bottom:' + (document.body.classList.contains('nav-visible') ? '76' : '16') + 'px',
+                'left:50%',
+                'transform:translateX(-50%)',
+                'z-index:270',
+                'animation:slideUp 0.35s ease',
+                'max-width:340px',
+                'width:calc(100% - 32px)',
+            ].join(';');
+            toast.innerHTML = '<div style="background:' + (dk?'#1e293b':'white') + ';border:1.5px solid ' + (dk?'#6d28d9':'#c4b5fd') + ';border-radius:16px;padding:12px 16px;box-shadow:0 8px 24px rgba(0,0,0,0.18);display:flex;align-items:center;gap:10px">'
+                + '<span style="font-size:20px;flex-shrink:0">🔄</span>'
+                + '<div style="flex:1;min-width:0">'
+                + '<div style="font-weight:700;font-size:13px;color:' + (dk?'#f1f5f9':'#1f2937') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + actTitle + ' → ' + newTime + '</div>'
+                + '<div style="font-size:11px;color:' + (dk?'#a78bfa':'#7c3aed') + ';margin-top:2px">Voulez-vous optimiser la journée ?</div>'
+                + '</div>'
+                + '<button onclick="document.getElementById('drag-optim-toast').remove();optimizeDay();" style="flex-shrink:0;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:10px;padding:6px 12px;font-weight:700;font-size:12px;cursor:pointer">✨ Optim</button>'
+                + '<button onclick="document.getElementById('drag-optim-toast').remove()" style="flex-shrink:0;background:none;border:none;color:' + (dk?'#64748b':'#9ca3af') + ';font-size:20px;cursor:pointer;padding:0 4px;line-height:1">×</button>'
+                + '</div>';
+            document.body.appendChild(toast);
+            // Auto-dismiss après 8 secondes
+            setTimeout(() => { const t = document.getElementById('drag-optim-toast'); if(t) { t.style.opacity='0'; t.style.transition='opacity 0.4s'; setTimeout(()=>t.remove(),400); } }, 8000);
         }
 
         function completeActivity(activityId, element) {
@@ -4608,7 +4696,11 @@
         let configDayIndex = 0;
 
         function showFAB() {
-            document.getElementById('fab-wrapper').style.display = 'block';
+            // Le bouton ⚙️ est maintenant intégré dans la nav du bas
+            // Le FAB flottant reste en backup uniquement si pas de nav visible
+            if (!document.body.classList.contains('nav-visible')) {
+                document.getElementById('fab-wrapper').style.display = 'block';
+            }
         }
         function revealFab() {}
         function peekFab() {}
