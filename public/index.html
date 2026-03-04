@@ -5057,38 +5057,107 @@
             return null;
         }
 
+        // ── Logs de diagnostic carte ─────────────────────────────────────────────
+        let _mapDiagLogs = [];
+        function _mapLog(emoji, msg, detail) {
+            const entry = { t: new Date().toISOString().slice(11,23), emoji, msg, detail: detail||'' };
+            _mapDiagLogs.push(entry);
+            console.log(`[MAP] ${emoji} ${msg}`, detail||'');
+            const panel = document.getElementById('map-diag-panel');
+            if (panel) {
+                const line = document.createElement('div');
+                line.style.cssText = 'padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:11px;color:#cbd5e1';
+                line.innerHTML = `<span style="opacity:0.5;font-size:10px">${entry.t}</span> ${emoji} <b>${msg}</b>${detail ? ' <span style="opacity:0.6">'+detail+'</span>' : ''}`;
+                panel.appendChild(line);
+                panel.scrollTop = panel.scrollHeight;
+            }
+        }
+
         async function loadMapsAPI() {
-            if (window.google?.maps) return true;
-            document.getElementById('map-loader-sub').textContent = 'Connexion à Google Maps…';
+            if (window.google?.maps) { _mapLog('✅','Maps déjà chargé'); return true; }
+            _mapLog('🔑','Récupération clé Maps…');
             try {
                 const r = await fetch('/api/maps-key');
-                const { key } = await r.json();
-                if (!key) throw new Error('Clé Maps manquante');
+                const json = await r.json();
+                const key = json.key;
+                _mapLog(key ? '🔑' : '❌', key ? 'Clé reçue' : 'Clé vide !', key ? key.slice(0,12)+'…' : 'Vérifier GOOGLE_MAPS_BROWSER_KEY dans .env');
+                if (!key) throw new Error('GOOGLE_MAPS_BROWSER_KEY manquante dans les variables d\'environnement');
+
+                _mapLog('📡','Chargement script Maps JS…');
                 await new Promise((resolve, reject) => {
-                    const timer = setTimeout(() => reject(new Error('Timeout chargement Maps (10s)')), 10000);
+                    // Sans loading=async pour compatibilité maximale
+                    const timer = setTimeout(() => reject(new Error('Timeout 12s — réseau lent ou clé refusée')), 12000);
                     const s = document.createElement('script');
-                    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&language=fr&loading=async&v=weekly`;
-                    s.onload = () => { clearTimeout(timer); resolve(); };
-                    s.onerror = () => { clearTimeout(timer); reject(new Error('Clé Maps invalide ou API non activée')); };
+                    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&language=fr&v=weekly`;
+                    s.onload = () => {
+                        clearTimeout(timer);
+                        _mapLog('✅','Script Maps chargé', 'google.maps disponible: ' + !!window.google?.maps);
+                        resolve();
+                    };
+                    s.onerror = (e) => {
+                        clearTimeout(timer);
+                        reject(new Error('Erreur chargement script — API Maps JavaScript non activée ou clé restreinte'));
+                    };
                     document.head.appendChild(s);
                 });
                 return true;
             } catch(e) {
-                document.getElementById('map-loader').innerHTML =
-                    '<div style="text-align:center;padding:32px"><div style="font-size:40px;margin-bottom:12px">⚠️</div>' +
-                    '<div style="color:white;font-weight:700">Carte indisponible</div>' +
-                    '<div style="color:#94a3b8;font-size:12px;margin-top:8px">' + e.message + '</div>' +
-                    '<button onclick="toggleMapView()" style="margin-top:20px;background:#7c3aed;color:white;border:none;border-radius:12px;padding:10px 24px;font-weight:700;font-size:14px">Retour</button></div>';
+                _mapLog('💥','Échec', e.message);
+                _showMapError(e.message);
                 return false;
             }
         }
 
+        function _showMapError(msg) {
+            const loader = document.getElementById('map-loader');
+            loader.style.display = 'flex';
+            loader.innerHTML = `
+                <div style="width:100%;max-width:340px;padding:24px">
+                    <div style="text-align:center;margin-bottom:20px">
+                        <div style="font-size:36px;margin-bottom:8px">⚠️</div>
+                        <div style="color:white;font-weight:700;font-size:15px">Carte indisponible</div>
+                        <div style="color:#f87171;font-size:12px;margin-top:6px;padding:8px 12px;background:rgba(239,68,68,0.15);border-radius:8px;border:1px solid rgba(239,68,68,0.3)">${msg}</div>
+                    </div>
+                    <!-- Logs de diagnostic -->
+                    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px;margin-bottom:16px">
+                        <div style="color:#94a3b8;font-size:10px;font-weight:700;letter-spacing:0.08em;margin-bottom:6px">DIAGNOSTIC</div>
+                        <div id="map-diag-panel" style="max-height:160px;overflow-y:auto"></div>
+                    </div>
+                    <div style="display:flex;gap:10px">
+                        <button onclick="_mapDiagLogs=[]; document.getElementById('map-loader').style.display='flex'; document.getElementById('map-loader').innerHTML=''; toggleMapView(); setTimeout(()=>toggleMapView(),100);"
+                            style="flex:1;background:#7c3aed;color:white;border:none;border-radius:10px;padding:10px;font-weight:700;font-size:13px">
+                            🔄 Réessayer
+                        </button>
+                        <button onclick="toggleMapView()"
+                            style="flex:1;background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:10px;font-weight:700;font-size:13px">
+                            ✕ Fermer
+                        </button>
+                    </div>
+                    <div style="text-align:center;margin-top:10px">
+                        <a href="https://console.cloud.google.com/apis/library/maps-backend.googleapis.com" target="_blank"
+                           style="color:#a78bfa;font-size:11px;text-decoration:underline">
+                            → Activer Maps JavaScript API sur Google Cloud
+                        </a>
+                    </div>
+                </div>`;
+            // Re-remplir le panel de logs avec l'historique
+            const panel = document.getElementById('map-diag-panel');
+            if (panel) _mapDiagLogs.forEach(e => {
+                const line = document.createElement('div');
+                line.style.cssText = 'padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:11px;color:#cbd5e1';
+                line.innerHTML = `<span style="opacity:0.5;font-size:10px">${e.t}</span> ${e.emoji} <b>${e.msg}</b>${e.detail ? ' <span style="opacity:0.6">'+e.detail+'</span>' : ''}`;
+                panel.appendChild(line);
+            });
+        }
+
         async function initMap() {
+            _mapLog('🗺️','initMap démarré', `dayActivities: ${dayActivities.length} activités`);
             const ok = await loadMapsAPI();
             if (!ok) return;
 
-            document.getElementById('map-loader-sub').textContent = 'Chargement des activités…';
+            _mapLog('📍','Filtrage coordonnées…');
             const dayActs = dayActivities.filter(a => getActCoords(a));
+            _mapLog(dayActs.length > 0 ? '✅' : '⚠️', `${dayActs.length}/${dayActivities.length} activités géolocalisées`);
             if (dayActs.length === 0) {
                 document.getElementById('map-loader').innerHTML =
                     '<div style="text-align:center;padding:32px"><div style="font-size:40px;margin-bottom:12px">📍</div>' +
@@ -5118,6 +5187,7 @@
                 { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
             ];
 
+            _mapLog('🗺️','Création de la carte Google Maps…');
             _gmap = new google.maps.Map(document.getElementById('gmap'), {
                 center: { lat: avgLat, lng: avgLng },
                 zoom: 13,
@@ -5131,6 +5201,7 @@
 
             // Masquer le loader
             document.getElementById('map-loader').style.display = 'none';
+            _mapLog('✅','Carte affichée avec succès', `${dayActs.length} pins, centre ${avgLat.toFixed(4)},${avgLng.toFixed(4)}`);
 
             // Effacer les anciens marqueurs/polylines
             _mapMarkers.forEach(m => m.setMap(null));
@@ -5253,7 +5324,30 @@
             }
         }
 
-        async function toggleMapView() {
+        
+        function _updateMapHeaderAmbiance() {
+            if (!dayActivities.length) return;
+            // Compter les thèmes de la journée
+            const counts = {};
+            dayActivities.forEach(a => { const k = getThemeKey(a); counts[k] = (counts[k]||0)+1; });
+            const dominant = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'explorer';
+            // Gradients par thème dominant
+            const gradients = {
+                contempler: 'linear-gradient(135deg,#ea580c,#dc2626)',   // orange-rouge temples
+                restaurer:  'linear-gradient(135deg,#db2777,#9333ea)',   // rose-violet resto
+                promener:   'linear-gradient(135deg,#16a34a,#0284c7)',   // vert-bleu nature
+                explorer:   'linear-gradient(135deg,#0284c7,#7c3aed)',   // bleu-violet explore
+                detendre:   'linear-gradient(135deg,#9333ea,#db2777)',   // violet-rose onsen
+            };
+            const emojis = { contempler:'⛩️', restaurer:'🍜', promener:'🌿', explorer:'🏙️', detendre:'♨️' };
+            const header = document.getElementById('map-header');
+            if (header) header.style.background = gradients[dominant] || gradients.explorer;
+            // Icône dans le loader selon le thème
+            const icon = document.getElementById('map-loader-icon');
+            if (icon) icon.textContent = emojis[dominant] || '🗾';
+        }
+
+async function toggleMapView() {
             const mapView = document.getElementById('map-view');
             const navMapBtn = document.getElementById('nav-map-btn');
 
@@ -5269,15 +5363,25 @@
                 navMapBtn.classList.add('active');
                 _mapVisible = true;
 
-                // Mettre à jour le header
+                // Mettre à jour le header avec ambiance de la journée
                 document.getElementById('map-day-label').textContent =
                     document.getElementById('day-counter').textContent;
                 document.getElementById('map-day-date').textContent =
                     document.getElementById('current-day-date').textContent;
+                _updateMapHeaderAmbiance();
 
                 // (Re)charger la carte si besoin ou si le jour a changé
-                document.getElementById('map-loader').style.display = 'flex';
+                const loaderEl = document.getElementById('map-loader');
+                loaderEl.style.display = 'flex';
+                // Reconstruire le loader proprement (au cas où erreur précédente)
+                if (!loaderEl.querySelector('#map-loader-sub')) {
+                    loaderEl.innerHTML = `
+                        <div style="font-size:48px;margin-bottom:16px" id="map-loader-icon">🗾</div>
+                        <div style="color:white;font-weight:700;font-size:16px">Chargement de la carte…</div>
+                        <div id="map-loader-sub" style="color:#94a3b8;font-size:12px;margin-top:6px">Connexion à Google Maps…</div>`;
+                }
                 _mapInitialized = false;
+                _mapDiagLogs = [];
                 await initMap();
             }
         }
@@ -5361,9 +5465,9 @@
 
         <!-- Loader pendant l'init Maps -->
         <div id="map-loader" class="absolute inset-0 flex flex-col items-center justify-center" style="background:#0f172a;z-index:10">
-            <div style="font-size:48px;margin-bottom:16px">🗾</div>
+            <div id="map-loader-icon" style="font-size:48px;margin-bottom:16px">🗾</div>
             <div style="color:white;font-weight:700;font-size:16px">Chargement de la carte…</div>
-            <div id="map-loader-sub" style="color:#94a3b8;font-size:12px;margin-top:6px">Récupération de la clé Maps</div>
+            <div id="map-loader-sub" style="color:#94a3b8;font-size:12px;margin-top:6px">Connexion à Google Maps…</div>
         </div>
     </div>
 
