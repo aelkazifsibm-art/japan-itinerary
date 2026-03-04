@@ -2971,6 +2971,43 @@
                 }
             });
 
+            // ── 3b. Score géographique journée ─────────────────────────────
+            {
+                const geoActs = dayActivities.filter(a => a.place?.lat && a.place?.lng);
+                if (geoActs.length >= 2) {
+                    // Calculer distance totale approximative (Haversine)
+                    let totalKm = 0;
+                    for (let gi = 0; gi < geoActs.length - 1; gi++) {
+                        const a = geoActs[gi], b = geoActs[gi+1];
+                        const R = 6371;
+                        const dLat = (b.place.lat - a.place.lat) * Math.PI / 180;
+                        const dLng = (b.place.lng - a.place.lng) * Math.PI / 180;
+                        const h = Math.sin(dLat/2)**2 + Math.cos(a.place.lat*Math.PI/180) * Math.cos(b.place.lat*Math.PI/180) * Math.sin(dLng/2)**2;
+                        totalKm += R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+                    }
+                    const dk = document.documentElement.classList.contains('dark');
+                    const isCompact = totalKm < 5;
+                    const isMed = totalKm < 12;
+                    const scoreColor = isCompact ? '#16a34a' : isMed ? '#d97706' : '#dc2626';
+                    const scoreIcon  = isCompact ? '🟢' : isMed ? '🟡' : '🔴';
+                    const scoreLabel = isCompact ? 'Journée compacte' : isMed ? 'Journée modérée' : 'Journée étalée';
+                    const scoreDesc  = totalKm.toFixed(1) + ' km · ' + geoActs.length + ' lieux';
+
+                    const geoBar = document.createElement('div');
+                    geoBar.style.cssText = `margin:0 16px 12px;padding:10px 14px;border-radius:14px;display:flex;align-items:center;gap:10px;cursor:pointer;` +
+                        (dk ? 'background:#1e293b;border:1px solid #334155' : 'background:#f8fafc;border:1px solid #e2e8f0');
+                    geoBar.onclick = () => toggleMapView();
+                    geoBar.innerHTML =
+                        '<span style="font-size:16px">' + scoreIcon + '</span>' +
+                        '<div style="flex:1">' +
+                            '<div style="font-size:12px;font-weight:700;color:' + scoreColor + '">' + scoreLabel + '</div>' +
+                            '<div style="font-size:11px;color:' + (dk?'#94a3b8':'#6b7280') + '">' + scoreDesc + '</div>' +
+                        '</div>' +
+                        '<div style="font-size:11px;font-weight:600;color:#7c3aed;opacity:0.8">Voir carte →</div>';
+                    list.appendChild(geoBar);
+                }
+            }
+
             // ── 4. Rendu de chaque activité ──────────────────────────────────
             for (let i = 0; i < dayActivities.length; i++) {
                 // Toujours prendre la version fraîche depuis activities[] pour avoir les données enrichies
@@ -3095,6 +3132,8 @@
                         const navBlock = document.createElement('div');
                         navBlock.id        = navId;
                         navBlock.className = "nav-travel-block mx-4 my-1 relative z-10";
+                        navBlock.dataset.fromId = act.id;
+                        navBlock.dataset.toId   = nextAct.id;
                         navBlock.innerHTML = `
                             <div class="nav-info-pill">
                                 <span class="animate-pulse text-xs text-white/70">Calcul…</span>
@@ -3132,6 +3171,7 @@
             if (typeof _mapVisible !== 'undefined' && _mapVisible) {
                 document.getElementById('map-day-label').textContent = document.getElementById('day-counter').textContent;
                 document.getElementById('map-day-date').textContent = document.getElementById('current-day-date').textContent;
+                _mapLastDayKey = null; // invalider cache → force reload complet
                 document.getElementById('map-loader').style.display = 'flex';
                 _mapInitialized = false;
                 initMap();
@@ -3694,17 +3734,92 @@
             if (data.mode === 'walk' || (!hasTransit)) modeLabel = 'À pied';
             else if (hasWalk && hasTransit) modeLabel = 'Marche + transport';
             else modeLabel = 'En transport';
+
+            // ── Badge densité : couleur selon durée ──────────────────────
+            const totalMin = data.total_minutes;
+            const isLong = totalMin >= 45;
+            const isMed  = totalMin >= 20;
+            const pillColor = isLong
+                ? 'linear-gradient(135deg,#dc2626,#b91c1c)'   // rouge = long trajet
+                : isMed
+                    ? 'linear-gradient(135deg,#d97706,#b45309)' // orange = moyen
+                    : 'linear-gradient(135deg,#16a34a,#15803d)'; // vert = court ≤ 20min
+            const modeIcon = data.mode === 'walk' || !hasTransit ? '🚶' : hasWalk ? '🚶🚇' : '🚇';
+            const durStr = totalMin >= 60
+                ? Math.floor(totalMin/60) + 'h' + (totalMin%60 ? String(totalMin%60).padStart(2,'0') : '')
+                : totalMin + ' min';
+
             const pill = el.querySelector('.nav-info-pill');
             if (pill) {
-                // Formater la durée : minutes si < 60, sinon Xh[Ymin]
-                const totalMin = data.total_minutes;
-                const durStr = totalMin >= 60
-                    ? Math.floor(totalMin/60) + 'h' + (totalMin%60 ? String(totalMin%60).padStart(2,'0') : '')
-                    : totalMin + ' min';
+                pill.style.background = pillColor;
+                pill.style.cursor = 'pointer';
+                pill.setAttribute('onclick', 'handleTravelBlockTap(this)');
                 pill.innerHTML =
+                    '<span style="font-size:15px">' + modeIcon + '</span>' +
                     '<span class="font-black text-white" style="font-size:14px">' + durStr + '</span>' +
-                    '<span class="text-white/60" style="font-size:11px"> · ' + modeLabel + '</span>';
+                    '<span class="text-white/70" style="font-size:11px"> · ' + modeLabel + '</span>' +
+                    '<span style="margin-left:auto;font-size:11px;opacity:0.6">🗺</span>';
             }
+
+            // ── Mini-carte statique inline ────────────────────────────────
+            // Récupérer les coordonnées depuis le dataset du bloc
+            const fromId = el.dataset.fromId;
+            const toId   = el.dataset.toId;
+            if (fromId && toId && window._mapsKey) {
+                const fromAct = activities.find(a => String(a.id) === String(fromId));
+                const toAct   = activities.find(a => String(a.id) === String(toId));
+                const fromCoords = fromAct?.place?.lat ? `${fromAct.place.lat},${fromAct.place.lng}` : null;
+                const toCoords   = toAct?.place?.lat   ? `${toAct.place.lat},${toAct.place.lng}`   : null;
+
+                if (fromCoords && toCoords) {
+                    const dk = document.documentElement.classList.contains('dark');
+                    const mapStyle = dk
+                        ? '&style=element:geometry%7Ccolor:0x1a1a2e&style=element:labels.text.fill%7Ccolor:0x94a3b8&style=feature:water%7Celement:geometry%7Ccolor:0x0a1929&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748'
+                        : '&style=element:geometry%7Ccolor:0xf8f4f0&style=feature:water%7Celement:geometry%7Ccolor:0xd4e8f5&style=feature:road.highway%7Celement:geometry%7Ccolor:0xfde8c8&style=feature:poi%7Celement:labels%7Cvisibility:off';
+                    const staticUrl =
+                        'https://maps.googleapis.com/maps/api/staticmap' +
+                        '?size=600x120&scale=2' +
+                        '&markers=color:0x7c3aed%7Csize:small%7C' + encodeURIComponent(fromCoords) +
+                        '&markers=color:0xec4899%7Csize:small%7C' + encodeURIComponent(toCoords) +
+                        '&path=color:0x7c3aedaa%7Cweight:3%7C' + encodeURIComponent(fromCoords) + '%7C' + encodeURIComponent(toCoords) +
+                        mapStyle +
+                        '&key=' + window._mapsKey;
+
+                    // Injecter la mini-carte sous le pill
+                    let miniMap = el.querySelector('.mini-map-container');
+                    if (!miniMap) {
+                        miniMap = document.createElement('div');
+                        miniMap.className = 'mini-map-container';
+                        miniMap.style.cssText = 'margin-top:6px;border-radius:12px;overflow:hidden;height:72px;position:relative;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)';
+                        miniMap.setAttribute('onclick', 'handleTravelBlockTap(this.closest(".nav-travel-block").querySelector(".nav-info-pill"))');
+                        el.appendChild(miniMap);
+                    }
+                    // Lazy-load avec IntersectionObserver
+                    if ('IntersectionObserver' in window) {
+                        const obs = new IntersectionObserver((entries) => {
+                            if (entries[0].isIntersecting) {
+                                miniMap.innerHTML = '<img src="' + staticUrl + '" style="width:100%;height:72px;object-fit:cover;display:block" loading="lazy" onerror="this.parentElement.remove()">' +
+                                    '<div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(124,58,237,0.15),rgba(236,72,153,0.15));pointer-events:none"></div>';
+                                obs.disconnect();
+                            }
+                        }, { threshold: 0.1 });
+                        obs.observe(miniMap);
+                    } else {
+                        miniMap.innerHTML = '<img src="' + staticUrl + '" style="width:100%;height:72px;object-fit:cover;display:block" loading="lazy" onerror="this.parentElement.remove()">';
+                    }
+                }
+            }
+        }
+
+        function handleTravelBlockTap(pill) {
+            // Ouvrir la carte et zoomer sur ce segment
+            const block = pill.closest ? pill.closest('.nav-travel-block') : pill.parentElement;
+            const fromId = block?.dataset?.fromId;
+            const toId   = block?.dataset?.toId;
+            if (fromId && toId) {
+                window._mapZoomToSegment = { fromId, toId };
+            }
+            toggleMapView();
         }
 
 
@@ -5081,6 +5196,7 @@
                 const r = await fetch('/api/maps-key');
                 const json = await r.json();
                 const key = json.key;
+                if (key) window._mapsKey = key;
                 _mapLog(key ? '🔑' : '❌', key ? 'Clé reçue' : 'Clé vide !', key ? key.slice(0,12)+'…' : 'Vérifier GOOGLE_MAPS_BROWSER_KEY dans .env');
                 if (!key) throw new Error('GOOGLE_MAPS_BROWSER_KEY manquante dans les variables d\'environnement');
 
@@ -5215,6 +5331,37 @@
             // Masquer le loader
             document.getElementById('map-loader').style.display = 'none';
             _mapLog('✅','Carte affichée avec succès', `${dayActs.length} pins, centre ${avgLat.toFixed(4)},${avgLng.toFixed(4)}`);
+
+            // ── Animation récit ou zoom segment ──────────────────────────
+            if (window._mapZoomToSegment) {
+                // Zoomer sur le segment depuis le tap du bloc trajet
+                const { fromId, toId } = window._mapZoomToSegment;
+                window._mapZoomToSegment = null;
+                const fromAct = dayActs.find(a => String(a.id) === String(fromId));
+                const toAct   = dayActs.find(a => String(a.id) === String(toId));
+                if (fromAct && toAct) {
+                    const fc = getActCoords(fromAct), tc = getActCoords(toAct);
+                    if (fc && tc) {
+                        const segBounds = new google.maps.LatLngBounds();
+                        segBounds.extend(fc); segBounds.extend(tc);
+                        setTimeout(() => {
+                            _gmap.fitBounds(segBounds, { top:60, right:40, bottom:160, left:40 });
+                            // Ouvrir le popup de l'activité de destination
+                            const toIdx = dayActs.findIndex(a => String(a.id) === String(toId));
+                            if (toIdx !== -1) {
+                                const tColor = MAP_THEME_COLORS[getThemeKey(toAct)] || '#7c3aed';
+                                setTimeout(() => showMapPopup(toAct, toIdx+1, tColor), 500);
+                            }
+                        }, 300);
+                    }
+                }
+            } else if (dayActs.length > 1) {
+                // Animation récit : révèle les pins en cascade
+                _playMapStoryAnimation(dayActs);
+            }
+
+            // ── Timeline scrollable en bas ────────────────────────────────
+            _renderMapTimeline(dayActs);
 
             // Effacer les anciens marqueurs/polylines
             _mapMarkers.forEach(m => m.setMap(null));
@@ -5371,6 +5518,9 @@
                 popup.style.transform = 'translateY(0)';
             });
 
+            // Sync timeline
+            _highlightTimelineStep(num - 1);
+
             // Pan vers le pin en tenant compte du popup
             if (_gmap) {
                 const coords = getActCoords(act);
@@ -5403,6 +5553,117 @@
         }
 
         
+
+        // ── Animation récit : pins apparaissent un par un ─────────────────────
+        function _playMapStoryAnimation(dayActs) {
+            // Masquer tous les markers au départ
+            _mapMarkers.forEach(m => m.setOpacity(0));
+            _mapPolylines.forEach(p => p.setMap(null));
+
+            let step = 0;
+            function revealNext() {
+                if (step >= dayActs.length) {
+                    // Tout révélé → remettre les polylines
+                    _mapPolylines.forEach(p => p.setMap(_gmap));
+                    return;
+                }
+                // Révéler marker step
+                if (_mapMarkers[step]) {
+                    _mapMarkers[step].setOpacity(1);
+                    // Zoomer progressivement sur les points révélés
+                    if (step > 0) {
+                        const partialBounds = new google.maps.LatLngBounds();
+                        for (let pi = 0; pi <= step; pi++) {
+                            const c = getActCoords(dayActs[pi]);
+                            if (c) partialBounds.extend(c);
+                        }
+                        _gmap.fitBounds(partialBounds, { top:40, right:40, bottom:160, left:40 });
+                    } else {
+                        const c = getActCoords(dayActs[0]);
+                        if (c) { _gmap.setCenter(c); _gmap.setZoom(15); }
+                    }
+                    // Highlight la timeline
+                    _highlightTimelineStep(step);
+                }
+                step++;
+                if (step < dayActs.length) setTimeout(revealNext, 900);
+                else setTimeout(() => {
+                    _mapPolylines.forEach(p => p.setMap(_gmap));
+                    // Vue finale sur tous les points
+                    const finalBounds = new google.maps.LatLngBounds();
+                    dayActs.forEach(a => { const c = getActCoords(a); if (c) finalBounds.extend(c); });
+                    _gmap.fitBounds(finalBounds, { top:40, right:40, bottom:160, left:40 });
+                }, 400);
+            }
+            setTimeout(revealNext, 300);
+        }
+
+        // ── Timeline scrollable sous la barre ─────────────────────────────────
+        function _renderMapTimeline(dayActs) {
+            // Supprimer ancienne timeline
+            const old = document.getElementById('map-timeline');
+            if (old) old.remove();
+
+            if (dayActs.length === 0) return;
+
+            const dk = document.documentElement.classList.contains('dark');
+            const timeline = document.createElement('div');
+            timeline.id = 'map-timeline';
+            timeline.style.cssText = `
+                position:absolute;left:0;right:0;
+                bottom:88px;
+                padding:8px 12px;
+                display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;
+                z-index:19;pointer-events:auto;
+                -webkit-overflow-scrolling:touch;`;
+
+            dayActs.forEach((act, idx) => {
+                const color = MAP_THEME_COLORS[getThemeKey(act)] || '#7c3aed';
+                const chip = document.createElement('button');
+                chip.id = 'map-tl-' + idx;
+                chip.style.cssText = `
+                    flex-shrink:0;display:flex;flex-direction:column;align-items:center;
+                    padding:7px 12px;border-radius:14px;border:none;cursor:pointer;
+                    background:${dk ? 'rgba(30,41,59,0.92)' : 'rgba(255,255,255,0.92)'};
+                    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+                    box-shadow:0 2px 8px rgba(0,0,0,0.18);
+                    transition:all 0.25s;min-width:80px;`;
+                chip.innerHTML =
+                    '<div style="width:22px;height:22px;border-radius:50%;background:' + color + ';color:white;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;margin-bottom:3px">' + (idx+1) + '</div>' +
+                    '<div style="font-size:10px;font-weight:700;color:' + (dk?'#f1f5f9':'#1f2937') + ';white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis">' + (act.title.length > 12 ? act.title.slice(0,11)+'…' : act.title) + '</div>' +
+                    '<div style="font-size:9px;color:' + color + ';font-weight:600">' + act.time + '</div>';
+                chip.onclick = () => {
+                    const coords = getActCoords(act);
+                    if (coords && _gmap) _gmap.panTo(coords);
+                    showMapPopup(act, idx+1, color);
+                    _highlightTimelineStep(idx);
+                };
+                timeline.appendChild(chip);
+            });
+
+            document.getElementById('map-view').appendChild(timeline);
+        }
+
+        function _highlightTimelineStep(activeIdx) {
+            const dk = document.documentElement.classList.contains('dark');
+            document.querySelectorAll('[id^="map-tl-"]').forEach((chip, idx) => {
+                const act = dayActivities[idx];
+                if (!act) return;
+                const color = MAP_THEME_COLORS[getThemeKey(act)] || '#7c3aed';
+                if (idx === activeIdx) {
+                    chip.style.background = color;
+                    chip.style.transform = 'scale(1.08) translateY(-2px)';
+                    chip.style.boxShadow = '0 4px 16px ' + color + '55';
+                    chip.querySelectorAll('div').forEach(d => { d.style.color = 'white'; });
+                    chip.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
+                } else {
+                    chip.style.background = dk ? 'rgba(30,41,59,0.92)' : 'rgba(255,255,255,0.92)';
+                    chip.style.transform = '';
+                    chip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
+                }
+            });
+        }
+
         function _updateMapHeaderAmbiance() {
             if (!dayActivities.length) return;
             // Compter les thèmes de la journée
@@ -5494,6 +5755,8 @@ async function toggleMapView() {
                         updateCitySelector();
                         renderStaysList();
                         renderPlanning();
+                        // Pré-charger la clé Maps pour les mini-cartes inline
+                        fetch('/api/maps-key').then(r=>r.json()).then(d=>{ if(d.key) window._mapsKey=d.key; });
                         // Montrer l'onboarding si aucun séjour configuré
                         if (stays.length === 0) {
                             showFabOnboarding();
