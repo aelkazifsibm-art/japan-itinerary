@@ -18,6 +18,22 @@ app.use(express.static('public'));
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// ── Cache suggestion-preview (mémoire serveur) ────────────────────────────
+// Clé : nom normalisé de l'activité → évite les appels OpenAI répétés
+// TTL : 24h (les infos touristiques ne changent pas)
+const _suggestionCache = new Map();
+const _SUGGESTION_TTL = 24 * 60 * 60 * 1000; // 24h en ms
+function getCachedSuggestion(name) {
+    const key = name.toLowerCase().trim();
+    const entry = _suggestionCache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > _SUGGESTION_TTL) { _suggestionCache.delete(key); return null; }
+    return entry.data;
+}
+function setCachedSuggestion(name, data) {
+    _suggestionCache.set(name.toLowerCase().trim(), { data, ts: Date.now() });
+}
+
 // Configuration OSRM (Gratuit)
 const OSRM_BASE_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1';
 
@@ -597,6 +613,14 @@ app.post("/api/suggestion-preview", async (req, res) => {
     try {
         const { name, query, existing_activities } = req.body;
 
+        // ── Vérifier le cache serveur d'abord ──────────────────────────
+        const cached = getCachedSuggestion(name);
+        if (cached) {
+            console.log(`[cache HIT] suggestion-preview: ${name}`);
+            return res.json({ success: true, ...cached, _cached: true });
+        }
+        console.log(`[cache MISS] suggestion-preview: ${name} — appel OpenAI`);
+
         const activitiesContext = (existing_activities || [])
             .map(a => `${a.time} - ${a.title}`)
             .join('\n') || 'Aucune activité planifiée';
@@ -667,6 +691,8 @@ Génère une fiche de présentation avec :
             }
         }
 
+        // ── Mettre en cache serveur ────────────────────────────────────
+        setCachedSuggestion(name, { preview, place });
         res.json({ success: true, preview, place });
     } catch (e) {
         console.error("suggestion-preview error:", e);
@@ -771,5 +797,11 @@ JSON de réponse:
     }
 });
 
+
+// ── Expose clé Maps navigateur au client ─────────────────────────────────
+app.get('/api/maps-key', (req, res) => {
+    const key = process.env.GOOGLE_MAPS_BROWSER_KEY || '';
+    res.json({ key });
+});
 
 app.listen(port, () => console.log(`✅ Serveur prêt sur http://localhost:${port}`));

@@ -300,6 +300,14 @@
         }
 
 
+
+        /* ── Map view dark mode ──────────────────────────── */
+        html.dark #map-popup { background: #1e293b !important; }
+        html.dark #map-popup-title { color: #f1f5f9 !important; }
+        html.dark #map-popup-sub   { color: #94a3b8 !important; }
+        html.dark #map-popup-prog  { color: #94a3b8 !important; }
+        #nav-map-btn.active { background: rgba(255,255,255,0.28) !important; }
+
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen pb-32 fuji-pattern">
@@ -488,6 +496,10 @@
                     <div class="font-black leading-tight mt-0.5 truncate" style="font-size:15px" id="current-day-date">Chargement...</div>
                 </div>
                 <button onclick="nextDay()" id="next-day-btn" class="flex-shrink-0 flex items-center justify-center active:scale-95 transition-transform" style="width:52px;height:64px;font-size:22px">→</button>
+                <button id="nav-map-btn" onclick="toggleMapView()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Carte">
+                    <span style="font-size:16px;line-height:1">🗺️</span>
+                    <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">CARTE</span>
+                </button>
                 <button id="nav-config-btn" onclick="toggleConfigFAB()" class="flex-shrink-0 flex items-center justify-center transition-all" style="width:52px;height:64px;background:rgba(0,0,0,0.18);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Réglages">
                     <span id="nav-config-icon" style="font-size:17px;opacity:0.85">⚙️</span>
                 </button>
@@ -1033,6 +1045,7 @@
         });
         if (_migrated) localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
         let tripData = JSON.parse(localStorage.getItem('japan_trip_info_v5') || 'null');
+        let _mapVisible = false; // vue carte
         let currentDayIndex = 0;
         let selectedPlace = null;
         let iaSuggestedLocation = "";
@@ -2046,17 +2059,23 @@
 
             // Appel API IA
             try {
-                const dayActs = activities
-                    .filter(a => a.dayIndex === currentDayIndex)
-                    .map(a => ({ time: a.time, title: a.title }));
-
-                const res = await fetch('/api/suggestion-preview', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, query, existing_activities: dayActs })
-                });
-                const data = await res.json();
-
+                // ── Cache localStorage (24h) ───────────────────────────
+                const _ck = 'jp_prev_' + name.toLowerCase().trim().replace(/\s+/g,'_').slice(0,50);
+                let data = null;
+                try {
+                    const _raw = localStorage.getItem(_ck);
+                    if (_raw) { const _e = JSON.parse(_raw); if (Date.now()-_e.ts < 86400000) data = _e.d; else localStorage.removeItem(_ck); }
+                } catch(e) {}
+                if (!data) {
+                    const dayActs = activities.filter(a => a.dayIndex === currentDayIndex).map(a => ({ time: a.time, title: a.title }));
+                    const res = await fetch('/api/suggestion-preview', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, query, existing_activities: dayActs })
+                    });
+                    data = await res.json();
+                    if (data.success) { try { localStorage.setItem(_ck, JSON.stringify({ d: data, ts: Date.now() })); } catch(e){} }
+                }
                 if (!data.success) throw new Error(data.error);
 
                 _previewPlace = data.place;
@@ -3108,6 +3127,14 @@
             }
 
         } // fin renderPlanning
+            // Recharger la carte si elle est visible
+            if (typeof _mapVisible !== 'undefined' && _mapVisible) {
+                document.getElementById('map-day-label').textContent = document.getElementById('day-counter').textContent;
+                document.getElementById('map-day-date').textContent = document.getElementById('current-day-date').textContent;
+                document.getElementById('map-loader').style.display = 'flex';
+                _mapInitialized = false;
+                initMap();
+            }
 
         // Guard anti-boucle : set des place_ids en cours de fetch
         const _enrichingIds = new Set();
@@ -4992,6 +5019,269 @@
             setTimeout(() => location.reload(), 500);
         }
 
+
+        // ═══════════════════════════════════════════════════════════
+        //  VUE CARTE — Google Maps
+        // ═══════════════════════════════════════════════════════════
+        let _mapInitialized = false;
+        let _gmap = null;
+        let _mapMarkers = [];
+        let _mapPolylines = [];
+                let _mapType = 'roadmap'; // roadmap | satellite
+
+        // Couleurs par thème (sync avec getActivityTheme)
+        const MAP_THEME_COLORS = {
+            contempler: '#fb923c',
+            restaurer:  '#f472b6',
+            promener:   '#4ade80',
+            explorer:   '#38bdf8',
+            detendre:   '#c084fc',
+        };
+
+        function getThemeKey(act) {
+            if (!act.place) return 'explorer';
+            const types = act.place.types || [];
+            const name  = (act.place.name || act.title || '').toLowerCase();
+            if (types.some(t => ['spa','hot_spring'].includes(t)) || /onsen|sento/i.test(name)) return 'detendre';
+            if (types.some(t => ['park','botanical_garden','natural_feature','beach'].includes(t)) || /park|parc|garden|bamboo|fuji/i.test(name)) return 'promener';
+            if (types.some(t => ['restaurant','cafe','bar','bakery'].includes(t)) || /ramen|sushi|izakaya|café|restaurant/i.test(name)) return 'restaurer';
+            if (types.some(t => ['temple','shrine','museum','castle','landmark'].includes(t)) || /temple|shrine|museum|musée|castle/i.test(name)) return 'contempler';
+            return 'explorer';
+        }
+
+        function getActCoords(act) {
+            const lat = act.place?.lat;
+            const lng = act.place?.lng;
+            if (lat && lng) return { lat: parseFloat(lat), lng: parseFloat(lng) };
+            return null;
+        }
+
+        async function loadMapsAPI() {
+            if (window.google?.maps) return true;
+            document.getElementById('map-loader-sub').textContent = 'Chargement API Maps…';
+            try {
+                const r = await fetch('/api/maps-key');
+                const { key } = await r.json();
+                if (!key) throw new Error('Clé Maps manquante');
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&language=fr`;
+                    s.onload = resolve;
+                    s.onerror = () => reject(new Error('Échec chargement Maps API'));
+                    document.head.appendChild(s);
+                });
+                return true;
+            } catch(e) {
+                document.getElementById('map-loader').innerHTML =
+                    '<div style="text-align:center;padding:32px"><div style="font-size:40px;margin-bottom:12px">⚠️</div>' +
+                    '<div style="color:white;font-weight:700">Carte indisponible</div>' +
+                    '<div style="color:#94a3b8;font-size:12px;margin-top:8px">' + e.message + '</div>' +
+                    '<button onclick="toggleMapView()" style="margin-top:20px;background:#7c3aed;color:white;border:none;border-radius:12px;padding:10px 24px;font-weight:700;font-size:14px">Retour</button></div>';
+                return false;
+            }
+        }
+
+        async function initMap() {
+            const ok = await loadMapsAPI();
+            if (!ok) return;
+
+            const dayActs = dayActivities.filter(a => getActCoords(a));
+            if (dayActs.length === 0) {
+                document.getElementById('map-loader').innerHTML =
+                    '<div style="text-align:center;padding:32px"><div style="font-size:40px;margin-bottom:12px">📍</div>' +
+                    '<div style="color:white;font-weight:700">Aucune activité géolocalisée</div>' +
+                    '<div style="color:#94a3b8;font-size:12px;margin-top:8px">Ajoutez des activités depuis les suggestions pour voir la carte</div>' +
+                    '<button onclick="toggleMapView()" style="margin-top:20px;background:#7c3aed;color:white;border:none;border-radius:12px;padding:10px 24px;font-weight:700;font-size:14px">Retour</button></div>';
+                return;
+            }
+
+            // Centre = barycentre des activités
+            const avgLat = dayActs.reduce((s, a) => s + getActCoords(a).lat, 0) / dayActs.length;
+            const avgLng = dayActs.reduce((s, a) => s + getActCoords(a).lng, 0) / dayActs.length;
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const mapStyles = isDark ? [
+                { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
+                { elementType: 'labels.text.fill', stylers: [{ color: '#a0aec0' }] },
+                { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a2e' }] },
+                { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2d3748' }] },
+                { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#4a5568' }] },
+                { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0a1929' }] },
+                { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#16213e' }] },
+                { featureType: 'transit.station', elementType: 'geometry', stylers: [{ color: '#2d3748' }] },
+            ] : [
+                { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'simplified' }] },
+                { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
+                { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+            ];
+
+            _gmap = new google.maps.Map(document.getElementById('gmap'), {
+                center: { lat: avgLat, lng: avgLng },
+                zoom: 13,
+                mapTypeId: _mapType,
+                styles: _mapType === 'roadmap' ? mapStyles : [],
+                disableDefaultUI: true,
+                zoomControl: true,
+                zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
+                gestureHandling: 'greedy',
+            });
+
+            // Masquer le loader
+            document.getElementById('map-loader').style.display = 'none';
+
+            // Effacer les anciens marqueurs/polylines
+            _mapMarkers.forEach(m => m.setMap(null));
+            _mapPolylines.forEach(p => p.setMap(null));
+            _mapMarkers = []; _mapPolylines = [];
+
+            // Bounds pour ajuster le zoom
+            const bounds = new google.maps.LatLngBounds();
+
+            // Polyline du parcours (traits entre activités)
+            const routePath = dayActs.map(a => getActCoords(a));
+            const polyline = new google.maps.Polyline({
+                path: routePath,
+                geodesic: true,
+                strokeColor: '#7c3aed',
+                strokeOpacity: 0.5,
+                strokeWeight: 3,
+                icons: [{
+                    icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#ec4899', fillColor: '#ec4899', fillOpacity: 1 },
+                    offset: '50%',
+                    repeat: '120px'
+                }]
+            });
+            polyline.setMap(_gmap);
+            _mapPolylines.push(polyline);
+
+            // Pins numérotés par activité
+            dayActs.forEach((act, idx) => {
+                const coords = getActCoords(act);
+                bounds.extend(coords);
+                const themeKey = getThemeKey(act);
+                const color = MAP_THEME_COLORS[themeKey] || '#7c3aed';
+                const num = idx + 1;
+
+                // SVG pin personnalisé
+                const svg = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="52" viewBox="0 0 40 52">
+                        <defs>
+                            <filter id="shadow${num}" x="-30%" y="-20%" width="160%" height="160%">
+                                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.35)"/>
+                            </filter>
+                        </defs>
+                        <path d="M20 2 C10 2 2 10 2 20 C2 32 20 50 20 50 C20 50 38 32 38 20 C38 10 30 2 20 2 Z"
+                              fill="${color}" filter="url(#shadow${num})"/>
+                        <circle cx="20" cy="20" r="13" fill="white" opacity="0.95"/>
+                        <text x="20" y="25" text-anchor="middle" font-family="system-ui,sans-serif"
+                              font-size="${num > 9 ? '11' : '13'}" font-weight="900" fill="${color}">${num}</text>
+                    </svg>`;
+
+                const marker = new google.maps.Marker({
+                    position: coords,
+                    map: _gmap,
+                    icon: {
+                        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+                        scaledSize: new google.maps.Size(40, 52),
+                        anchor: new google.maps.Point(20, 50),
+                    },
+                    title: act.title,
+                    zIndex: num,
+                });
+
+                // Tap sur pin → popup bas
+                marker.addListener('click', () => showMapPopup(act, num, color));
+                _mapMarkers.push(marker);
+            });
+
+            // Ajuster le zoom sur tous les pins + padding nav
+            _gmap.fitBounds(bounds, { top: 20, right: 20, bottom: 80, left: 20 });
+            if (dayActs.length === 1) _gmap.setZoom(15);
+
+            _mapInitialized = true;
+        }
+
+        function showMapPopup(act, num, color) {
+            const popup = document.getElementById('map-popup');
+            const isDark = document.documentElement.classList.contains('dark');
+
+            document.getElementById('map-popup-num').textContent = num;
+            document.getElementById('map-popup-num').style.background = color;
+            document.getElementById('map-popup-time').textContent = act.time + (act.duration_minutes ? '  ·  ' + (act.duration_minutes >= 60 ? Math.floor(act.duration_minutes/60)+'h'+(act.duration_minutes%60?String(act.duration_minutes%60).padStart(2,'0'):'') : act.duration_minutes+'min') : '');
+            document.getElementById('map-popup-title').textContent = act.title;
+
+            // Sous-titre : adresse ou type
+            const addr = act.place?.formatted_address || act.place?.name || '';
+            const shortAddr = addr.split(',').slice(0,2).join(',').trim();
+            document.getElementById('map-popup-sub').textContent = shortAddr;
+
+            // Ligne de progression : "Activité X/Y de la journée"
+            document.getElementById('map-popup-prog').innerHTML =
+                `<span style="color:${color};font-weight:700">${num}</span>` +
+                `<span>/</span><span style="font-weight:600">${_mapMarkers.length}</span>` +
+                `<span style="margin-left:4px">activités aujourd'hui</span>`;
+
+            popup.style.background = isDark ? '#1e293b' : 'white';
+            document.getElementById('map-popup-title').style.color = isDark ? '#f1f5f9' : '#1f2937';
+            popup.classList.remove('hidden');
+
+            // Centrer la carte sur ce pin avec offset pour le popup
+            if (_gmap) {
+                const coords = getActCoords(act);
+                if (coords) _gmap.panTo(coords);
+            }
+        }
+
+        function closeMapPopup() {
+            document.getElementById('map-popup').classList.add('hidden');
+        }
+
+        function toggleMapType() {
+            _mapType = _mapType === 'roadmap' ? 'satellite' : 'roadmap';
+            document.getElementById('map-type-btn').textContent = _mapType === 'roadmap' ? '🛰 Satellite' : '🗺 Plan';
+            if (_gmap) {
+                _gmap.setMapTypeId(_mapType);
+                if (_mapType === 'roadmap') {
+                    const isDark = document.documentElement.classList.contains('dark');
+                    // Réappliquer styles dark si besoin — recrée la carte est plus simple
+                    _mapInitialized = false;
+                    initMap();
+                }
+            }
+        }
+
+        async function toggleMapView() {
+            const mapView = document.getElementById('map-view');
+            const navMapBtn = document.getElementById('nav-map-btn');
+
+            if (_mapVisible) {
+                // Fermer
+                mapView.classList.add('hidden');
+                navMapBtn.classList.remove('active');
+                _mapVisible = false;
+                closeMapPopup();
+            } else {
+                // Ouvrir
+                mapView.classList.remove('hidden');
+                navMapBtn.classList.add('active');
+                _mapVisible = true;
+
+                // Mettre à jour le header
+                document.getElementById('map-day-label').textContent =
+                    document.getElementById('day-counter').textContent;
+                document.getElementById('map-day-date').textContent =
+                    document.getElementById('current-day-date').textContent;
+
+                // (Re)charger la carte si besoin ou si le jour a changé
+                document.getElementById('map-loader').style.display = 'flex';
+                _mapInitialized = false;
+                await initMap();
+            }
+        }
+
+        // Recharger la carte quand on change de jour (si ouverte)
+        const _origUpdateDayNav = typeof updateDayNavigation === 'function' ? updateDayNavigation : null;
+
         // ========== INITIALISATION ==========
         window.onload = function() {
             // Splash screen pendant 1.5 secondes
@@ -5024,6 +5314,55 @@
             }, 1500);
         };
     </script>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         VUE CARTE JOURNÉE
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="map-view" class="fixed inset-0 z-[190] hidden flex flex-col" style="background:#0f172a">
+
+        <!-- Header carte -->
+        <div id="map-header" class="flex-shrink-0 flex items-center justify-between px-4 text-white" style="height:56px;background:linear-gradient(135deg,#7c3aed,#ec4899);padding-top:env(safe-area-inset-top,0)">
+            <div>
+                <div style="font-size:10px;opacity:0.75;font-weight:600;letter-spacing:0.08em" id="map-day-label">JOUR 1/1</div>
+                <div style="font-size:15px;font-weight:800" id="map-day-date">Chargement…</div>
+            </div>
+            <div class="flex items-center gap-2">
+                <!-- Toggle liste/satellite -->
+                <button id="map-type-btn" onclick="toggleMapType()" style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;color:white">
+                    🛰 Satellite
+                </button>
+                <button onclick="toggleMapView()" style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:800;color:white">
+                    ✕
+                </button>
+            </div>
+        </div>
+
+        <!-- Conteneur Google Maps -->
+        <div id="gmap" class="flex-1 w-full"></div>
+
+        <!-- Bottom sheet — info activité sélectionnée -->
+        <div id="map-popup" class="flex-shrink-0 hidden" style="background:white;border-radius:20px 20px 0 0;padding:16px 20px 24px;box-shadow:0 -8px 32px rgba(0,0,0,0.25);max-height:240px">
+            <div class="flex items-start gap-3">
+                <div id="map-popup-num" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:white;flex-shrink:0;background:#7c3aed">1</div>
+                <div class="flex-1 min-w-0">
+                    <div id="map-popup-time" style="font-size:11px;color:#7c3aed;font-weight:700;margin-bottom:2px"></div>
+                    <div id="map-popup-title" style="font-size:17px;font-weight:800;color:#1f2937;line-height:1.2"></div>
+                    <div id="map-popup-sub" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
+                </div>
+                <button onclick="closeMapPopup()" style="color:#9ca3af;font-size:20px;line-height:1;flex-shrink:0;padding:2px">✕</button>
+            </div>
+            <!-- Ligne de progression -->
+            <div id="map-popup-prog" class="flex items-center gap-2 mt-3" style="font-size:11px;color:#6b7280"></div>
+        </div>
+
+        <!-- Loader pendant l'init Maps -->
+        <div id="map-loader" class="absolute inset-0 flex flex-col items-center justify-center" style="background:#0f172a;z-index:10">
+            <div style="font-size:48px;margin-bottom:16px">🗾</div>
+            <div style="color:white;font-weight:700;font-size:16px">Chargement de la carte…</div>
+            <div id="map-loader-sub" style="color:#94a3b8;font-size:12px;margin-top:6px">Récupération de la clé Maps</div>
+        </div>
+    </div>
 
     <!-- MODAL CONFIRMATION SUPPRESSION ACTIVITÉ -->
     <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[500] hidden flex items-center justify-center p-6">
