@@ -501,7 +501,7 @@
         <div class="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 flex-shrink-0">
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-bold">⚙️ Configuration</h2>
-                <div class="text-xs opacity-60 font-medium">← Fermer via ✕ en bas</div>
+                <div></div>
             </div>
         </div>
 
@@ -2113,7 +2113,7 @@
 
                         <!-- CTA -->
                         <div class="px-5 pb-6 flex gap-3" style="background:${dk?'#0f172a':'white'}">
-                            <button onclick="closeSuggestionPreview()" class="flex-1 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all" style="background:${_dkM?'#1e293b':'#f3f4f6'};color:${_dkM?'#cbd5e1':'#4b5563'}">
+                            <button onclick="closeSuggestionPreview()" class="flex-1 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all" style="background:${dk?'#1e293b':'#f3f4f6'};color:${dk?'#cbd5e1':'#4b5563'}">
                                 Annuler
                             </button>
                             <button onclick="confirmSuggestion()" class="flex-2 flex-[2] bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-black text-sm shadow-lg hover:shadow-xl active:scale-95 transition-all">
@@ -2492,7 +2492,7 @@
                     <!-- Actions -->
                     <div class="p-4 flex gap-3 flex-shrink-0 rounded-b-3xl sm:rounded-b-2xl" style="border-top:1px solid ${_dkM?'#334155':'#f3f4f6'};background:${_dkM?'#0f172a':'white'}">
                         <button onclick="document.getElementById('optimization-modal').remove()" 
-                                class="flex-1 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all" style="background:${_dkM?'#1e293b':'#f3f4f6'};color:${_dkM?'#cbd5e1':'#4b5563'}">
+                                class="flex-1 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all" style="background:${dk?'#1e293b':'#f3f4f6'};color:${dk?'#cbd5e1':'#4b5563'}">
                             Annuler
                         </button>
                         <button onclick="applyOptimization(${JSON.stringify(optimized).replace(/"/g, '&quot;')})"
@@ -4741,15 +4741,16 @@
             const navBtn = document.getElementById('nav-config-btn');
             const navIcon = document.getElementById('nav-config-icon');
             if (navBtn) {
-                navBtn.style.background = 'rgba(255,255,255,0.22)';
-                navBtn.style.borderLeft = '1px solid rgba(255,255,255,0.3)';
-                navBtn.style.borderRadius = '14px 0 0 0';
+                navBtn.style.background = 'rgba(255,255,255,0.28)';
+                navBtn.style.borderLeft = '1px solid rgba(255,255,255,0.35)';
+                navBtn.style.borderRadius = '';
             }
             if (navIcon) {
                 navIcon.textContent = '✕';
-                navIcon.style.fontSize = '16px';
+                navIcon.style.fontSize = '18px';
                 navIcon.style.opacity = '1';
-                navIcon.style.fontWeight = '700';
+                navIcon.style.fontWeight = '800';
+                navIcon.style.letterSpacing = '-1px';
             }
             syncConfigToggles();
             configDayIndex = currentDayIndex;
