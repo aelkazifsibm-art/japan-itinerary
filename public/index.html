@@ -460,7 +460,7 @@
     </header>
 
     <!-- PLANNING (avec support swipe) -->
-    <main class="max-w-md mx-auto p-4 space-y-4 swipe-container hidden pb-24" id="planning-list">
+    <main class="max-w-md mx-auto p-4 space-y-4 swipe-container hidden" style="padding-bottom:220px" id="planning-list">
         <!-- Les activités et blocs navigation seront injectés ici -->
     </main>
 
@@ -509,6 +509,45 @@
     </div>
 
     <!-- NAVIGATION DES JOURS (en bas, fixe) -->
+    <!-- ── Barre prochain lieu (z-49, juste au-dessus du fond mais sous la nav) ── -->
+    <div id="next-place-bar" class="fixed bottom-0 left-0 right-0 hidden" style="z-index:49;transform:translateY(0);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1)">
+        <div class="max-w-md mx-auto" style="padding-bottom:72px">
+            <div id="next-place-inner" onclick="scrollToNextActivity()" style="
+                margin:0 12px 8px;
+                border-radius:18px;
+                overflow:hidden;
+                box-shadow:0 -4px 24px rgba(0,0,0,0.14);
+                cursor:pointer;
+                position:relative;
+                background:white;
+                display:flex;
+                align-items:stretch;
+                min-height:72px;">
+                <!-- Photo fond -->
+                <div id="next-place-photo" style="width:80px;flex-shrink:0;background:#f3f4f6;overflow:hidden;position:relative">
+                    <img id="next-place-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:none" />
+                    <div id="next-place-emoji" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px">📍</div>
+                </div>
+                <!-- Infos -->
+                <div style="flex:1;padding:10px 12px;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span id="next-place-label" style="font-size:9px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;opacity:0.5">PROCHAIN LIEU</span>
+                        <span id="next-place-time-badge" style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:#7c3aed18;color:#7c3aed"></span>
+                    </div>
+                    <div id="next-place-title" style="font-size:15px;font-weight:800;color:#111827;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span id="next-place-travel" style="font-size:11px;font-weight:600;color:#6b7280"></span>
+                        <span id="next-place-rating" style="font-size:11px;font-weight:700;color:#f59e0b"></span>
+                    </div>
+                </div>
+                <!-- Flèche -->
+                <div style="width:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#d1d5db;font-size:18px">›</div>
+                <!-- Gradient couleur thème en haut -->
+                <div id="next-place-gradient" style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,#7c3aed,#ec4899)"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="day-navigation" class="fixed bottom-0 left-0 right-0 bg-white shadow-2xl z-50 hidden border-t-2 border-gray-100">
         <div class="max-w-md mx-auto">
             <div class="flex items-center bg-gradient-to-r from-purple-500 to-pink-500 text-white" style="height:64px">
@@ -3287,7 +3326,8 @@
                     booking_url:      data.place.booking_url      || null,
                     booking_required: data.place.booking_required !== undefined ? data.place.booking_required : null,
                     types:          data.place.types,
-                    ai_hours:       data.place.ai_hours || false
+                    ai_hours:       data.place.ai_hours || false,
+                    photo_reference: data.place.photo_reference || null
                 };
                 setPlaceCache(placeId, placeData);
                 return placeData;
@@ -3804,54 +3844,7 @@
                     '<span style="margin-left:auto;font-size:11px;opacity:0.6">🗺</span>';
             }
 
-            // ── Mini-carte statique inline ────────────────────────────────
-            // Récupérer les coordonnées depuis le dataset du bloc
-            const fromId = el.dataset.fromId;
-            const toId   = el.dataset.toId;
-            if (fromId && toId && window._mapsKey) {
-                const fromAct = activities.find(a => String(a.id) === String(fromId));
-                const toAct   = activities.find(a => String(a.id) === String(toId));
-                const fromCoords = fromAct?.place?.lat ? `${fromAct.place.lat},${fromAct.place.lng}` : null;
-                const toCoords   = toAct?.place?.lat   ? `${toAct.place.lat},${toAct.place.lng}`   : null;
 
-                if (fromCoords && toCoords) {
-                    const dk = document.documentElement.classList.contains('dark');
-                    const mapStyle = dk
-                        ? '&style=element:geometry%7Ccolor:0x1a1a2e&style=element:labels.text.fill%7Ccolor:0x94a3b8&style=feature:water%7Celement:geometry%7Ccolor:0x0a1929&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748'
-                        : '&style=element:geometry%7Ccolor:0xf8f4f0&style=feature:water%7Celement:geometry%7Ccolor:0xd4e8f5&style=feature:road.highway%7Celement:geometry%7Ccolor:0xfde8c8&style=feature:poi%7Celement:labels%7Cvisibility:off';
-                    const staticUrl =
-                        'https://maps.googleapis.com/maps/api/staticmap' +
-                        '?size=600x120&scale=2' +
-                        '&markers=color:0x7c3aed%7Csize:small%7C' + encodeURIComponent(fromCoords) +
-                        '&markers=color:0xec4899%7Csize:small%7C' + encodeURIComponent(toCoords) +
-                        '&path=color:0x7c3aedaa%7Cweight:3%7C' + encodeURIComponent(fromCoords) + '%7C' + encodeURIComponent(toCoords) +
-                        mapStyle +
-                        '&key=' + window._mapsKey;
-
-                    // Injecter la mini-carte sous le pill
-                    let miniMap = el.querySelector('.mini-map-container');
-                    if (!miniMap) {
-                        miniMap = document.createElement('div');
-                        miniMap.className = 'mini-map-container';
-                        miniMap.style.cssText = 'margin-top:6px;border-radius:12px;overflow:hidden;height:72px;position:relative;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)';
-                        miniMap.setAttribute('onclick', 'handleTravelBlockTap(this.closest(".nav-travel-block").querySelector(".nav-info-pill"))');
-                        el.appendChild(miniMap);
-                    }
-                    // Lazy-load avec IntersectionObserver
-                    if ('IntersectionObserver' in window) {
-                        const obs = new IntersectionObserver((entries) => {
-                            if (entries[0].isIntersecting) {
-                                miniMap.innerHTML = '<img src="' + staticUrl + '" style="width:100%;height:72px;object-fit:cover;display:block" loading="lazy" onerror="this.parentElement.remove()">' +
-                                    '<div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(124,58,237,0.15),rgba(236,72,153,0.15));pointer-events:none"></div>';
-                                obs.disconnect();
-                            }
-                        }, { threshold: 0.1 });
-                        obs.observe(miniMap);
-                    } else {
-                        miniMap.innerHTML = '<img src="' + staticUrl + '" style="width:100%;height:72px;object-fit:cover;display:block" loading="lazy" onerror="this.parentElement.remove()">';
-                    }
-                }
-            }
         }
 
         function handleTravelBlockTap(pill) {
@@ -6127,6 +6120,121 @@ async function toggleMapView() {
         // Recharger la carte quand on change de jour (si ouverte)
         const _origUpdateDayNav = typeof updateDayNavigation === 'function' ? updateDayNavigation : null;
 
+
+        // ═══════════════════════════════════════════════════════════════
+        //  BARRE PROCHAIN LIEU — mise à jour en temps réel
+        // ═══════════════════════════════════════════════════════════════
+        function updateNextPlaceBar() {
+            const bar = document.getElementById('next-place-bar');
+            if (!bar) return;
+
+            // Trouver la prochaine activité non complétée d'aujourd'hui
+            const todayActs = dayActivities
+                .filter(a => !completedActivities.includes(a.id))
+                .sort((a, b) => a.time.localeCompare(b.time));
+
+            // Heure actuelle (ou simulée si pas de Date en contexte)
+            const now = new Date();
+            const nowStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+            // Priorité : prochaine après maintenant, sinon la première du jour
+            let next = todayActs.find(a => a.time > nowStr) || todayActs[0];
+
+            if (!next || dayActivities.length === 0) {
+                bar.classList.add('hidden');
+                return;
+            }
+
+            const dk = document.documentElement.classList.contains('dark');
+            const inner = document.getElementById('next-place-inner');
+            if (inner) {
+                inner.style.background = dk ? '#1e293b' : 'white';
+            }
+
+            // Label : "en cours" ou "prochain"
+            const isCurrent = next.time <= nowStr && (addMinutesToTime(next.time, next.duration_minutes || 90) > nowStr);
+            document.getElementById('next-place-label').textContent = isCurrent ? 'EN COURS' : 'PROCHAIN LIEU';
+            document.getElementById('next-place-label').style.color = isCurrent ? '#16a34a' : '';
+
+            // Heure
+            const timeBadge = document.getElementById('next-place-time-badge');
+            timeBadge.textContent = next.time;
+            const themeColor = MAP_THEME_COLORS[getThemeKey(next)] || '#7c3aed';
+            timeBadge.style.background = themeColor + '22';
+            timeBadge.style.color = themeColor;
+
+            // Titre
+            const titleEl = document.getElementById('next-place-title');
+            titleEl.textContent = next.title;
+            titleEl.style.color = dk ? '#f1f5f9' : '#111827';
+
+            // Gradient thème
+            const gradEl = document.getElementById('next-place-gradient');
+            if (gradEl) gradEl.style.background = 'linear-gradient(to right,' + themeColor + ',' + themeColor + '88)';
+
+            // Emoji thème si pas de photo
+            const emojiEl = document.getElementById('next-place-emoji');
+            if (emojiEl) emojiEl.textContent = { contempler:'⛩️', restaurer:'🍜', promener:'🌿', explorer:'🏙️', detendre:'♨️' }[getThemeKey(next)] || '📍';
+
+            // Photo
+            const imgEl = document.getElementById('next-place-img');
+            const photoRef = next.place?.photo_reference;
+            if (imgEl) {
+                if (photoRef && window._mapsKey) {
+                    imgEl.src = '/api/place-photo?ref=' + encodeURIComponent(photoRef) + '&maxw=160';
+                    imgEl.style.display = 'block';
+                    if (emojiEl) emojiEl.style.opacity = '0';
+                    imgEl.onerror = () => { imgEl.style.display = 'none'; if (emojiEl) emojiEl.style.opacity = '1'; };
+                } else {
+                    imgEl.style.display = 'none';
+                    if (emojiEl) emojiEl.style.opacity = '1';
+                }
+            }
+
+            // Rating
+            const ratingEl = document.getElementById('next-place-rating');
+            if (ratingEl) {
+                if (next.place?.rating) ratingEl.textContent = '★ ' + next.place.rating.toFixed(1);
+                else ratingEl.textContent = '';
+            }
+
+            // Trajet depuis activité précédente
+            const travelEl = document.getElementById('next-place-travel');
+            if (travelEl) {
+                const currentIdx = dayActivities.findIndex(a => a.id === next.id);
+                if (currentIdx > 0) {
+                    const prevAct = dayActivities[currentIdx - 1];
+                    const rk = Object.keys(routeCache).find(k => k.includes(String(prevAct.id)) && k.includes(String(next.id)));
+                    const rd = rk ? routeCache[rk] : null;
+                    if (rd) {
+                        const dur = rd.total_minutes >= 60
+                            ? Math.floor(rd.total_minutes/60)+'h'+(rd.total_minutes%60?String(rd.total_minutes%60).padStart(2,'0'):'')
+                            : rd.total_minutes+' min';
+                        const modeIcon = rd.mode === 'walk' || !rd.transit_min ? '🚶' : rd.walk_from_min > 0 ? '🚶🚇' : '🚇';
+                        travelEl.textContent = modeIcon + ' ' + dur;
+                        travelEl.style.color = dk ? '#94a3b8' : '#6b7280';
+                    } else {
+                        travelEl.textContent = '';
+                    }
+                } else {
+                    travelEl.textContent = isCurrent ? '🟢 En cours' : '🏁 Premier lieu';
+                    travelEl.style.color = isCurrent ? '#16a34a' : themeColor;
+                }
+            }
+
+            bar.classList.remove('hidden');
+        }
+
+        function scrollToNextActivity() {
+            const todayActs = dayActivities.filter(a => !completedActivities.includes(a.id));
+            const now = new Date();
+            const nowStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+            const next = todayActs.find(a => a.time > nowStr) || todayActs[0];
+            if (!next) return;
+            const card = document.querySelector('[data-act-id="' + next.id + '"]');
+            if (card) card.scrollIntoView({ behavior:'smooth', block:'center' });
+        }
+
         // ========== INITIALISATION ==========
         window.onload = function() {
             // Splash screen pendant 1.5 secondes
@@ -6273,6 +6381,11 @@ async function toggleMapView() {
     html.dark #map-popup > div {
         background:rgba(15,23,42,0.96) !important;
     }
+    /* Barre prochain lieu dark mode */
+    html.dark #next-place-label { color:#94a3b8 !important; }
+    html.dark #next-place-title  { color:#f1f5f9 !important; }
+    html.dark #next-place-travel { color:#94a3b8 !important; }
+    html.dark #next-place-photo  { background:#1e293b !important; }
     html.dark #map-popup-title { color:#f1f5f9 !important; }
     html.dark #map-popup-sub   { color:#94a3b8 !important; }
     html.dark #map-popup > div .handle { background:#334155 !important; }
