@@ -690,7 +690,7 @@
 
         <!-- Bottom Navigation Bar de la config -->
         <div class="absolute bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl">
-            <div class="flex justify-around items-center h-16">
+            <div class="flex items-center h-16">
                 <button onclick="switchConfigTab('voyage')" id="config-tab-voyage" class="config-tab-bottom flex-1 flex flex-col items-center justify-center gap-1 py-2 text-purple-600 border-t-2 border-purple-600">
                     <span class="text-xl">🗺️</span>
                     <span class="text-xs font-bold">Voyage</span>
@@ -706,6 +706,11 @@
                 <button onclick="switchConfigTab('reglages')" id="config-tab-reglages" class="config-tab-bottom flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-400 border-t-2 border-transparent">
                     <span class="text-xl">⚙️</span>
                     <span class="text-xs font-bold">Réglages</span>
+                </button>
+                <!-- Bouton ✕ fermeture — même position que le bouton ⚙️ de la nav -->
+                <button onclick="closeConfigScreen()" class="flex-shrink-0 flex flex-col items-center justify-center gap-1" style="width:52px;height:64px;background:linear-gradient(135deg,#7c3aed,#ec4899);border-left:1px solid rgba(255,255,255,0.2)" aria-label="Fermer">
+                    <span style="font-size:20px;color:white;font-weight:800;line-height:1">✕</span>
+                    <span style="font-size:9px;color:rgba(255,255,255,0.85);font-weight:700">Fermer</span>
                 </button>
             </div>
         </div>
@@ -4283,25 +4288,60 @@
                 if (!dragActive || !dragClone) return;
                 dragClone.style.top = (e.touches[0].clientY - dragOffsetY) + 'px';
 
-                const cards = Array.from(document.querySelectorAll('.activity-card'));
                 const midY = e.touches[0].clientY;
 
                 // Supprimer le marker précédent
-                const prev = document.getElementById('drag-drop-marker');
-                if (prev) prev.remove();
+                const prevMarker = document.getElementById('drag-drop-marker');
+                if (prevMarker) prevMarker.remove();
 
-                // Trouver la carte cible et afficher un séparateur
-                for (const card of cards) {
+                // Construire la liste ordonnée : blocs trajet + cartes activités
+                // On cherche la position d'insertion entre chaque paire d'éléments
+                const allCards = Array.from(document.querySelectorAll('.activity-card'));
+                const allTravelBlocks = Array.from(document.querySelectorAll('.nav-travel-block'));
+
+                // Créer une liste de "zones de drop" : chaque zone couvre
+                // [fin du bloc trajet précédent → fin de la carte]
+                let dropTarget = null; // { card, insertBefore }
+
+                for (let ci = 0; ci < allCards.length; ci++) {
+                    const card = allCards[ci];
                     if (card === element) continue;
-                    const r = card.getBoundingClientRect();
-                    if (Math.abs(midY - (r.top + r.height/2)) < r.height * 0.6) {
-                        const above = midY < r.top + r.height / 2;
-                        const marker = document.createElement('div');
-                        marker.id = 'drag-drop-marker';
-                        marker.style.cssText = 'position:fixed;left:' + r.left + 'px;width:' + r.width + 'px;height:3px;background:linear-gradient(to right,#8b5cf6,#ec4899);border-radius:3px;z-index:998;pointer-events:none;top:' + (above ? r.top - 2 : r.bottom - 1) + 'px;box-shadow:0 0 8px rgba(139,92,246,0.6)';
-                        document.body.appendChild(marker);
+
+                    const cardRect = card.getBoundingClientRect();
+
+                    // Zone haute : du dessus du bloc trajet précédent (ou du haut de la carte) → milieu de la carte
+                    // Zone basse : milieu de la carte → bas de la carte
+                    let zoneTop = cardRect.top;
+
+                    // Chercher le bloc trajet qui précède cette carte
+                    // (le bloc trajet est juste avant la carte dans le DOM)
+                    const cardId = card.dataset.actId;
+                    // Trouver le bloc trajet dont l'id finit par "-actId"
+                    const prevTravel = allTravelBlocks.find(tb => tb.id && tb.id.endsWith('-' + cardId));
+                    if (prevTravel) {
+                        const tRect = prevTravel.getBoundingClientRect();
+                        zoneTop = tRect.top; // la zone commence au début du bloc trajet
+                    }
+
+                    const zoneMid  = cardRect.top + cardRect.height / 2;
+                    const zoneBot  = cardRect.bottom;
+
+                    if (midY >= zoneTop && midY <= zoneMid) {
+                        dropTarget = { card, insertBefore: true };
+                        break;
+                    } else if (midY > zoneMid && midY <= zoneBot) {
+                        dropTarget = { card, insertBefore: false };
                         break;
                     }
+                }
+
+                if (dropTarget) {
+                    const r = dropTarget.card.getBoundingClientRect();
+                    const lineY = dropTarget.insertBefore ? r.top - 2 : r.bottom - 1;
+                    const marker = document.createElement('div');
+                    marker.id = 'drag-drop-marker';
+                    marker.style.cssText = 'position:fixed;left:' + r.left + 'px;width:' + r.width + 'px;height:3px;background:linear-gradient(to right,#8b5cf6,#ec4899);border-radius:3px;z-index:998;pointer-events:none;top:' + lineY + 'px;box-shadow:0 0 8px rgba(139,92,246,0.6)';
+                    document.body.appendChild(marker);
                 }
             }
 
@@ -4322,15 +4362,35 @@
                 element.style.boxShadow = '';
 
                 if (!cancel) {
-                    const cards = Array.from(document.querySelectorAll('.activity-card'));
+                    const allCards = Array.from(document.querySelectorAll('.activity-card'));
+                    const allTravelBlocks = Array.from(document.querySelectorAll('.nav-travel-block'));
                     const midY = touchCurrentY;
                     let targetId = null, insertBefore = true;
-                    for (const card of cards) {
+
+                    for (let ci = 0; ci < allCards.length; ci++) {
+                        const card = allCards[ci];
                         if (card === element) continue;
-                        const r = card.getBoundingClientRect();
-                        if (Math.abs(midY - (r.top + r.height/2)) < r.height * 0.55) {
+
+                        const cardRect = card.getBoundingClientRect();
+                        let zoneTop = cardRect.top;
+
+                        // Étendre la zone vers le haut jusqu'au bloc trajet précédent
+                        const cardId = card.dataset.actId;
+                        const prevTravel = allTravelBlocks.find(tb => tb.id && tb.id.endsWith('-' + cardId));
+                        if (prevTravel) {
+                            zoneTop = prevTravel.getBoundingClientRect().top;
+                        }
+
+                        const zoneMid = cardRect.top + cardRect.height / 2;
+                        const zoneBot = cardRect.bottom;
+
+                        if (midY >= zoneTop && midY <= zoneMid) {
                             targetId = parseInt(card.dataset.actId);
-                            insertBefore = midY < r.top + r.height/2;
+                            insertBefore = true;
+                            break;
+                        } else if (midY > zoneMid && midY <= zoneBot) {
+                            targetId = parseInt(card.dataset.actId);
+                            insertBefore = false;
                             break;
                         }
                     }
