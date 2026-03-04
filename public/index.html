@@ -1046,6 +1046,7 @@
         if (_migrated) localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
         let tripData = JSON.parse(localStorage.getItem('japan_trip_info_v5') || 'null');
         let _mapVisible = false; // vue carte
+        let dayActivities = []; // activités du jour courant — partagé avec la carte
         let currentDayIndex = 0;
         let selectedPlace = null;
         let iaSuggestedLocation = "";
@@ -1945,7 +1946,7 @@
         // ========== MODAL ACTIVITÉ ==========
         // ========== CALCUL HEURE DISPONIBLE ==========
         function calculateNextAvailableTime() {
-            const dayActivities = activities
+            dayActivities = activities
                 .filter(a => a.dayIndex === currentDayIndex)
                 .sort((a, b) => a.time.localeCompare(b.time));
             
@@ -2392,7 +2393,7 @@
         // ═══ OPTIMISATION IA ════════════════════════════════
 
         async function optimizeDaySchedule() {
-            const dayActivities = activities
+            dayActivities = activities
                 .filter(a => a.dayIndex === currentDayIndex)
                 .sort((a, b) => a.time.localeCompare(b.time));
             if (dayActivities.length < 2) {
@@ -2664,7 +2665,7 @@
             const list = document.getElementById('planning-list');
             list.innerHTML = '';
 
-            const dayActivities = activities
+            dayActivities = activities
                 .filter(a => a.dayIndex === currentDayIndex)
                 .sort((a, b) => a.time.localeCompare(b.time));
             const selectedCity = getCityForDay(currentDayIndex);
@@ -5058,16 +5059,17 @@
 
         async function loadMapsAPI() {
             if (window.google?.maps) return true;
-            document.getElementById('map-loader-sub').textContent = 'Chargement API Maps…';
+            document.getElementById('map-loader-sub').textContent = 'Connexion à Google Maps…';
             try {
                 const r = await fetch('/api/maps-key');
                 const { key } = await r.json();
                 if (!key) throw new Error('Clé Maps manquante');
                 await new Promise((resolve, reject) => {
+                    const timer = setTimeout(() => reject(new Error('Timeout chargement Maps (10s)')), 10000);
                     const s = document.createElement('script');
-                    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&language=fr`;
-                    s.onload = resolve;
-                    s.onerror = () => reject(new Error('Échec chargement Maps API'));
+                    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&language=fr&loading=async&v=weekly`;
+                    s.onload = () => { clearTimeout(timer); resolve(); };
+                    s.onerror = () => { clearTimeout(timer); reject(new Error('Clé Maps invalide ou API non activée')); };
                     document.head.appendChild(s);
                 });
                 return true;
@@ -5085,6 +5087,7 @@
             const ok = await loadMapsAPI();
             if (!ok) return;
 
+            document.getElementById('map-loader-sub').textContent = 'Chargement des activités…';
             const dayActs = dayActivities.filter(a => getActCoords(a));
             if (dayActs.length === 0) {
                 document.getElementById('map-loader').innerHTML =
