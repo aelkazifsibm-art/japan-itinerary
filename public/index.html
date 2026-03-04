@@ -6073,13 +6073,14 @@ async function toggleMapView() {
 
             if (_mapVisible) {
                 // Fermer
+                mapView.style.display = 'none';
                 mapView.classList.add('hidden');
                 navMapBtn.classList.remove('active');
                 _mapVisible = false;
-                closeMapPopup();
             } else {
                 // Ouvrir
                 mapView.classList.remove('hidden');
+                mapView.style.display = 'flex';
                 navMapBtn.classList.add('active');
                 _mapVisible = true;
 
@@ -6278,7 +6279,6 @@ async function toggleMapView() {
     ═══════════════════════════════════════════════════════════ -->
     <div id="map-view" class="fixed inset-0 z-[190] hidden" style="
         background:#0f172a;
-        display:flex;
         flex-direction:column">
 
         <!-- ① HEADER fixe ────────────────────────────────────────────── -->
