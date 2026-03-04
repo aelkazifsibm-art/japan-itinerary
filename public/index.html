@@ -5025,6 +5025,7 @@
         //  VUE CARTE — Google Maps
         // ═══════════════════════════════════════════════════════════
         let _mapInitialized = false;
+        let _mapLastDayKey = null; // clé cache : évite de recréer si même jour
         let _gmap = null;
         let _mapMarkers = [];
         let _mapPolylines = [];
@@ -5182,9 +5183,21 @@
                 { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#16213e' }] },
                 { featureType: 'transit.station', elementType: 'geometry', stylers: [{ color: '#2d3748' }] },
             ] : [
-                { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'simplified' }] },
-                { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
+                // Style épuré, teintes chaudes japonaises
+                { elementType: 'geometry.fill', stylers: [{ color: '#f8f4f0' }] },
+                { elementType: 'geometry.stroke', stylers: [{ color: '#e8e0d8' }] },
+                { featureType: 'water', elementType: 'geometry.fill', stylers: [{ color: '#d4e8f5' }] },
+                { featureType: 'park', elementType: 'geometry.fill', stylers: [{ color: '#ddeedd' }] },
+                { featureType: 'road.highway', elementType: 'geometry.fill', stylers: [{ color: '#fde8c8' }] },
+                { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#f5c48a' }] },
+                { featureType: 'road.arterial', elementType: 'geometry.fill', stylers: [{ color: '#ffffff' }] },
+                { featureType: 'road.local', elementType: 'geometry.fill', stylers: [{ color: '#ffffff' }] },
+                { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+                { featureType: 'poi.park', elementType: 'labels', stylers: [{ visibility: 'simplified' }] },
+                { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'simplified' }] },
                 { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+                { elementType: 'labels.text.fill', stylers: [{ color: '#7c6a5a' }] },
+                { elementType: 'labels.text.stroke', stylers: [{ color: '#f8f4f0', weight: 2 }] },
             ];
 
             _mapLog('🗺️','Création de la carte Google Maps…');
@@ -5213,20 +5226,37 @@
 
             // Polyline du parcours (traits entre activités)
             const routePath = dayActs.map(a => getActCoords(a));
+            // Polyline principale — traits pointillés élégants
             const polyline = new google.maps.Polyline({
                 path: routePath,
                 geodesic: true,
                 strokeColor: '#7c3aed',
-                strokeOpacity: 0.5,
+                strokeOpacity: 0,
                 strokeWeight: 3,
-                icons: [{
-                    icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#ec4899', fillColor: '#ec4899', fillOpacity: 1 },
-                    offset: '50%',
-                    repeat: '120px'
-                }]
+                icons: [
+                    {   // Ligne en tirets
+                        icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.7, scale: 3, strokeColor: '#7c3aed' },
+                        offset: '0', repeat: '14px'
+                    },
+                    {   // Flèches directionnelles
+                        icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 2.5, strokeColor: '#ec4899', fillColor: '#ec4899', fillOpacity: 0.9, strokeOpacity: 0 },
+                        offset: '50%', repeat: '100px'
+                    }
+                ]
             });
             polyline.setMap(_gmap);
             _mapPolylines.push(polyline);
+
+            // Halo sous la polyline pour lisibilité sur fond clair
+            const polylineHalo = new google.maps.Polyline({
+                path: routePath,
+                geodesic: true,
+                strokeColor: '#ffffff',
+                strokeOpacity: 0.35,
+                strokeWeight: 6,
+            });
+            polylineHalo.setMap(_gmap);
+            _mapPolylines.push(polylineHalo);
 
             // Pins numérotés par activité
             dayActs.forEach((act, idx) => {
@@ -5264,7 +5294,10 @@
                 });
 
                 // Tap sur pin → popup bas
-                marker.addListener('click', () => showMapPopup(act, num, color));
+                marker.addListener('click', () => {
+                    // Effet pulse sur le marker avant popup
+                    showMapPopup(act, num, color);
+                });
                 _mapMarkers.push(marker);
             });
 
@@ -5279,35 +5312,80 @@
             const popup = document.getElementById('map-popup');
             const isDark = document.documentElement.classList.contains('dark');
 
-            document.getElementById('map-popup-num').textContent = num;
-            document.getElementById('map-popup-num').style.background = color;
-            document.getElementById('map-popup-time').textContent = act.time + (act.duration_minutes ? '  ·  ' + (act.duration_minutes >= 60 ? Math.floor(act.duration_minutes/60)+'h'+(act.duration_minutes%60?String(act.duration_minutes%60).padStart(2,'0'):'') : act.duration_minutes+'min') : '');
+            // Numéro + couleur
+            const numEl = document.getElementById('map-popup-num');
+            numEl.textContent = num;
+            numEl.style.background = color;
+            numEl.style.boxShadow = `0 4px 12px ${color}55`;
+
+            // Temps + durée
+            const dur = act.duration_minutes
+                ? (act.duration_minutes >= 60
+                    ? Math.floor(act.duration_minutes/60)+'h'+(act.duration_minutes%60 ? String(act.duration_minutes%60).padStart(2,'0') : '')
+                    : act.duration_minutes+'min')
+                : null;
+            document.getElementById('map-popup-time').textContent = act.time + (dur ? ' · ' + dur : '');
+            document.getElementById('map-popup-time').style.color = color;
+
             document.getElementById('map-popup-title').textContent = act.title;
 
-            // Sous-titre : adresse ou type
+            // Adresse courte
             const addr = act.place?.formatted_address || act.place?.name || '';
-            const shortAddr = addr.split(',').slice(0,2).join(',').trim();
-            document.getElementById('map-popup-sub').textContent = shortAddr;
+            document.getElementById('map-popup-sub').textContent = addr.split(',').slice(0,2).join(',').trim();
 
-            // Ligne de progression : "Activité X/Y de la journée"
-            document.getElementById('map-popup-prog').innerHTML =
-                `<span style="color:${color};font-weight:700">${num}</span>` +
-                `<span>/</span><span style="font-weight:600">${_mapMarkers.length}</span>` +
-                `<span style="margin-left:4px">activités aujourd'hui</span>`;
+            // Chips toutes les activités du jour — highlights celle sélectionnée
+            const chipsEl = document.getElementById('map-popup-chips');
+            if (chipsEl) {
+                chipsEl.innerHTML = '';
+                dayActivities.forEach((a, idx) => {
+                    const isSelected = a.id === act.id;
+                    const aColor = MAP_THEME_COLORS[getThemeKey(a)] || '#7c3aed';
+                    const chip = document.createElement('button');
+                    chip.style.cssText = `flex-shrink:0;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;border:none;cursor:pointer;transition:all 0.2s;` +
+                        (isSelected
+                            ? `background:${aColor};color:white;transform:scale(1.05);box-shadow:0 2px 8px ${aColor}55`
+                            : `background:${isDark?'rgba(255,255,255,0.08)':'#f3f4f6'};color:${isDark?'#94a3b8':'#6b7280'}`);
+                    chip.textContent = (idx+1) + '. ' + (a.title.length > 14 ? a.title.slice(0,13)+'…' : a.title);
+                    chip.onclick = () => {
+                        const coords = getActCoords(a);
+                        if (coords && _gmap) _gmap.panTo(coords);
+                        showMapPopup(a, idx+1, aColor);
+                    };
+                    chipsEl.appendChild(chip);
+                });
+                // Scroller vers le chip sélectionné
+                setTimeout(() => {
+                    const chips = chipsEl.querySelectorAll('button');
+                    const sel = chips[dayActivities.findIndex(a => a.id === act.id)];
+                    if (sel) sel.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
+                }, 50);
+            }
 
-            popup.style.background = isDark ? '#1e293b' : 'white';
-            document.getElementById('map-popup-title').style.color = isDark ? '#f1f5f9' : '#1f2937';
-            popup.classList.remove('hidden');
+            // Slide-up animation
+            popup.style.transform = 'translateY(100%)';
+            popup.style.display = 'block';
+            // Décaler la barre du bas pour laisser place au popup
+            const barH = popup.querySelector('div').offsetHeight || 160;
+            document.getElementById('map-bottom-bar').style.transform = `translateY(-${barH}px)`;
+            requestAnimationFrame(() => {
+                popup.style.transform = 'translateY(0)';
+            });
 
-            // Centrer la carte sur ce pin avec offset pour le popup
+            // Pan vers le pin en tenant compte du popup
             if (_gmap) {
                 const coords = getActCoords(act);
-                if (coords) _gmap.panTo(coords);
+                if (coords) {
+                    _gmap.panTo(coords);
+                    setTimeout(() => _gmap.panBy(0, 80), 200); // compenser le popup
+                }
             }
         }
 
         function closeMapPopup() {
-            document.getElementById('map-popup').classList.add('hidden');
+            const popup = document.getElementById('map-popup');
+            popup.style.transform = 'translateY(100%)';
+            document.getElementById('map-bottom-bar').style.transform = 'translateY(0)';
+            setTimeout(() => { popup.style.display = 'none'; }, 380);
         }
 
         function toggleMapType() {
@@ -5370,19 +5448,26 @@ async function toggleMapView() {
                     document.getElementById('current-day-date').textContent;
                 _updateMapHeaderAmbiance();
 
-                // (Re)charger la carte si besoin ou si le jour a changé
-                const loaderEl = document.getElementById('map-loader');
-                loaderEl.style.display = 'flex';
-                // Reconstruire le loader proprement (au cas où erreur précédente)
-                if (!loaderEl.querySelector('#map-loader-sub')) {
-                    loaderEl.innerHTML = `
-                        <div style="font-size:48px;margin-bottom:16px" id="map-loader-icon">🗾</div>
-                        <div style="color:white;font-weight:700;font-size:16px">Chargement de la carte…</div>
-                        <div id="map-loader-sub" style="color:#94a3b8;font-size:12px;margin-top:6px">Connexion à Google Maps…</div>`;
+                // Recharger seulement si : 1ère fois, jour différent, ou erreur précédente
+                const _currentDayKey = currentDayIndex + '_' + (dayActivities.map(a=>a.id).join(','));
+                const _needReload = !_mapInitialized || _mapLastDayKey !== _currentDayKey;
+
+                if (_needReload) {
+                    const loaderEl = document.getElementById('map-loader');
+                    loaderEl.style.display = 'flex';
+                    // Reconstruire le loader si erreur précédente l'a remplacé
+                    if (!document.getElementById('map-loader-sub')) {
+                        loaderEl.innerHTML = `
+                            <div id="map-loader-icon" style="font-size:48px;margin-bottom:16px">🗾</div>
+                            <div style="color:white;font-weight:700;font-size:16px">Chargement de la carte…</div>
+                            <div id="map-loader-sub" style="color:#94a3b8;font-size:12px;margin-top:6px">Connexion à Google Maps…</div>`;
+                    }
+                    _mapDiagLogs = [];
+                    await initMap();
+                    if (_mapInitialized) _mapLastDayKey = _currentDayKey;
+                } else {
+                    _mapLog('⚡','Cache carte — même jour, pas de rechargement');
                 }
-                _mapInitialized = false;
-                _mapDiagLogs = [];
-                await initMap();
             }
         }
 
@@ -5426,50 +5511,109 @@ async function toggleMapView() {
     <!-- ═══════════════════════════════════════════════════════════
          VUE CARTE JOURNÉE
     ═══════════════════════════════════════════════════════════════ -->
-    <div id="map-view" class="fixed inset-0 z-[190] hidden flex flex-col" style="background:#0f172a">
+    <div id="map-view" class="fixed inset-0 z-[190] hidden" style="background:#0f172a">
 
-        <!-- Header carte -->
-        <div id="map-header" class="flex-shrink-0 flex items-center justify-between px-4 text-white" style="height:56px;background:linear-gradient(135deg,#7c3aed,#ec4899);padding-top:env(safe-area-inset-top,0)">
-            <div>
-                <div style="font-size:10px;opacity:0.75;font-weight:600;letter-spacing:0.08em" id="map-day-label">JOUR 1/1</div>
-                <div style="font-size:15px;font-weight:800" id="map-day-date">Chargement…</div>
+        <!-- Carte plein écran -->
+        <div id="gmap" style="position:absolute;inset:0;width:100%;height:100%"></div>
+
+        <!-- ── Barre flottante BAS — verre dépoli ── -->
+        <div id="map-bottom-bar" style="
+            position:absolute;bottom:0;left:0;right:0;
+            padding:12px 16px 28px;
+            background:rgba(15,23,42,0.72);
+            backdrop-filter:blur(16px);
+            -webkit-backdrop-filter:blur(16px);
+            border-top:1px solid rgba(255,255,255,0.1);
+            display:flex;align-items:center;gap:10px;
+            z-index:20;
+            transition:transform 0.35s cubic-bezier(0.4,0,0.2,1)">
+            <!-- ✕ Fermer -->
+            <button onclick="toggleMapView()" style="
+                width:42px;height:42px;border-radius:50%;
+                background:rgba(255,255,255,0.12);
+                border:1px solid rgba(255,255,255,0.2);
+                color:white;font-size:18px;font-weight:700;
+                display:flex;align-items:center;justify-content:center;
+                flex-shrink:0">✕</button>
+            <!-- Jour/Date — centre -->
+            <div id="map-header" style="flex:1;text-align:center">
+                <div id="map-day-label" style="font-size:9px;color:rgba(255,255,255,0.55);font-weight:700;letter-spacing:0.1em;text-transform:uppercase">JOUR 1/1</div>
+                <div id="map-day-date" style="font-size:15px;color:white;font-weight:800;line-height:1.2">Chargement…</div>
             </div>
-            <div class="flex items-center gap-2">
-                <!-- Toggle liste/satellite -->
-                <button id="map-type-btn" onclick="toggleMapType()" style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;color:white">
-                    🛰 Satellite
-                </button>
-                <button onclick="toggleMapView()" style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:800;color:white">
-                    ✕
-                </button>
-            </div>
+            <!-- Toggle satellite -->
+            <button id="map-type-btn" onclick="toggleMapType()" style="
+                height:42px;padding:0 14px;border-radius:21px;
+                background:rgba(255,255,255,0.12);
+                border:1px solid rgba(255,255,255,0.2);
+                color:white;font-size:11px;font-weight:700;
+                white-space:nowrap;flex-shrink:0">🛰 Satellite</button>
         </div>
 
-        <!-- Conteneur Google Maps -->
-        <div id="gmap" class="flex-1 w-full"></div>
-
-        <!-- Bottom sheet — info activité sélectionnée -->
-        <div id="map-popup" class="flex-shrink-0 hidden" style="background:white;border-radius:20px 20px 0 0;padding:16px 20px 24px;box-shadow:0 -8px 32px rgba(0,0,0,0.25);max-height:240px">
-            <div class="flex items-start gap-3">
-                <div id="map-popup-num" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:white;flex-shrink:0;background:#7c3aed">1</div>
-                <div class="flex-1 min-w-0">
-                    <div id="map-popup-time" style="font-size:11px;color:#7c3aed;font-weight:700;margin-bottom:2px"></div>
-                    <div id="map-popup-title" style="font-size:17px;font-weight:800;color:#1f2937;line-height:1.2"></div>
-                    <div id="map-popup-sub" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
+        <!-- ── Popup activité — slide-up par-dessus la barre ── -->
+        <div id="map-popup" style="
+            position:absolute;left:0;right:0;
+            bottom:0;transform:translateY(100%);
+            transition:transform 0.38s cubic-bezier(0.4,0,0.2,1);
+            z-index:30;border-radius:20px 20px 0 0;
+            overflow:hidden">
+            <!-- Fond verre -->
+            <div style="
+                background:rgba(255,255,255,0.96);
+                backdrop-filter:blur(20px);
+                -webkit-backdrop-filter:blur(20px);
+                padding:6px 20px 32px">
+                <!-- Handle -->
+                <div style="width:36px;height:4px;border-radius:2px;background:#e5e7eb;margin:0 auto 14px"></div>
+                <div style="display:flex;align-items:flex-start;gap:12px">
+                    <!-- Numéro coloré -->
+                    <div id="map-popup-num" style="
+                        width:44px;height:44px;border-radius:14px;
+                        display:flex;align-items:center;justify-content:center;
+                        font-weight:900;font-size:18px;color:white;
+                        flex-shrink:0;background:#7c3aed;
+                        box-shadow:0 4px 12px rgba(124,58,237,0.4)">1</div>
+                    <div style="flex:1;min-width:0">
+                        <div id="map-popup-time" style="font-size:11px;color:#7c3aed;font-weight:700;margin-bottom:3px"></div>
+                        <div id="map-popup-title" style="font-size:18px;font-weight:800;color:#111827;line-height:1.2"></div>
+                        <div id="map-popup-sub" style="font-size:12px;color:#6b7280;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+                    </div>
+                    <button onclick="closeMapPopup()" style="color:#d1d5db;font-size:22px;line-height:1;padding:2px;flex-shrink:0;margin-top:2px">✕</button>
                 </div>
-                <button onclick="closeMapPopup()" style="color:#9ca3af;font-size:20px;line-height:1;flex-shrink:0;padding:2px">✕</button>
+                <!-- Chips activités du jour -->
+                <div id="map-popup-chips" style="display:flex;gap:6px;margin-top:12px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none"></div>
             </div>
-            <!-- Ligne de progression -->
-            <div id="map-popup-prog" class="flex items-center gap-2 mt-3" style="font-size:11px;color:#6b7280"></div>
         </div>
 
-        <!-- Loader pendant l'init Maps -->
-        <div id="map-loader" class="absolute inset-0 flex flex-col items-center justify-center" style="background:#0f172a;z-index:10">
-            <div id="map-loader-icon" style="font-size:48px;margin-bottom:16px">🗾</div>
+        <!-- ── Loader ── -->
+        <div id="map-loader" style="
+            position:absolute;inset:0;
+            display:flex;flex-direction:column;
+            align-items:center;justify-content:center;
+            background:#0f172a;z-index:40">
+            <div id="map-loader-icon" style="font-size:52px;margin-bottom:16px;animation:mapPulse 1.8s ease-in-out infinite">🗾</div>
             <div style="color:white;font-weight:700;font-size:16px">Chargement de la carte…</div>
-            <div id="map-loader-sub" style="color:#94a3b8;font-size:12px;margin-top:6px">Connexion à Google Maps…</div>
+            <div id="map-loader-sub" style="color:#94a3b8;font-size:12px;margin-top:8px">Connexion à Google Maps…</div>
         </div>
     </div>
+
+    <style>
+    @keyframes mapPulse {
+        0%,100% { transform:scale(1); opacity:1; }
+        50%      { transform:scale(1.12); opacity:0.75; }
+    }
+    @keyframes pinDrop {
+        0%   { transform:translateY(-20px) scale(0.7); opacity:0; }
+        70%  { transform:translateY(4px) scale(1.05); opacity:1; }
+        100% { transform:translateY(0) scale(1); opacity:1; }
+    }
+    /* Popup dark mode */
+    html.dark #map-popup > div {
+        background:rgba(15,23,42,0.96) !important;
+    }
+    html.dark #map-popup-title { color:#f1f5f9 !important; }
+    html.dark #map-popup-sub   { color:#94a3b8 !important; }
+    html.dark #map-popup > div .handle { background:#334155 !important; }
+    </style>
 
     <!-- MODAL CONFIRMATION SUPPRESSION ACTIVITÉ -->
     <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[500] hidden flex items-center justify-center p-6">
