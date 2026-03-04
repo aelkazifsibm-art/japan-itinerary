@@ -5510,100 +5510,109 @@
             });
 
             // Ajuster le zoom sur tous les pins + padding nav
-            _gmap.fitBounds(bounds, { top: 20, right: 20, bottom: 80, left: 20 });
+            _gmap.fitBounds(bounds, { top: 10, right: 20, bottom: 10, left: 20 });
             if (dayActs.length === 1) _gmap.setZoom(15);
 
             _mapInitialized = true;
             _initMapSwipe();
+            // Afficher la 1ère activité géolocalisée dans la zone bas
+            if (dayActs.length > 0) {
+                const firstAct = dayActs[0];
+                const firstColor = MAP_THEME_COLORS[getThemeKey(firstAct)] || '#7c3aed';
+                showMapPopup(firstAct, 1, firstColor);
+            }
         }
 
         function showMapPopup(act, num, color) {
-            const popup   = document.getElementById('map-popup');
-            const isDark  = document.documentElement.classList.contains('dark');
-            const inner   = document.getElementById('map-popup-inner');
             const geoActs = dayActivities.filter(a => getActCoords(a));
+            // ── Numéros + couleur ─────────────────────────────────────────
+            ['map-act-num', 'map-act-num-badge'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.textContent = num;
+                el.style.background  = color;
+                el.style.boxShadow   = '0 2px 10px ' + color + '55';
+            });
 
-            // ── Couleur thème ──────────────────────────────────────────────
-            const numEl = document.getElementById('map-popup-num');
-            numEl.textContent = num;
-            numEl.style.background = color;
-            numEl.style.boxShadow  = '0 4px 12px ' + color + '55';
-
-            // ── Thème dark/light du popup ──────────────────────────────────
-            if (inner) {
-                inner.style.background = isDark ? 'rgba(15,23,42,0.97)' : 'rgba(255,255,255,0.97)';
-            }
-
-            // ── Temps + durée ──────────────────────────────────────────────
+            // ── Heure + durée ─────────────────────────────────────────────
             const dur = act.duration_minutes
                 ? (act.duration_minutes >= 60
                     ? Math.floor(act.duration_minutes/60)+'h'+(act.duration_minutes%60 ? String(act.duration_minutes%60).padStart(2,'0') : '')
                     : act.duration_minutes+'min')
                 : null;
-            const timeEl = document.getElementById('map-popup-time');
-            timeEl.textContent = act.time + (dur ? ' · ' + dur : '');
-            timeEl.style.color  = color;
+            const timeEl = document.getElementById('map-act-time');
+            if (timeEl) { timeEl.textContent = act.time + (dur ? '  ·  ' + dur : ''); timeEl.style.color = color; }
 
-            const titleEl = document.getElementById('map-popup-title');
-            titleEl.textContent = act.title;
-            titleEl.style.color = isDark ? '#f1f5f9' : '#111827';
+            const titleEl = document.getElementById('map-act-title');
+            if (titleEl) titleEl.textContent = act.title;
+            document.getElementById('map-act-photo-title').textContent = act.title;
+            document.getElementById('map-act-photo-label').textContent =
+                { contempler:'⛩️ Culture', restaurer:'🍜 Gastronomie', promener:'🌿 Nature', explorer:'🏙️ Explorer', detendre:'♨️ Détente' }[getThemeKey(act)] || '📍 Lieu';
 
-            const subEl = document.getElementById('map-popup-sub');
-            const addr = act.place?.formatted_address || act.place?.name || '';
-            subEl.textContent = addr.split(',').slice(0,2).join(',').trim();
-            subEl.style.color = isDark ? '#94a3b8' : '#6b7280';
-
-            // ── Photo du lieu ──────────────────────────────────────────────
-            const photoWrapper = document.getElementById('map-popup-photo');
-            const photoImg     = document.getElementById('map-popup-photo-img');
-            const photoTitle   = document.getElementById('map-popup-photo-title');
-            const headerNoPhoto = document.getElementById('map-popup-header-noPhoto');
-            const photoRef = act.place?.photo_reference;
-
-            if (photoRef && window._mapsKey && photoWrapper && photoImg) {
-                const imgUrl = '/api/place-photo?ref=' + encodeURIComponent(photoRef) + '&maxw=600';
-                photoImg.src = '';
-                photoWrapper.style.display = 'block';
-                if (headerNoPhoto) headerNoPhoto.style.display = 'none';
-                if (photoTitle) { photoTitle.textContent = act.title; }
-
-                photoImg.onload  = () => { photoImg.style.opacity = '1'; };
-                photoImg.onerror = () => {
-                    photoWrapper.style.display = 'none';
-                    if (headerNoPhoto) headerNoPhoto.style.display = 'flex';
-                };
-                photoImg.src = imgUrl;
-            } else {
-                if (photoWrapper) photoWrapper.style.display = 'none';
-                if (headerNoPhoto) headerNoPhoto.style.display = 'flex';
+            const addrEl = document.getElementById('map-act-addr');
+            if (addrEl) {
+                const addr = act.place?.formatted_address || act.place?.name || '';
+                addrEl.textContent = addr.split(',').slice(0,2).join(',').trim();
             }
 
-            // ── Info trajet depuis activité précédente ─────────────────────
+            // ── Rating ────────────────────────────────────────────────────
+            const ratingEl = document.getElementById('map-act-rating');
+            if (ratingEl) {
+                if (act.place?.rating) { ratingEl.textContent = '★ ' + act.place.rating.toFixed(1) + (act.place.review_count ? '  (' + act.place.review_count.toLocaleString() + ')' : ''); ratingEl.style.display = 'inline'; }
+                else ratingEl.style.display = 'none';
+            }
+
+            // ── Type de lieu ──────────────────────────────────────────────
+            const typeEl = document.getElementById('map-act-type');
+            if (typeEl) {
+                const label = { contempler:'⛩️ Culture', restaurer:'🍜 Gastronomie', promener:'🌿 Nature', explorer:'🏙️ Explorer', detendre:'♨️ Détente' }[getThemeKey(act)];
+                if (label) { typeEl.textContent = label; typeEl.style.background = color + '22'; typeEl.style.color = color; typeEl.style.display = 'inline'; }
+                else typeEl.style.display = 'none';
+            }
+
+            // ── Trajet depuis activité précédente ─────────────────────────
             const _swipeIdx = geoActs.findIndex(a => a.id === act.id);
-            const travelEl = document.getElementById('map-popup-travel');
-            if (travelEl && _swipeIdx > 0) {
-                const prevAct = geoActs[_swipeIdx - 1];
-                const rk = Object.keys(routeCache).find(k => k.includes(String(prevAct.id)) && k.includes(String(act.id)));
-                const rd = rk ? routeCache[rk] : null;
-                if (rd) {
-                    const durT = rd.total_minutes >= 60
-                        ? Math.floor(rd.total_minutes/60)+'h'+(rd.total_minutes%60?String(rd.total_minutes%60).padStart(2,'0'):'')
-                        : rd.total_minutes+' min';
-                    const modeIcon = rd.mode === 'walk' ? '🚶' : rd.transit_min > 0 && rd.walk_from_min > 0 ? '🚶🚇' : '🚇';
-                    const tColor = rd.total_minutes >= 45 ? '#dc2626' : rd.total_minutes >= 20 ? '#d97706' : '#16a34a';
-                    travelEl.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:7px 10px;border-radius:10px;font-size:11px;font-weight:600;background:' + tColor + '14;color:' + tColor;
-                    travelEl.innerHTML = '<span style="font-size:14px">' + modeIcon + '</span><span>' + durT + ' depuis ' + (prevAct.title.length>16 ? prevAct.title.slice(0,15)+'…' : prevAct.title) + '</span>';
-                } else { travelEl.style.display = 'none'; }
-            } else if (travelEl) { travelEl.style.display = 'none'; }
+            if (_swipeIdx !== -1) _mapCurrentActIndex = _swipeIdx;
+            const travelEl = document.getElementById('map-act-travel');
+            if (travelEl) {
+                if (_swipeIdx > 0) {
+                    const prevAct = geoActs[_swipeIdx - 1];
+                    const rk = Object.keys(routeCache).find(k => k.includes(String(prevAct.id)) && k.includes(String(act.id)));
+                    const rd = rk ? routeCache[rk] : null;
+                    if (rd) {
+                        const durT = rd.total_minutes >= 60 ? Math.floor(rd.total_minutes/60)+'h'+(rd.total_minutes%60?String(rd.total_minutes%60).padStart(2,'0'):'') : rd.total_minutes+' min';
+                        const modeIcon = rd.mode === 'walk' ? '🚶' : rd.transit_min > 0 && rd.walk_from_min > 0 ? '🚶🚇' : '🚇';
+                        travelEl.textContent = modeIcon + ' ' + durT + ' depuis ' + (prevAct.title.length>14 ? prevAct.title.slice(0,13)+'…' : prevAct.title);
+                        travelEl.style.display = 'inline';
+                    } else travelEl.style.display = 'none';
+                } else travelEl.style.display = 'none';
+            }
+
+            // ── Photo ─────────────────────────────────────────────────────
+            const photoWrapper = document.getElementById('map-act-photo');
+            const photoImg     = document.getElementById('map-act-photo-img');
+            const headerEl     = document.getElementById('map-act-header');
+            const photoRef     = act.place?.photo_reference;
+
+            if (photoRef && window._mapsKey && photoWrapper && photoImg) {
+                photoImg.style.opacity = '0';
+                photoImg.onload  = () => { photoImg.style.opacity = '1'; };
+                photoImg.onerror = () => { photoWrapper.style.display = 'none'; if (headerEl) headerEl.style.display = 'flex'; };
+                photoImg.src = '/api/place-photo?ref=' + encodeURIComponent(photoRef) + '&maxw=700';
+                photoWrapper.style.display = 'block';
+                if (headerEl) headerEl.style.display = 'none';
+            } else {
+                if (photoWrapper) photoWrapper.style.display = 'none';
+                if (headerEl)     headerEl.style.display = 'flex';
+            }
 
             // ── Counter + boutons nav ──────────────────────────────────────
-            if (_swipeIdx !== -1) _mapCurrentActIndex = _swipeIdx;
             const counterEl = document.getElementById('map-popup-counter');
             if (counterEl) counterEl.textContent = num + ' / ' + geoActs.length;
             const prevBtn = document.getElementById('map-popup-prev');
             const nextBtn = document.getElementById('map-popup-next');
-            if (prevBtn) { const dis = _mapCurrentActIndex === 0; prevBtn.style.opacity = dis ? '0.3' : '1'; prevBtn.disabled = dis; }
-            if (nextBtn) { const dis = _mapCurrentActIndex === geoActs.length-1; nextBtn.style.opacity = dis ? '0.3' : '1'; nextBtn.disabled = dis; }
+            if (prevBtn) { const d = _mapCurrentActIndex === 0; prevBtn.style.opacity = d?'0.3':'1'; prevBtn.disabled = d; }
+            if (nextBtn) { const d = _mapCurrentActIndex === geoActs.length-1; nextBtn.style.opacity = d?'0.3':'1'; nextBtn.disabled = d; }
 
             // ── Chips activités ────────────────────────────────────────────
             const chipsEl = document.getElementById('map-popup-chips');
@@ -5614,9 +5623,7 @@
                     const aColor = MAP_THEME_COLORS[getThemeKey(a)] || '#7c3aed';
                     const chip = document.createElement('button');
                     chip.style.cssText = 'flex-shrink:0;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;border:none;cursor:pointer;transition:all 0.2s;' +
-                        (isSelected
-                            ? 'background:' + aColor + ';color:white;transform:scale(1.05);box-shadow:0 2px 8px ' + aColor + '55'
-                            : 'background:' + (isDark?'rgba(255,255,255,0.08)':'#f3f4f6') + ';color:' + (isDark?'#94a3b8':'#6b7280'));
+                        (isSelected ? 'background:' + aColor + ';color:white;transform:scale(1.05);box-shadow:0 2px 8px ' + aColor + '55' : 'background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6)');
                     chip.textContent = (idx+1) + '. ' + (a.title.length > 14 ? a.title.slice(0,13)+'…' : a.title);
                     chip.onclick = () => {
                         const coords = getActCoords(a);
@@ -5631,32 +5638,18 @@
                 }, 50);
             }
 
-            // ── Sync timeline ──────────────────────────────────────────────
+            // ── Timeline + pan carte ───────────────────────────────────────
             _highlightTimelineStep(num - 1);
-
-            // ── Slide-up popup — la barre bas NE BOUGE PAS ────────────────
-            popup.style.display = 'block';
-            // Calculer la hauteur dispo : viewport - barre bas (~72px)
-            const barH = document.getElementById('map-bottom-bar')?.offsetHeight || 72;
-            popup.style.bottom = barH + 'px';
-            popup.style.transform = 'translateY(100%)';
-            requestAnimationFrame(() => { popup.style.transform = 'translateY(0)'; });
-
-            // Pan vers le pin
             if (_gmap) {
                 const coords = getActCoords(act);
-                if (coords) {
-                    _gmap.panTo(coords);
-                    setTimeout(() => _gmap.panBy(0, 60), 250);
-                }
+                if (coords) _gmap.panTo(coords);
             }
         }
 
+
         function closeMapPopup() {
-            const popup = document.getElementById('map-popup');
-            popup.style.transform = 'translateY(100%)';
-            // La barre bas n'a jamais bougé — rien à réinitialiser
-            setTimeout(() => { popup.style.display = 'none'; }, 380);
+            // Dans le layout 3-zones, la zone bas est toujours visible
+            // Rien à fermer — fonction conservée pour compatibilité
         }
 
 
@@ -5758,7 +5751,7 @@
             timeline.id = 'map-timeline';
             timeline.style.cssText = `
                 position:absolute;left:0;right:0;
-                bottom:78px;
+                bottom:8px;
                 padding:8px 12px;
                 display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;
                 z-index:19;pointer-events:auto;
@@ -5788,7 +5781,7 @@
                 timeline.appendChild(chip);
             });
 
-            document.getElementById('map-view').appendChild(timeline);
+            document.getElementById('map-zone').appendChild(timeline);
         }
 
         function _highlightTimelineStep(activeIdx) {
@@ -5828,6 +5821,7 @@
             // bottom = hauteur barre bas + hauteur popup éventuelle — on couvre juste la zone carte
             ov.style.cssText = 'position:absolute;inset:0;z-index:16;touch-action:pan-y;pointer-events:auto;';
             document.getElementById('gmap').after(ov);
+            ov.style.bottom = '0';
 
             let sx = 0, sy = 0, live = false, locked = false, isH = false;
 
@@ -5887,7 +5881,7 @@
 
 
         function _updateMapGestureIndicator() {
-            const bar = document.getElementById('map-bottom-bar');
+            const bar = document.getElementById('map-header-bar');
             if (!bar) return;
             let badge = document.getElementById('map-gesture-badge');
             if (!badge) {
@@ -5989,7 +5983,7 @@
                 bar.appendChild(btn);
             });
 
-            document.getElementById('map-view').appendChild(bar);
+            document.getElementById('map-zone').appendChild(bar);
         }
 
         function _filterBtnStyle(theme, active, color, dk) {
@@ -6276,97 +6270,145 @@ async function toggleMapView() {
     <!-- ═══════════════════════════════════════════════════════════
          VUE CARTE JOURNÉE
     ═══════════════════════════════════════════════════════════════ -->
-    <div id="map-view" class="fixed inset-0 z-[190] hidden" style="background:#0f172a">
+    <!-- ══════════════════════════════════════════════════════════
+         VUE CARTE — 3 zones fixes :
+         ① HEADER (56px)  : date du jour + fermer + satellite
+         ② CARTE  (flex)  : google maps + filtres + overlay swipe
+         ③ BOTTOM (260px) : infos activité (photo, titre, rating, nav, chips)
+    ═══════════════════════════════════════════════════════════ -->
+    <div id="map-view" class="fixed inset-0 z-[190] hidden" style="
+        background:#0f172a;
+        display:flex;
+        flex-direction:column">
 
-        <!-- Carte plein écran — occupe tout sauf la barre bas fixe -->
-        <div id="gmap" style="position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%"></div>
-
-        <!-- Filtres catégorie (injectés dynamiquement) -->
-
-        <!-- ── Loader ── -->
-        <div id="map-loader" style="position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(15,23,42,0.92)">
-            <div style="font-size:48px;animation:mapPulse 1.4s ease-in-out infinite">🗾</div>
-            <div style="color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;margin-top:12px">Chargement de la carte…</div>
-            <div id="map-diag-panel" style="margin-top:16px;max-width:300px;max-height:120px;overflow-y:auto;font-size:10px;color:rgba(255,255,255,0.5);text-align:left;padding:0 16px"></div>
-        </div>
-
-        <!-- ── Popup activité — slide-up DANS la zone carte (pas sur la barre) ── -->
-        <div id="map-popup" style="
-            position:absolute;left:0;right:0;
-            bottom:0;
-            transform:translateY(100%);
-            transition:transform 0.36s cubic-bezier(0.4,0,0.2,1);
-            z-index:25">
-            <div id="map-popup-inner" style="
-                margin:0 8px 8px;
-                border-radius:20px;
-                overflow:hidden;
-                box-shadow:0 -8px 40px rgba(0,0,0,0.4);
-                background:rgba(255,255,255,0.97);
-                backdrop-filter:blur(20px);
-                -webkit-backdrop-filter:blur(20px)">
-
-                <!-- Photo du lieu -->
-                <div id="map-popup-photo" style="height:140px;position:relative;background:#1e293b;overflow:hidden;display:none">
-                    <img id="map-popup-photo-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity 0.4s" />
-                    <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,rgba(0,0,0,0.6))"></div>
-                    <div id="map-popup-photo-title" style="position:absolute;bottom:10px;left:16px;right:16px;color:white;font-size:17px;font-weight:800;line-height:1.2;text-shadow:0 1px 6px rgba(0,0,0,0.5)"></div>
-                </div>
-
-                <!-- Contenu principal -->
-                <div style="padding:14px 16px 16px">
-                    <!-- Handle + fermer -->
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-                        <div style="width:36px;height:4px;border-radius:2px;background:#e5e7eb;margin:0 auto"></div>
-                        <button onclick="closeMapPopup()" style="width:28px;height:28px;border-radius:50%;background:#f3f4f6;border:none;color:#9ca3af;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer">✕</button>
-                    </div>
-
-                    <!-- Titre + infos (quand pas de photo) -->
-                    <div id="map-popup-header-noPhoto" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
-                        <div id="map-popup-num" style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:white;flex-shrink:0;background:#7c3aed;box-shadow:0 4px 12px rgba(124,58,237,0.4)">1</div>
-                        <div style="flex:1;min-width:0">
-                            <div id="map-popup-time" style="font-size:11px;color:#7c3aed;font-weight:700;margin-bottom:2px"></div>
-                            <div id="map-popup-title" style="font-size:17px;font-weight:800;color:#111827;line-height:1.2"></div>
-                            <div id="map-popup-sub" style="font-size:12px;color:#6b7280;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-                        </div>
-                    </div>
-
-                    <!-- Trajet depuis précédent -->
-                    <div id="map-popup-travel" style="display:none;align-items:center;gap:6px;margin-bottom:10px;padding:7px 10px;border-radius:10px;font-size:11px;font-weight:600"></div>
-
-                    <!-- Nav ← X/Y → -->
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-                        <button id="map-popup-prev" onclick="_mapSwipePrev()" style="width:36px;height:36px;border-radius:50%;border:1.5px solid #e5e7eb;background:white;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">◀</button>
-                        <div id="map-popup-counter" style="flex:1;text-align:center;font-size:11px;color:#9ca3af;font-weight:700">1 / 1</div>
-                        <button id="map-popup-next" onclick="_mapSwipeNext()" style="width:36px;height:36px;border-radius:50%;border:1.5px solid #e5e7eb;background:white;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">▶</button>
-                    </div>
-
-                    <!-- Chips activités -->
-                    <div id="map-popup-chips" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ══ BARRE BAS FIXE — toujours visible ══ -->
-        <div id="map-bottom-bar" style="
-            position:absolute;bottom:0;left:0;right:0;
-            padding:10px 16px calc(env(safe-area-inset-bottom, 0px) + 10px);
-            background:rgba(10,15,30,0.88);
-            backdrop-filter:blur(20px);
-            -webkit-backdrop-filter:blur(20px);
-            border-top:1px solid rgba(255,255,255,0.1);
+        <!-- ① HEADER fixe ────────────────────────────────────────────── -->
+        <div id="map-header-bar" style="
+            flex-shrink:0;
+            height:56px;
             display:flex;align-items:center;gap:10px;
-            z-index:30">
-            <!-- ✕ Fermer -->
-            <button onclick="toggleMapView()" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:white;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
-            <!-- Jour / Date -->
-            <div id="map-header" style="flex:1;text-align:center;min-width:0">
-                <div id="map-day-label" style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:700;letter-spacing:0.1em;text-transform:uppercase">JOUR 1/1</div>
-                <div id="map-day-date" style="font-size:14px;color:white;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Chargement…</div>
+            padding:0 14px;
+            background:rgba(10,15,30,0.95);
+            backdrop-filter:blur(16px);
+            -webkit-backdrop-filter:blur(16px);
+            border-bottom:1px solid rgba(255,255,255,0.08);
+            z-index:20">
+            <!-- Fermer -->
+            <button onclick="toggleMapView()" style="
+                width:38px;height:38px;border-radius:50%;
+                background:rgba(255,255,255,0.1);
+                border:1px solid rgba(255,255,255,0.18);
+                color:white;font-size:17px;font-weight:700;
+                display:flex;align-items:center;justify-content:center;
+                flex-shrink:0">✕</button>
+            <!-- Date centrée -->
+            <div style="flex:1;text-align:center;min-width:0">
+                <div id="map-day-label" style="font-size:9px;color:rgba(255,255,255,0.45);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;line-height:1">JOUR 1/1</div>
+                <div id="map-day-date"  style="font-size:15px;color:white;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Chargement…</div>
             </div>
-            <!-- Satellite toggle -->
-            <button id="map-type-btn" onclick="toggleMapType()" style="height:40px;padding:0 12px;border-radius:20px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:white;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0">🛰 Satellite</button>
+            <!-- Satellite -->
+            <button id="map-type-btn" onclick="toggleMapType()" style="
+                height:34px;padding:0 12px;border-radius:17px;
+                background:rgba(255,255,255,0.1);
+                border:1px solid rgba(255,255,255,0.18);
+                color:white;font-size:11px;font-weight:700;
+                white-space:nowrap;flex-shrink:0">🛰 Satellite</button>
+        </div>
+
+        <!-- ② CARTE flex ────────────────────────────────────────────── -->
+        <div id="map-zone" style="flex:1;position:relative;overflow:hidden">
+            <!-- Google Maps canvas -->
+            <div id="gmap" style="position:absolute;inset:0"></div>
+
+            <!-- Filtres catégorie (injectés par JS) -->
+
+            <!-- Loader -->
+            <div id="map-loader" style="
+                position:absolute;inset:0;z-index:50;
+                display:flex;flex-direction:column;align-items:center;justify-content:center;
+                background:rgba(15,23,42,0.93)">
+                <div style="font-size:48px;animation:mapPulse 1.4s ease-in-out infinite">🗾</div>
+                <div style="color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;margin-top:12px">Chargement de la carte…</div>
+                <div id="map-diag-panel" style="margin-top:14px;max-width:300px;max-height:100px;overflow-y:auto;font-size:10px;color:rgba(255,255,255,0.45);padding:0 16px"></div>
+            </div>
+        </div>
+
+        <!-- ③ BOTTOM fixe — infos activité ─────────────────────────── -->
+        <div id="map-bottom" style="
+            flex-shrink:0;
+            background:#0f172a;
+            border-top:1px solid rgba(255,255,255,0.08);
+            z-index:20;
+            overflow:hidden">
+
+            <!-- Photo du lieu (160px, masquée si absente) -->
+            <div id="map-act-photo" style="height:160px;position:relative;background:#1a2540;display:none">
+                <img id="map-act-photo-img" src="" alt=""
+                    style="width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity 0.45s"/>
+                <!-- Gradient overlay bas -->
+                <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 30%,rgba(10,15,30,0.92))"></div>
+                <!-- Titre sur la photo -->
+                <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 16px">
+                    <div id="map-act-photo-label" style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px"></div>
+                    <div id="map-act-photo-title" style="font-size:18px;font-weight:800;color:white;line-height:1.2;text-shadow:0 1px 8px rgba(0,0,0,0.5)"></div>
+                </div>
+                <!-- Badge numéro -->
+                <div id="map-act-num-badge" style="
+                    position:absolute;top:12px;right:12px;
+                    width:36px;height:36px;border-radius:12px;
+                    background:#7c3aed;
+                    display:flex;align-items:center;justify-content:center;
+                    font-weight:900;font-size:16px;color:white;
+                    box-shadow:0 2px 10px rgba(124,58,237,0.5)">1</div>
+            </div>
+
+            <!-- Infos texte -->
+            <div style="padding:12px 16px 10px">
+
+                <!-- Titre + heure (si pas de photo) -->
+                <div id="map-act-header" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+                    <div id="map-act-num" style="
+                        width:38px;height:38px;border-radius:12px;
+                        background:#7c3aed;color:white;
+                        font-weight:900;font-size:16px;
+                        display:flex;align-items:center;justify-content:center;
+                        flex-shrink:0;box-shadow:0 2px 10px rgba(124,58,237,0.4)">1</div>
+                    <div style="flex:1;min-width:0">
+                        <div id="map-act-time"  style="font-size:10px;font-weight:700;color:#7c3aed;margin-bottom:1px"></div>
+                        <div id="map-act-title" style="font-size:16px;font-weight:800;color:white;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+                        <div id="map-act-addr"  style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+                    </div>
+                </div>
+
+                <!-- Ligne infos : rating + trajet + type -->
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+                    <span id="map-act-rating"  style="font-size:12px;font-weight:700;color:#f59e0b;display:none">★ 4.5</span>
+                    <span id="map-act-travel"  style="font-size:11px;font-weight:600;color:#94a3b8;display:none"></span>
+                    <span id="map-act-type"    style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(124,58,237,0.2);color:#a78bfa;display:none"></span>
+                </div>
+
+                <!-- Nav ← X/Y → + chips -->
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                    <button id="map-popup-prev" onclick="_mapSwipePrev()" style="
+                        width:38px;height:38px;flex-shrink:0;border-radius:50%;
+                        background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
+                        color:white;font-size:16px;cursor:pointer;
+                        display:flex;align-items:center;justify-content:center">◀</button>
+                    <div id="map-popup-counter" style="flex:1;text-align:center;font-size:11px;color:rgba(255,255,255,0.45);font-weight:700">1 / 1</div>
+                    <button id="map-popup-next" onclick="_mapSwipeNext()" style="
+                        width:38px;height:38px;flex-shrink:0;border-radius:50%;
+                        background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
+                        color:white;font-size:16px;cursor:pointer;
+                        display:flex;align-items:center;justify-content:center">▶</button>
+                </div>
+
+                <!-- Chips toutes activités -->
+                <div id="map-popup-chips" style="
+                    display:flex;gap:6px;
+                    overflow-x:auto;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 4px);
+                    scrollbar-width:none;-webkit-overflow-scrolling:touch"></div>
+            </div>
         </div>
 
     </div>
+
 
