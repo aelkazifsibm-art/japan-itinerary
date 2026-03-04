@@ -488,8 +488,8 @@
                     <div class="font-black leading-tight mt-0.5 truncate" style="font-size:15px" id="current-day-date">Chargement...</div>
                 </div>
                 <button onclick="nextDay()" id="next-day-btn" class="flex-shrink-0 flex items-center justify-center active:scale-95 transition-transform" style="width:52px;height:64px;font-size:22px">→</button>
-                <button onclick="toggleConfigFAB()" class="flex-shrink-0 flex items-center justify-center active:scale-95 transition-all rounded-l-2xl" style="width:52px;height:64px;background:rgba(255,255,255,0.18);border-left:1px solid rgba(255,255,255,0.25)" aria-label="Réglages">
-                    <span style="font-size:20px">⚙️</span>
+                <button id="nav-config-btn" onclick="toggleConfigFAB()" class="flex-shrink-0 flex items-center justify-center transition-all" style="width:52px;height:64px;background:rgba(0,0,0,0.18);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Réglages">
+                    <span id="nav-config-icon" style="font-size:17px;opacity:0.85">⚙️</span>
                 </button>
             </div>
         </div>
@@ -501,9 +501,7 @@
         <div class="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 flex-shrink-0">
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-bold">⚙️ Configuration</h2>
-                <button onclick="closeConfigScreen()" class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-4xl hover:scale-110 active:scale-95 transition-all">
-                    ×
-                </button>
+                <div class="text-xs opacity-60 font-medium">← Fermer via ✕ en bas</div>
             </div>
         </div>
 
@@ -4073,6 +4071,7 @@
                 element.style.boxShadow = '';
                 element.style.outline = '';
                 element.style.outlineOffset = '';
+                element.style.boxShadow = '';
                 element.style.zIndex = '';
                 element.classList.remove('longpress-ready'); // reactive touch-action:pan-y
                 longPressActive = false;
@@ -4084,8 +4083,7 @@
                 element.style.transition = 'transform 0.15s ease, box-shadow 0.2s ease';
                 element.style.transform = 'scale(1.03)';
                 element.style.zIndex = '50';
-                element.style.outline = '3px solid rgba(139,92,246,0.8)';
-                element.style.outlineOffset = '3px';
+                element.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.8), 0 8px 24px rgba(139,92,246,0.25)';
                 // Overlay violet persistant : signal clair "sélectionné, tu peux swiper"
                 overlay.style.transition = 'opacity 0.2s ease, background 0.1s ease';
                 setOverlay('rgba(139,92,246,0.22)', '1', '↔ Glisse pour valider ou supprimer');
@@ -4146,11 +4144,13 @@
                     if (absDiffX > 10 && absDiffX > absDiffY * 1.2) {
                         mode = 'swipe';
                         element.style.outline = '';
+                        element.style.boxShadow = '';
                         element.classList.remove('longpress-ready');
                     } else if (absDiffY > 10 && absDiffY > absDiffX * 1.2) {
                         mode = 'drag';
                         vibrate(25);
                         element.style.outline = '';
+                        element.style.boxShadow = '';
                         element.classList.remove('longpress-ready');
                         startDrag(e);
                     }
@@ -4229,6 +4229,8 @@
                     }
                 } else if (mode === 'drag') {
                     endDrag();
+                    // Toujours nettoyer l'overlay après un drag
+                    clearOverlay();
                 } else {
                     clearOverlay();
                 }
@@ -4277,13 +4279,17 @@
                 const midY = e.touches[0].clientY;
                 document.querySelectorAll('.activity-card').forEach(c => {
                     c.style.borderTop = ''; c.style.borderBottom = '';
+                    c.style.outline = '';
                 });
                 for (const card of cards) {
                     if (card === element) continue;
                     const r = card.getBoundingClientRect();
                     if (Math.abs(midY - (r.top + r.height/2)) < r.height * 0.55) {
-                        if (midY < r.top + r.height/2) card.style.borderTop = '3px solid #8b5cf6';
-                        else card.style.borderBottom = '3px solid #8b5cf6';
+                        // Indicateur de drop propre: outline au lieu de border qui décale le layout
+                        card.style.outline = midY < r.top + r.height/2
+                            ? '2px solid #8b5cf6'
+                            : '2px solid #8b5cf6';
+                        card.style.outlineOffset = '-2px';
                         break;
                     }
                 }
@@ -4294,9 +4300,11 @@
                 if (dragClone) { dragClone.remove(); dragClone = null; }
                 document.querySelectorAll('.activity-card').forEach(c => {
                     c.style.borderTop = ''; c.style.borderBottom = '';
+                    c.style.outline = ''; c.style.outlineOffset = '';
                 });
                 element.style.opacity = '';
                 element.style.transform = '';
+                element.style.boxShadow = '';
 
                 if (!cancel) {
                     const cards = Array.from(document.querySelectorAll('.activity-card'));
@@ -4322,61 +4330,50 @@
             const target  = activities.find(a => a.id === targetId);
             if (!dragged || !target) return;
 
-            // Toutes les activités du jour triées par heure
+            // Toutes les activités du jour triées par heure actuelle
             const dayAll = activities
                 .filter(a => a.dayIndex === currentDayIndex)
                 .sort((a, b) => a.time.localeCompare(b.time));
 
-            // Retirer le dragged puis insérer à la bonne position
+            // Retirer le dragged, puis insérer à la bonne position
             const without = dayAll.filter(a => a.id !== draggedId);
             const targetIdx = without.findIndex(a => a.id === targetId);
             if (targetIdx === -1) return;
             const insertIdx = insertBefore ? targetIdx : targetIdx + 1;
             without.splice(insertIdx, 0, dragged);
+            // `without` est maintenant le nouvel ordre voulu
 
-            // Recalcul intelligent des heures :
-            // On garde l'heure de chaque activité sauf le dragged qu'on recale
-            // entre ses deux voisins (interpolation)
-            const prev = without[insertIdx - 1];
-            const next = without[insertIdx + 1];
+            // ── Réassigner les heures de TOUTES les activités du jour ──────
+            // Ancre : heure de la première activité dans le nouvel ordre
+            // Chaque suivante = fin de la précédente + trajet (cache) + 10min tampon
+            const toMin = t => parseInt(t.split(':')[0]) * 60 + parseInt(t.split(':')[1]);
+            const toTime = m => String(Math.floor(m / 60) % 24).padStart(2,'0') + ':' + String(m % 60).padStart(2,'0');
 
-            let newTime = dragged.time; // fallback
-            if (prev && next) {
-                // Milieu entre fin du précédent et début du suivant
-                const prevH = parseInt(prev.time.split(':')[0]);
-                const prevM = parseInt(prev.time.split(':')[1]);
-                const prevEndMin = prevH * 60 + prevM + (prev.duration_minutes || 90) + 15; // +15min tampon
-                const nextH = parseInt(next.time.split(':')[0]);
-                const nextM = parseInt(next.time.split(':')[1]);
-                const nextStartMin = nextH * 60 + nextM;
-                const midMin = Math.round((prevEndMin + nextStartMin) / 2);
-                const clampedMin = Math.max(prevEndMin, Math.min(midMin, nextStartMin - 1));
-                newTime = String(Math.floor(clampedMin / 60) % 24).padStart(2,'0') + ':' + String(clampedMin % 60).padStart(2,'0');
-            } else if (prev) {
-                // Juste après le précédent
-                const prevH = parseInt(prev.time.split(':')[0]);
-                const prevM = parseInt(prev.time.split(':')[1]);
-                const afterMin = prevH * 60 + prevM + (prev.duration_minutes || 90) + 15;
-                newTime = String(Math.floor(afterMin / 60) % 24).padStart(2,'0') + ':' + String(afterMin % 60).padStart(2,'0');
-            } else if (next) {
-                // Juste avant le suivant
-                const nextH = parseInt(next.time.split(':')[0]);
-                const nextM = parseInt(next.time.split(':')[1]);
-                const beforeMin = Math.max(0, nextH * 60 + nextM - (dragged.duration_minutes || 90) - 15);
-                newTime = String(Math.floor(beforeMin / 60) % 24).padStart(2,'0') + ':' + String(beforeMin % 60).padStart(2,'0');
-            }
-
-            // Mettre à jour l'heure du dragged
-            const globalIdx = activities.findIndex(a => a.id === draggedId);
-            if (globalIdx >= 0) {
-                activities[globalIdx].time = newTime;
-                activities[globalIdx].time_flexible = false; // fixer l'heure choisie
-            }
+            let cursor = toMin(without[0].time); // ancre = heure d'origine de la 1ère activité
+            without.forEach((act, idx) => {
+                const globalIdx = activities.findIndex(a => a.id === act.id);
+                if (globalIdx >= 0) {
+                    activities[globalIdx].time = toTime(cursor);
+                    activities[globalIdx].time_flexible = false;
+                }
+                // Avancer le curseur : durée de cette activité + trajet vers suivante
+                const dur = act.duration_minutes || 90;
+                let trajet = 15; // tampon par défaut
+                if (idx < without.length - 1) {
+                    const next2 = without[idx + 1];
+                    if (act.place?.place_id && next2.place?.place_id) {
+                        const ck = act.place.place_id + '-' + next2.place.place_id;
+                        if (routeCache[ck]) trajet = routeCache[ck].total_minutes + 5;
+                    }
+                }
+                cursor += dur + trajet;
+            });
 
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
             renderPlanning();
 
             // ── Proposer l'optimisation IA après le réordonnancement ───────
+            const newTime = activities.find(a => a.id === draggedId)?.time || dragged.time;
             setTimeout(() => showDragOptimPrompt(draggedId, dragged.title, newTime), 400);
         }
 
@@ -4740,6 +4737,20 @@
             wrapper.classList.add('active', 'revealed');
             wrapper.classList.remove('peeking');
             document.getElementById('fab-icon').textContent = '×';
+            // Transformer le bouton nav en chip ✕
+            const navBtn = document.getElementById('nav-config-btn');
+            const navIcon = document.getElementById('nav-config-icon');
+            if (navBtn) {
+                navBtn.style.background = 'rgba(255,255,255,0.22)';
+                navBtn.style.borderLeft = '1px solid rgba(255,255,255,0.3)';
+                navBtn.style.borderRadius = '14px 0 0 0';
+            }
+            if (navIcon) {
+                navIcon.textContent = '✕';
+                navIcon.style.fontSize = '16px';
+                navIcon.style.opacity = '1';
+                navIcon.style.fontWeight = '700';
+            }
             syncConfigToggles();
             configDayIndex = currentDayIndex;
             dismissOnboarding();
@@ -4752,7 +4763,20 @@
             const wrapper = document.getElementById('fab-wrapper');
             wrapper.classList.remove('active', 'revealed');
             document.getElementById('fab-icon').textContent = '⚙️';
-            // Revenir en peek après un délai
+            // Restaurer le bouton nav
+            const navBtn = document.getElementById('nav-config-btn');
+            const navIcon = document.getElementById('nav-config-icon');
+            if (navBtn) {
+                navBtn.style.background = 'rgba(0,0,0,0.18)';
+                navBtn.style.borderLeft = '1px solid rgba(255,255,255,0.12)';
+                navBtn.style.borderRadius = '';
+            }
+            if (navIcon) {
+                navIcon.textContent = '⚙️';
+                navIcon.style.fontSize = '17px';
+                navIcon.style.opacity = '0.85';
+                navIcon.style.fontWeight = '';
+            }
             setTimeout(() => peekFab(), 100);
         }
 
