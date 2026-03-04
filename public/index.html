@@ -1927,7 +1927,9 @@
         // ========== MODAL ACTIVITÉ ==========
         // ========== CALCUL HEURE DISPONIBLE ==========
         function calculateNextAvailableTime() {
-            const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
+            const dayActivities = activities
+                .filter(a => a.dayIndex === currentDayIndex)
+                .sort((a, b) => a.time.localeCompare(b.time));
             
             if (dayActivities.length === 0) {
                 return "09:00";
@@ -2366,7 +2368,9 @@
         // ═══ OPTIMISATION IA ════════════════════════════════
 
         async function optimizeDaySchedule() {
-            const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
+            const dayActivities = activities
+                .filter(a => a.dayIndex === currentDayIndex)
+                .sort((a, b) => a.time.localeCompare(b.time));
             if (dayActivities.length < 2) {
                 alert('Ajoutez au moins 2 activités pour optimiser la journée.');
                 return;
@@ -2636,7 +2640,9 @@
             const list = document.getElementById('planning-list');
             list.innerHTML = '';
 
-            const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
+            const dayActivities = activities
+                .filter(a => a.dayIndex === currentDayIndex)
+                .sort((a, b) => a.time.localeCompare(b.time));
             const selectedCity = getCityForDay(currentDayIndex);
             const modes = dayModes[currentDayIndex] || { fatigue: false, weather: false };
 
@@ -4071,10 +4077,12 @@
                 element.style.boxShadow = '';
                 element.style.outline = '';
                 element.style.outlineOffset = '';
-                element.style.boxShadow = '';
                 element.style.zIndex = '';
-                element.classList.remove('longpress-ready'); // reactive touch-action:pan-y
+                element.classList.remove('longpress-ready');
                 longPressActive = false;
+                // Supprimer le marker drag s'il reste
+                const marker = document.getElementById('drag-drop-marker');
+                if (marker) marker.remove();
             }
 
             function startLongPressVisual() {
@@ -4277,19 +4285,21 @@
 
                 const cards = Array.from(document.querySelectorAll('.activity-card'));
                 const midY = e.touches[0].clientY;
-                document.querySelectorAll('.activity-card').forEach(c => {
-                    c.style.borderTop = ''; c.style.borderBottom = '';
-                    c.style.outline = '';
-                });
+
+                // Supprimer le marker précédent
+                const prev = document.getElementById('drag-drop-marker');
+                if (prev) prev.remove();
+
+                // Trouver la carte cible et afficher un séparateur
                 for (const card of cards) {
                     if (card === element) continue;
                     const r = card.getBoundingClientRect();
-                    if (Math.abs(midY - (r.top + r.height/2)) < r.height * 0.55) {
-                        // Indicateur de drop propre: outline au lieu de border qui décale le layout
-                        card.style.outline = midY < r.top + r.height/2
-                            ? '2px solid #8b5cf6'
-                            : '2px solid #8b5cf6';
-                        card.style.outlineOffset = '-2px';
+                    if (Math.abs(midY - (r.top + r.height/2)) < r.height * 0.6) {
+                        const above = midY < r.top + r.height / 2;
+                        const marker = document.createElement('div');
+                        marker.id = 'drag-drop-marker';
+                        marker.style.cssText = 'position:fixed;left:' + r.left + 'px;width:' + r.width + 'px;height:3px;background:linear-gradient(to right,#8b5cf6,#ec4899);border-radius:3px;z-index:998;pointer-events:none;top:' + (above ? r.top - 2 : r.bottom - 1) + 'px;box-shadow:0 0 8px rgba(139,92,246,0.6)';
+                        document.body.appendChild(marker);
                         break;
                     }
                 }
@@ -4298,9 +4308,14 @@
             function endDrag(cancel) {
                 dragActive = false;
                 if (dragClone) { dragClone.remove(); dragClone = null; }
+                // Supprimer le marker de drop
+                const marker = document.getElementById('drag-drop-marker');
+                if (marker) marker.remove();
+                // Nettoyer toutes les cartes
                 document.querySelectorAll('.activity-card').forEach(c => {
                     c.style.borderTop = ''; c.style.borderBottom = '';
                     c.style.outline = ''; c.style.outlineOffset = '';
+                    c.style.boxShadow = '';
                 });
                 element.style.opacity = '';
                 element.style.transform = '';
