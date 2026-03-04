@@ -92,263 +92,182 @@
         /* Activité complétée */
 
 
-        /* ── Inputs/Selects dark mode ────────────────────────────────── */
-        html.dark input[type="number"],
-        html.dark input[type="text"],
-        html.dark select {
-            background: #1e293b !important;
-            color: #f1f5f9 !important;
-            border-color: #475569 !important;
-        }
-        html.dark input::placeholder { color: #64748b !important; }
-        /* Config screen complet */
-        html.dark #config-screen {
-            background: #0f172a !important;
-        }
-        html.dark #config-screen h2,
-        html.dark #config-screen h3,
-        html.dark #config-screen .font-bold,
-        html.dark #config-screen .font-black { color: #f1f5f9 !important; }
-        html.dark #config-screen .text-gray-500,
-        html.dark #config-screen .text-gray-400 { color: #94a3b8 !important; }
-        html.dark #config-screen .text-gray-600 { color: #cbd5e1 !important; }
-        html.dark #config-screen .bg-white { background: #1e293b !important; }
-        html.dark #config-screen .bg-gray-50 { background: #0f172a !important; }
-        html.dark #config-screen .border-gray-200 { border-color: #334155 !important; }
-        /* Onglets config */
-        html.dark .config-tab { color: #94a3b8 !important; }
-        html.dark .config-tab.active-tab { color: #f1f5f9 !important; }
-        /* Budget total display */
-        html.dark #total-budget-display { color: white !important; }
-        html.dark #budget-per-day { color: rgba(255,255,255,0.8) !important; }
-        html.dark #budget-breakdown { color: #e2e8f0 !important; }
-        html.dark #budget-breakdown span { color: #94a3b8 !important; }
-        html.dark #budget-breakdown span.font-bold { color: #f1f5f9 !important; }
-        /* Avertissement jours sans séjour */
-        html.dark .bg-yellow-50 { background: #1c1500 !important; color: #fbbf24 !important; }
-        html.dark .text-yellow-700 { color: #fbbf24 !important; }
-        /* Sidebar */
-        html.dark #sidebar { background: #0f172a !important; }
-        html.dark #sidebar .bg-white { background: #1e293b !important; }
+        /* ══════════════════════════════════════════════════════════════════
+           DARK MODE — AUDIT COMPLET v2
+           Couvre : welcome, sidebar, config (tous onglets), modals, nav
+        ══════════════════════════════════════════════════════════════════ */
 
-        /* ══ DARK MODE ═══════════════════════════════════════════════ */
-        html.dark body {
-            background: linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%) !important;
-            color: #e2e8f0;
-        }
-        /* Tuiles activités */
-        html.dark .activity-card {
-            background: #1e293b !important;
-            border-color: #334155 !important;
-        }
-        html.dark .activity-card.activity-completed {
-            background: #14291e !important;
-            border-color: #166534 !important;
-        }
-        /* Textes dans les tuiles */
-        html.dark .activity-card .text-gray-800,
-        html.dark .activity-card .text-gray-700,
-        html.dark .activity-card .font-black,
-        html.dark .activity-card .font-bold { color: #f1f5f9 !important; }
-        html.dark .activity-card .text-gray-500,
-        html.dark .activity-card .text-gray-400 { color: #94a3b8 !important; }
-        /* Chips horaires / gratuit */
-        html.dark .activity-card .bg-pink-50  { background: #3b1535 !important; }
-        html.dark .activity-card .bg-green-50,
-        html.dark .activity-card .bg-emerald-50 { background: #14291e !important; }
-        html.dark .activity-card .bg-blue-50   { background: #0c1f3f !important; }
-        html.dark .activity-card .bg-orange-50 { background: #2a1500 !important; }
-        /* Bloc hôtel */
-        html.dark .bg-orange-50 { background: #1c1209 !important; }
-        /* Blocs transport */
-        html.dark .nav-info-pill { opacity: 0.9; }
-        /* Suggestions panel */
-        html.dark .bg-gradient-to-r.from-purple-50,
+        /* ── Corps de page ── */
+        html.dark body { background: linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#0f172a 100%) !important; color: #e2e8f0 !important; }
+
+        /* ── Écrans plein-page (welcome, sidebar, config) ── */
+        html.dark #welcome-screen,
+        html.dark #sidebar,
+        html.dark #config-screen { background: #0f172a !important; }
+
+        /* ── Headers sticky ── */
+        html.dark #sidebar > div > div:first-child,
+        html.dark #sidebar .border-b { background: #0f172a !important; border-color: #334155 !important; }
+        html.dark #sidebar .border-t { background: #0f172a !important; border-color: #334155 !important; }
+
+        /* ── Config bottom nav ── */
+        html.dark #config-screen > div:last-child { background: #0f172a !important; border-color: #334155 !important; }
+        html.dark .config-tab-bottom { color: #64748b !important; }
+        html.dark .config-tab-bottom.text-purple-600 { color: #a78bfa !important; }
+
+        /* ── Navigation jours ── */
+        html.dark #day-navigation { background: #0f172a !important; border-color: #334155 !important; }
+
+        /* ── Welcome screen ── */
+        html.dark #welcome-screen .bg-white,
+        html.dark #welcome-screen .rounded-3xl { background: #1e293b !important; border-color: #334155 !important; }
+        html.dark #welcome-screen .text-gray-800,
+        html.dark #welcome-screen .text-gray-700 { color: #f1f5f9 !important; }
+        html.dark #welcome-screen .text-gray-600,
+        html.dark #welcome-screen .text-gray-500,
+        html.dark #welcome-screen .text-gray-400 { color: #94a3b8 !important; }
+        html.dark #welcome-screen .from-blue-50,
+        html.dark #welcome-screen [class*="from-blue-50"] { background: #0a1929 !important; }
+        html.dark #welcome-screen .bg-gradient-to-br { background: #0a1929 !important; }
+        html.dark #welcome-screen label { color: #94a3b8 !important; }
+        html.dark #welcome-screen input,
+        html.dark #welcome-screen select { background: #1e293b !important; color: #f1f5f9 !important; border-color: #475569 !important; }
+        html.dark #welcome-screen .border-blue-100 { border-color: #1e3a5f !important; }
+        html.dark #welcome-screen .text-blue-700 { color: #60a5fa !important; }
+        html.dark #welcome-screen .text-green-700 { color: #4ade80 !important; }
+        html.dark #welcome-screen .bg-green-50 { background: #0d1f15 !important; }
+        html.dark #welcome-screen .border-green-100 { border-color: #166534 !important; }
+        html.dark #welcome-screen .from-green-50 { background: #0d1f15 !important; }
+
+        /* ── Sidebar contenu ── */
+        html.dark #sidebar h2,
+        html.dark #sidebar h3 { color: #f1f5f9 !important; }
+        html.dark #sidebar .text-gray-800,
+        html.dark #sidebar .text-gray-700 { color: #f1f5f9 !important; }
+        html.dark #sidebar .text-gray-600,
+        html.dark #sidebar .text-gray-500,
+        html.dark #sidebar .text-gray-400 { color: #94a3b8 !important; }
+
+        /* ── Config onglet Voyage ── */
+        html.dark #config-content-voyage .text-gray-800,
+        html.dark #config-content-voyage h3 { color: #f1f5f9 !important; }
+        html.dark #config-content-voyage .text-gray-400,
+        html.dark #config-content-voyage .text-gray-500 { color: #64748b !important; }
+
+        /* ── Config onglet Réglages ── */
+        html.dark #config-content-reglages .text-gray-800 { color: #f1f5f9 !important; }
+        html.dark #config-content-reglages .text-gray-500 { color: #94a3b8 !important; }
+        html.dark #config-content-reglages .border-gray-200 { border-color: #334155 !important; }
+        html.dark #config-content-reglages .bg-red-50 { background: #1f0d0d !important; }
+        html.dark #config-content-reglages .text-red-600 { color: #f87171 !important; }
+        html.dark #config-content-reglages .border-red-200 { border-color: #991b1b !important; }
+        html.dark #config-content-reglages .from-blue-100 { background: #0a1929 !important; }
+        html.dark #config-content-reglages .to-cyan-100 { background: #0a1929 !important; }
+        html.dark #config-content-reglages .bg-gradient-to-r { background: #0a1929 !important; }
+        html.dark #config-content-reglages .text-blue-700 { color: #60a5fa !important; }
+
+        /* ── Modal activité (ajouter) ── */
+        html.dark #activity-modal > div { background: #1e293b !important; }
+        html.dark #activity-modal .text-gray-700,
+        html.dark #activity-modal .text-gray-800 { color: #f1f5f9 !important; }
+        html.dark #activity-modal .text-gray-500,
+        html.dark #activity-modal .text-gray-400 { color: #94a3b8 !important; }
+        html.dark #activity-modal input,
+        html.dark #activity-modal textarea { background: #0f172a !important; color: #f1f5f9 !important; border-color: #475569 !important; }
+        html.dark #activity-modal input::placeholder,
+        html.dark #activity-modal textarea::placeholder { color: #64748b !important; }
+        html.dark #activity-modal .border-gray-200,
+        html.dark #activity-modal .border-gray-100 { border-color: #475569 !important; }
+        html.dark #activity-modal .bg-gray-100 { background: #334155 !important; }
+        html.dark #activity-modal .text-gray-600 { color: #cbd5e1 !important; }
+        /* Radio time mode buttons */
+        html.dark #activity-modal .border-gray-200.rounded-xl { background: #0f172a !important; border-color: #475569 !important; }
+        html.dark #activity-modal .peer-checked\:bg-purple-50 { background: #1e1b4b !important; }
+        html.dark #activity-modal .peer-checked\:bg-orange-50 { background: #1c0e00 !important; }
+        /* Suggestion IA */
+        html.dark #ia-suggestions { background: #1e1b4b !important; border-color: #4c1d95 !important; }
+        html.dark #ia-suggestions .text-purple-700 { color: #a78bfa !important; }
+        html.dark #ia-suggestions .text-gray-800 { color: #f1f5f9 !important; }
+        /* Autocomplete dropdown */
+        html.dark #dest-suggestions { background: #1e293b !important; border-color: #475569 !important; }
+        html.dark #dest-suggestions > div { border-color: #334155 !important; }
+        html.dark #dest-suggestions > div:hover { background: #334155 !important; }
+
+        /* ── Modal infos activité ── */
+        html.dark #activity-info-modal > div { background: #1e293b !important; }
+        html.dark #activity-info-modal .text-gray-800,
+        html.dark #activity-info-modal .text-gray-700 { color: #f1f5f9 !important; }
+        html.dark #activity-info-modal .text-gray-500,
+        html.dark #activity-info-modal .text-gray-400 { color: #94a3b8 !important; }
+        html.dark #activity-info-modal .bg-gray-50,
+        html.dark #activity-info-modal .bg-gray-100 { background: #0f172a !important; }
+        html.dark #activity-info-modal .border-gray-100,
+        html.dark #activity-info-modal .border-gray-200 { border-color: #334155 !important; }
+
+        /* ── Modal séjour ── */
+
+        html.dark #add-confirm-card { background: #1e293b !important; color: #f1f5f9 !important; }
+        html.dark #add-confirm-card .text-gray-800,
+        html.dark #add-confirm-card .text-gray-700 { color: #f1f5f9 !important; }
+        html.dark #add-confirm-card .text-gray-500 { color: #94a3b8 !important; }
+        /* add-confirm-card par défaut (light) */
+        #add-confirm-card { background: white; }
+        html.dark #stay-modal > div { background: #1e293b !important; }
+        html.dark #stay-modal .text-gray-800,
+        html.dark #stay-modal .text-gray-700 { color: #f1f5f9 !important; }
+        html.dark #stay-modal .text-gray-500,
+        html.dark #stay-modal .text-gray-400 { color: #94a3b8 !important; }
+        html.dark #stay-modal input,
+        html.dark #stay-modal select { background: #0f172a !important; color: #f1f5f9 !important; border-color: #475569 !important; }
+        html.dark #stay-modal input::placeholder { color: #64748b !important; }
+        html.dark #stay-modal .bg-gray-100 { background: #334155 !important; }
+        html.dark #stay-modal .bg-gray-200 { background: #334155 !important; }
+        html.dark #stay-modal .border-gray-100,
+        html.dark #stay-modal .border-gray-200 { border-color: #475569 !important; }
+        /* Boutons villes */
+        html.dark .stay-city-btn { background: #0f172a !important; border-color: #334155 !important; }
+        html.dark .stay-city-btn .text-gray-800 { color: #f1f5f9 !important; }
+        html.dark .stay-city-btn .text-gray-400 { color: #64748b !important; }
+        html.dark .stay-city-btn:hover { background: #1e1b4b !important; border-color: #7c3aed !important; }
+        html.dark .stay-city-btn.selected { background: #1e1b4b !important; border-color: #a78bfa !important; }
+        /* Footer sticky modal séjour */
+        html.dark #stay-modal .border-t { background: #1e293b !important; border-color: #334155 !important; }
+        html.dark #stay-modal .bg-gray-50 { background: #0f172a !important; }
+        /* Bouton retour */
+        html.dark #stay-modal .text-gray-600 { color: #cbd5e1 !important; }
+
+        /* ── Budget onglet — inputs ── */
+        html.dark #config-content-budget input,
+        html.dark #config-content-budget select { background: #0f172a !important; color: #f1f5f9 !important; border-color: #475569 !important; }
+        html.dark #config-content-budget .text-gray-800,
+        html.dark #config-content-budget .font-bold { color: #f1f5f9 !important; }
+        html.dark #config-content-budget .text-gray-500,
+        html.dark #config-content-budget .text-gray-400 { color: #94a3b8 !important; }
+
+        /* ── Suggestions planning (dropdown) ── */
+        html.dark .suggestions-dropdown,
+        html.dark #suggestions-dropdown { background: #1e293b !important; border-color: #334155 !important; }
+        html.dark .bg-gradient-to-r.from-purple-50 { background: linear-gradient(to right,#1e1b4b,#2d1b69) !important; }
         html.dark [class*="from-purple-50"] { background: linear-gradient(to right,#1e1b4b,#2d1b69) !important; }
-        html.dark .bg-white { background: #1e293b !important; }
-        html.dark .bg-gray-50 { background: #0f172a !important; }
-        html.dark .bg-gray-100 { background: #1e293b !important; }
-        html.dark .border-gray-100,
-        html.dark .border-gray-200 { border-color: #334155 !important; }
+
+        /* ── Textes globaux dans tuiles et UI ── */
         html.dark .text-gray-800 { color: #f1f5f9 !important; }
         html.dark .text-gray-700 { color: #e2e8f0 !important; }
         html.dark .text-gray-600 { color: #cbd5e1 !important; }
         html.dark .text-gray-500 { color: #94a3b8 !important; }
         html.dark .text-gray-400 { color: #64748b !important; }
-        /* Bouton + dans les tuiles */
-        html.dark .activity-card button div { background: #334155 !important; border-color: #475569 !important; }
-        /* Bloc mode alerte */
-        html.dark .bg-yellow-50 { background: #1c1500 !important; }
-        /* Config screen */
-        html.dark #config-screen { background: #0f172a !important; color: #e2e8f0; }
-        html.dark #config-screen .bg-white { background: #1e293b !important; }
-        /* Modals */
-        html.dark .bg-white.rounded-3xl,
-        html.dark .bg-white.rounded-2xl { background: #1e293b !important; }
-        html.dark #day-navigation > div > div { /* gradient bar reste inchangé */ }
 
-        /* Long press ready : pulse violet */
-        /* Pas d'animation pulse : trop fugace, confusant */
-        .longpress-ready {
-            /* touch-action géré en CSS, visuel géré en JS */
-        }
+        /* ── Fonds globaux ── */
+        html.dark .bg-white { background: #1e293b !important; }
+        html.dark .bg-gray-50 { background: #0f172a !important; }
+        html.dark .bg-gray-100 { background: #1e293b !important; }
+        html.dark .border-gray-100,
+        html.dark .border-gray-200 { border-color: #334155 !important; }
 
-        /* Hint de swipe (valider / supprimer) */
-        .activity-card[data-swipe-hint]:not([data-swipe-hint=""])::after {
-            content: attr(data-swipe-hint);
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 15px;
-            font-weight: 900;
-            color: white;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
-            pointer-events: none;
-            z-index: 10;
-            white-space: nowrap;
-            letter-spacing: 0.5px;
-        }
-        .activity-card {
-            position: relative;
-        }
+        /* ── Scrollbars en dark ── */
+        html.dark ::-webkit-scrollbar { width: 4px; background: #0f172a; }
+        html.dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
 
-        /* Drag hint : indicateur de position lors du réordonnancement */
-        .activity-card {
-            touch-action: pan-y;  /* scroll vertical OK par défaut */
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        .activity-card.longpress-ready {
-            touch-action: none;   /* bloque tout après long press activé */
-        }
-
-                .activity-completed {
-            background: white !important;
-            opacity: 0.80;
-        }
-
-
-        /* Animation confetti */
-        @keyframes confetti-fall {
-            0% {
-                transform: translateY(-100%) rotate(0deg);
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(100vh) rotate(720deg);
-                opacity: 0;
-            }
-        }
-        
-        .confetti {
-            position: fixed;
-            width: 10px;
-            height: 10px;
-            z-index: 9999;
-            pointer-events: none;
-        }
-
-        /* Swipe indicator */
-        .swipe-indicator {
-            position: absolute;
-            right: -60px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.3));
-            width: 60px;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            transition: right 0.3s ease;
-        }
-        
-        .swiping .swipe-indicator {
-            right: 0;
-        }
-        
-        /* Japanese aesthetic touches */
-        .torii-accent::before {
-            content: '⛩️';
-            margin-right: 8px;
-        }
-        
-        .fuji-pattern {
-            background-image: 
-                radial-gradient(circle at 20% 80%, rgba(255, 183, 197, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(102, 126, 234, 0.2) 0%, transparent 50%);
-        }
-
-        /* ── ANIMATION CONFIRMATION ────────────────────────── */
-        @keyframes confetti-pop {
-            0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
-            100% { transform: translateY(-120px) rotate(720deg) scale(0); opacity: 0; }
-        }
-        .confetti-piece {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            border-radius: 2px;
-            animation: confetti-pop 0.8s ease-out forwards;
-        }
-        #add-confirm-card.show {
-            opacity: 1 !important;
-            transform: translate(-50%, -50%) scale(1) !important;
-        }
-
-        /* ── FICHE PREVIEW ─────────────────────────────────── */
-        .preview-stat {
-            background: linear-gradient(135deg, #f5f3ff, #fdf2f8);
-            border: 1.5px solid #e9d5ff;
-            border-radius: 14px;
-            padding: 10px 14px;
-        }
-
-        /* ── FAB ORGANIQUE ─────────────────────────────────── */
-
-        /* Conteneur wrapper positionné sur le bord */
-        /* ── Bouton réglages fixe bas-droite ─────────────────────── */
-        #fab-wrapper {
-            position: fixed;
-            bottom: 16px;
-            right: 16px;
-            z-index: 260; /* au-dessus de la day-navigation (z-50) */
-            display: none;
-        }
-        /* Quand la nav des jours est visible, remonter le FAB au-dessus */
-        body.nav-visible #fab-wrapper {
-            bottom: 80px; /* hauteur nav ~70px + marge */
-        }
-        #fab-ear { display: none !important; }
-        #fab-config {
-            width: 52px;
-            height: 52px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
-            box-shadow: 0 4px 20px rgba(168,85,247,0.45), 0 2px 8px rgba(0,0,0,0.15);
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
-            outline: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-        #fab-config:active { transform: scale(0.92); }
-        #fab-wrapper.active #fab-config {
-            background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-            box-shadow: 0 4px 20px rgba(239,68,68,0.45), 0 2px 8px rgba(0,0,0,0.15) !important;
-        }
-        #fab-icon {
-            font-size: 22px;
-            line-height: 1;
-            display: block;
-            transition: transform 0.3s ease;
-        }
-        #fab-wrapper.active #fab-icon { transform: rotate(45deg); }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen pb-32 fuji-pattern">
@@ -932,7 +851,7 @@
     <!-- ANIMATION CONFIRMATION AJOUT -->
     <div id="add-confirm-overlay" class="fixed inset-0 z-[400] pointer-events-none hidden">
         <div id="add-confirm-card" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
-             bg-white rounded-3xl shadow-2xl p-8 text-center w-72
+             rounded-3xl shadow-2xl p-8 text-center w-72
              opacity-0 scale-75 transition-all duration-500">
             <div id="add-confirm-emoji" class="text-6xl mb-3"></div>
             <div class="text-xl font-black text-gray-800" id="add-confirm-title"></div>
@@ -1832,7 +1751,7 @@
             if (fatigueStatus) {
                 fatigueStatus.innerHTML = modes.fatigue ? 
                     '<span class="text-green-600 font-bold">✅ Mode activé</span>' : 
-                    '<span class="text-gray-600">Désactivé</span>';
+                    '<span style="color:var(--budget-sub,#6b7280)">Désactivé</span>';
             }
             
             if (weatherInfo) {
@@ -2174,7 +2093,7 @@
                 document.getElementById('suggestion-preview-content').innerHTML = `
                     <div class="p-8 text-center">
                         <div class="text-4xl mb-3">⚠️</div>
-                        <div class="font-bold text-gray-700">Erreur de chargement</div>
+                        <div class="font-bold" style="color:inherit">Erreur de chargement</div>
                         <div class="text-sm text-gray-400 mt-1">${e.message}</div>
                         <button onclick="closeSuggestionPreview()" class="mt-4 bg-gray-100 text-gray-600 px-6 py-2 rounded-xl font-bold text-sm">Fermer</button>
                     </div>
@@ -2425,9 +2344,9 @@
             overlay.id = 'opt-loading-overlay';
             overlay.className = 'fixed inset-0 bg-black/60 z-[350] flex items-center justify-center';
             overlay.innerHTML = `
-                <div class="bg-white rounded-3xl p-8 mx-4 text-center max-w-xs w-full shadow-2xl">
+                <div class="${document.documentElement.classList.contains('dark')?'bg-[#1e293b] text-[#f1f5f9]':'bg-white'} rounded-3xl p-8 mx-4 text-center max-w-xs w-full shadow-2xl">
                     <div class="text-5xl mb-4 animate-bounce">🧠</div>
-                    <div class="text-lg font-black text-gray-800 mb-1">Optimisation IA</div>
+                    <div class="text-lg font-black mb-1" style="color:inherit">Optimisation IA</div>
                     <div class="text-sm text-gray-500 mb-5">Horaires · Trajets · Marges de respiration...</div>
                     <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
                         <div class="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full animate-pulse" style="width:70%"></div>
@@ -2748,7 +2667,7 @@
                                 + Activité
                             </button>
                         </div>
-                        <div id="suggestions-dropdown" class="hidden bg-white p-4 border-t-2 border-purple-100">
+                        <div id="suggestions-dropdown" class="hidden p-4 border-t-2" style="background:var(--modal-bg,white);border-color:var(--budget-border,#ede9fe)">
                             <div class="grid grid-cols-2 gap-3" id="planning-suggestions-grid"></div>
                         </div>
                     </div>
@@ -3019,7 +2938,8 @@
                     : null;
                 const card = document.createElement('div');
                 const isCompleted = completedActivities.includes(act.id);
-                card.className = "bg-white rounded-2xl overflow-hidden activity-card" + (isCompleted ? " activity-completed" : "");
+                card.className = "rounded-2xl overflow-hidden activity-card" + (isCompleted ? " activity-completed" : "");
+                card.style.background = document.documentElement.classList.contains('dark') ? '#1e293b' : 'white';
                 card.dataset.actId = act.id;
                 if (isCompleted) {
                     // Même layout, liseré vert épais uniquement
@@ -3490,10 +3410,10 @@
                 const cls = isToday ? 'bg-purple-100 font-bold text-purple-700' : 'bg-gray-50 text-gray-700';
                 rows += '<div class="text-sm px-3 py-2 rounded-lg ' + cls + '">' + line + '</div>';
             });
-            modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-5" onclick="event.stopPropagation()">'
-                + '<div class="font-black text-gray-800 mb-3">🗓 Horaires de la semaine</div>'
+            modal.innerHTML = '<div class="' + (document.documentElement.classList.contains('dark')?'bg-[#1e293b] text-[#f1f5f9]':'bg-white') + ' rounded-2xl shadow-2xl w-full max-w-xs p-5" onclick="event.stopPropagation()">'
+                + '<div class="font-black mb-3" style="color:inherit">🗓 Horaires de la semaine</div>'
                 + '<div class="space-y-1.5">' + (rows || '<div class="text-gray-400 text-sm text-center py-4">Aucun horaire disponible</div>') + '</div>'
-                + '<button class="mt-4 w-full bg-gray-100 text-gray-600 py-2.5 rounded-xl font-bold text-sm" onclick="this.parentElement.parentElement.remove()">Fermer</button>'
+                + '<button class="mt-4 w-full py-2.5 rounded-xl font-bold text-sm" style="background:var(--budget-bg,#f3f4f6);color:var(--budget-text,#4b5563)" onclick="this.parentElement.parentElement.remove()">Fermer</button>'
                 + '</div>';
             document.body.appendChild(modal);
         }
@@ -4815,10 +4735,10 @@
             const confirmModal = document.createElement('div');
             confirmModal.className = 'fixed inset-0 bg-black bg-opacity-50 z-[300] flex items-center justify-center p-4';
             confirmModal.innerHTML = `
-                <div class="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4">
+                <div class="${document.documentElement.classList.contains('dark')?'bg-[#1e293b] text-[#f1f5f9]':'bg-white'} rounded-2xl p-6 max-w-sm w-full space-y-4">
                     <div class="text-center">
                         <div class="text-6xl mb-4">⚠️</div>
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Réinitialiser tout ?</h3>
+                        <h3 class="text-xl font-bold mb-2" style="color:inherit">Réinitialiser tout ?</h3>
                         <p class="text-sm text-gray-600">Supprime toutes les activités, dates et configurations.</p>
                         <p class="text-xs text-red-600 mt-3 font-bold">⚠️ Cette action est irréversible !</p>
                     </div>
@@ -4873,7 +4793,7 @@
 
     <!-- MODAL CONFIRMATION SUPPRESSION ACTIVITÉ -->
     <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[500] hidden flex items-center justify-center p-6">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xs p-6 text-center">
+        <div class="${document.documentElement.classList.contains('dark')?'bg-[#1e293b] text-[#f1f5f9]':'bg-white'} rounded-3xl shadow-2xl w-full max-w-xs p-6 text-center">
             <div class="text-4xl mb-3">🗑️</div>
             <div class="text-base font-black text-gray-800 mb-1">Supprimer cette activité ?</div>
             <div id="delete-confirm-name" class="text-sm text-gray-500 mb-5 font-medium"></div>
