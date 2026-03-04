@@ -4077,12 +4077,13 @@
                 hint.textContent = '';
                 hint.style.fontSize = '16px';
                 hint.style.fontWeight = '900';
-                element.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
+                element.style.transition = '';
                 element.style.transform = '';
                 element.style.boxShadow = '';
                 element.style.outline = '';
                 element.style.outlineOffset = '';
                 element.style.zIndex = '';
+                element.style.opacity = '';
                 element.classList.remove('longpress-ready');
                 longPressActive = false;
                 // Supprimer le marker drag s'il reste
@@ -4351,15 +4352,16 @@
                 // Supprimer le marker de drop
                 const marker = document.getElementById('drag-drop-marker');
                 if (marker) marker.remove();
-                // Nettoyer toutes les cartes
+                // Nettoyer toutes les cartes — reset complet via setAttribute
                 document.querySelectorAll('.activity-card').forEach(c => {
                     c.style.borderTop = ''; c.style.borderBottom = '';
                     c.style.outline = ''; c.style.outlineOffset = '';
-                    c.style.boxShadow = '';
+                    c.style.boxShadow = ''; c.style.transform = '';
+                    c.style.opacity = ''; c.style.zIndex = '';
                 });
-                element.style.opacity = '';
-                element.style.transform = '';
-                element.style.boxShadow = '';
+                element.style.cssText = '';  // reset complet de tous les styles inline
+                // Re-appliquer seulement le fond (sera recalculé par renderPlanning de toute façon)
+                element.style.background = document.documentElement.classList.contains('dark') ? '#1e293b' : 'white';
 
                 if (!cancel) {
                     const allCards = Array.from(document.querySelectorAll('.activity-card'));
@@ -4392,6 +4394,21 @@
                             targetId = parseInt(card.dataset.actId);
                             insertBefore = false;
                             break;
+                        }
+                    }
+                    // Fallback: si pas de match précis, prendre la carte la plus proche verticalement
+                    if (!targetId) {
+                        let minDist = Infinity;
+                        for (const card of allCards) {
+                            if (card === element) continue;
+                            const r = card.getBoundingClientRect();
+                            const center = r.top + r.height / 2;
+                            const dist = Math.abs(midY - center);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                targetId = parseInt(card.dataset.actId);
+                                insertBefore = midY < center;
+                            }
                         }
                     }
                     if (targetId && targetId !== activityId) reorderActivity(activityId, targetId, insertBefore);
@@ -4447,9 +4464,13 @@
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
             renderPlanning();
 
-            // ── Proposer l'optimisation IA après le réordonnancement ───────
-            const newTime = activities.find(a => a.id === draggedId)?.time || dragged.time;
-            setTimeout(() => showDragOptimPrompt(draggedId, dragged.title, newTime), 400);
+            // ── Toast IA seulement si l'ordre a vraiment changé ───────────
+            const originalOrder = dayAll.map(a => a.id).join(',');
+            const newOrder = without.map(a => a.id).join(',');
+            if (originalOrder !== newOrder) {
+                const newTime = activities.find(a => a.id === draggedId)?.time || dragged.time;
+                setTimeout(() => showDragOptimPrompt(draggedId, dragged.title, newTime), 400);
+            }
         }
 
         function showDragOptimPrompt(draggedId, actTitle, newTime) {
