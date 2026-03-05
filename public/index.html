@@ -638,68 +638,34 @@
         </div>
     </div>
 
-    <!-- ══ MODALE BUDGET ════════════════════════════════════════════ -->
-    <div id="budget-modal" class="fixed inset-0 z-[300] hidden" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)">
+
+    <!-- ══ MENU "PLUS" ══════════════════════════════════════════════════ -->
+    <div id="more-menu" class="fixed inset-0 z-[280] hidden" onclick="if(event.target===this)toggleMoreMenu()">
         <div style="
-            position:absolute;bottom:0;left:0;right:0;
-            background:white;
-            border-radius:24px 24px 0 0;
-            padding:20px 20px calc(env(safe-area-inset-bottom,0px) + 20px);
-            max-height:80vh;overflow-y:auto">
-            <div style="width:40px;height:4px;border-radius:2px;background:#e5e7eb;margin:0 auto 16px"></div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-                <div style="font-size:18px;font-weight:900;color:#111827">💴 Budget du jour</div>
-                <button onclick="closeBudgetModal()" style="width:30px;height:30px;border-radius:50%;background:#f3f4f6;border:none;color:#6b7280;font-size:16px;cursor:pointer">✕</button>
-            </div>
+            position:absolute;bottom:64px;right:0;left:0;
+            max-width:28rem;margin:0 auto;
+            background:#1e293b;
+            border-radius:20px 20px 0 0;
+            padding:8px 0 4px;
+            box-shadow:0 -8px 32px rgba(0,0,0,0.4)">
 
-            <!-- Total journalier -->
-            <div id="budget-day-total" style="
-                background:linear-gradient(135deg,#7c3aed,#6d28d9);
-                border-radius:16px;padding:16px;margin-bottom:16px;
-                display:flex;align-items:center;justify-content:space-between">
-                <div>
-                    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.6);letter-spacing:0.1em;text-transform:uppercase">Total aujourd'hui</div>
-                    <div id="budget-total-amount" style="font-size:28px;font-weight:900;color:white;margin-top:2px">¥0</div>
-                </div>
-                <div style="text-align:right">
-                    <div style="font-size:10px;color:rgba(255,255,255,0.5)">Budget restant</div>
-                    <div id="budget-remaining" style="font-size:16px;font-weight:800;color:#86efac">—</div>
-                </div>
-            </div>
-
-            <!-- Budget quotidien cible -->
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px;background:#f9fafb;border-radius:12px">
-                <span style="font-size:13px;font-weight:700;color:#374151;white-space:nowrap">Budget / jour :</span>
-                <div style="display:flex;align-items:center;gap:4px;flex:1">
-                    <span style="font-size:14px;font-weight:700;color:#6b7280">¥</span>
-                    <input id="budget-target-input" type="number" placeholder="10000" style="
-                        flex:1;border:1.5px solid #e5e7eb;border-radius:8px;padding:6px 10px;
-                        font-size:14px;font-weight:700;color:#111827;outline:none;
-                        background:white;min-width:0"
-                        oninput="updateBudgetTarget()" />
-                </div>
-                <span style="font-size:11px;color:#9ca3af">≈ €60</span>
-            </div>
-
-            <!-- Liste dépenses par activité -->
-            <div style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Dépenses par activité</div>
-            <div id="budget-items-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
-
-            <!-- Ajouter dépense libre -->
-            <div style="border-top:1px solid #f3f4f6;padding-top:14px">
-                <div style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">+ Dépense libre</div>
-                <div style="display:flex;gap:8px">
-                    <input id="budget-free-label" type="text" placeholder="Combini, souvenir…" style="
-                        flex:1;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 12px;
-                        font-size:13px;outline:none;min-width:0"/>
-                    <div style="display:flex;align-items:center;gap:4px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 10px">
-                        <span style="font-size:13px;color:#6b7280">¥</span>
-                        <input id="budget-free-amount" type="number" placeholder="500" style="width:60px;border:none;background:transparent;font-size:13px;font-weight:700;outline:none"/>
-                    </div>
-                    <button onclick="addFreeBudgetItem()" style="
-                        padding:8px 14px;border-radius:10px;border:none;
-                        background:#7c3aed;color:white;font-size:13px;font-weight:800;cursor:pointer">+</button>
-                </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0">
+                <button onclick="openConfigScreen();switchTab('budget');toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
+                    <span style="font-size:22px">💴</span>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Budget</span>
+                </button>
+                <button onclick="openJournal();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
+                    <span style="font-size:22px">📖</span>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Journal</span>
+                </button>
+                <button onclick="openWeatherAlert();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
+                    <span id="more-weather-icon" style="font-size:22px">🌦️</span>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Météo</span>
+                </button>
+                <button onclick="openAiPlanner();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer">
+                    <span style="font-size:22px">🤖</span>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Assistant</span>
+                </button>
             </div>
         </div>
     </div>
@@ -860,21 +826,10 @@
                     <span style="font-size:16px;line-height:1">🗺️</span>
                     <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">CARTE</span>
                 </button>
-                <button id="nav-budget-btn" onclick="openBudgetModal()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Budget">
-                    <span style="font-size:16px;line-height:1">💴</span>
-                    <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">BUDGET</span>
-                </button>
-                <button id="nav-ai-btn" onclick="openAiPlanner()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Assistant IA">
-                    <span style="font-size:16px;line-height:1">🤖</span>
-                    <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">IA</span>
-                </button>
-                <button id="nav-weather-btn" onclick="openWeatherAlert()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Météo">
-                    <span id="nav-weather-icon" style="font-size:16px;line-height:1">🌦️</span>
-                    <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">MÉTÉO</span>
-                </button>
-                <button id="nav-journal-btn" onclick="openJournal()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Journal">
-                    <span style="font-size:16px;line-height:1">📖</span>
-                    <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">JOURNAL</span>
+
+                <button id="nav-more-btn" onclick="toggleMoreMenu()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:44px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Plus">
+                    <span style="font-size:16px;line-height:1">···</span>
+                    <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">PLUS</span>
                 </button>
                 <button id="nav-config-btn" onclick="toggleConfigFAB()" class="flex-shrink-0 flex items-center justify-center transition-all" style="width:52px;height:64px;background:rgba(0,0,0,0.18);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Réglages">
                     <span id="nav-config-icon" style="font-size:17px;opacity:0.85">⚙️</span>
@@ -3397,6 +3352,11 @@
                     const scoreIcon  = isCompact ? '🟢' : isMed ? '🟡' : '🔴';
                     const scoreLabel = isCompact ? 'Journée compacte' : isMed ? 'Journée modérée' : 'Journée étalée';
                     const scoreDesc  = totalKm.toFixed(1) + ' km · ' + geoActs.length + ' lieux';
+                    // Météo inline dans la barre score
+                    const _dayWeather = _getWeatherForDay ? _getWeatherForDay(currentDayIndex) : null;
+                    const weatherInline = _dayWeather
+                        ? (_dayWeather.rain_probability >= 70 ? '🌧️' : _dayWeather.rain_probability >= 40 ? '🌦️' : _dayWeather.rain_probability >= 20 ? '⛅' : '☀️') + ' ' + _dayWeather.temp_max + '°'
+                        : null;
 
                     const geoBar = document.createElement('div');
                     geoBar.style.cssText = `margin:0 16px 12px;padding:10px 14px;border-radius:14px;display:flex;align-items:center;gap:10px;cursor:pointer;` +
@@ -3437,6 +3397,7 @@
                                 '<span style="font-size:14px">' + feasIcon + '</span>' +
                                 '<span style="font-size:11px;font-weight:700;color:' + feasColor + '">' + feasLabel + '</span>' +
                                 (travelLabel ? '<span style="font-size:10px;color:' + (dk?'#64748b':'#9ca3af') + '">· ' + travelLabel + '</span>' : '') +
+                                (weatherInline ? '<span style="font-size:11px;font-weight:700;margin-left:auto">' + weatherInline + '</span>' : '') +
                             '</div>' +
                         '</div>' +
                         '<div style="font-size:11px;font-weight:600;color:#7c3aed;opacity:0.8;flex-shrink:0">Carte →</div>';
@@ -6720,8 +6681,7 @@ async function toggleMapView() {
             const modal = document.getElementById('lost-modal');
             if (!modal) return;
             modal.classList.remove('hidden');
-            modal.style.display = 'flex';
-            modal.style.alignItems = 'flex-end';
+            modal.style.display = 'block';
 
             // Prochaine activité
             const now = new Date();
@@ -6783,147 +6743,8 @@ async function toggleMapView() {
             if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
         }
 
-        // ══════════════════════════════════════════════════════════════════
-        //  3. BUDGET EN TEMPS RÉEL
-        // ══════════════════════════════════════════════════════════════════
-        // Structure : budgetData[dayIndex] = { target: 10000, items: [{actId, label, amount}] }
-        // budgetData déjà déclaré et chargé dans la section GESTION BUDGET
 
-        function _saveBudget() {
-            try { localStorage.setItem('japan_budget_v1', JSON.stringify(budgetData)); } catch(e) {}
-        }
-
-        function openBudgetModal() {
-            const modal = document.getElementById('budget-modal');
-            if (!modal) return;
-            modal.classList.remove('hidden');
-            modal.style.display = 'flex';
-            modal.style.alignItems = 'flex-end';
-            _renderBudgetModal();
-        }
-
-        function closeBudgetModal() {
-            const modal = document.getElementById('budget-modal');
-            if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
-        }
-
-        function _renderBudgetModal() {
-            const dk = currentDayIndex;
-            if (!budgetData[dk]) budgetData[dk] = { target: 10000, items: [] };
-            const day = budgetData[dk];
-
-            // Target input
-            const targetInput = document.getElementById('budget-target-input');
-            if (targetInput) targetInput.value = day.target || '';
-
-            // Total
-            const total = day.items.reduce((s, it) => s + (it.amount || 0), 0);
-            const totalEl = document.getElementById('budget-total-amount');
-            if (totalEl) totalEl.textContent = '¥' + total.toLocaleString();
-
-            // Remaining
-            const remEl = document.getElementById('budget-remaining');
-            if (remEl && day.target) {
-                const rem = day.target - total;
-                remEl.textContent = (rem >= 0 ? '¥' + rem.toLocaleString() + ' restant' : '−¥' + Math.abs(rem).toLocaleString() + ' dépassé');
-                remEl.style.color = rem >= 0 ? '#86efac' : '#fca5a5';
-            }
-
-            // Items list
-            const list = document.getElementById('budget-items-list');
-            if (!list) return;
-            list.innerHTML = '';
-
-            // Activités du jour avec leur budget
-            dayActivities.forEach(act => {
-                const actItems = day.items.filter(it => it.actId === act.id);
-                const actTotal = actItems.reduce((s, it) => s + (it.amount || 0), 0);
-
-                const row = document.createElement('div');
-                row.style.cssText = 'background:#f9fafb;border-radius:12px;padding:12px;';
-                row.innerHTML = `
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                        <div style="font-size:13px;font-weight:700;color:#111827;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${act.title}</div>
-                        <div style="font-size:14px;font-weight:800;color:#7c3aed;flex-shrink:0;margin-left:8px">${actTotal > 0 ? '¥'+actTotal.toLocaleString() : '—'}</div>
-                    </div>
-                    <div style="display:flex;gap:6px">
-                        <input id="budget-inp-${act.id}" type="number" placeholder="¥ entrée, repas…"
-                            style="flex:1;border:1.5px solid #e5e7eb;border-radius:8px;padding:6px 10px;font-size:12px;outline:none;min-width:0"/>
-                        <button onclick="addBudgetItem('${act.id}','${act.title.replace(/'/g,'')}')" style="padding:6px 12px;border-radius:8px;border:none;background:#7c3aed;color:white;font-size:12px;font-weight:700;cursor:pointer">+</button>
-                    </div>
-                    ${actItems.map(it => `
-                        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:#6b7280">
-                            <span>${it.label}</span>
-                            <span style="font-weight:700">¥${(it.amount||0).toLocaleString()}</span>
-                        </div>
-                    `).join('')}
-                `;
-                list.appendChild(row);
-            });
-
-            // Dépenses libres
-            day.items.filter(it => !it.actId).forEach(it => {
-                const row = document.createElement('div');
-                row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#fef9ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 12px;';
-                row.innerHTML = `<span style="font-size:12px;color:#6b7280">${it.label}</span><span style="font-size:13px;font-weight:800;color:#7c3aed">¥${(it.amount||0).toLocaleString()}</span>`;
-                list.appendChild(row);
-            });
-        }
-
-        function addBudgetItem(actId, actTitle) {
-            const inp = document.getElementById('budget-inp-' + actId);
-            if (!inp || !inp.value) return;
-            const amount = parseInt(inp.value) || 0;
-            if (amount <= 0) return;
-            const dk = currentDayIndex;
-            if (!budgetData[dk]) budgetData[dk] = { target: 10000, items: [] };
-            budgetData[dk].items.push({ actId, label: actTitle, amount });
-            inp.value = '';
-            _saveBudget();
-            _renderBudgetModal();
-            _updateBudgetBadge();
-        }
-
-        function addFreeBudgetItem() {
-            const labelEl = document.getElementById('budget-free-label');
-            const amountEl = document.getElementById('budget-free-amount');
-            if (!labelEl || !amountEl) return;
-            const label = labelEl.value.trim() || 'Dépense';
-            const amount = parseInt(amountEl.value) || 0;
-            if (amount <= 0) return;
-            const dk = currentDayIndex;
-            if (!budgetData[dk]) budgetData[dk] = { target: 10000, items: [] };
-            budgetData[dk].items.push({ actId: null, label, amount });
-            labelEl.value = ''; amountEl.value = '';
-            _saveBudget();
-            _renderBudgetModal();
-            _updateBudgetBadge();
-        }
-
-        function updateBudgetTarget() {
-            const inp = document.getElementById('budget-target-input');
-            if (!inp) return;
-            const dk = currentDayIndex;
-            if (!budgetData[dk]) budgetData[dk] = { target: 10000, items: [] };
-            budgetData[dk].target = parseInt(inp.value) || 0;
-            _saveBudget();
-            _renderBudgetModal();
-        }
-
-        function _updateBudgetBadge() {
-            // Afficher total journalier sur le bouton nav
-            const dk = currentDayIndex;
-            const day = budgetData[dk];
-            const btn = document.getElementById('nav-budget-btn');
-            if (!btn) return;
-            if (day && day.items.length > 0) {
-                const total = day.items.reduce((s, it) => s + (it.amount||0), 0);
-                const span = btn.querySelector('span:first-child');
-                if (span) span.textContent = total >= 10000 ? '¥' + Math.round(total/1000) + 'k' : '¥' + total.toLocaleString();
-            }
-        }
-
-        // ══════════════════════════════════════════════════════════════════
+                // ══════════════════════════════════════════════════════════════════
         //  4. HORAIRES EN TEMPS RÉEL SUR LES PINS (badge dans showMapPopup)
         // ══════════════════════════════════════════════════════════════════
         function _getOpenStatusBadge(place) {
@@ -7039,7 +6860,7 @@ async function toggleMapView() {
 
         function closeAiPlanner() {
             const panel = document.getElementById('ai-planner-panel');
-            if (panel) { panel.classList.add('hidden'); panel.style.display = 'none'; }
+            if (panel) { panel.classList.add('hidden'); panel.style.display = ''; }
             _aiChatOpen = false;
         }
 
@@ -7200,12 +7021,23 @@ async function toggleMapView() {
                 dayIndex:    act.dayIndex,
                 time:        act.time,
                 completedAt: new Date().toISOString(),
-                note:        journalData[actId]?.note || '',       // conserver note si réenregistrement
+                note:        journalData[actId]?.note || '',
                 photoRef:    act.place?.photo_reference || null,
+                placeId:     act.place?.place_id || null,
                 placeName:   act.place?.name || null,
                 rating:      act.place?.rating || null,
+                reviewCount: act.place?.review_count || null,
                 address:     act.place?.formatted_address || null,
+                lat:         act.place?.lat || null,
+                lng:         act.place?.lng || null,
                 dayDate:     dayDate ? dayDate.toISOString().slice(0,10) : null,
+                emoji:       act.title.match(/temple|shrine|寺|神社/i) ? '⛩️'
+                           : act.title.match(/ramen|sushi|restaurant|izakaya|食|飯/i) ? '🍜'
+                           : act.title.match(/parc|jardin|garden|forêt|mont|plage/i) ? '🌸'
+                           : act.title.match(/musée|museum|art|galerie/i) ? '🏛️'
+                           : act.title.match(/château|castle|tower|tour/i) ? '🏯'
+                           : act.title.match(/shopping|market|mall|magasin/i) ? '🛍️'
+                           : '📍',
             };
             _journalSave();
         }
@@ -7236,7 +7068,7 @@ async function toggleMapView() {
 
         function closeJournal() {
             const m = document.getElementById('journal-modal');
-            if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
+            if (m) { m.classList.add('hidden'); m.style.display = ''; }
         }
 
         // ── Rendu du journal ──────────────────────────────────────────────
@@ -7318,27 +7150,27 @@ async function toggleMapView() {
                         background:white;border-radius:16px;overflow:hidden;
                         border:1px solid #f3f4f6;margin-bottom:12px;
                         box-shadow:0 2px 8px rgba(0,0,0,0.05)">
-                        ${entry.photoRef ? `
-                        <div style="position:relative;height:140px;overflow:hidden;background:#f3f4f6">
-                            <img src="/api/place-photo?ref=${encodeURIComponent(entry.photoRef)}&maxw=600"
-                                style="width:100%;height:100%;object-fit:cover;display:block"
-                                onerror="this.closest('div').remove()" />
-                            <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,rgba(0,0,0,0.5))"></div>
-                            <div style="position:absolute;bottom:8px;left:12px;right:12px">
-                                <div style="font-size:15px;font-weight:800;color:white;text-shadow:0 1px 3px rgba(0,0,0,0.5)">${entry.title}</div>
-                                ${entry.rating ? `<div style="font-size:12px;color:rgba(255,255,255,0.85)">★ ${entry.rating.toFixed(1)}</div>` : ''}
+                        ${(entry.photoRef || entry.placeId) ? `
+                        <div style="position:relative;height:160px;overflow:hidden;background:linear-gradient(135deg,#e0e7ff,#ede9fe)">
+                            <img src="/api/place-photo?ref=${encodeURIComponent(entry.photoRef || '')}&maxw=600"
+                                style="width:100%;height:100%;object-fit:cover;display:${entry.photoRef ? 'block' : 'none'}"
+                                onerror="this.style.display='none'" />
+                            <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.6))"></div>
+                            <div style="position:absolute;top:10px;left:12px;font-size:28px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))">${entry.emoji || '📍'}</div>
+                            <div style="position:absolute;bottom:10px;left:12px;right:12px">
+                                <div style="font-size:15px;font-weight:800;color:white;text-shadow:0 1px 4px rgba(0,0,0,0.6);line-height:1.3">${entry.title}</div>
+                                <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
+                                    ${entry.rating ? `<span style="font-size:12px;color:#fbbf24;font-weight:700">★ ${entry.rating.toFixed(1)}</span>` : ''}
+                                    ${entry.placeName ? `<span style="font-size:11px;color:rgba(255,255,255,0.8)">${entry.placeName}</span>` : ''}
+                                </div>
                             </div>
-                            <div style="position:absolute;top:8px;right:10px;background:rgba(0,0,0,0.5);color:white;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;backdrop-filter:blur(4px)">
+                            <div style="position:absolute;top:10px;right:10px;background:rgba(22,163,74,0.85);color:white;font-size:10px;font-weight:800;padding:3px 9px;border-radius:10px;backdrop-filter:blur(4px)">
                                 ✅ ${timeStr}
                             </div>
                         </div>` : `
                         <div style="padding:14px 16px 10px;display:flex;align-items:center;gap:12px">
-                            <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#7c3aed22,#7c3aed11);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">
-                                ${entry.title.includes('temple') || entry.title.includes('Temple') || entry.title.includes('Shrine') ? '⛩️'
-                                 : entry.title.includes('restaurant') || entry.title.includes('Restaurant') || entry.title.includes('ramen') ? '🍜'
-                                 : entry.title.includes('parc') || entry.title.includes('garden') || entry.title.includes('Garden') ? '🌸'
-                                 : entry.title.includes('musée') || entry.title.includes('Museum') ? '🏛️'
-                                 : '📍'}
+                            <div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#ede9fe,#ddd6fe);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">
+                                ${entry.emoji || '📍'}
                             </div>
                             <div style="flex:1;min-width:0">
                                 <div style="font-size:14px;font-weight:800;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${entry.title}</div>
@@ -7351,21 +7183,23 @@ async function toggleMapView() {
                         </div>`}
                         <!-- Note perso -->
                         <div style="padding:0 12px 12px">
-                            <div style="position:relative">
-                                <textarea
-                                    id="journal-note-${entry.actId}"
-                                    placeholder="Ajoute une note, un souvenir… 💭"
-                                    rows="2"
-                                    style="
-                                        width:100%;border:1.5px solid #f3f4f6;border-radius:10px;
-                                        padding:8px 10px;font-size:12px;color:#374151;
-                                        resize:none;outline:none;background:#fafafa;
-                                        font-family:inherit;box-sizing:border-box;
-                                        transition:border-color 0.2s"
-                                    onfocus="this.style.borderColor='#a78bfa'"
-                                    onblur="this.style.borderColor='#f3f4f6';_journalSaveNote('${entry.actId}',this.value)"
-                                >${entry.note || ''}</textarea>
-                            </div>
+                            ${entry.note ? `<div style="background:#faf5ff;border-radius:10px;padding:8px 12px;margin-bottom:8px;border-left:3px solid #a78bfa">
+                                <div style="font-size:11px;color:#7c3aed;font-weight:700;margin-bottom:3px">💭 Mon souvenir</div>
+                                <div style="font-size:13px;color:#374151;line-height:1.5">\${entry.note}</div>
+                            </div>` : ''}
+                            <textarea
+                                id="journal-note-\${entry.actId}"
+                                placeholder="✍️ Ajoute un souvenir, une anecdote…"
+                                rows="${entry.note ? 1 : 2}"
+                                style="
+                                    width:100%;border:1.5px dashed #e5e7eb;border-radius:10px;
+                                    padding:8px 12px;font-size:12px;color:#374151;
+                                    resize:none;outline:none;background:transparent;
+                                    font-family:inherit;box-sizing:border-box;
+                                    transition:all 0.2s;color:#6b7280"
+                                onfocus="this.style.borderColor='#a78bfa';this.style.borderStyle='solid';this.style.background='#faf5ff';this.style.color='#111827'"
+                                onblur="this.style.borderColor='#e5e7eb';this.style.borderStyle='dashed';this.style.background='transparent';this.style.color='#6b7280';_journalSaveNote('\${entry.actId}',this.value);_renderJournal()"
+                            ></textarea>
                         </div>
                     </div>`;
                 });
@@ -7591,7 +7425,7 @@ async function toggleMapView() {
 
         function closeWeatherAlert() {
             const m = document.getElementById('weather-alert-modal');
-            if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
+            if (m) { m.classList.add('hidden'); m.style.display = ''; }
         }
 
         function _renderWeatherModal() {
@@ -7773,8 +7607,7 @@ async function toggleMapView() {
             const panel = document.getElementById('nearby-panel');
             if (!panel) return;
             panel.classList.remove('hidden');
-            panel.style.display = 'flex';
-            panel.style.alignItems = 'flex-end';
+            panel.style.display = 'block';
             _renderNearbyFilters();
             _locateAndSearch();
         }
