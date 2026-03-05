@@ -430,11 +430,15 @@ app.post("/api/activity-info", async (req, res) => {
                     Analyse le lieu et fournis des informations pratiques + un paragraphe de présentation.
                     Format JSON strict :
                     {
-                        "why_visit": "Court paragraphe (2-3 phrases) sur pourquoi ce lieu est incontournable, son histoire ou son intérêt culturel.",
+                        "why_visit": "Paragraphe de 3-4 phrases : histoire, contexte culturel japonais, pourquoi ce lieu est incontournable.",
+                        "history_detail": "2-3 phrases sur l'histoire et l'anecdote la plus fascinante de ce lieu.",
+                        "cultural_context": "1-2 phrases sur la signification culturelle ou religieuse au Japon.",
                         "crowd_level": "low|medium|high",
                         "best_times": ["09:00-10:00", "15:00-16:00"],
                         "rules": ["Règle 1", "Règle 2"],
-                        "tips": "Conseil pratique pour profiter au mieux"
+                        "tips": "Conseil pratique pour profiter au mieux",
+                        "local_tip": "Un conseil de local ou une astuce peu connue des touristes.",
+                        "nearby_food": "Un plat ou restaurant typique à essayer dans le quartier."
                     }`
                 },
                 { 
@@ -444,10 +448,14 @@ app.post("/api/activity-info", async (req, res) => {
                     Heure de visite prévue: ${visit_time || 'Non spécifiée'}
                     
                     Donne-moi:
-                    1. Le niveau d'affluence à cette heure (low/medium/high)
-                    2. Les meilleures heures pour éviter la foule (2-3 créneaux)
-                    3. Les règles importantes à respecter (dress code, photos, comportement)
-                    4. Un conseil pratique`
+                    1. Un résumé enrichi (histoire, contexte culturel, pourquoi visiter)
+                    2. L'anecdote historique la plus fascinante sur ce lieu
+                    3. La signification culturelle ou religieuse
+                    4. Le niveau d'affluence à cette heure (low/medium/high)
+                    5. Les meilleures heures pour éviter la foule (2-3 créneaux)
+                    6. Les règles importantes (dress code, photos, comportement)
+                    7. Un conseil pratique + un conseil de local peu connu
+                    8. Un plat ou resto typique à essayer nearby`
                 }
             ],
             response_format: { type: "json_object" }
@@ -456,6 +464,52 @@ app.post("/api/activity-info", async (req, res) => {
         const info = JSON.parse(completion.choices[0].message.content);
         res.json({ success: true, info });
 
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+
+// --- ASSISTANT PLANNING IA ---
+app.post('/api/ai-planner', async (req, res) => {
+    try {
+        const { message, context } = req.body;
+        if (!message) return res.status(400).json({ error: 'Message manquant' });
+
+        const systemPrompt = `Tu es un assistant de voyage expert au Japon, intégré dans une app de planification.
+Tu as accès au programme complet du voyage.
+
+Programme actuel (Jour ${context.dayIndex + 1}/${context.totalDays}) :
+${JSON.stringify(context.dayActivities?.map(a => ({
+    time: a.time,
+    title: a.title,
+    duration: a.duration_minutes,
+    place: a.place?.name
+})) || [], null, 2)}
+
+Informations voyage :
+- Destination(s) : ${context.cities?.join(', ') || 'Japon'}
+- Durée totale : ${context.totalDays} jours
+- Activités ce jour : ${context.dayActivities?.length || 0}
+- Temps de trajet total estimé aujourd'hui : ${context.totalTravelMin || 0} min
+
+Réponds en français, de façon concise et directe (max 3-4 phrases).
+Si tu proposes d'ajouter/déplacer des activités, sois précis sur l'heure et le nom.
+Tu peux suggérer des lieux japonais spécifiques avec leur nom en japonais.`;
+
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                { role: 'system', content: systemPrompt },
+                ...((context.history || []).slice(-6)), // max 6 messages d'historique
+                { role: 'user', content: message }
+            ],
+            max_tokens: 400,
+            temperature: 0.7
+        });
+
+        const reply = completion.choices[0].message.content;
+        res.json({ success: true, reply });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }

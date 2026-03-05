@@ -330,6 +330,14 @@
             100% { background-position: -200% 0; }
         }
 
+        @keyframes typingDot {
+            0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+            30% { opacity: 1; transform: scale(1.1); }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen pb-32 fuji-pattern">
@@ -471,6 +479,76 @@
     </header>
 
 
+
+
+    <!-- ══ PANNEAU CHAT IA — NÉGOCIATION PLANNING ═══════════════════════ -->
+    <div id="ai-planner-panel" class="fixed inset-0 z-[250] hidden" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)">
+        <div style="
+            position:absolute;bottom:0;left:0;right:0;
+            background:#0f172a;
+            border-radius:24px 24px 0 0;
+            display:flex;flex-direction:column;
+            height:75vh;
+            max-height:75vh">
+
+            <!-- Header -->
+            <div style="
+                flex-shrink:0;
+                padding:16px 20px 12px;
+                border-bottom:1px solid rgba(255,255,255,0.08);
+                display:flex;align-items:center;gap:12px">
+                <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);position:absolute;top:10px;left:50%;transform:translateX(-50%)"></div>
+                <div style="width:38px;height:38px;border-radius:14px;background:linear-gradient(135deg,#7c3aed,#6d28d9);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🤖</div>
+                <div style="flex:1">
+                    <div style="font-size:15px;font-weight:800;color:white">Assistant Planning</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.4)">Parle-moi de ton programme</div>
+                </div>
+                <button onclick="closeAiPlanner()" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.6);font-size:16px;cursor:pointer">✕</button>
+            </div>
+
+            <!-- Messages -->
+            <div id="ai-chat-messages" style="
+                flex:1;overflow-y:auto;
+                padding:16px 16px 8px;
+                display:flex;flex-direction:column;gap:10px;
+                scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent">
+                <!-- Message d'accueil injecté au premier ouverture -->
+            </div>
+
+            <!-- Suggestions rapides -->
+            <div id="ai-suggestions" style="
+                flex-shrink:0;
+                padding:8px 16px;
+                display:flex;gap:6px;overflow-x:auto;
+                scrollbar-width:none;-webkit-overflow-scrolling:touch">
+            </div>
+
+            <!-- Input -->
+            <div style="
+                flex-shrink:0;
+                padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 12px);
+                display:flex;gap:8px;
+                border-top:1px solid rgba(255,255,255,0.06)">
+                <input id="ai-chat-input" type="text"
+                    placeholder="J'ai 2h de libre demain matin..."
+                    style="
+                        flex:1;border:1.5px solid rgba(255,255,255,0.12);
+                        border-radius:14px;padding:10px 14px;
+                        background:rgba(255,255,255,0.06);
+                        color:white;font-size:14px;outline:none;
+                        caret-color:#a78bfa"
+                    onkeydown="if(event.key==='Enter')sendAiMessage()"
+                    oninput="this.style.borderColor=this.value?'rgba(124,58,237,0.6)':'rgba(255,255,255,0.12)'"
+                />
+                <button onclick="sendAiMessage()" id="ai-send-btn" style="
+                    width:42px;height:42px;border-radius:14px;border:none;
+                    background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                    color:white;font-size:18px;cursor:pointer;
+                    display:flex;align-items:center;justify-content:center;
+                    flex-shrink:0;box-shadow:0 4px 12px rgba(124,58,237,0.4)">↑</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ══ MODALE BUDGET ════════════════════════════════════════════ -->
     <div id="budget-modal" class="fixed inset-0 z-[300] hidden" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)">
@@ -697,6 +775,10 @@
                 <button id="nav-budget-btn" onclick="openBudgetModal()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Budget">
                     <span style="font-size:16px;line-height:1">💴</span>
                     <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">BUDGET</span>
+                </button>
+                <button id="nav-ai-btn" onclick="openAiPlanner()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Assistant IA">
+                    <span style="font-size:16px;line-height:1">🤖</span>
+                    <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">IA</span>
                 </button>
                 <button id="nav-config-btn" onclick="toggleConfigFAB()" class="flex-shrink-0 flex items-center justify-center transition-all" style="width:52px;height:64px;background:rgba(0,0,0,0.18);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Réglages">
                     <span id="nav-config-icon" style="font-size:17px;opacity:0.85">⚙️</span>
@@ -3224,13 +3306,44 @@
                     geoBar.style.cssText = `margin:0 16px 12px;padding:10px 14px;border-radius:14px;display:flex;align-items:center;gap:10px;cursor:pointer;` +
                         (dk ? 'background:#1e293b;border:1px solid #334155' : 'background:#f8fafc;border:1px solid #e2e8f0');
                     geoBar.onclick = () => toggleMapView();
+                    // Score faisabilité : ajouter temps trajet + conflits depuis routeCache
+                    let totalTravelMin = 0;
+                    let conflicts = 0;
+                    const sortedActs = dayActivities.slice().sort((a,b) => a.time.localeCompare(b.time));
+                    for (let _i = 0; _i < sortedActs.length - 1; _i++) {
+                        const _a = sortedActs[_i], _b = sortedActs[_i+1];
+                        const _ck = Object.keys(routeCache).find(k => k.includes(String(_a.id)) && k.includes(String(_b.id)));
+                        if (_ck) {
+                            totalTravelMin += routeCache[_ck].total_minutes || 0;
+                            // Conflit : fin de _a + trajet > début de _b
+                            const [hA, mA] = _a.time.split(':').map(Number);
+                            const endA = hA * 60 + mA + (_a.duration_minutes || 90) + (routeCache[_ck].total_minutes || 0);
+                            const [hB, mB] = _b.time.split(':').map(Number);
+                            if (endA > hB * 60 + mB) conflicts++;
+                        }
+                    }
+                    const travelLabel = totalTravelMin > 0
+                        ? (totalTravelMin >= 60 ? Math.floor(totalTravelMin/60)+'h'+String(totalTravelMin%60).padStart(2,'0')+'min trajet' : totalTravelMin+'min trajet')
+                        : '';
+                    const feasIcon  = conflicts === 0 ? '✅' : conflicts === 1 ? '⚠️' : '❌';
+                    const feasLabel = conflicts === 0 ? 'Planning faisable' : conflicts === 1 ? 'Planning serré' : conflicts + ' conflits horaires';
+                    const feasColor = conflicts === 0 ? '#16a34a' : conflicts === 1 ? '#d97706' : '#dc2626';
+
                     geoBar.innerHTML =
-                        '<span style="font-size:16px">' + scoreIcon + '</span>' +
-                        '<div style="flex:1">' +
-                            '<div style="font-size:12px;font-weight:700;color:' + scoreColor + '">' + scoreLabel + '</div>' +
-                            '<div style="font-size:11px;color:' + (dk?'#94a3b8':'#6b7280') + '">' + scoreDesc + '</div>' +
+                        '<div style="display:flex;flex-direction:column;gap:4px;flex:1">' +
+                            '<div style="display:flex;align-items:center;gap:8px">' +
+                                '<span style="font-size:15px">' + scoreIcon + '</span>' +
+                                '<span style="font-size:12px;font-weight:700;color:' + scoreColor + '">' + scoreLabel + '</span>' +
+                                '<span style="font-size:11px;color:' + (dk?'#64748b':'#94a3b8') + '">·</span>' +
+                                '<span style="font-size:11px;color:' + (dk?'#94a3b8':'#6b7280') + '">' + scoreDesc + '</span>' +
+                            '</div>' +
+                            '<div style="display:flex;align-items:center;gap:8px">' +
+                                '<span style="font-size:14px">' + feasIcon + '</span>' +
+                                '<span style="font-size:11px;font-weight:700;color:' + feasColor + '">' + feasLabel + '</span>' +
+                                (travelLabel ? '<span style="font-size:10px;color:' + (dk?'#64748b':'#9ca3af') + '">· ' + travelLabel + '</span>' : '') +
+                            '</div>' +
                         '</div>' +
-                        '<div style="font-size:11px;font-weight:600;color:#7c3aed;opacity:0.8">Voir carte →</div>';
+                        '<div style="font-size:11px;font-weight:600;color:#7c3aed;opacity:0.8;flex-shrink:0">Carte →</div>';
                     list.appendChild(geoBar);
                 }
             }
@@ -4266,6 +4379,16 @@
                             <div class="text-xs font-bold text-indigo-700 mb-1">✨ Pourquoi visiter</div>
                             <p class="text-sm text-indigo-900 leading-relaxed">${info.why_visit}</p>
                         </div>` : ''}
+                        ${info.history_detail ? `
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                            <div class="text-xs font-bold text-amber-700 mb-1">🏯 Histoire</div>
+                            <p class="text-sm text-amber-900 leading-relaxed">${info.history_detail}</p>
+                        </div>` : ''}
+                        ${info.cultural_context ? `
+                        <div class="bg-rose-50 border border-rose-200 rounded-xl p-4">
+                            <div class="text-xs font-bold text-rose-700 mb-1">⛩️ Culture & Signification</div>
+                            <p class="text-sm text-rose-900 leading-relaxed">${info.cultural_context}</p>
+                        </div>` : ''}
                         <!-- Affluence -->
                         <div class="bg-${crowdColor}-50 border-2 border-${crowdColor}-200 rounded-xl p-4">
                             <div class="flex items-center gap-2 mb-2">
@@ -4311,6 +4434,22 @@
                             </div>
                             <div class="text-sm text-purple-700">${info.tips}</div>
                         </div>
+                        ${info.local_tip ? `
+                        <div class="bg-teal-50 border-2 border-teal-200 rounded-xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">🤫</span>
+                                <div class="font-bold text-teal-700">Astuce de local</div>
+                            </div>
+                            <div class="text-sm text-teal-700">${info.local_tip}</div>
+                        </div>` : ''}
+                        ${info.nearby_food ? `
+                        <div class="bg-orange-50 border-2 border-orange-200 rounded-xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">🍜</span>
+                                <div class="font-bold text-orange-700">À manger nearby</div>
+                            </div>
+                            <div class="text-sm text-orange-700">${info.nearby_food}</div>
+                        </div>` : ''}
                         
                         <!-- Lien Google Maps -->
                         <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.place?.name || activity.title)}&query_place_id=${activity.place?.place_id || ""}" 
@@ -6756,7 +6895,170 @@ async function toggleMapView() {
                 }
             }
 
-            // Mettre à jour le label du bouton "Y aller"
+            // Mettre à jour le label du bouton "Y 
+        // ═══════════════════════════════════════════════════════════════════
+        //  SPRINT 2 — RÉSUMÉ CULTUREL / SCORE FAISABILITÉ / IA PLANNER
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ══════════════════════════════════════════════════════════════════
+        //  CHAT IA — NÉGOCIATION PLANNING
+        // ══════════════════════════════════════════════════════════════════
+        let _aiChatHistory = [];
+        let _aiChatOpen = false;
+
+        const _AI_SUGGESTIONS = [
+            "J'ai 2h de libre, que faire ?",
+            "Mon planning est trop chargé",
+            "Meilleur endroit pour déjeuner près de moi",
+            "Ajoute une activité culturelle",
+            "Est-ce que mon programme est réaliste ?",
+            "Conseille-moi un izakaya ce soir",
+        ];
+
+        function openAiPlanner() {
+            const panel = document.getElementById('ai-planner-panel');
+            if (!panel) return;
+            panel.classList.remove('hidden');
+            panel.style.display = 'flex';
+            panel.style.alignItems = 'flex-end';
+            _aiChatOpen = true;
+
+            // Message d'accueil si première ouverture
+            const msgs = document.getElementById('ai-chat-messages');
+            if (msgs && msgs.children.length === 0) {
+                const acts = dayActivities.length;
+                _aiAddMessage('assistant',
+                    `Bonjour ! 👋 Tu as ${acts} activité${acts>1?'s':''} planifiée${acts>1?'s':''} aujourd'hui. Comment puis-je t'aider ? Je peux analyser ton programme, suggérer des ajustements, ou trouver des activités pour tes créneaux libres.`
+                );
+                _renderAiSuggestions();
+            }
+
+            setTimeout(() => document.getElementById('ai-chat-input')?.focus(), 300);
+        }
+
+        function closeAiPlanner() {
+            const panel = document.getElementById('ai-planner-panel');
+            if (panel) { panel.classList.add('hidden'); panel.style.display = 'none'; }
+            _aiChatOpen = false;
+        }
+
+        function _aiAddMessage(role, text) {
+            const msgs = document.getElementById('ai-chat-messages');
+            if (!msgs) return;
+            const isUser = role === 'user';
+
+            const bubble = document.createElement('div');
+            bubble.style.cssText = `
+                display:flex;
+                justify-content:${isUser ? 'flex-end' : 'flex-start'};
+                animation:fadeInUp 0.25s ease`;
+            bubble.innerHTML = `
+                <div style="
+                    max-width:82%;
+                    padding:10px 14px;
+                    border-radius:${isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px'};
+                    background:${isUser ? 'linear-gradient(135deg,#7c3aed,#6d28d9)' : 'rgba(255,255,255,0.08)'};
+                    color:${isUser ? 'white' : 'rgba(255,255,255,0.9)'};
+                    font-size:13px;line-height:1.5;font-weight:${isUser?'600':'400'}">
+                    ${text.split('\n').join('<br>')}
+                </div>`;
+            msgs.appendChild(bubble);
+            msgs.scrollTop = msgs.scrollHeight;
+
+            _aiChatHistory.push({ role, content: text });
+        }
+
+        function _aiShowTyping() {
+            const msgs = document.getElementById('ai-chat-messages');
+            if (!msgs) return;
+            const typing = document.createElement('div');
+            typing.id = 'ai-typing';
+            typing.style.cssText = 'display:flex;justify-content:flex-start';
+            typing.innerHTML = `
+                <div style="padding:12px 16px;border-radius:4px 18px 18px 18px;background:rgba(255,255,255,0.08)">
+                    <div style="display:flex;gap:4px;align-items:center">
+                        <span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);animation:typingDot 1.2s infinite"></span>
+                        <span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);animation:typingDot 1.2s 0.2s infinite"></span>
+                        <span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);animation:typingDot 1.2s 0.4s infinite"></span>
+                    </div>
+                </div>`;
+            msgs.appendChild(typing);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        function _aiHideTyping() {
+            document.getElementById('ai-typing')?.remove();
+        }
+
+        function _renderAiSuggestions() {
+            const sugg = document.getElementById('ai-suggestions');
+            if (!sugg) return;
+            sugg.innerHTML = '';
+            _AI_SUGGESTIONS.forEach(s => {
+                const chip = document.createElement('button');
+                chip.style.cssText = 'flex-shrink:0;padding:6px 12px;border-radius:20px;border:1px solid rgba(124,58,237,0.4);background:rgba(124,58,237,0.12);color:#c4b5fd;font-size:11px;font-weight:600;white-space:nowrap;cursor:pointer';
+                chip.textContent = s;
+                chip.onclick = () => {
+                    document.getElementById('ai-chat-input').value = s;
+                    sendAiMessage();
+                };
+                sugg.appendChild(chip);
+            });
+        }
+
+        async function sendAiMessage() {
+            const input = document.getElementById('ai-chat-input');
+            if (!input) return;
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+            input.style.borderColor = 'rgba(255,255,255,0.12)';
+
+            // Vider suggestions
+            const sugg = document.getElementById('ai-suggestions');
+            if (sugg) sugg.innerHTML = '';
+
+            _aiAddMessage('user', msg);
+            _aiShowTyping();
+
+            // Construire contexte
+            const totalTravelMin = Object.values(routeCache).reduce((s, r) => s + (r.total_minutes||0), 0);
+            const cities = [...new Set(activities.map(a => a.place?.name?.split(',').pop()?.trim()).filter(Boolean))];
+
+            try {
+                const res = await fetch('/api/ai-planner', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: msg,
+                        context: {
+                            dayIndex: currentDayIndex,
+                            totalDays: tripData?.totalDays || activities.length,
+                            dayActivities: dayActivities.map(a => ({
+                                time: a.time,
+                                title: a.title,
+                                duration_minutes: a.duration_minutes,
+                                place: { name: a.place?.name, rating: a.place?.rating }
+                            })),
+                            totalTravelMin,
+                            cities,
+                            history: _aiChatHistory.slice(-6)
+                        }
+                    })
+                });
+                const data = await res.json();
+                _aiHideTyping();
+                if (data.success) {
+                    _aiAddMessage('assistant', data.reply);
+                } else {
+                    _aiAddMessage('assistant', '⚠️ Désolé, une erreur est survenue. Réessaie dans un instant.');
+                }
+            } catch(e) {
+                _aiHideTyping();
+                _aiAddMessage('assistant', '⚠️ Connexion impossible au serveur.');
+            }
+        }
+
             const goLabel = document.getElementById('map-go-now-label');
             if (goLabel) {
                 const coords = getActCoords(act);

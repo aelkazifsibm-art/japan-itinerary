@@ -1,0 +1,3015 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Japan Trip — Planning Intelligent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --primary: #ff4757; 
+            --blue-nav: #3498db; 
+            --sakura: #FFB7C5;
+            --night-blue: #1a1f36;
+        }
+        * { font-family: 'Poppins', sans-serif; }
+        .bg-primary { background-color: var(--primary); }
+        .text-primary { color: var(--primary); }
+        .bg-nav { background-color: var(--blue-nav); }
+        .bg-sakura { background: linear-gradient(135deg, #FFB7C5 0%, #FF6B9D 100%); }
+        .bg-japan-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); }
+        .suggestion-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 0.9em; }
+        .suggestion-item:hover { background: #f8f9fa; color: var(--primary); }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Swipe gesture animations */
+        .swipe-container { 
+            touch-action: pan-y; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .day-indicator {
+            transition: all 0.3s ease;
+        }
+        
+        /* Welcome screen animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .animate-fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+
+        /* Drag & Drop */
+        .draggable {
+            cursor: grab;
+            transition: all 0.2s ease;
+        }
+        .draggable:active {
+            cursor: grabbing;
+        }
+        .dragging {
+            opacity: 0.5;
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .drag-over {
+            border-top: 3px solid #8b5cf6 !important;
+        }
+
+        /* Alerte affluence */
+        @keyframes pulse-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .crowd-warning {
+            animation: pulse-warning 2s ease-in-out infinite;
+        }
+
+        /* Activité complétée */
+        .activity-completed {
+            background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%) !important;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .activity-completed::before {
+            content: '✓';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Animation confetti */
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100%) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        /* Swipe indicator */
+        .swipe-indicator {
+            position: absolute;
+            right: -60px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.3));
+            width: 60px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: right 0.3s ease;
+        }
+        
+        .swiping .swipe-indicator {
+            right: 0;
+        }
+        
+        /* Japanese aesthetic touches */
+        .torii-accent::before {
+            content: '⛩️';
+            margin-right: 8px;
+        }
+        
+        .fuji-pattern {
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(255, 183, 197, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(102, 126, 234, 0.2) 0%, transparent 50%);
+        }
+
+        /* FAB pulse animation */
+        @keyframes fab-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); }
+        }
+        @keyframes fab-pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+            50% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+        }
+        #fab-config:not(.active):not(:hover) {
+            animation: fab-pulse 2s infinite;
+        }
+        #fab-config.active {
+            background: linear-gradient(to bottom right, #ef4444, #dc2626);
+            animation: fab-pulse-red 2s infinite;
+        }
+        #fab-config.active:hover {
+            transform: scale(1.15) rotate(90deg);
+            animation: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen pb-32 fuji-pattern">
+
+    <!-- SPLASH SCREEN -->
+    <div id="splash-screen" class="fixed inset-0 bg-gradient-to-br from-purple-500 via-pink-500 to-red-400 z-[300] flex items-center justify-center">
+        <div class="text-center animate-fade-in-up">
+            <div class="text-7xl mb-4 animate-pulse">🗾</div>
+            <h1 class="text-4xl font-black text-white drop-shadow-lg">My Japan Trip</h1>
+        </div>
+    </div>
+
+    <!-- ÉCRAN DE BIENVENUE / CONFIGURATION VOYAGE -->
+    <div id="welcome-screen" class="fixed inset-0 bg-white z-[200] hidden flex items-center justify-center p-4">
+        <div class="max-w-md w-full space-y-6 animate-fade-in-up">
+            <!-- Formulaire -->
+            <div class="bg-white rounded-3xl shadow-2xl p-8 space-y-5 border-2 border-gray-100">
+                <h2 class="text-xl font-bold text-gray-800 torii-accent">Informations de voyage</h2>
+                
+                <!-- VOL ALLER -->
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 space-y-3 border border-blue-100">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-2xl">🛫</span>
+                        <h3 class="text-sm font-bold text-blue-700 uppercase tracking-wide">Vol Aller</h3>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Date</label>
+                                <input type="date" id="departure-date" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors" required>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Heure</label>
+                                <input type="time" id="departure-time" value="08:00" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Aéroport d'arrivée au Japon</label>
+                            <select id="arrival-airport-japan" class="w-full border-2 border-blue-200 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors bg-white text-sm">
+                                <option value="">Sélectionnez un aéroport</option>
+                                <optgroup label="🗾 Tokyo">
+                                    <option value="NRT">Tokyo - Narita (NRT)</option>
+                                    <option value="HND">Tokyo - Haneda (HND)</option>
+                                </optgroup>
+                                <optgroup label="🏯 Osaka / Kansai">
+                                    <option value="KIX">Osaka - Kansai (KIX)</option>
+                                    <option value="ITM">Osaka - Itami (ITM)</option>
+                                </optgroup>
+                                <optgroup label="🗼 Autres villes">
+                                    <option value="NGO">Nagoya - Chūbu Centrair (NGO)</option>
+                                    <option value="FUK">Fukuoka (FUK)</option>
+                                    <option value="CTS">Sapporo - New Chitose (CTS)</option>
+                                    <option value="OKA">Naha/Okinawa (OKA)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VOL RETOUR -->
+                <div class="bg-gradient-to-br from-pink-50 to-purple-50 rounded-2xl p-5 space-y-3 border border-pink-100">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-2xl">🛬</span>
+                        <h3 class="text-sm font-bold text-pink-700 uppercase tracking-wide">Vol Retour</h3>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Aéroport de départ du Japon</label>
+                            <select id="departure-airport-japan" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors bg-white text-sm">
+                                <option value="">Sélectionnez un aéroport</option>
+                                <optgroup label="🗾 Tokyo">
+                                    <option value="NRT">Tokyo - Narita (NRT)</option>
+                                    <option value="HND">Tokyo - Haneda (HND)</option>
+                                </optgroup>
+                                <optgroup label="🏯 Osaka / Kansai">
+                                    <option value="KIX">Osaka - Kansai (KIX)</option>
+                                    <option value="ITM">Osaka - Itami (ITM)</option>
+                                </optgroup>
+                                <optgroup label="🗼 Autres villes">
+                                    <option value="NGO">Nagoya - Chūbu Centrair (NGO)</option>
+                                    <option value="FUK">Fukuoka (FUK)</option>
+                                    <option value="CTS">Sapporo - New Chitose (CTS)</option>
+                                    <option value="OKA">Naha/Okinawa (OKA)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Date</label>
+                                <input type="date" id="return-date" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors" required>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 uppercase block mb-1">Heure</label>
+                                <input type="time" id="return-time" value="18:00" class="w-full border-2 border-pink-200 rounded-xl p-3 outline-none focus:border-pink-500 transition-colors">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Résumé durée -->
+                <div id="trip-summary" class="hidden bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-100">
+                    <div class="text-center">
+                        <div class="text-3xl font-black text-transparent bg-clip-text bg-japan-gradient" id="days-count">0</div>
+                        <div class="text-xs font-bold text-gray-500 uppercase">Jours au Japon</div>
+                    </div>
+                </div>
+
+                <!-- Bouton de validation -->
+                <button onclick="startTrip()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all">
+                    Commencer mon planning 🌸
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header id="main-header" class="bg-white shadow-sm sticky top-0 z-50 hidden">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+            <h1 class="text-lg font-bold text-primary flex items-center gap-2">
+                <span class="text-2xl">🗾</span>
+                My Japan Trip
+            </h1>
+            <button onclick="openModal()" class="bg-primary text-white px-4 py-2 rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1">
+                <span>+</span> Activité
+            </button>
+        </div>
+    </header>
+
+    <!-- PLANNING (avec support swipe) -->
+    <main class="max-w-md mx-auto p-4 space-y-4 swipe-container hidden pb-24" id="planning-list">
+        <!-- Les activités et blocs navigation seront injectés ici -->
+    </main>
+
+    <!-- SIDEBAR - OPTIONS DE VOYAGE (PLEIN ÉCRAN) -->
+    <div id="sidebar" class="fixed inset-0 bg-white z-[200] transform translate-x-full transition-transform duration-300 overflow-hidden">
+        <div class="flex flex-col h-full w-full max-w-full overflow-hidden">
+            <!-- Header fixe -->
+            <div class="bg-white border-b sticky top-0 z-10 shadow-sm">
+                <div class="max-w-md mx-auto p-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            ⚙️ Options de voyage
+                        </h2>
+                        <button onclick="closeSidebar()" class="text-3xl text-gray-400 hover:text-primary transition-colors">×</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation des jours avec swipe -->
+            <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4">
+                <div class="max-w-md mx-auto">
+                    <div class="flex items-center justify-between text-white">
+                        <button onclick="optionsPreviousDay()" id="options-prev-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">←</button>
+                        <div class="text-center flex-1">
+                            <div class="text-xs font-bold opacity-80" id="options-day-counter">JOUR 1/1</div>
+                            <div class="text-lg font-black" id="options-day-date">Chargement...</div>
+                        </div>
+                        <button onclick="optionsNextDay()" id="options-next-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">→</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenu scrollable -->
+            <div class="flex-1 overflow-y-auto pb-20">
+                <div class="max-w-md mx-auto p-6 space-y-6">
+                    <!-- Ville du jour -->
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">📍 Ville de la journée</h3>
+                        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-5 border-2 border-purple-200">
+                            <select id="day-city-selector" onchange="handleCityChange()" class="w-full border-2 border-purple-300 rounded-xl p-4 outline-none focus:border-purple-500 transition-colors bg-white text-base font-bold shadow-sm">
+                                <option value="">Choisir une ville...</option>
+                                <option value="tokyo">🗼 Tokyo</option>
+                                <option value="kyoto">⛩️ Kyoto</option>
+                                <option value="osaka">🏯 Osaka</option>
+                                <option value="nara">🦌 Nara</option>
+                                <option value="hiroshima">☮️ Hiroshima</option>
+                                <option value="hakone">🗻 Hakone</option>
+                                <option value="nikko">🏔️ Nikko</option>
+                                <option value="kamakura">🌊 Kamakura</option>
+                                <option value="takayama">🏘️ Takayama</option>
+                                <option value="kanazawa">🎨 Kanazawa</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Hôtel du jour -->
+                    <div class="space-y-3 border-t-4 border-gray-200 pt-6">
+                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🏨 Hébergement</h3>
+                        <div class="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-5 border-2 border-orange-200 space-y-3">
+                            <div>
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Nom de l'hôtel</label>
+                                <input 
+                                    type="text" 
+                                    id="hotel-name-input" 
+                                    placeholder="Ex: Hotel Gracery Shinjuku" 
+                                    class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors"
+                                >
+                            </div>
+
+                            <div class="relative">
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Adresse de l'hôtel</label>
+                                <input 
+                                    type="text" 
+                                    id="hotel-address-input" 
+                                    placeholder="Rechercher l'adresse..." 
+                                    class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors"
+                                    autocomplete="off"
+                                >
+                                <div id="hotel-address-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[110] border max-h-48 overflow-y-auto"></div>
+                                <div id="hotel-address-status" class="text-xs mt-1 font-bold"></div>
+                            </div>
+                            
+                            <div>
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">💰 Prix par nuit (optionnel)</label>
+                                <div class="flex gap-2">
+                                    <input 
+                                        type="number" 
+                                        id="hotel-price-input" 
+                                        placeholder="150"
+                                        class="flex-1 border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors"
+                                    >
+                                    <select id="hotel-currency-input" class="border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors bg-white">
+                                        <option value="EUR">€</option>
+                                        <option value="USD">$</option>
+                                        <option value="JPY" selected>¥</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button onclick="saveHotelInfo()" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition-colors">
+                                💾 Enregistrer l'hébergement
+                            </button>
+
+                            <!-- Affichage de l'hôtel enregistré -->
+                            <div id="hotel-display" class="hidden bg-white rounded-xl p-4 border-2 border-green-200">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="font-bold text-green-700">✅ Hébergement enregistré</div>
+                                    <button onclick="clearHotelInfo()" class="text-red-400 hover:text-red-600">✕</button>
+                                </div>
+                                <div class="text-sm text-gray-700" id="hotel-display-name"></div>
+                                <div class="text-xs text-gray-500 mt-1" id="hotel-display-address"></div>
+                                <div class="text-xs text-orange-600 font-bold mt-2" id="hotel-display-price"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Résumé des villes -->
+                    <div class="space-y-3 border-t-4 border-gray-200 pt-6">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">📅 Résumé du voyage</h3>
+                            <div class="text-sm font-bold text-orange-600" id="total-budget">Total: 0¥</div>
+                        </div>
+                        <div id="cities-summary" class="space-y-2">
+                            <!-- Les villes par jour seront affichées ici -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bouton de validation en bas -->
+            <div class="bg-white border-t p-4 sticky bottom-0">
+                <div class="max-w-md mx-auto">
+                    <button onclick="closeSidebar()" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all">
+                        Valider et retourner au planning
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NAVIGATION DES JOURS (en bas, fixe) -->
+    <div id="day-navigation" class="fixed bottom-0 left-0 right-0 bg-white shadow-2xl z-50 hidden border-t-2 border-gray-100">
+        <div class="max-w-md mx-auto">
+            <div class="flex items-center justify-between bg-gradient-to-r from-purple-500 to-pink-500 p-4 text-white">
+                <button onclick="previousDay()" id="prev-day-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">←</button>
+                <div class="text-center flex-1 cursor-pointer" onclick="showDayPicker()">
+                    <div class="text-xs font-bold opacity-80" id="day-counter">JOUR 1/1</div>
+                    <div class="text-lg font-black" id="current-day-date">Chargement...</div>
+                </div>
+                <button onclick="nextDay()" id="next-day-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">→</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ÉCRAN DE CONFIGURATION (PLEIN ÉCRAN) -->
+    <div id="config-screen" class="fixed inset-0 bg-white z-[200] transform translate-x-full transition-transform duration-300 flex flex-col">
+        <!-- Header fixe -->
+        <div class="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 flex-shrink-0">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold">⚙️ Configuration</h2>
+                <button onclick="closeConfigScreen()" class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-4xl hover:scale-110 active:scale-95 transition-all">
+                    ×
+                </button>
+            </div>
+        </div>
+
+        <!-- Contenu scrollable -->
+        <div class="flex-1 overflow-y-auto pb-20">
+
+            <!-- Onglet Voyage -->
+            <div id="config-content-voyage" class="config-content pb-24 overflow-y-auto">
+                <!-- Navigation par jour -->
+                <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4 sticky top-0 z-10">
+                    <div class="flex items-center justify-between text-white">
+                        <button onclick="configPrevDay()" id="config-prev-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">←</button>
+                        <div class="text-center flex-1">
+                            <div class="text-sm font-bold opacity-90" id="config-day-label">JOUR 1/1</div>
+                            <div class="text-xs opacity-75" id="config-day-date">Chargement...</div>
+                        </div>
+                        <button onclick="configNextDay()" id="config-next-btn" class="text-3xl hover:scale-110 transition-transform active:scale-95 px-4">→</button>
+                    </div>
+                </div>
+
+                <div class="p-4 space-y-6">
+                    <!-- Ville du jour -->
+                    <div class="space-y-3">
+                        <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                            <span>📍</span><span>VILLE DE LA JOURNÉE</span>
+                        </h3>
+                        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 border-2 border-purple-200">
+                            <select id="day-city-selector-config" onchange="handleCityChangeConfig()" class="w-full border-2 border-purple-300 rounded-xl p-3 outline-none focus:border-purple-500 transition-colors bg-white text-base font-bold shadow-sm">
+                                <option value="">Choisir une ville...</option>
+                                <option value="tokyo">🗼 Tokyo</option>
+                                <option value="kyoto">⛩️ Kyoto</option>
+                                <option value="osaka">🏯 Osaka</option>
+                                <option value="nara">🦌 Nara</option>
+                                <option value="hiroshima">☮️ Hiroshima</option>
+                                <option value="hakone">🗻 Hakone</option>
+                                <option value="nikko">🏔️ Nikko</option>
+                                <option value="kamakura">🌊 Kamakura</option>
+                                <option value="takayama">🏘️ Takayama</option>
+                                <option value="kanazawa">🎨 Kanazawa</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Hôtel du jour -->
+                    <div class="space-y-3">
+                        <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                            <span>🏨</span><span>HÉBERGEMENT</span>
+                        </h3>
+                        <div class="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-4 border-2 border-orange-200 space-y-3">
+                            <div>
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Nom de l'hôtel</label>
+                                <input type="text" id="hotel-name-input-config" placeholder="Ex: Hotel Gracery Shinjuku" class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">Adresse</label>
+                                <div class="relative">
+                                    <input type="text" id="hotel-address-input-config" placeholder="Rechercher l'adresse..." class="w-full border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors text-sm" autocomplete="off">
+                                    <div id="hotel-address-suggestions-config" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[310] border max-h-48 overflow-y-auto"></div>
+                                </div>
+                                <div id="hotel-address-status-config" class="text-xs mt-1 font-bold"></div>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-orange-700 uppercase block mb-2">💰 Prix par nuit (optionnel)</label>
+                                <div class="flex gap-2">
+                                    <input type="number" id="hotel-price-input-config" placeholder="150" class="flex-1 border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors text-sm">
+                                    <select id="hotel-currency-input-config" class="border-2 border-orange-200 rounded-xl p-3 outline-none focus:border-orange-500 transition-colors bg-white text-sm">
+                                        <option value="EUR">€</option>
+                                        <option value="USD">$</option>
+                                        <option value="JPY" selected>¥</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button onclick="saveHotelInfoConfig()" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-bold hover:shadow-xl transition-all">
+                                💾 Enregistrer l'hébergement
+                            </button>
+                            <div id="hotel-display-config" class="hidden bg-white rounded-xl p-4 border-2 border-green-200">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="font-bold text-green-700">✅ Hébergement enregistré</div>
+                                    <button onclick="editHotelConfig()" class="text-blue-600 text-sm font-bold">✏️ Modifier</button>
+                                </div>
+                                <div id="hotel-details-config" class="text-sm space-y-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Onglet IA -->
+            <div id="config-content-ia" class="config-content hidden p-4 space-y-3">
+                <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border-2 border-blue-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">😴</span>
+                            <div>
+                                <div class="font-bold text-blue-800">Mode Fatigue</div>
+                                <div class="text-xs text-blue-600">Optimise selon votre énergie</div>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="fatigue-toggle-config" onchange="toggleFatigueModeConfig()" class="sr-only peer">
+                            <div class="w-14 h-7 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                    <p class="text-xs text-gray-600">L'IA adapte le planning pour éviter trop d'activités intenses consécutives</p>
+                </div>
+                <div class="bg-gradient-to-r from-sky-50 to-indigo-50 rounded-xl p-4 border-2 border-sky-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">🌦️</span>
+                            <div>
+                                <div class="font-bold text-sky-800">Adaptation Météo</div>
+                                <div class="text-xs text-sky-600">Optimise selon la météo</div>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="weather-toggle-config" onchange="toggleWeatherModeConfig()" class="sr-only peer">
+                            <div class="w-14 h-7 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-sky-600"></div>
+                        </label>
+                    </div>
+                    <p class="text-xs text-gray-600">L'IA privilégie les activités intérieures si pluie, extérieures si beau temps</p>
+                </div>
+            </div>
+
+            <!-- Onglet Budget -->
+            <div id="config-content-budget" class="config-content hidden p-4 space-y-4">
+                <div class="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl p-4 shadow-lg">
+                    <div class="text-sm opacity-90">Budget Total</div>
+                    <div class="text-3xl font-bold" id="total-budget-display">0 €</div>
+                    <div class="text-xs opacity-75 mt-1" id="budget-per-day">0 € / jour</div>
+                </div>
+                <div class="space-y-3">
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">✈️</span>
+                            <div class="flex-1"><div class="font-bold text-gray-800">Vols</div><div class="text-xs text-gray-500">Aller-retour</div></div>
+                            <input type="number" id="budget-flight" onchange="calculateBudget()" placeholder="800" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🏨</span>
+                            <div class="flex-1"><div class="font-bold text-gray-800">Hébergement</div><div class="text-xs text-gray-500">Total séjour</div></div>
+                            <div class="text-right"><div class="font-bold text-green-600" id="budget-hotel-total">0 €</div><div class="text-xs text-gray-400">Auto-calculé</div></div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🚄</span>
+                            <div class="flex-1"><div class="font-bold text-gray-800">JR Pass</div><div class="text-xs text-gray-500">7 ou 14 jours</div></div>
+                            <select id="budget-jrpass" onchange="calculateBudget()" class="border-2 border-gray-200 rounded-lg p-2">
+                                <option value="0">Pas de pass</option>
+                                <option value="280">7 jours (280€)</option>
+                                <option value="450">14 jours (450€)</option>
+                                <option value="570">21 jours (570€)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🚇</span>
+                            <div class="flex-1"><div class="font-bold text-gray-800">Transports locaux</div><div class="text-xs text-gray-500">Métro, bus par jour</div></div>
+                            <input type="number" id="budget-transport" onchange="calculateBudget()" placeholder="15" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€/j</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🍜</span>
+                            <div class="flex-1"><div class="font-bold text-gray-800">Repas</div><div class="text-xs text-gray-500">Budget quotidien</div></div>
+                            <select id="budget-meals" onchange="calculateBudget()" class="border-2 border-gray-200 rounded-lg p-2">
+                                <option value="25">Économique (25€/j)</option>
+                                <option value="50" selected>Moyen (50€/j)</option>
+                                <option value="80">Confort (80€/j)</option>
+                                <option value="120">Luxe (120€/j)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🎫</span>
+                            <div class="flex-1"><div class="font-bold text-gray-800">Activités & Visites</div><div class="text-xs text-gray-500">Temples, musées</div></div>
+                            <input type="number" id="budget-activities" onchange="calculateBudget()" placeholder="20" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€/j</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🛍️</span>
+                            <div class="flex-1"><div class="font-bold text-gray-800">Shopping</div><div class="text-xs text-gray-500">Souvenirs, vêtements</div></div>
+                            <input type="number" id="budget-shopping" onchange="calculateBudget()" placeholder="30" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€/j</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🏥</span>
+                            <div class="flex-1"><div class="font-bold text-gray-800">Assurance voyage</div><div class="text-xs text-gray-500">Santé, annulation</div></div>
+                            <input type="number" id="budget-insurance" onchange="calculateBudget()" placeholder="50" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border-2 border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">💳</span>
+                            <div class="flex-1"><div class="font-bold text-gray-800">Divers</div><div class="text-xs text-gray-500">Imprévus, extras</div></div>
+                            <input type="number" id="budget-misc" onchange="calculateBudget()" placeholder="100" class="w-24 border-2 border-gray-200 rounded-lg p-2 text-right">
+                            <span class="text-gray-600">€</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 rounded-xl p-4 space-y-2">
+                    <div class="font-bold text-gray-800 mb-3">Répartition</div>
+                    <div id="budget-breakdown" class="space-y-2 text-sm"></div>
+                </div>
+            </div>
+
+            <!-- Onglet Réglages -->
+            <div id="config-content-reglages" class="config-content hidden p-4 space-y-3">
+                <div class="text-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">⚙️ Réglages</h3>
+                </div>
+                <button onclick="editTrip(); closeConfigScreen();" class="w-full bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 py-4 rounded-xl font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                    📅 Modifier dates & aéroports
+                </button>
+                <div class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl p-4 border-2 border-gray-700">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">🌙</span>
+                            <div>
+                                <div class="font-bold text-white">Mode Nuit</div>
+                                <div class="text-xs text-gray-400">Thème sombre</div>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()" class="sr-only peer">
+                            <div class="w-14 h-7 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
+                        </label>
+                    </div>
+                    <p class="text-xs text-gray-400">🚧 Fonctionnalité en développement</p>
+                </div>
+                <div class="mt-6 pt-6 border-t-2 border-gray-200">
+                    <div class="text-xs font-bold text-gray-500 mb-3 uppercase">⚠️ Zone de danger</div>
+                    <button onclick="confirmResetAll()" class="w-full bg-red-50 text-red-600 py-4 rounded-xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2 border-2 border-red-200">
+                        🔄 Réinitialiser tout le voyage
+                    </button>
+                    <p class="text-xs text-gray-500 mt-2 text-center">Supprime toutes les activités, dates et configurations</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation Bar de la config -->
+        <div class="absolute bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl">
+            <div class="flex justify-around items-center h-16">
+                <button onclick="switchConfigTab('voyage')" id="config-tab-voyage" class="config-tab-bottom flex-1 flex flex-col items-center justify-center gap-1 py-2 text-purple-600 border-t-2 border-purple-600">
+                    <span class="text-xl">🗺️</span>
+                    <span class="text-xs font-bold">Voyage</span>
+                </button>
+                <button onclick="switchConfigTab('ia')" id="config-tab-ia" class="config-tab-bottom flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-400 border-t-2 border-transparent">
+                    <span class="text-xl">🎯</span>
+                    <span class="text-xs font-bold">IA</span>
+                </button>
+                <button onclick="switchConfigTab('budget')" id="config-tab-budget" class="config-tab-bottom flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-400 border-t-2 border-transparent">
+                    <span class="text-xl">💰</span>
+                    <span class="text-xs font-bold">Budget</span>
+                </button>
+                <button onclick="switchConfigTab('reglages')" id="config-tab-reglages" class="config-tab-bottom flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-400 border-t-2 border-transparent">
+                    <span class="text-xl">⚙️</span>
+                    <span class="text-xs font-bold">Réglages</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAB (Floating Action Button) - Configuration -->
+    <button id="fab-config" onclick="toggleConfigFAB()" class="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-full shadow-2xl hover:shadow-purple-500/50 hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center z-[250] hidden">
+        <span id="fab-icon" class="text-2xl">⚙️</span>
+    </button>
+
+    <!-- MODAL AJOUT ACTIVITÉ -->
+    <div id="activity-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center flex-shrink-0">
+                <h2 class="text-xl font-bold text-purple-700">Ajouter une activité</h2>
+                <button onclick="closeModal()" class="text-2xl text-gray-400">×</button>
+            </div>
+
+            <!-- Suggestions en scroll vertical -->
+            <div id="modal-suggestions" class="hidden flex-shrink-0">
+                <div class="text-sm font-bold text-purple-600 mb-2 flex justify-between items-center">
+                    <span>💡 Suggestions</span>
+                    <button onclick="document.getElementById('modal-suggestions').classList.add('hidden')" class="text-xs text-gray-400 hover:text-gray-600">
+                        Masquer
+                    </button>
+                </div>
+                <div id="modal-suggestions-scroll" class="overflow-y-auto max-h-64 space-y-2 pr-2 mb-4">
+                    <!-- Rempli dynamiquement -->
+                </div>
+            </div>
+
+            <!-- MODE RAPIDE -->
+            <div id="quick-add-mode" class="flex-1 overflow-y-auto">
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm font-bold text-gray-700 block mb-2">Activité</label>
+                        <input
+                            type="text"
+                            id="quick-activity-input" 
+                            placeholder="Ex: temple doré kyoto"
+                            class="w-full border-2 border-purple-200 rounded-xl p-3 outline-none focus:border-purple-500 transition-colors text-base"
+                        />
+                    </div>
+
+                    <div class="flex gap-3">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="time-mode" value="flexible" checked class="sr-only peer">
+                            <div class="border-2 border-gray-200 rounded-xl p-3 peer-checked:border-purple-500 peer-checked:bg-purple-50 transition-all text-center">
+                                <div class="text-2xl mb-1">⏰</div>
+                                <div class="text-sm font-bold">Flexible</div>
+                                <div class="text-xs text-gray-500">IA décide</div>
+                            </div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="time-mode" value="fixed" class="sr-only peer">
+                            <div class="border-2 border-gray-200 rounded-xl p-3 peer-checked:border-orange-500 peer-checked:bg-orange-50 transition-all text-center">
+                                <div class="text-2xl mb-1">🔒</div>
+                                <div class="text-sm font-bold">Fixé</div>
+                                <div class="text-xs text-gray-500">Je choisis</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div id="fixed-time-section" class="hidden">
+                        <label class="text-sm font-bold text-gray-700 block mb-2">Heure</label>
+                        <input type="time" id="quick-fixed-time" class="w-full border-2 border-gray-200 rounded-xl p-3">
+                    </div>
+
+                    <button onclick="quickAddActivity()" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">
+                        ✅ Ajouter
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lien mode manuel -->
+            <button onclick="toggleManualMode()" class="w-full text-xs text-gray-400 hover:text-gray-600 py-2 flex-shrink-0">
+                <span id="manual-toggle-text">Mode manuel →</span>
+            </button>
+
+            <!-- MODE MANUEL (caché) -->
+            <div id="manual-add-mode" class="hidden space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Heure</label>
+                    <input type="time" id="modal-time" class="w-full border-2 border-gray-100 rounded-xl p-3">
+                </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Titre</label>
+                    <input type="text" id="modal-title-raw" placeholder="Ex: Visite temple" class="w-full border-2 border-gray-100 rounded-xl p-3">
+                </div>
+
+                <div class="relative">
+                    <label class="text-xs font-bold text-gray-500 uppercase">Destination</label>
+                    <input type="text" id="modal-dest-search" placeholder="Rechercher..." class="w-full border-2 border-gray-100 rounded-xl p-3" autocomplete="off">
+                    <div id="dest-suggestions" class="absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[110] border"></div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Description</label>
+                    <textarea id="modal-desc" class="w-full border-2 border-gray-100 rounded-xl p-3 h-20"></textarea>
+                </div>
+
+                <div class="flex space-x-3">
+                    <button onclick="closeModal()" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">ANNULER</button>
+                    <button onclick="saveActivity()" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold">ENREGISTRER</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL INFOS ACTIVITÉ -->
+    <div id="activity-info-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start">
+                <h2 class="text-xl font-bold" id="info-modal-title">Informations</h2>
+                <button onclick="closeActivityInfoModal()" class="text-2xl text-gray-400 hover:text-gray-600">×</button>
+            </div>
+            
+            <div id="info-modal-content" class="space-y-4">
+                <div class="text-center py-8">
+                    <div class="loader mx-auto"></div>
+                    <div class="text-sm text-gray-500 mt-2">Chargement des informations...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== DONNÉES GLOBALES ==========
+        let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
+        let tripData = JSON.parse(localStorage.getItem('japan_trip_info_v5') || 'null');
+        let currentDayIndex = 0;
+        let selectedPlace = null;
+        let iaSuggestedLocation = "";
+        let dayCities = JSON.parse(localStorage.getItem('japan_day_cities_v5') || '{}');
+        let dayHotels = JSON.parse(localStorage.getItem('japan_day_hotels_v5') || '{}');
+        let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
+        let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '{}');
+        let routeCache = JSON.parse(localStorage.getItem('japan_route_cache') || '{}');
+
+        // ========== BASE DE DONNÉES SUGGESTIONS ==========
+        const citySuggestions = {
+            tokyo: [
+                { name: "Senso-ji Temple", query: "Senso-ji Temple, Asakusa, Tokyo, Japan", emoji: "⛩️", image: "🏮", fatigue: "low", must_see: true },
+                { name: "Shibuya Crossing", query: "Shibuya Crossing, Tokyo, Japan", emoji: "🚶", image: "🌆", fatigue: "low", must_see: true },
+                { name: "Tokyo Skytree", query: "Tokyo Skytree, Tokyo, Japan", emoji: "🗼", image: "🌃", fatigue: "medium", must_see: true },
+                { name: "Meiji Shrine", query: "Meiji Shrine, Harajuku, Tokyo, Japan", emoji: "⛩️", image: "🌲", fatigue: "low", must_see: true },
+                { name: "Tsukiji Market", query: "Tsukiji Outer Market, Tokyo, Japan", emoji: "🐟", image: "🍣", fatigue: "medium", must_see: false },
+                { name: "Akihabara", query: "Akihabara Electric Town, Tokyo, Japan", emoji: "🎮", image: "⚡", fatigue: "medium", must_see: false }
+            ],
+            kyoto: [
+                { name: "Fushimi Inari", query: "Fushimi Inari Shrine, Kyoto, Japan", emoji: "⛩️", image: "🦊", fatigue: "high", must_see: true },
+                { name: "Kinkaku-ji", query: "Kinkaku-ji Golden Pavilion, Kyoto, Japan", emoji: "🏯", image: "✨", fatigue: "low", must_see: true },
+                { name: "Arashiyama Bamboo", query: "Arashiyama Bamboo Grove, Kyoto, Japan", emoji: "🎋", image: "🌿", fatigue: "medium", must_see: true },
+                { name: "Gion District", query: "Gion District, Kyoto, Japan", emoji: "👘", image: "🏮", fatigue: "low", must_see: true },
+                { name: "Kiyomizu-dera", query: "Kiyomizu-dera Temple, Kyoto, Japan", emoji: "⛩️", image: "🏔️", fatigue: "medium", must_see: true },
+                { name: "Nishiki Market", query: "Nishiki Market, Kyoto, Japan", emoji: "🍜", image: "🥢", fatigue: "medium", must_see: false }
+            ],
+            osaka: [
+                { name: "Osaka Castle", query: "Osaka Castle, Osaka, Japan", emoji: "🏯", image: "🌸", fatigue: "medium", must_see: true },
+                { name: "Dotonbori", query: "Dotonbori, Osaka, Japan", emoji: "🍜", image: "🏮", fatigue: "low", must_see: true },
+                { name: "Shinsekai", query: "Shinsekai District, Osaka, Japan", emoji: "🗼", image: "🎡", fatigue: "low", must_see: false },
+                { name: "Sumiyoshi Taisha", query: "Sumiyoshi Taisha Shrine, Osaka, Japan", emoji: "⛩️", image: "🌊", fatigue: "low", must_see: false },
+                { name: "Kuromon Market", query: "Kuromon Ichiba Market, Osaka, Japan", emoji: "🦞", image: "🍢", fatigue: "medium", must_see: false },
+                { name: "Umeda Sky Building", query: "Umeda Sky Building, Osaka, Japan", emoji: "🏙️", image: "🌃", fatigue: "low", must_see: false }
+            ],
+            nara: [
+                { name: "Nara Park Deer", query: "Nara Park, Nara, Japan", emoji: "🦌", image: "🌳", fatigue: "low", must_see: true },
+                { name: "Todai-ji Temple", query: "Todai-ji Temple, Nara, Japan", emoji: "🏛️", image: "🗿", fatigue: "medium", must_see: true },
+                { name: "Kasuga Taisha", query: "Kasuga Taisha Shrine, Nara, Japan", emoji: "⛩️", image: "🏮", fatigue: "medium", must_see: false },
+                { name: "Naramachi", query: "Naramachi District, Nara, Japan", emoji: "🏘️", image: "🏮", fatigue: "low", must_see: false }
+            ],
+            hiroshima: [
+                { name: "Peace Memorial Park", query: "Hiroshima Peace Memorial Park, Hiroshima, Japan", emoji: "☮️", image: "🕊️", fatigue: "low", must_see: true },
+                { name: "Miyajima Island", query: "Itsukushima Shrine, Miyajima, Japan", emoji: "⛩️", image: "🌊", fatigue: "high", must_see: true },
+                { name: "Hiroshima Castle", query: "Hiroshima Castle, Hiroshima, Japan", emoji: "🏯", image: "🌸", fatigue: "medium", must_see: false },
+                { name: "Shukkeien Garden", query: "Shukkeien Garden, Hiroshima, Japan", emoji: "🌸", image: "🏞️", fatigue: "low", must_see: false }
+            ],
+            hakone: [
+                { name: "Lake Ashi", query: "Lake Ashi, Hakone, Japan", emoji: "🚢", image: "🗻", fatigue: "low", must_see: true },
+                { name: "Hakone Shrine", query: "Hakone Shrine, Hakone, Japan", emoji: "⛩️", image: "🌊", fatigue: "medium", must_see: false },
+                { name: "Owakudani", query: "Owakudani Valley, Hakone, Japan", emoji: "🌋", image: "♨️", fatigue: "medium", must_see: true },
+                { name: "Hakone Ropeway", query: "Hakone Ropeway, Hakone, Japan", emoji: "🚡", image: "🏔️", fatigue: "low", must_see: false }
+            ],
+            nikko: [
+                { name: "Toshogu Shrine", query: "Nikko Toshogu Shrine, Nikko, Japan", emoji: "⛩️", image: "🏮", fatigue: "medium", must_see: true },
+                { name: "Lake Chuzenji", query: "Lake Chuzenji, Nikko, Japan", emoji: "🏞️", image: "🍂", fatigue: "low", must_see: false },
+                { name: "Kegon Falls", query: "Kegon Falls, Nikko, Japan", emoji: "💧", image: "🌊", fatigue: "low", must_see: false },
+                { name: "Shinkyo Bridge", query: "Shinkyo Bridge, Nikko, Japan", emoji: "🌉", image: "🍁", fatigue: "low", must_see: false }
+            ],
+            kamakura: [
+                { name: "Great Buddha", query: "Kotoku-in Temple Great Buddha, Kamakura, Japan", emoji: "🗿", image: "☸️", fatigue: "low", must_see: true },
+                { name: "Hasedera Temple", query: "Hasedera Temple, Kamakura, Japan", emoji: "⛩️", image: "🌸", fatigue: "medium", must_see: false },
+                { name: "Tsurugaoka Hachimangu", query: "Tsurugaoka Hachimangu Shrine, Kamakura, Japan", emoji: "⛩️", image: "🌳", fatigue: "medium", must_see: false },
+                { name: "Enoshima Island", query: "Enoshima Island, Kamakura, Japan", emoji: "🏝️", image: "🌊", fatigue: "high", must_see: false }
+            ],
+            takayama: [
+                { name: "Old Town", query: "Sanmachi Suji Old Town, Takayama, Japan", emoji: "🏘️", image: "🏮", fatigue: "low", must_see: true },
+                { name: "Morning Markets", query: "Takayama Morning Markets, Takayama, Japan", emoji: "🛒", image: "🥬", fatigue: "low", must_see: false },
+                { name: "Takayama Jinya", query: "Takayama Jinya, Takayama, Japan", emoji: "🏛️", image: "🏯", fatigue: "low", must_see: false },
+                { name: "Higashiyama Trail", query: "Higashiyama Walking Course, Takayama, Japan", emoji: "🥾", image: "⛩️", fatigue: "high", must_see: false }
+            ],
+            kanazawa: [
+                { name: "Kenrokuen Garden", query: "Kenrokuen Garden, Kanazawa, Japan", emoji: "🌸", image: "🏞️", fatigue: "medium", must_see: true },
+                { name: "Higashi Chaya", query: "Higashi Chaya District, Kanazawa, Japan", emoji: "🏮", image: "👘", fatigue: "low", must_see: false },
+                { name: "Kanazawa Castle", query: "Kanazawa Castle, Kanazawa, Japan", emoji: "🏯", image: "🌸", fatigue: "medium", must_see: false },
+                { name: "Omicho Market", query: "Omicho Market, Kanazawa, Japan", emoji: "🦀", image: "🍣", fatigue: "medium", must_see: false }
+            ]
+        };
+
+        // ========== GESTION DU VOYAGE ==========
+        function calculateDays() {
+            const depDate = document.getElementById('departure-date').value;
+            const retDate = document.getElementById('return-date').value;
+            
+            if (depDate && retDate) {
+                const start = new Date(depDate);
+                const end = new Date(retDate);
+                const diffTime = Math.abs(end - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                
+                document.getElementById('days-count').textContent = diffDays;
+                document.getElementById('trip-summary').classList.remove('hidden');
+                return diffDays;
+            }
+            return 0;
+        }
+
+        document.getElementById('departure-date').addEventListener('change', calculateDays);
+        document.getElementById('return-date').addEventListener('change', calculateDays);
+
+        function startTrip() {
+            const depDate = document.getElementById('departure-date').value;
+            const depTime = document.getElementById('departure-time').value;
+            const arrAirportJapan = document.getElementById('arrival-airport-japan').value;
+            
+            const depAirportJapan = document.getElementById('departure-airport-japan').value;
+            const retDate = document.getElementById('return-date').value;
+            const retTime = document.getElementById('return-time').value;
+
+            if (!depDate || !retDate) {
+                alert('Veuillez renseigner les dates de départ et de retour.');
+                return;
+            }
+
+            if (!arrAirportJapan) {
+                alert('Veuillez sélectionner l\'aéroport d\'arrivée au Japon.');
+                return;
+            }
+
+            if (!depAirportJapan) {
+                alert('Veuillez sélectionner l\'aéroport de départ du Japon.');
+                return;
+            }
+
+            const start = new Date(depDate);
+            const end = new Date(retDate);
+            if (start >= end) {
+                alert('La date de retour doit être après la date de départ.');
+                return;
+            }
+
+            tripData = {
+                outbound: {
+                    departureDate: depDate,
+                    departureTime: depTime,
+                    arrivalAirport: arrAirportJapan
+                },
+                return: {
+                    departureAirport: depAirportJapan,
+                    departureDate: retDate,
+                    departureTime: retTime
+                },
+                totalDays: calculateDays()
+            };
+
+            localStorage.setItem('japan_trip_info_v5', JSON.stringify(tripData));
+            
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('main-header').classList.remove('hidden');
+            document.getElementById('planning-list').classList.remove('hidden');
+            document.getElementById('day-navigation').classList.remove('hidden');
+            document.getElementById('fab-config').classList.remove('hidden');
+            
+            updateDayNavigation();
+            updateCitySelector();
+            renderPlanning();
+        }
+
+        function editTrip() {
+            document.getElementById('welcome-screen').classList.remove('hidden');
+            document.getElementById('departure-date').value = tripData.outbound.departureDate;
+            document.getElementById('departure-time').value = tripData.outbound.departureTime;
+            document.getElementById('arrival-airport-japan').value = tripData.outbound.arrivalAirport;
+            
+            document.getElementById('departure-airport-japan').value = tripData.return.departureAirport;
+            document.getElementById('return-date').value = tripData.return.departureDate;
+            document.getElementById('return-time').value = tripData.return.departureTime;
+            
+            calculateDays();
+        }
+
+        // ========== NAVIGATION PAR JOUR ==========
+        function getDayDate(dayIndex) {
+            if (!tripData) return null;
+            const startDate = new Date(tripData.outbound.departureDate);
+            const dayDate = new Date(startDate);
+            dayDate.setDate(startDate.getDate() + dayIndex);
+            return dayDate;
+        }
+
+        function formatDate(date) {
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            return date.toLocaleDateString('fr-FR', options);
+        }
+
+        function updateDayNavigation() {
+            if (!tripData) return;
+            
+            const dayDate = getDayDate(currentDayIndex);
+            document.getElementById('day-counter').textContent = `JOUR ${currentDayIndex + 1}/${tripData.totalDays}`;
+            document.getElementById('current-day-date').textContent = formatDate(dayDate);
+            
+            document.getElementById('prev-day-btn').disabled = currentDayIndex === 0;
+            document.getElementById('next-day-btn').disabled = currentDayIndex === tripData.totalDays - 1;
+            
+            document.getElementById('prev-day-btn').style.opacity = currentDayIndex === 0 ? '0.3' : '1';
+            document.getElementById('next-day-btn').style.opacity = currentDayIndex === tripData.totalDays - 1 ? '0.3' : '1';
+            
+            // Synchroniser les toggles des onglets
+            syncTabToggles();
+        }
+
+        function previousDay() {
+            if (currentDayIndex > 0) {
+                currentDayIndex--;
+                updateDayNavigation();
+                updateCitySelector();
+                renderPlanning();
+            }
+        }
+
+        function nextDay() {
+            if (currentDayIndex < tripData.totalDays - 1) {
+                currentDayIndex++;
+                updateDayNavigation();
+                updateCitySelector();
+                renderPlanning();
+            }
+        }
+
+        function showDayPicker() {
+            // Zone centrale cliquable - pour future amélioration
+            // Pour l'instant, ne fait rien, mais la zone reste cliquable
+        }
+
+        // ========== GESTION DES VILLES ET SUGGESTIONS ==========
+        let optionsCurrentDay = 0;
+
+        // ========== GESTION DES HÔTELS ==========
+        let hotelAddressTimer = null;
+        let hotelAddressTimerConfig = null;
+        let validatedHotelPlace = null;
+        let validatedHotelPlaceConfig = null;
+
+        /**
+         * Attache l'autocomplete Google Places à n'importe quel champ texte.
+         * @param {string} inputId       - ID du champ input
+         * @param {string} suggestionsId - ID du conteneur de suggestions
+         * @param {string} statusId      - ID du span de statut (optionnel)
+         * @param {function} onSelect    - Callback appelé avec l'objet place validé
+         */
+        function initAutocomplete(inputId, suggestionsId, statusId, onSelect) {
+            const input = document.getElementById(inputId);
+            const list  = document.getElementById(suggestionsId);
+            if (!input || !list) return;
+            if (input.dataset.autocompleteInit) return; // Eviter double init
+            input.dataset.autocompleteInit = 'true';
+
+            let timer = null;
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                const query = input.value.trim();
+                if (query.length < 2) { list.classList.add('hidden'); return; }
+
+                timer = setTimeout(async () => {
+                    try {
+                        const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}`);
+                        const j = await r.json();
+                        list.innerHTML = '';
+                        if (j.predictions?.length > 0) {
+                            list.classList.remove('hidden');
+                            j.predictions.slice(0, 6).forEach(p => {
+                                const div = document.createElement('div');
+                                div.className = 'suggestion-item';
+                                div.textContent = p.description;
+                                div.addEventListener('mousedown', async (e) => {
+                                    e.preventDefault(); // empêche le blur de fermer la liste avant le clic
+                                    list.classList.add('hidden');
+                                    const statusEl = statusId ? document.getElementById(statusId) : null;
+                                    if (statusEl) statusEl.innerHTML = '<span class="text-gray-400">⏳ Validation...</span>';
+                                    try {
+                                        const dr = await fetch(`/api/places/details?place_id=${encodeURIComponent(p.place_id)}`);
+                                        const dj = await dr.json();
+                                        if (dj.ok) {
+                                            input.value = dj.place.formatted_address;
+                                            if (statusEl) statusEl.innerHTML = `<span class="text-green-600">✅ Adresse validée</span>`;
+                                            if (onSelect) onSelect(dj.place);
+                                        } else {
+                                            if (statusEl) statusEl.innerHTML = '<span class="text-red-500">❌ Erreur validation</span>';
+                                        }
+                                    } catch(e) {
+                                        if (statusEl) statusEl.innerHTML = '<span class="text-red-500">❌ Erreur réseau</span>';
+                                    }
+                                });
+                                list.appendChild(div);
+                            });
+                        } else {
+                            list.classList.add('hidden');
+                        }
+                    } catch (e) {
+                        console.error('Autocomplete erreur:', e);
+                    }
+                }, 300);
+            });
+
+            // Fermer la liste si on clique ailleurs
+            input.addEventListener('blur', () => {
+                setTimeout(() => list.classList.add('hidden'), 200);
+            });
+        }
+
+        // Init autocomplete sidebar hôtel
+        function initHotelListeners() {
+            initAutocomplete(
+                'hotel-address-input',
+                'hotel-address-suggestions',
+                'hotel-address-status',
+                (place) => { validatedHotelPlace = place; }
+            );
+        }
+
+        // Init autocomplete config-screen hôtel (appelé à l'ouverture de la config)
+        function initHotelListenersConfig() {
+            // Créer dynamiquement le conteneur de suggestions s'il n'existe pas
+            const input = document.getElementById('hotel-address-input-config');
+            if (!input) return;
+            
+            let list = document.getElementById('hotel-address-suggestions-config');
+            if (!list) {
+                list = document.createElement('div');
+                list.id = 'hotel-address-suggestions-config';
+                list.className = 'absolute w-full bg-white shadow-xl rounded-xl mt-1 hidden z-[310] border max-h-48 overflow-y-auto';
+                input.parentElement.style.position = 'relative';
+                input.parentElement.appendChild(list);
+            }
+
+            initAutocomplete(
+                'hotel-address-input-config',
+                'hotel-address-suggestions-config',
+                null,
+                (place) => {
+                    validatedHotelPlaceConfig = place;
+                    // Afficher confirmation inline
+                    const status = document.getElementById('hotel-address-status-config');
+                    if (status) status.innerHTML = `<span class="text-green-600 text-xs font-bold">✅ ${place.formatted_address}</span>`;
+                }
+            );
+        }
+
+        async function validateHotelAddress(placeId) {
+            try {
+                const r = await fetch(`/api/places/details?place_id=${placeId}`);
+                const j = await r.json();
+                
+                if (j.ok) {
+                    validatedHotelPlace = j.place;
+                    const addressInput = document.getElementById('hotel-address-input');
+                    const addressList = document.getElementById('hotel-address-suggestions');
+                    const statusDiv = document.getElementById('hotel-address-status');
+                    
+                    addressInput.value = j.place.formatted_address;
+                    addressList.classList.add('hidden');
+                    statusDiv.innerHTML = `<span class="text-green-600">✅ Adresse validée</span>`;
+                }
+            } catch (e) {
+                console.error('Erreur validation:', e);
+            }
+        }
+
+        function saveHotelInfo() {
+            const hotelName = document.getElementById('hotel-name-input').value.trim();
+            const address = document.getElementById('hotel-address-input').value.trim();
+            const price = document.getElementById('hotel-price-input').value;
+            const currency = document.getElementById('hotel-currency-input').value;
+            
+            if (!hotelName) {
+                alert('Veuillez saisir le nom de l\'hôtel');
+                return;
+            }
+            
+            const hotelEntry = {
+                name: hotelName,
+                address: address,
+                price: price ? parseFloat(price) : null,
+                currency: currency
+            };
+            if (validatedHotelPlace) {
+                hotelEntry.place = validatedHotelPlace;
+                hotelEntry.address = validatedHotelPlace.formatted_address;
+            }
+            
+            dayHotels[optionsCurrentDay] = hotelEntry;
+            localStorage.setItem('japan_day_hotels_v5', JSON.stringify(dayHotels));
+            validatedHotelPlace = null;
+            
+            displaySavedHotel();
+            updateCitiesSummary();
+            calculateBudget();
+            
+            alert('✅ Hébergement enregistré pour le Jour ' + (optionsCurrentDay + 1));
+        }
+
+        function displaySavedHotel() {
+            const hotel = dayHotels[optionsCurrentDay];
+            
+            if (hotel) {
+                document.getElementById('hotel-display-name').textContent = hotel.name;
+                const addr = hotel.address || (hotel.place ? hotel.place.formatted_address : '') || '';
+                document.getElementById('hotel-display-address').textContent = addr;
+                
+                const priceStr = hotel.price ? `${hotel.price} ${hotel.currency}` : 'Prix non défini';
+                document.getElementById('hotel-display-price').textContent = priceStr;
+                
+                document.getElementById('hotel-display').classList.remove('hidden');
+            } else {
+                document.getElementById('hotel-display').classList.add('hidden');
+            }
+        }
+
+        function clearHotelInfo() {
+            delete dayHotels[optionsCurrentDay];
+            localStorage.setItem('japan_day_hotels_v5', JSON.stringify(dayHotels));
+            
+            document.getElementById('hotel-name-input').value = '';
+            document.getElementById('hotel-address-input').value = '';
+            document.getElementById('hotel-price-input').value = '';
+            document.getElementById('hotel-currency-input').value = 'JPY';
+            document.getElementById('hotel-address-status').innerHTML = '';
+            document.getElementById('hotel-display').classList.add('hidden');
+            
+            validatedHotelPlace = null;
+            updateCitiesSummary();
+        }
+
+        function loadHotelForDay() {
+            const hotel = dayHotels[optionsCurrentDay];
+            
+            if (hotel) {
+                document.getElementById('hotel-name-input').value = hotel.name || '';
+                document.getElementById('hotel-address-input').value = hotel.place.formatted_address || '';
+                document.getElementById('hotel-price-input').value = hotel.price || '';
+                document.getElementById('hotel-currency-input').value = hotel.currency || 'JPY';
+                document.getElementById('hotel-address-status').innerHTML = `<span class="text-green-600">✅ Adresse validée</span>`;
+                
+                validatedHotelPlace = hotel.place;
+                displaySavedHotel();
+            } else {
+                document.getElementById('hotel-name-input').value = '';
+                document.getElementById('hotel-address-input').value = '';
+                document.getElementById('hotel-price-input').value = '';
+                document.getElementById('hotel-currency-input').value = 'JPY';
+                document.getElementById('hotel-address-status').innerHTML = '';
+                document.getElementById('hotel-display').classList.add('hidden');
+                
+                validatedHotelPlace = null;
+            }
+        }
+
+        function openSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            
+            // Synchroniser avec le jour actuel du planning
+            optionsCurrentDay = currentDayIndex;
+            
+            // Mettre à jour l'affichage
+            updateOptionsDayInfo();
+            updateCitiesSummary();
+            
+            // Initialiser les listeners d'hôtel
+            setTimeout(() => {
+                initHotelListeners();
+            }, 100);
+            
+            setTimeout(() => {
+                sidebar.style.transform = 'translateX(0)';
+            }, 10);
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            
+            sidebar.style.transform = 'translateX(100%)';
+            
+            // Synchroniser le planning avec le jour actuel des options
+            if (currentDayIndex !== optionsCurrentDay) {
+                currentDayIndex = optionsCurrentDay;
+                updateDayNavigation();
+                renderPlanning();
+            }
+        }
+
+        // ========== GESTION MODE FATIGUE ==========
+        async function toggleFatigueMode() {
+            const toggle = document.getElementById('fatigue-mode-toggle');
+            const status = document.getElementById('fatigue-status');
+            
+            if (!dayModes[optionsCurrentDay]) {
+                dayModes[optionsCurrentDay] = { fatigue: false, weather: false };
+            }
+            
+            dayModes[optionsCurrentDay].fatigue = toggle.checked;
+            localStorage.setItem('japan_day_modes_v5', JSON.stringify(dayModes));
+            
+            if (toggle.checked) {
+                status.innerHTML = '<span class="text-blue-600 font-bold">✅ Mode activé - Planning adapté</span>';
+                alert('💡 Mode Fatigue activé!\n\nLes activités trop fatigantes seront identifiées.\nUtilisez les suggestions pour les remplacer par des alternatives plus relaxantes.');
+            } else {
+                status.innerHTML = '<span class="text-gray-600">Désactivé</span>';
+            }
+            
+            renderPlanning();
+        }
+
+        // ========== GESTION ADAPTATION MÉTÉO ==========
+        async function toggleWeatherMode() {
+            const toggle = document.getElementById('weather-mode-toggle');
+            const info = document.getElementById('weather-info');
+            
+            if (!dayModes[optionsCurrentDay]) {
+                dayModes[optionsCurrentDay] = { fatigue: false, weather: false };
+            }
+            
+            dayModes[optionsCurrentDay].weather = toggle.checked;
+            localStorage.setItem('japan_day_modes_v5', JSON.stringify(dayModes));
+            
+            if (toggle.checked) {
+                info.innerHTML = '<span class="text-sky-600 font-bold">✅ Mode activé</span>';
+                alert('🌦️ Adaptation Météo activée!\n\nLes activités seront adaptées selon les conditions météorologiques.\nEn cas de pluie, des alternatives intérieures seront suggérées.');
+            } else {
+                info.innerHTML = '<span class="text-gray-600">Désactivé</span>';
+            }
+            
+            renderPlanning();
+        }
+
+        function loadModesForDay() {
+            const modes = dayModes[optionsCurrentDay] || { fatigue: false, weather: false };
+            
+            const fatigueToggle = document.getElementById('fatigue-mode-toggle');
+            const weatherToggle = document.getElementById('weather-mode-toggle');
+            
+            if (fatigueToggle) fatigueToggle.checked = modes.fatigue;
+            if (weatherToggle) weatherToggle.checked = modes.weather;
+            
+            // Mettre à jour les statuts
+            const fatigueStatus = document.getElementById('fatigue-status');
+            const weatherInfo = document.getElementById('weather-info');
+            
+            if (fatigueStatus) {
+                fatigueStatus.innerHTML = modes.fatigue ? 
+                    '<span class="text-green-600 font-bold">✅ Mode activé</span>' : 
+                    '<span class="text-gray-600">Désactivé</span>';
+            }
+            
+            if (weatherInfo) {
+                weatherInfo.innerHTML = modes.weather ? 
+                    '<span class="text-sky-600 font-bold">✅ Mode activé</span>' : 
+                    '<span class="text-gray-600">Désactivé</span>';
+            }
+        }
+
+        function updateOptionsDayInfo() {
+            if (!tripData) return;
+            
+            const dayDate = getDayDate(optionsCurrentDay);
+            document.getElementById('options-day-counter').textContent = `JOUR ${optionsCurrentDay + 1}/${tripData.totalDays}`;
+            document.getElementById('options-day-date').textContent = formatDate(dayDate);
+            
+            // Mettre à jour les boutons
+            document.getElementById('options-prev-btn').disabled = optionsCurrentDay === 0;
+            document.getElementById('options-next-btn').disabled = optionsCurrentDay === tripData.totalDays - 1;
+            
+            document.getElementById('options-prev-btn').style.opacity = optionsCurrentDay === 0 ? '0.3' : '1';
+            document.getElementById('options-next-btn').style.opacity = optionsCurrentDay === tripData.totalDays - 1 ? '0.3' : '1';
+            
+            // Mettre à jour le sélecteur de ville
+            const citySelector = document.getElementById('day-city-selector');
+            const savedCity = dayCities[optionsCurrentDay];
+            citySelector.value = savedCity || '';
+            
+            // Charger l'hôtel du jour
+            loadHotelForDay();
+            
+            // Charger les modes du jour
+            loadModesForDay();
+        }
+
+        function optionsPreviousDay() {
+            if (optionsCurrentDay > 0) {
+                optionsCurrentDay--;
+                updateOptionsDayInfo();
+                updateCitiesSummary();
+            }
+        }
+
+        function optionsNextDay() {
+            if (optionsCurrentDay < tripData.totalDays - 1) {
+                optionsCurrentDay++;
+                updateOptionsDayInfo();
+                updateCitiesSummary();
+            }
+        }
+
+        function handleCityChange() {
+            const citySelector = document.getElementById('day-city-selector');
+            const selectedCity = citySelector.value;
+            
+            // Sauvegarder la ville pour le jour actuel des options
+            dayCities[optionsCurrentDay] = selectedCity;
+            localStorage.setItem('japan_day_cities_v5', JSON.stringify(dayCities));
+            
+            // Mettre à jour le résumé
+            updateCitiesSummary();
+        }
+
+        function updateCitiesSummary() {
+            if (!tripData) return;
+            
+            const summary = document.getElementById('cities-summary');
+            summary.innerHTML = '';
+            
+            let totalBudget = 0;
+            
+            for (let i = 0; i < tripData.totalDays; i++) {
+                const city = dayCities[i];
+                const hotel = dayHotels[i];
+                const dayDate = getDayDate(i);
+                const dateStr = dayDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                
+                const item = document.createElement('div');
+                item.className = `rounded-xl p-3 border-2 ${i === optionsCurrentDay ? 'bg-purple-100 border-purple-300' : 'bg-gray-50 border-gray-200'}`;
+                
+                const cityName = city ? city.charAt(0).toUpperCase() + city.slice(1) : 'Non définie';
+                const emoji = getCityEmoji(city);
+                
+                let hotelInfo = '<div class="text-xs text-gray-400 mt-1">Pas d\'hébergement</div>';
+                if (hotel) {
+                    const priceStr = hotel.price ? `${hotel.price}${hotel.currency}` : 'Prix non défini';
+                    hotelInfo = `<div class="text-xs text-gray-600 mt-1">🏨 ${hotel.name}</div><div class="text-xs text-orange-600 font-bold">${priceStr}</div>`;
+                    
+                    if (hotel.price) {
+                        // Convertir tout en JPY pour le total
+                        if (hotel.currency === 'EUR') totalBudget += hotel.price * 160;
+                        else if (hotel.currency === 'USD') totalBudget += hotel.price * 145;
+                        else totalBudget += hotel.price;
+                    }
+                }
+                
+                item.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-bold text-sm">Jour ${i + 1} - ${dateStr}</div>
+                            <div class="text-sm mt-1">${emoji} ${cityName}</div>
+                            ${hotelInfo}
+                        </div>
+                    </div>
+                `;
+                summary.appendChild(item);
+            }
+            
+            // Afficher le budget total
+            document.getElementById('total-budget').textContent = `Total hébergement: ${Math.round(totalBudget).toLocaleString()}¥`;
+        }
+
+        function getCityEmoji(city) {
+            const emojis = {
+                'tokyo': '🗼',
+                'kyoto': '⛩️',
+                'osaka': '🏯',
+                'nara': '🦌',
+                'hiroshima': '☮️',
+                'hakone': '🗻',
+                'nikko': '🏔️',
+                'kamakura': '🌊',
+                'takayama': '🏘️',
+                'kanazawa': '🎨'
+            };
+            return emojis[city] || '📍';
+        }
+
+        function addSuggestionToModal(suggestion) {
+            // Ouvrir le modal
+            openModal();
+            
+            // Passer en mode rapide si on est en mode manuel
+            const quickMode = document.getElementById('quick-add-mode');
+            const manualMode = document.getElementById('manual-add-mode');
+            const toggleText = document.getElementById('manual-toggle-text');
+            
+            if (quickMode.classList.contains('hidden')) {
+                quickMode.classList.remove('hidden');
+                manualMode.classList.add('hidden');
+                toggleText.textContent = 'Mode manuel →';
+            }
+            
+            // Pré-remplir le champ rapide avec la suggestion
+            document.getElementById('quick-activity-input').value = suggestion.name;
+            
+            // Auto-focus sur le champ
+            setTimeout(() => {
+                document.getElementById('quick-activity-input').focus();
+            }, 100);
+        }
+
+        function updateCitySelector() {
+            const citySelector = document.getElementById('day-city-selector');
+            const savedCity = dayCities[currentDayIndex];
+            
+            if (savedCity) {
+                citySelector.value = savedCity;
+            } else {
+                citySelector.value = '';
+            }
+        }
+
+        // ========== SWIPE GESTURE (Planning uniquement) ==========
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchStartX - touchEndX;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) {
+                    nextDay();
+                } else {
+                    previousDay();
+                }
+            }
+        }
+
+        document.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+
+        document.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+
+        // ========== MODAL ACTIVITÉ ==========
+        // ========== CALCUL HEURE DISPONIBLE ==========
+        function calculateNextAvailableTime() {
+            const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
+            
+            if (dayActivities.length === 0) {
+                return "09:00";
+            }
+            
+            dayActivities.sort((a, b) => a.time.localeCompare(b.time));
+            const lastActivity = dayActivities[dayActivities.length - 1];
+            
+            const [hours, minutes] = lastActivity.time.split(':').map(Number);
+            let endTime = new Date();
+            endTime.setHours(hours, minutes, 0);
+            
+            // Ajouter 90 min pour l'activité
+            endTime.setMinutes(endTime.getMinutes() + 90);
+            
+            // Ajouter le temps de trajet si disponible en cache
+            if (dayActivities.length >= 2) {
+                const secondLast = dayActivities[dayActivities.length - 2];
+                const cacheKey = `${secondLast.place.place_id}-${lastActivity.place.place_id}`;
+                if (routeCache[cacheKey]) {
+                    endTime.setMinutes(endTime.getMinutes() + routeCache[cacheKey].total_minutes);
+                }
+            }
+            
+            const nextHours = String(endTime.getHours()).padStart(2, '0');
+            const nextMinutes = String(endTime.getMinutes()).padStart(2, '0');
+            
+            return `${nextHours}:${nextMinutes}`;
+        }
+
+        function openModal() {
+            document.getElementById('activity-modal').classList.remove('hidden');
+            resetModal();
+            
+            // Afficher suggestions si ville sélectionnée
+            loadSuggestionsInModal();
+        }
+
+        function loadSuggestionsInModal() {
+            const city = dayCities[currentDayIndex];
+            if (!city || !citySuggestions[city]) return;
+            
+            const suggestionsDiv = document.getElementById('modal-suggestions');
+            const scroll = document.getElementById('modal-suggestions-scroll');
+            
+            // Fonction pour obtenir le badge fatigue
+            function getFatigueBadge(level) {
+                const badges = {
+                    low: '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">😊 Facile</span>',
+                    medium: '<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">😅 Moyen</span>',
+                    high: '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">😰 Intense</span>'
+                };
+                return badges[level] || '';
+            }
+            
+            scroll.innerHTML = citySuggestions[city].map(sug => `
+                <div onclick="selectSuggestionInModal('${sug.name.replace(/'/g, "\\'")}', '${sug.query.replace(/'/g, "\\'")}')" 
+                     class="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-3 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all relative">
+                    <div class="flex items-start gap-3">
+                        <div class="text-3xl flex-shrink-0">${sug.emoji}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-purple-800 text-sm mb-1 flex items-center gap-2">
+                                ${sug.name}
+                                ${sug.must_see ? '<span class="text-xs">⭐</span>' : ''}
+                            </div>
+                            <div class="flex gap-2 flex-wrap">
+                                ${getFatigueBadge(sug.fatigue)}
+                                ${sug.must_see ? '<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">🎯 Incontournable</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            suggestionsDiv.classList.remove('hidden');
+        }
+
+        function selectSuggestionInModal(name, query) {
+            document.getElementById('quick-activity-input').value = name;
+            // Garder les suggestions visibles pour sélections multiples
+        }
+
+        function closeModal() {
+            document.getElementById('activity-modal').classList.add('hidden');
+            // Reset au mode rapide
+            document.getElementById('quick-add-mode').classList.remove('hidden');
+            document.getElementById('manual-add-mode').classList.add('hidden');
+            document.getElementById('manual-toggle-text').textContent = 'Mode manuel →';
+            document.getElementById('quick-activity-input').value = '';
+        }
+
+        function toggleManualMode() {
+            const quickMode = document.getElementById('quick-add-mode');
+            const manualMode = document.getElementById('manual-add-mode');
+            const toggleText = document.getElementById('manual-toggle-text');
+            
+            if (quickMode.classList.contains('hidden')) {
+                quickMode.classList.remove('hidden');
+                manualMode.classList.add('hidden');
+                toggleText.textContent = 'Mode manuel →';
+            } else {
+                quickMode.classList.add('hidden');
+                manualMode.classList.remove('hidden');
+                toggleText.textContent = '← Mode rapide';
+            }
+        }
+
+        // Toggle horaire fixe/flexible avec radio buttons
+        document.addEventListener('DOMContentLoaded', () => {
+            const radios = document.querySelectorAll('input[name="time-mode"]');
+            const fixedSection = document.getElementById('fixed-time-section');
+            
+            radios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.value === 'fixed' && radio.checked) {
+                        fixedSection.classList.remove('hidden');
+                    } else {
+                        fixedSection.classList.add('hidden');
+                    }
+                });
+            });
+        });
+
+        // ========== AJOUT RAPIDE IA ==========
+        async function quickAddActivity() {
+            const input = document.getElementById('quick-activity-input').value.trim();
+            const timeMode = document.querySelector('input[name="time-mode"]:checked').value;
+            const isFlexible = timeMode === 'flexible';
+            const fixedTime = document.getElementById('quick-fixed-time').value;
+            
+            if (!input) {
+                alert('Veuillez saisir une activité');
+                return;
+            }
+            
+            // Récupérer le bouton AVANT le try/catch
+            const btn = document.querySelector('[onclick="quickAddActivity()"]');
+            if (!btn) {
+                console.error('Bouton non trouvé');
+                return;
+            }
+            
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<div class="inline-block animate-spin rounded-full h-5 w-5 border-4 border-white border-t-transparent"></div> Analyse...';
+            btn.disabled = true;
+            
+            try {
+                // Appeler l'IA pour analyser et créer l'activité
+                const response = await fetch('/api/quick-add-activity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: input,
+                        day_index: currentDayIndex,
+                        time_flexible: isFlexible,
+                        fixed_time: isFlexible ? null : fixedTime
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Ajouter l'activité au planning
+                    const activity = {
+                        id: Date.now(),
+                        dayIndex: currentDayIndex,
+                        time: data.activity.suggested_time || '00:00',
+                        time_flexible: isFlexible,
+                        title: data.activity.title,
+                        description: data.activity.description || '',
+                        place: data.activity.place,
+                        needs_optimization: isFlexible
+                    };
+                    
+                    activities.push(activity);
+                    activities.sort((a, b) => {
+                        if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                        // Les flexibles en bas
+                        if (a.time_flexible && !b.time_flexible) return 1;
+                        if (!a.time_flexible && b.time_flexible) return -1;
+                        return a.time.localeCompare(b.time);
+                    });
+                    
+                    localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                    
+                    // Réinitialiser le formulaire et fermer
+                    document.getElementById('quick-activity-input').value = '';
+                    btn.innerHTML = originalHTML;
+                    btn.disabled = false;
+                    
+                    closeModal();
+                    renderPlanning();
+                    
+                    // Si des activités flexibles existent, proposer l'optimisation
+                    const flexibleCount = activities.filter(a => a.dayIndex === currentDayIndex && a.time_flexible).length;
+                    if (flexibleCount > 1) {
+                        setTimeout(() => {
+                            if (confirm(`✨ Vous avez ${flexibleCount} activités flexibles.\n\nVoulez-vous optimiser la journée maintenant ?`)) {
+                                optimizeDaySchedule();
+                            }
+                        }, 500);
+                    }
+                } else {
+                    alert('Erreur: ' + (data.error || 'Impossible d\'analyser l\'activité'));
+                    btn.innerHTML = originalHTML;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur réseau. Vérifiez votre connexion.');
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        }
+
+        // ========== OPTIMISATION DU PLANNING ==========
+        async function optimizeDaySchedule() {
+            const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
+            
+            if (dayActivities.length === 0) {
+                alert('Aucune activité à optimiser');
+                return;
+            }
+            
+            // Afficher modal de chargement avec ID unique
+            const loadingHTML = `
+                <div id="optimization-loading" class="fixed inset-0 bg-black bg-opacity-70 z-[300] flex items-center justify-center">
+                    <div class="bg-white rounded-2xl p-8 max-w-sm mx-4 text-center">
+                        <div class="text-6xl mb-4 animate-bounce">🤖</div>
+                        <div class="text-xl font-bold mb-2">Optimisation IA</div>
+                        <div class="text-sm text-gray-600 mb-4">Analyse des horaires, affluence, trajets...</div>
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', loadingHTML);
+            
+            try {
+                const response = await fetch('/api/optimize-day', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        activities: dayActivities,
+                        day_index: currentDayIndex,
+                        hotel: dayHotels[currentDayIndex] || null
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Supprimer le loading
+                    const loadingEl = document.getElementById('optimization-loading');
+                    if (loadingEl) loadingEl.remove();
+                    
+                    // Afficher la proposition
+                    showOptimizationProposal(data.optimized_activities, data.explanation);
+                } else {
+                    // Supprimer le loading même en cas d'erreur
+                    const loadingEl = document.getElementById('optimization-loading');
+                    if (loadingEl) loadingEl.remove();
+                    
+                    alert('Erreur: ' + (data.error || 'Impossible d\'optimiser'));
+                }
+            } catch (error) {
+                // TOUJOURS supprimer le loading en cas d'erreur
+                const loadingEl = document.getElementById('optimization-loading');
+                if (loadingEl) loadingEl.remove();
+                
+                console.error('Erreur:', error);
+                alert('Erreur réseau. Vérifiez votre connexion.');
+            }
+        }
+
+        function showOptimizationProposal(optimizedActivities, explanation) {
+            // Créer un modal de proposition
+            const modalHTML = `
+                <div id="optimization-modal" class="fixed inset-0 bg-black bg-opacity-70 z-[300] flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <h2 class="text-2xl font-bold mb-4">✨ Planning Optimisé</h2>
+                        
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                            <div class="text-sm font-bold text-blue-700 mb-2">💡 Explications</div>
+                            <div class="text-xs text-blue-600">${explanation}</div>
+                        </div>
+                        
+                        <div class="space-y-3 mb-6">
+                            ${optimizedActivities.map(act => `
+                                <div class="bg-white border-2 border-green-200 rounded-xl p-4">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="font-bold text-lg">${act.time}</div>
+                                        ${act.time_changed ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Modifié</span>' : '<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">OK</span>'}
+                                    </div>
+                                    <div class="font-bold">${act.title}</div>
+                                    <div class="text-xs text-gray-500 mt-1">📍 ${act.place.name}</div>
+                                    ${act.reason ? `<div class="text-xs text-blue-600 mt-2">💡 ${act.reason}</div>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="closeOptimizationModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">
+                                Annuler
+                            </button>
+                            <button onclick="applyOptimization(${JSON.stringify(optimizedActivities).replace(/"/g, '&quot;')})" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold">
+                                ✅ Valider
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        function closeOptimizationModal() {
+            const modal = document.getElementById('optimization-modal');
+            if (modal) modal.remove();
+            
+            // IMPORTANT : Supprimer aussi le loading s'il existe encore
+            const loadingEl = document.getElementById('optimization-loading');
+            if (loadingEl) loadingEl.remove();
+        }
+
+        function applyOptimization(optimizedActivities) {
+            // IMPORTANT : Ne pas filtrer, juste mettre à jour
+            // Remplacer les activités du jour par les optimisées
+            
+            // Supprimer les activités du jour actuel
+            activities = activities.filter(a => a.dayIndex !== currentDayIndex);
+            
+            // Ajouter toutes les activités optimisées
+            // On doit s'assurer que optimizedActivities contient TOUTES les données nécessaires
+            optimizedActivities.forEach(opt => {
+                activities.push({
+                    id: opt.id || Date.now() + Math.random(),
+                    dayIndex: currentDayIndex,
+                    time: opt.time,
+                    time_flexible: false,
+                    needs_optimization: false,
+                    title: opt.title,
+                    description: opt.description || '',
+                    place: opt.place
+                });
+            });
+            
+            // Trier par jour puis par heure
+            activities.sort((a, b) => {
+                if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                return a.time.localeCompare(b.time);
+            });
+            
+            // Sauvegarder
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            
+            // Fermer le modal et supprimer le loading
+            closeOptimizationModal();
+            const loadingEl = document.getElementById('optimization-loading');
+            if (loadingEl) loadingEl.remove();
+            
+            // Rafraîchir l'affichage
+            renderPlanning();
+            
+            alert('✅ Planning optimisé appliqué !');
+        }
+
+        function resetModal() {
+            const suggestedTime = calculateNextAvailableTime();
+            document.getElementById('modal-time').value = suggestedTime;
+            document.getElementById('modal-title-raw').value = "";
+            document.getElementById('modal-dest-search').value = "";
+            document.getElementById('modal-desc').value = "";
+            document.getElementById('ia-suggestions').classList.add('hidden');
+            document.getElementById('dest-status').textContent = "";
+            selectedPlace = null;
+        }
+
+        // ========== PHASE IA : NORMALISATION ==========
+        async function normalizeText() {
+            const text = document.getElementById('modal-title-raw').value;
+            if (!text) return;
+            
+            const btn = event.target;
+            btn.textContent = "⏳...";
+            
+            try {
+                const r = await fetch('/api/normalize-text', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text })
+                });
+                const j = await r.json();
+                
+                document.getElementById('ia-title-clean').textContent = j.title_clean;
+                iaSuggestedLocation = j.suggested_location;
+                document.getElementById('ia-suggestions').classList.remove('hidden');
+            } catch (e) { alert("Erreur IA"); }
+            finally { btn.textContent = "✨ IA"; }
+        }
+
+        function applyIASuggestion() {
+            document.getElementById('modal-title-raw').value = document.getElementById('ia-title-clean').textContent;
+            document.getElementById('modal-dest-search').value = iaSuggestedLocation;
+            triggerAutocomplete(iaSuggestedLocation);
+            document.getElementById('ia-suggestions').classList.add('hidden');
+        }
+
+        // ========== PHASE VALIDATION GOOGLE ==========
+        const destInput = document.getElementById('modal-dest-search');
+        const destList = document.getElementById('dest-suggestions');
+        let autoTimer = null;
+
+        destInput.addEventListener('input', () => triggerAutocomplete(destInput.value));
+
+        function triggerAutocomplete(q) {
+            clearTimeout(autoTimer);
+            if (q.length < 2) { destList.classList.add('hidden'); return; }
+            
+            autoTimer = setTimeout(async () => {
+                const r = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`);
+                const j = await r.json();
+                destList.innerHTML = '';
+                if (j.predictions?.length > 0) {
+                    destList.classList.remove('hidden');
+                    j.predictions.slice(0, 5).forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'suggestion-item';
+                        div.textContent = p.description;
+                        div.onclick = () => selectPlace(p.place_id);
+                        destList.appendChild(div);
+                    });
+                }
+            }, 300);
+        }
+
+        async function selectPlace(placeId) {
+            const r = await fetch(`/api/places/details?place_id=${placeId}`);
+            const j = await r.json();
+            if (j.ok) {
+                selectedPlace = j.place;
+                destInput.value = j.place.name;
+                destList.classList.add('hidden');
+                document.getElementById('dest-status').innerHTML = `<span class="text-green-600">✅ DESTINATION VALIDÉE : ${j.place.formatted_address}</span>`;
+            }
+        }
+
+        // ========== ENREGISTREMENT & PLANNING ==========
+        function saveActivity() {
+            if (!selectedPlace) return alert("Veuillez valider une destination via les suggestions Google.");
+            
+            const activity = {
+                id: Date.now(),
+                dayIndex: currentDayIndex,
+                time: document.getElementById('modal-time').value,
+                title: document.getElementById('modal-title-raw').value,
+                description: document.getElementById('modal-desc').value,
+                place: selectedPlace
+            };
+
+            activities.push(activity);
+            activities.sort((a, b) => {
+                if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                return a.time.localeCompare(b.time);
+            });
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            closeModal();
+            renderPlanning();
+        }
+
+        async function renderPlanning() {
+            const list = document.getElementById('planning-list');
+            list.innerHTML = '';
+
+            const dayActivities = activities.filter(a => a.dayIndex === currentDayIndex);
+            const selectedCity = dayCities[currentDayIndex];
+            const modes = dayModes[currentDayIndex] || { fatigue: false, weather: false };
+
+            // Afficher les alertes de modes actifs
+            if (modes.fatigue || modes.weather) {
+                const modeAlert = document.createElement('div');
+                modeAlert.className = "mb-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-4 border-2 border-yellow-200";
+                let modeText = '';
+                
+                if (modes.fatigue) {
+                    modeText += '<div class="flex items-center gap-2 mb-2"><span class="text-xl">😴</span><span class="font-bold text-blue-700">Mode Fatigue activé</span></div>';
+                    modeText += '<div class="text-xs text-blue-600">Les activités trop intenses sont signalées. Prenez votre temps !</div>';
+                }
+                
+                if (modes.weather) {
+                    if (modes.fatigue) modeText += '<div class="h-2"></div>';
+                    modeText += '<div class="flex items-center gap-2 mb-2"><span class="text-xl">🌦️</span><span class="font-bold text-sky-700">Adaptation Météo active</span></div>';
+                    modeText += '<div class="text-xs text-sky-600">Activités adaptées selon les conditions météo.</div>';
+                }
+                
+                modeAlert.innerHTML = modeText;
+                list.appendChild(modeAlert);
+            }
+
+            // Afficher les suggestions si une ville est choisie
+            if (selectedCity && citySuggestions[selectedCity]) {
+                const suggestionsContainer = document.createElement('div');
+                suggestionsContainer.className = "mb-6";
+                suggestionsContainer.innerHTML = `
+                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-100 overflow-hidden">
+                        <button onclick="toggleSuggestionsDropdown()" class="w-full p-4 flex justify-between items-center hover:bg-purple-100 transition-colors">
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl">💡</span>
+                                <div>
+                                    <div class="text-sm font-bold text-purple-700">Suggestions pour ${selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)}</div>
+                                    <div class="text-xs text-purple-600">${citySuggestions[selectedCity].length} activités disponibles</div>
+                                </div>
+                            </div>
+                            <span id="suggestions-arrow" class="text-2xl text-purple-700 transition-transform">▼</span>
+                        </button>
+                        <div id="suggestions-dropdown" class="hidden bg-white p-4 border-t-2 border-purple-100">
+                            <div class="grid grid-cols-2 gap-3" id="planning-suggestions-grid"></div>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(suggestionsContainer);
+
+                const grid = document.getElementById('planning-suggestions-grid');
+                citySuggestions[selectedCity].forEach(suggestion => {
+                    const tile = document.createElement('div');
+                    tile.className = "bg-white rounded-xl p-3 border-2 border-purple-100 cursor-pointer hover:border-primary hover:shadow-lg transition-all active:scale-95";
+                    tile.onclick = () => addSuggestionToModal(suggestion);
+                    tile.innerHTML = `
+                        <div class="text-4xl mb-2 text-center">${suggestion.image}</div>
+                        <div class="text-xs font-bold text-gray-800 text-center leading-tight">${suggestion.emoji} ${suggestion.name}</div>
+                    `;
+                    grid.appendChild(tile);
+                });
+            }
+
+            if (dayActivities.length === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.className = "text-center py-16 text-gray-400";
+                emptyState.innerHTML = `
+                    <div class="text-6xl mb-4">📅</div>
+                    <div class="text-lg font-bold">Aucune activité prévue</div>
+                    <div class="text-sm mt-2">Ajoutez votre première activité pour ce jour</div>
+                    ${!selectedCity ? '<div class="text-xs mt-4 text-purple-600">💡 Ouvrez les options (⚙️) pour choisir une ville et voir des suggestions</div>' : ''}
+                `;
+                list.appendChild(emptyState);
+                return;
+            }
+
+            for (let i = 0; i < dayActivities.length; i++) {
+                const act = dayActivities[i];
+                
+                // Si c'est la première activité ET qu'il y a un hôtel, ajouter le trajet hôtel → activité
+                if (i === 0 && dayHotels[currentDayIndex]) {
+                    const hotel = dayHotels[currentDayIndex];
+                    const hotelNavId = `nav-hotel-${act.id}`;
+                    const hotelCard = document.createElement('div');
+                    hotelCard.className = "bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-4 border-2 border-orange-200 mb-4";
+                    hotelCard.innerHTML = `
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="text-2xl">🏨</div>
+                            <div>
+                                <div class="font-bold text-sm">${hotel.place.name}</div>
+                                <div class="text-xs text-gray-600">Point de départ</div>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(hotelCard);
+                    
+                    // Bloc navigation hôtel → première activité
+                    const hotelNavBlock = document.createElement('div');
+                    hotelNavBlock.id = hotelNavId;
+                    hotelNavBlock.className = "bg-orange-500 text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md mb-4";
+                    hotelNavBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet depuis l'hôtel...</div>`;
+                    list.appendChild(hotelNavBlock);
+                    
+                    calculateNav(hotel.place, act.place, hotelNavId);
+                }
+                
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl p-5 shadow-sm border-l-4 border-primary relative cursor-pointer hover:shadow-lg transition-shadow";
+                card.onclick = () => showActivityInfo(act);
+                card.innerHTML = `
+                    <div class="text-xs font-bold text-gray-400 mb-1">${act.time}</div>
+                    <div class="text-lg font-bold text-gray-800">${act.title}</div>
+                    <div class="text-sm text-gray-500 mt-1">${act.description}</div>
+                    <div class="text-[10px] text-gray-300 mt-2 uppercase font-bold">📍 ${act.place.name}</div>
+                    <div class="mt-2 flex gap-2">
+                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}" 
+                           target="_blank" 
+                           onclick="event.stopPropagation()"
+                           class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">
+                            🗺️ Itinéraire
+                        </a>
+                        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                            ℹ️ Cliquez pour + d'infos
+                        </span>
+                    </div>
+                    <button onclick="event.stopPropagation(); deleteActivity(${act.id})" class="absolute top-4 right-4 text-gray-300 hover:text-red-500">✕</button>
+                `;
+                list.appendChild(card);
+
+                if (i < dayActivities.length - 1) {
+                    const nextAct = dayActivities[i+1];
+                    const navId = `nav-${act.id}-${nextAct.id}`;
+                    const navBlock = document.createElement('div');
+                    navBlock.id = navId;
+                    navBlock.className = "bg-nav text-white rounded-2xl p-4 mx-4 -my-2 relative z-10 shadow-md";
+                    navBlock.innerHTML = `<div class="text-xs animate-pulse">⏳ Calcul du trajet...</div>`;
+                    list.appendChild(navBlock);
+                    
+                    calculateNav(act.place, nextAct.place, navId);
+                }
+            }
+        }
+
+        async function calculateNav(from, to, elementId) {
+            // Créer une clé de cache unique
+            const cacheKey = `${from.place_id}-${to.place_id}`;
+            
+            // Vérifier si on a déjà calculé ce trajet
+            if (routeCache[cacheKey]) {
+                const cached = routeCache[cacheKey];
+                const el = document.getElementById(elementId);
+                if (el) {
+                    const timeDisplay = formatTravelTime(cached.total_minutes);
+                    const breakdown = analyzeTransportBreakdown(cached.details, cached.summary);
+                    el.innerHTML = `
+                        <div class="space-y-1">
+                            <div class="flex justify-between items-center">
+                                <div class="text-sm font-bold">⏱️ ${timeDisplay}</div>
+                                <div class="text-sm font-bold">🏁 ${cached.arrival}</div>
+                            </div>
+                            ${breakdown ? `<div class="text-xs opacity-75">${breakdown}</div>` : ''}
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
+            // Sinon, calculer le trajet
+            try {
+                const r = await fetch('/api/route', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ from_place: from, to_place: to })
+                });
+                const j = await r.json();
+                const el = document.getElementById(elementId);
+                
+                if (j.success) {
+                    // Sauvegarder dans le cache
+                    routeCache[cacheKey] = {
+                        summary: j.summary,
+                        details: j.details,
+                        arrival: j.arrival,
+                        total_minutes: j.total_minutes
+                    };
+                    localStorage.setItem('japan_route_cache', JSON.stringify(routeCache));
+                    
+                    if (el) {
+                        const timeDisplay = formatTravelTime(j.total_minutes);
+                        const breakdown = analyzeTransportBreakdown(j.details, j.summary);
+                        el.innerHTML = `
+                            <div class="space-y-1">
+                                <div class="flex justify-between items-center">
+                                    <div class="text-sm font-bold">⏱️ ${timeDisplay}</div>
+                                    <div class="text-sm font-bold">🏁 ${j.arrival}</div>
+                                </div>
+                                ${breakdown ? `<div class="text-xs opacity-75">${breakdown}</div>` : ''}
+                            </div>
+                        `;
+                    }
+                } else {
+                    if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur transport</div>`;
+                }
+            } catch (e) {
+                const el = document.getElementById(elementId);
+                if (el) el.innerHTML = `<div class="text-xs text-red-200">Erreur réseau</div>`;
+            }
+        }
+
+        function analyzeTransportBreakdown(details, summary) {
+            if (!details) return null;
+            
+            let walkTime = 0;
+            let transitTime = 0;
+            
+            // Analyser le texte pour extraire les temps
+            const lines = details.toLowerCase().split('\n');
+            
+            lines.forEach(line => {
+                // Détecter marche à pied
+                if (line.includes('pied') || line.includes('marche') || line.includes('walk')) {
+                    const match = line.match(/(\d+)\s*min/);
+                    if (match) walkTime += parseInt(match[1]);
+                }
+                
+                // Détecter métro/train/bus
+                if (line.includes('métro') || line.includes('metro') || line.includes('train') || 
+                    line.includes('bus') || line.includes('ligne') || line.includes('subway')) {
+                    const match = line.match(/(\d+)\s*min/);
+                    if (match) transitTime += parseInt(match[1]);
+                }
+            });
+            
+            // Si on n'a pas trouvé de détails, analyser le summary
+            if (walkTime === 0 && transitTime === 0) {
+                const summaryLower = summary.toLowerCase();
+                if (summaryLower.includes('pied') || summaryLower.includes('marche')) {
+                    // Tout le trajet est à pied
+                    const match = summary.match(/(\d+)\s*min/);
+                    if (match) walkTime = parseInt(match[1]);
+                } else if (summaryLower.includes('métro') || summaryLower.includes('train') || summaryLower.includes('bus')) {
+                    // Considérer que c'est du transport
+                    const match = summary.match(/(\d+)\s*min/);
+                    if (match) transitTime = parseInt(match[1]);
+                }
+            }
+            
+            // Construire l'affichage
+            const parts = [];
+            if (walkTime > 0) parts.push(`🚶 ${walkTime} min`);
+            if (transitTime > 0) parts.push(`🚇 ${transitTime} min`);
+            
+            return parts.length > 0 ? parts.join(' + ') : null;
+        }
+
+        function formatTravelTime(minutes) {
+            if (minutes < 60) {
+                return `${minutes} min`;
+            }
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            if (mins === 0) {
+                return `${hours}h`;
+            }
+            return `${hours}h${mins}`;
+        }
+
+        function deleteActivity(id) {
+            activities = activities.filter(a => a.id !== id);
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            renderPlanning();
+        }
+
+        // ========== MODAL INFOS ACTIVITÉ ==========
+        async function showActivityInfo(activity) {
+            const modal = document.getElementById('activity-info-modal');
+            const title = document.getElementById('info-modal-title');
+            const content = document.getElementById('info-modal-content');
+            
+            title.textContent = activity.title;
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-primary"></div>
+                    <div class="text-sm text-gray-500 mt-2">Analyse en cours...</div>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+            
+            // Appeler l'API pour obtenir les infos
+            try {
+                const response = await fetch('/api/activity-info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        place_name: activity.place.name,
+                        place_address: activity.place.formatted_address,
+                        visit_time: activity.time
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const info = data.info;
+                    
+                    // Niveau d'affluence
+                    const crowdColors = {
+                        'low': 'green',
+                        'medium': 'yellow',
+                        'high': 'red'
+                    };
+                    const crowdLabels = {
+                        'low': 'Faible affluence',
+                        'medium': 'Affluence modérée',
+                        'high': 'Forte affluence'
+                    };
+                    const crowdColor = crowdColors[info.crowd_level] || 'gray';
+                    const crowdLabel = crowdLabels[info.crowd_level] || 'Inconnue';
+                    
+                    content.innerHTML = `
+                        <!-- Affluence -->
+                        <div class="bg-${crowdColor}-50 border-2 border-${crowdColor}-200 rounded-xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">👥</span>
+                                <div class="font-bold text-${crowdColor}-700">Affluence à ${activity.time}</div>
+                            </div>
+                            <div class="text-sm text-${crowdColor}-600">${crowdLabel}</div>
+                        </div>
+                        
+                        <!-- Meilleurs horaires -->
+                        <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">⏰</span>
+                                <div class="font-bold text-blue-700">Horaires recommandés</div>
+                            </div>
+                            <div class="space-y-1">
+                                ${info.best_times.map(time => `
+                                    <div class="text-sm bg-white px-3 py-2 rounded border border-blue-100">
+                                        ${time} - Moins de monde
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <!-- Règles -->
+                        ${info.rules && info.rules.length > 0 ? `
+                        <div class="bg-orange-50 border-2 border-orange-200 rounded-xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">⚠️</span>
+                                <div class="font-bold text-orange-700">Règles à respecter</div>
+                            </div>
+                            <ul class="space-y-1 text-sm text-orange-700">
+                                ${info.rules.map(rule => `<li>• ${rule}</li>`).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                        
+                        <!-- Conseil -->
+                        <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">💡</span>
+                                <div class="font-bold text-purple-700">Conseil</div>
+                            </div>
+                            <div class="text-sm text-purple-700">${info.tips}</div>
+                        </div>
+                        
+                        <!-- Lien Google Maps -->
+                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.place.name)}&query_place_id=${activity.place.place_id}" 
+                           target="_blank"
+                           class="block w-full bg-blue-600 text-white text-center py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors">
+                            🗺️ Ouvrir dans Google Maps
+                        </a>
+                    `;
+                } else {
+                    content.innerHTML = `
+                        <div class="text-center py-8 text-red-500">
+                            <div class="text-4xl mb-2">⚠️</div>
+                            <div>Erreur lors du chargement des informations</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="text-center py-8 text-red-500">
+                        <div class="text-4xl mb-2">⚠️</div>
+                        <div>Erreur réseau</div>
+                    </div>
+                `;
+            }
+        }
+
+        function closeActivityInfoModal() {
+            document.getElementById('activity-info-modal').classList.add('hidden');
+        }
+
+        function toggleSuggestionsDropdown() {
+            const dropdown = document.getElementById('suggestions-dropdown');
+            const arrow = document.getElementById('suggestions-arrow');
+            
+            if (dropdown.classList.contains('hidden')) {
+                dropdown.classList.remove('hidden');
+                arrow.style.transform = 'rotate(180deg)';
+            } else {
+                dropdown.classList.add('hidden');
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        // ========== SWIPE POUR COMPLÉTER ACTIVITÉS ==========
+        let swipeStartX = 0;
+        let swipeStartY = 0;
+        let swipeElement = null;
+        let completedActivities = JSON.parse(localStorage.getItem('japan_completed_v1') || '[]');
+
+        function initActivitySwipe(element, activityId) {
+            let touchStartX = 0;
+            let touchCurrentX = 0;
+            let isSwiping = false;
+            
+            element.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                swipeStartY = e.touches[0].clientY;
+                isSwiping = false;
+            });
+            
+            element.addEventListener('touchmove', (e) => {
+                if (!touchStartX) return;
+                
+                touchCurrentX = e.touches[0].clientX;
+                const touchCurrentY = e.touches[0].clientY;
+                const diffX = touchStartX - touchCurrentX;
+                const diffY = Math.abs(swipeStartY - touchCurrentY);
+                
+                // Vérifier que c'est un swipe horizontal (pas vertical)
+                if (Math.abs(diffX) > 30 && diffY < 50) {
+                    isSwiping = true;
+                    e.preventDefault();
+                    
+                    // Déplacer l'élément avec le doigt (swipe vers la gauche)
+                    if (diffX > 0) {
+                        element.style.transform = `translateX(-${diffX}px)`;
+                        element.classList.add('swiping');
+                    }
+                }
+            });
+            
+            element.addEventListener('touchend', (e) => {
+                if (!isSwiping) {
+                    element.style.transform = '';
+                    element.classList.remove('swiping');
+                    return;
+                }
+                
+                const diffX = touchStartX - touchCurrentX;
+                
+                // Si swipe > 100px vers la gauche, marquer comme complété
+                if (diffX > 100) {
+                    completeActivity(activityId, element);
+                } else {
+                    // Sinon, revenir en place
+                    element.style.transform = '';
+                    element.classList.remove('swiping');
+                }
+                
+                touchStartX = 0;
+                touchCurrentX = 0;
+                isSwiping = false;
+            });
+        }
+
+        function completeActivity(activityId, element) {
+            // Ajouter à la liste des complétés
+            if (!completedActivities.includes(activityId)) {
+                completedActivities.push(activityId);
+                localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
+            }
+            
+            // Animation de complétion
+            element.style.transform = 'translateX(-100%)';
+            
+            setTimeout(() => {
+                element.style.transform = '';
+                element.classList.remove('swiping');
+                element.classList.add('activity-completed');
+                
+                // Animation confetti
+                createConfetti(element);
+            }, 300);
+        }
+
+        function createConfetti(element) {
+            const rect = element.getBoundingClientRect();
+            const colors = ['#FFD700', '#FF69B4', '#00CED1', '#FF6347', '#32CD32', '#9370DB'];
+            const confettiCount = 30;
+            
+            for (let i = 0; i < confettiCount; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = (rect.left + rect.width / 2 + (Math.random() - 0.5) * 100) + 'px';
+                confetti.style.top = rect.top + 'px';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animation = `confetti-fall ${1 + Math.random() * 2}s linear`;
+                confetti.style.animationDelay = Math.random() * 0.3 + 's';
+                
+                // Formes variées
+                if (Math.random() > 0.5) {
+                    confetti.style.borderRadius = '50%';
+                } else {
+                    confetti.style.width = '8px';
+                    confetti.style.height = '12px';
+                }
+                
+                document.body.appendChild(confetti);
+                
+                // Supprimer après animation
+                setTimeout(() => confetti.remove(), 3000);
+            }
+        }
+
+        function isActivityCompleted(activityId) {
+            return completedActivities.includes(activityId);
+        }
+
+        function uncompleteActivity(activityId) {
+            completedActivities = completedActivities.filter(id => id !== activityId);
+            localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
+            renderPlanning();
+        }
+
+        // ========== GESTION DES ONGLETS ==========
+        function switchTab(tabName) {
+            // Cacher tous les contenus
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Désactiver tous les onglets
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('border-primary', 'text-primary');
+                button.classList.add('border-transparent', 'text-gray-400');
+            });
+            
+            // Activer l'onglet sélectionné
+            const activeTab = document.getElementById(`tab-${tabName}`);
+            const activeContent = document.getElementById(`tab-content-${tabName}`);
+            
+            if (activeTab && activeContent) {
+                activeTab.classList.remove('border-transparent', 'text-gray-400');
+                activeTab.classList.add('border-primary', 'text-primary');
+                activeContent.classList.remove('hidden');
+            }
+        }
+
+        // Synchroniser les toggles IA entre header et sidebar
+        function toggleFatigueModeTab() {
+            const toggle = document.getElementById('fatigue-toggle-tab');
+            const sidebarToggle = document.getElementById('fatigue-mode-toggle');
+            
+            if (sidebarToggle) {
+                sidebarToggle.checked = toggle.checked;
+            }
+            
+            // Appeler la fonction du mode fatigue
+            toggleFatigueMode();
+        }
+
+        function toggleWeatherModeTab() {
+            const toggle = document.getElementById('weather-toggle-tab');
+            const sidebarToggle = document.getElementById('weather-mode-toggle');
+            
+            if (sidebarToggle) {
+                sidebarToggle.checked = toggle.checked;
+            }
+            
+            // Appeler la fonction de la météo
+            toggleWeatherMode();
+        }
+
+        // Synchroniser l'état des toggles au changement de jour
+        function syncTabToggles() {
+            const modes = dayModes[currentDayIndex] || { fatigue: false, weather: false };
+            
+            const fatigueToggleTab = document.getElementById('fatigue-toggle-tab');
+            const weatherToggleTab = document.getElementById('weather-toggle-tab');
+            
+            if (fatigueToggleTab) fatigueToggleTab.checked = modes.fatigue;
+            if (weatherToggleTab) weatherToggleTab.checked = modes.weather;
+        }
+
+        // ========== GESTION BUDGET ==========
+        let budgetData = JSON.parse(localStorage.getItem('japan_budget_v1') || '{}');
+
+        function calculateBudget() {
+            if (!tripData) return;
+            
+            const totalDays = tripData.totalDays;
+            
+            // Récupérer toutes les valeurs
+            const flight = parseFloat(document.getElementById('budget-flight')?.value || 0);
+            const jrpass = parseFloat(document.getElementById('budget-jrpass')?.value || 0);
+            const transportPerDay = parseFloat(document.getElementById('budget-transport')?.value || 0);
+            const mealsPerDay = parseFloat(document.getElementById('budget-meals')?.value || 0);
+            const activitiesPerDay = parseFloat(document.getElementById('budget-activities')?.value || 0);
+            const shoppingPerDay = parseFloat(document.getElementById('budget-shopping')?.value || 0);
+            const insurance = parseFloat(document.getElementById('budget-insurance')?.value || 0);
+            const misc = parseFloat(document.getElementById('budget-misc')?.value || 0);
+            
+            // Calculer hébergements depuis dayHotels
+            let hotelTotal = 0;
+            Object.values(dayHotels).forEach(hotel => {
+                if (hotel && hotel.price) {
+                    let priceInEur = hotel.price;
+                    if (hotel.currency === 'JPY') priceInEur = hotel.price / 160;
+                    if (hotel.currency === 'USD') priceInEur = hotel.price * 0.92;
+                    hotelTotal += priceInEur;
+                }
+            });
+            
+            // Calculer totaux par catégorie
+            const transportTotal = (transportPerDay * totalDays);
+            const mealsTotal = (mealsPerDay * totalDays);
+            const activitiesTotal = (activitiesPerDay * totalDays);
+            const shoppingTotal = (shoppingPerDay * totalDays);
+            
+            // Total général
+            const grandTotal = flight + hotelTotal + jrpass + transportTotal + mealsTotal + activitiesTotal + shoppingTotal + insurance + misc;
+            
+            // Afficher le total
+            document.getElementById('total-budget-display').textContent = grandTotal.toFixed(0) + ' €';
+            document.getElementById('budget-per-day').textContent = (grandTotal / totalDays).toFixed(0) + ' € / jour';
+            document.getElementById('budget-hotel-total').textContent = hotelTotal.toFixed(0) + ' €';
+            
+            // Afficher le breakdown
+            const breakdown = document.getElementById('budget-breakdown');
+            if (breakdown) {
+                breakdown.innerHTML = `
+                    <div class="flex justify-between">
+                        <span>✈️ Vols</span>
+                        <span class="font-bold">${flight.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🏨 Hébergement</span>
+                        <span class="font-bold">${hotelTotal.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🚄 JR Pass</span>
+                        <span class="font-bold">${jrpass.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🚇 Transports</span>
+                        <span class="font-bold">${transportTotal.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🍜 Repas</span>
+                        <span class="font-bold">${mealsTotal.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🎫 Activités</span>
+                        <span class="font-bold">${activitiesTotal.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🛍️ Shopping</span>
+                        <span class="font-bold">${shoppingTotal.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>🏥 Assurance</span>
+                        <span class="font-bold">${insurance.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>💳 Divers</span>
+                        <span class="font-bold">${misc.toFixed(0)} €</span>
+                    </div>
+                    <div class="border-t-2 border-gray-300 mt-2 pt-2 flex justify-between">
+                        <span class="font-bold">TOTAL</span>
+                        <span class="font-bold text-green-600">${grandTotal.toFixed(0)} €</span>
+                    </div>
+                `;
+            }
+            
+            // Sauvegarder
+            budgetData = {
+                flight, jrpass, transportPerDay, mealsPerDay,
+                activitiesPerDay, shoppingPerDay, insurance, misc
+            };
+            localStorage.setItem('japan_budget_v1', JSON.stringify(budgetData));
+        }
+
+        // Charger le budget sauvegardé
+        function loadBudget() {
+            if (!budgetData || Object.keys(budgetData).length === 0) return;
+            
+            if (document.getElementById('budget-flight')) {
+                document.getElementById('budget-flight').value = budgetData.flight || '';
+                document.getElementById('budget-transport').value = budgetData.transportPerDay || '';
+                document.getElementById('budget-activities').value = budgetData.activitiesPerDay || '';
+                document.getElementById('budget-shopping').value = budgetData.shoppingPerDay || '';
+                document.getElementById('budget-insurance').value = budgetData.insurance || '';
+                document.getElementById('budget-misc').value = budgetData.misc || '';
+                
+                if (budgetData.jrpass) document.getElementById('budget-jrpass').value = budgetData.jrpass;
+                if (budgetData.mealsPerDay) document.getElementById('budget-meals').value = budgetData.mealsPerDay;
+                
+                calculateBudget();
+            }
+        }
+
+        // Appeler calculateBudget quand on switch vers l'onglet budget
+        const originalSwitchTab = switchTab;
+        switchTab = function(tabName) {
+            originalSwitchTab(tabName);
+            if (tabName === 'budget') {
+                setTimeout(() => {
+                    loadBudget();
+                    calculateBudget();
+                }, 100);
+            }
+        };
+
+        // ========== FAB CONFIGURATION ==========
+        let configDayIndex = 0;
+
+        function toggleConfigFAB() {
+            const configScreen = document.getElementById('config-screen');
+            if (configScreen.classList.contains('translate-x-full')) {
+                openConfigScreen();
+            } else {
+                closeConfigScreen();
+            }
+        }
+
+        function openConfigScreen() {
+            document.getElementById('config-screen').classList.remove('translate-x-full');
+            document.getElementById('fab-config').classList.add('active');
+            document.getElementById('fab-icon').textContent = '×';
+            syncConfigToggles();
+            configDayIndex = currentDayIndex;
+            // Initialiser l'autocomplete du champ hôtel config
+            setTimeout(() => initHotelListenersConfig(), 100);
+            switchConfigTab('voyage');
+        }
+
+        function closeConfigScreen() {
+            document.getElementById('config-screen').classList.add('translate-x-full');
+            document.getElementById('fab-config').classList.remove('active');
+            document.getElementById('fab-icon').textContent = '⚙️';
+        }
+
+        function switchConfigTab(tabName) {
+            document.querySelectorAll('.config-content').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('.config-tab-bottom').forEach(b => {
+                b.classList.remove('text-purple-600', 'border-purple-600');
+                b.classList.add('text-gray-400', 'border-transparent');
+            });
+            const activeTab = document.getElementById('config-tab-' + tabName);
+            const activeContent = document.getElementById('config-content-' + tabName);
+            if (activeTab && activeContent) {
+                activeTab.classList.remove('text-gray-400', 'border-transparent');
+                activeTab.classList.add('text-purple-600', 'border-purple-600');
+                activeContent.classList.remove('hidden');
+            }
+            if (tabName === 'voyage') updateVoyageTab();
+            if (tabName === 'budget') { setTimeout(() => { loadBudget(); calculateBudget(); }, 100); }
+        }
+
+        function updateVoyageTab() {
+            if (!tripData) return;
+            updateConfigDayNavigation();
+            const citySelector = document.getElementById('day-city-selector-config');
+            if (citySelector) citySelector.value = dayCities[configDayIndex] || '';
+            const hotel = dayHotels[configDayIndex];
+            if (hotel) {
+                document.getElementById('hotel-name-input-config').value = hotel.name || '';
+                document.getElementById('hotel-address-input-config').value = hotel.address || (hotel.place ? hotel.place.formatted_address : '') || '';
+                document.getElementById('hotel-price-input-config').value = hotel.price || '';
+                document.getElementById('hotel-currency-input-config').value = hotel.currency || 'JPY';
+                const display = document.getElementById('hotel-display-config');
+                const details = document.getElementById('hotel-details-config');
+                display.classList.remove('hidden');
+                const addr = hotel.address || (hotel.place ? hotel.place.formatted_address : '') || '';
+                details.innerHTML = `
+                    <div class="font-bold">${hotel.name}</div>
+                    ${addr ? `<div class="text-gray-600 text-xs">${addr}</div>` : ''}
+                    ${hotel.price ? `<div class="text-orange-600 font-bold mt-1">${hotel.price} ${hotel.currency} / nuit</div>` : ''}
+                `;
+            } else {
+                document.getElementById('hotel-name-input-config').value = '';
+                document.getElementById('hotel-address-input-config').value = '';
+                document.getElementById('hotel-price-input-config').value = '';
+                document.getElementById('hotel-display-config').classList.add('hidden');
+            }
+        }
+
+        function updateConfigDayNavigation() {
+            if (!tripData) return;
+            const startDate = new Date(tripData.outbound.departureDate);
+            const currentDate = new Date(startDate);
+            currentDate.setDate(startDate.getDate() + configDayIndex);
+            const totalDays = tripData.totalDays;
+            document.getElementById('config-day-label').textContent = `JOUR ${configDayIndex + 1}/${totalDays}`;
+            const dayNames = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+            const monthNames = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+            document.getElementById('config-day-date').textContent = `${dayNames[currentDate.getDay()]} ${currentDate.getDate()} ${monthNames[currentDate.getMonth()]}`;
+            const prevBtn = document.getElementById('config-prev-btn');
+            const nextBtn = document.getElementById('config-next-btn');
+            prevBtn.style.opacity = configDayIndex === 0 ? '0.3' : '1';
+            prevBtn.style.pointerEvents = configDayIndex === 0 ? 'none' : 'auto';
+            nextBtn.style.opacity = configDayIndex === totalDays - 1 ? '0.3' : '1';
+            nextBtn.style.pointerEvents = configDayIndex === totalDays - 1 ? 'none' : 'auto';
+        }
+
+        function configPrevDay() {
+            if (configDayIndex > 0) { configDayIndex--; updateVoyageTab(); }
+        }
+
+        function configNextDay() {
+            if (!tripData) return;
+            if (configDayIndex < tripData.totalDays - 1) { configDayIndex++; updateVoyageTab(); }
+        }
+
+        function handleCityChangeConfig() {
+            const citySelector = document.getElementById('day-city-selector-config');
+            dayCities[configDayIndex] = citySelector.value;
+            localStorage.setItem('japan_day_cities_v5', JSON.stringify(dayCities));
+            if (configDayIndex === currentDayIndex) renderPlanning();
+        }
+
+        function saveHotelInfoConfig() {
+            const name = document.getElementById('hotel-name-input-config').value.trim();
+            const addressInput = document.getElementById('hotel-address-input-config').value.trim();
+            const price = document.getElementById('hotel-price-input-config').value;
+            const currency = document.getElementById('hotel-currency-input-config').value;
+            if (!name) { alert('Veuillez entrer le nom de l\'hôtel'); return; }
+            
+            // Utiliser le place validé si disponible, sinon juste l'adresse saisie
+            const hotelEntry = { name, address: addressInput, price: price ? parseFloat(price) : null, currency };
+            if (validatedHotelPlaceConfig) {
+                hotelEntry.place = validatedHotelPlaceConfig;
+                hotelEntry.address = validatedHotelPlaceConfig.formatted_address;
+            }
+            
+            dayHotels[configDayIndex] = hotelEntry;
+            localStorage.setItem('japan_day_hotels_v5', JSON.stringify(dayHotels));
+            validatedHotelPlaceConfig = null; // reset
+            calculateBudget();
+            updateVoyageTab();
+        }
+
+        function editHotelConfig() {
+            document.getElementById('hotel-display-config').classList.add('hidden');
+            const status = document.getElementById('hotel-address-status-config');
+            if (status) status.innerHTML = '';
+            validatedHotelPlaceConfig = null;
+        }
+
+        function syncConfigToggles() {
+            const fatigueSidebar = document.getElementById('fatigue-mode-toggle');
+            const weatherSidebar = document.getElementById('weather-mode-toggle');
+            const fatigueConfig = document.getElementById('fatigue-toggle-config');
+            const weatherConfig = document.getElementById('weather-toggle-config');
+            if (fatigueConfig && fatigueSidebar) fatigueConfig.checked = fatigueSidebar.checked;
+            if (weatherConfig && weatherSidebar) weatherConfig.checked = weatherSidebar.checked;
+        }
+
+        function toggleFatigueModeConfig() {
+            const toggle = document.getElementById('fatigue-toggle-config');
+            const sidebarToggle = document.getElementById('fatigue-mode-toggle');
+            if (sidebarToggle) { sidebarToggle.checked = toggle.checked; toggleFatigueMode(); }
+        }
+
+        function toggleWeatherModeConfig() {
+            const toggle = document.getElementById('weather-toggle-config');
+            const sidebarToggle = document.getElementById('weather-mode-toggle');
+            if (sidebarToggle) { sidebarToggle.checked = toggle.checked; toggleWeatherMode(); }
+        }
+
+        function toggleDarkMode() {
+            alert('🚧 Mode nuit en développement\nCette fonctionnalité sera disponible prochainement !');
+            document.getElementById('dark-mode-toggle').checked = false;
+        }
+
+        function confirmResetAll() {
+            const confirmModal = document.createElement('div');
+            confirmModal.className = 'fixed inset-0 bg-black bg-opacity-50 z-[300] flex items-center justify-center p-4';
+            confirmModal.innerHTML = `
+                <div class="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4">
+                    <div class="text-center">
+                        <div class="text-6xl mb-4">⚠️</div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Réinitialiser tout ?</h3>
+                        <p class="text-sm text-gray-600">Supprime toutes les activités, dates et configurations.</p>
+                        <p class="text-xs text-red-600 mt-3 font-bold">⚠️ Cette action est irréversible !</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="this.closest('div[class*=fixed]').remove()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">Annuler</button>
+                        <button onclick="resetAllData()" class="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold">Réinitialiser</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(confirmModal);
+        }
+
+        function resetAllData() {
+            ['japan_trip_info_v5','japan_trip_v5','japan_day_cities_v5','japan_day_hotels_v5','japan_day_modes_v5','japan_route_cache','japan_budget_v1','japan_completed_v1'].forEach(k => localStorage.removeItem(k));
+            tripData = null; activities = []; dayCities = {}; dayHotels = {}; dayModes = {};
+            document.querySelectorAll('div[class*="fixed"]').forEach(el => { if (el.innerHTML.includes('Réinitialiser')) el.remove(); });
+            setTimeout(() => location.reload(), 500);
+        }
+
+        // ========== INITIALISATION ==========
+        window.onload = function() {
+            // Splash screen pendant 1.5 secondes
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                splash.classList.add('animate-fade-out');
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                    
+                    if (tripData) {
+                        // Si voyage déjà configuré, afficher directement le planning
+                        document.getElementById('main-header').classList.remove('hidden');
+                        document.getElementById('planning-list').classList.remove('hidden');
+                        document.getElementById('day-navigation').classList.remove('hidden');
+                        document.getElementById('fab-config').classList.remove('hidden');
+                        updateDayNavigation();
+                        updateCitySelector();
+                        renderPlanning();
+                    } else {
+                        // Sinon afficher l'écran de bienvenue
+                        document.getElementById('welcome-screen').classList.remove('hidden');
+                    }
+                }, 500);
+            }, 1500);
+        };
+    </script>
+</body>
+</html>
