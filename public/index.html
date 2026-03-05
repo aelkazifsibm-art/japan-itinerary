@@ -451,13 +451,146 @@
 
     <!-- HEADER -->
     <header id="main-header" class="bg-white shadow-sm sticky top-0 z-50 hidden">
-        <div class="max-w-md mx-auto px-4 py-3 flex items-center">
-            <h1 class="text-lg font-bold text-primary flex items-center justify-center gap-2 w-full">
-                <span class="text-2xl">🗾</span>
-                My Japan Trip
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <h1 class="text-lg font-bold text-primary flex items-center gap-2 flex-1 min-w-0">
+                <span class="text-2xl flex-shrink-0">🗾</span>
+                <span class="truncate">My Japan Trip</span>
             </h1>
+            <!-- Bouton SOS "Je suis perdu" -->
+            <button onclick="showLostMode()" style="
+                flex-shrink:0;
+                padding:6px 12px;border-radius:20px;border:none;
+                background:linear-gradient(135deg,#ef4444,#dc2626);
+                color:white;font-size:11px;font-weight:800;
+                display:flex;align-items:center;gap:5px;
+                box-shadow:0 2px 8px rgba(220,38,38,0.4);
+                cursor:pointer;white-space:nowrap">
+                🆘 Perdu ?
+            </button>
         </div>
     </header>
+
+
+
+    <!-- ══ MODALE BUDGET ════════════════════════════════════════════ -->
+    <div id="budget-modal" class="fixed inset-0 z-[300] hidden" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)">
+        <div style="
+            position:absolute;bottom:0;left:0;right:0;
+            background:white;
+            border-radius:24px 24px 0 0;
+            padding:20px 20px calc(env(safe-area-inset-bottom,0px) + 20px);
+            max-height:80vh;overflow-y:auto">
+            <div style="width:40px;height:4px;border-radius:2px;background:#e5e7eb;margin:0 auto 16px"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div style="font-size:18px;font-weight:900;color:#111827">💴 Budget du jour</div>
+                <button onclick="closeBudgetModal()" style="width:30px;height:30px;border-radius:50%;background:#f3f4f6;border:none;color:#6b7280;font-size:16px;cursor:pointer">✕</button>
+            </div>
+
+            <!-- Total journalier -->
+            <div id="budget-day-total" style="
+                background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                border-radius:16px;padding:16px;margin-bottom:16px;
+                display:flex;align-items:center;justify-content:space-between">
+                <div>
+                    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.6);letter-spacing:0.1em;text-transform:uppercase">Total aujourd'hui</div>
+                    <div id="budget-total-amount" style="font-size:28px;font-weight:900;color:white;margin-top:2px">¥0</div>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-size:10px;color:rgba(255,255,255,0.5)">Budget restant</div>
+                    <div id="budget-remaining" style="font-size:16px;font-weight:800;color:#86efac">—</div>
+                </div>
+            </div>
+
+            <!-- Budget quotidien cible -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px;background:#f9fafb;border-radius:12px">
+                <span style="font-size:13px;font-weight:700;color:#374151;white-space:nowrap">Budget / jour :</span>
+                <div style="display:flex;align-items:center;gap:4px;flex:1">
+                    <span style="font-size:14px;font-weight:700;color:#6b7280">¥</span>
+                    <input id="budget-target-input" type="number" placeholder="10000" style="
+                        flex:1;border:1.5px solid #e5e7eb;border-radius:8px;padding:6px 10px;
+                        font-size:14px;font-weight:700;color:#111827;outline:none;
+                        background:white;min-width:0"
+                        oninput="updateBudgetTarget()" />
+                </div>
+                <span style="font-size:11px;color:#9ca3af">≈ €60</span>
+            </div>
+
+            <!-- Liste dépenses par activité -->
+            <div style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Dépenses par activité</div>
+            <div id="budget-items-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+
+            <!-- Ajouter dépense libre -->
+            <div style="border-top:1px solid #f3f4f6;padding-top:14px">
+                <div style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">+ Dépense libre</div>
+                <div style="display:flex;gap:8px">
+                    <input id="budget-free-label" type="text" placeholder="Combini, souvenir…" style="
+                        flex:1;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 12px;
+                        font-size:13px;outline:none;min-width:0"/>
+                    <div style="display:flex;align-items:center;gap:4px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 10px">
+                        <span style="font-size:13px;color:#6b7280">¥</span>
+                        <input id="budget-free-amount" type="number" placeholder="500" style="width:60px;border:none;background:transparent;font-size:13px;font-weight:700;outline:none"/>
+                    </div>
+                    <button onclick="addFreeBudgetItem()" style="
+                        padding:8px 14px;border-radius:10px;border:none;
+                        background:#7c3aed;color:white;font-size:13px;font-weight:800;cursor:pointer">+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ MODALE "JE SUIS PERDU" ══════════════════════════════════ -->
+    <div id="lost-modal" class="fixed inset-0 z-[300] hidden" style="background:rgba(0,0,0,0.75);backdrop-filter:blur(4px)">
+        <div style="
+            position:absolute;bottom:0;left:0;right:0;
+            background:#0f172a;
+            border-radius:24px 24px 0 0;
+            padding:24px 20px calc(env(safe-area-inset-bottom,0px) + 24px);
+            max-height:90vh;overflow-y:auto">
+
+            <!-- Handle -->
+            <div style="width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2);margin:0 auto 20px"></div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+                <div style="font-size:22px;font-weight:900;color:white">🆘 Je suis perdu</div>
+                <button onclick="closeLostMode()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:white;font-size:18px;cursor:pointer">✕</button>
+            </div>
+
+            <!-- Prochain lieu du programme -->
+            <div style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:16px;padding:16px;margin-bottom:12px">
+                <div style="font-size:10px;font-weight:700;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px">📍 Prochaine activité</div>
+                <div id="lost-next-activity" style="font-size:16px;font-weight:800;color:white;margin-bottom:4px">—</div>
+                <div id="lost-next-time" style="font-size:12px;color:rgba(255,255,255,0.5)">—</div>
+                <button id="lost-go-btn" onclick="_lostGoToNext()" style="
+                    margin-top:12px;width:100%;padding:12px;border-radius:12px;border:none;
+                    background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                    color:white;font-size:13px;font-weight:800;cursor:pointer;
+                    display:flex;align-items:center;justify-content:center;gap:8px">
+                    <span>🚇</span><span>Y aller maintenant</span>
+                </button>
+            </div>
+
+            <!-- Hôtel du soir -->
+            <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);border-radius:16px;padding:16px;margin-bottom:12px">
+                <div style="font-size:10px;font-weight:700;color:#6ee7b7;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px">🏨 Mon hôtel ce soir</div>
+                <div id="lost-hotel-name" style="font-size:15px;font-weight:800;color:white;margin-bottom:4px">—</div>
+                <div id="lost-hotel-addr-jp" style="font-size:13px;color:#6ee7b7;font-weight:600;margin-bottom:2px">— (à montrer au taxi)</div>
+                <button id="lost-hotel-btn" onclick="_lostGoToHotel()" style="
+                    margin-top:12px;width:100%;padding:12px;border-radius:12px;border:none;
+                    background:linear-gradient(135deg,#10b981,#059669);
+                    color:white;font-size:13px;font-weight:800;cursor:pointer;
+                    display:flex;align-items:center;justify-content:center;gap:8px">
+                    <span>🏠</span><span>Rentrer à l'hôtel</span>
+                </button>
+            </div>
+
+            <!-- Position GPS actuelle -->
+            <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);border-radius:16px;padding:16px">
+                <div style="font-size:10px;font-weight:700;color:#93c5fd;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px">📡 Ma position GPS</div>
+                <div id="lost-gps" style="font-size:12px;color:rgba(255,255,255,0.6)">Chargement…</div>
+                <div id="lost-station" style="font-size:13px;font-weight:700;color:white;margin-top:6px">Station proche : —</div>
+            </div>
+        </div>
+    </div>
 
     <!-- PLANNING (avec support swipe) -->
     <main class="max-w-md mx-auto p-4 space-y-4 swipe-container hidden" style="padding-bottom:220px" id="planning-list">
@@ -560,6 +693,10 @@
                 <button id="nav-map-btn" onclick="toggleMapView()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Carte">
                     <span style="font-size:16px;line-height:1">🗺️</span>
                     <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">CARTE</span>
+                </button>
+                <button id="nav-budget-btn" onclick="openBudgetModal()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Budget">
+                    <span style="font-size:16px;line-height:1">💴</span>
+                    <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">BUDGET</span>
                 </button>
                 <button id="nav-config-btn" onclick="toggleConfigFAB()" class="flex-shrink-0 flex items-center justify-center transition-all" style="width:52px;height:64px;background:rgba(0,0,0,0.18);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Réglages">
                     <span id="nav-config-icon" style="font-size:17px;opacity:0.85">⚙️</span>
@@ -1094,6 +1231,32 @@
     <script>
         // ========== DONNÉES GLOBALES ==========
         let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
+
+        // ── Migration placeCache : invalider entrées sans photo_reference ────
+        // Forcé une seule fois via flag
+        try {
+            const _photoCacheMigrated = localStorage.getItem('_photo_cache_v1');
+            if (!_photoCacheMigrated) {
+                const _rawCache = localStorage.getItem(PLACE_CACHE_KEY);
+                if (_rawCache) {
+                    const _cache = JSON.parse(_rawCache);
+                    let _cacheChanged = false;
+                    Object.keys(_cache).forEach(k => {
+                        if (_cache[k].data && !('photo_reference' in _cache[k].data)) {
+                            delete _cache[k]; // forcer re-fetch avec photo
+                            _cacheChanged = true;
+                        }
+                    });
+                    if (_cacheChanged) {
+                        localStorage.setItem(PLACE_CACHE_KEY, JSON.stringify(_cache));
+                        // Recharger placeCache en mémoire
+                        try { placeCache = _cache; } catch(e) {}
+                    }
+                }
+                localStorage.setItem('_photo_cache_v1', '1');
+            }
+        } catch(e) {}
+
         // Migration : remettre opening_hours null → undefined pour forcer re-enrichissement
         let _migrated = false;
         activities.forEach(act => {
@@ -6268,7 +6431,341 @@ async function toggleMapView() {
                 }, 500);
             }, 1500);
         };
-    </script>
+    
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  SPRINT 1 — Y ALLER / MODE PERDU / BUDGET / HORAIRES PINS
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ── Variable globale : activité affichée sur la carte ────────────
+        let _mapCurrentAct = null; // mis à jour par showMapPopup
+
+        // ══════════════════════════════════════════════════════════════════
+        //  1. Y ALLER MAINTENANT
+        // ══════════════════════════════════════════════════════════════════
+        function _mapGoNow() {
+            const act = _mapCurrentAct;
+            if (!act) return;
+            const coords = getActCoords(act);
+            if (!coords) { alert("Coordonnées non disponibles pour ce lieu."); return; }
+            const url = `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}&travelmode=transit`;
+            window.open(url, '_blank');
+        }
+
+        function _lostGoToNext() {
+            const geoActs = dayActivities.filter(a => getActCoords(a));
+            const now = new Date();
+            const nowStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+            const next = geoActs.find(a => a.time >= nowStr) || geoActs[0];
+            if (!next) return;
+            const coords = getActCoords(next);
+            if (!coords) return;
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}&travelmode=transit`, '_blank');
+        }
+
+        function _lostGoToHotel() {
+            const stay = (tripData?.stays || []).find(s => {
+                const dayDate = tripData?.days?.[currentDayIndex]?.date;
+                return dayDate >= s.startDate && dayDate <= s.endDate;
+            }) || tripData?.stays?.[0];
+            if (!stay) { alert("Hôtel non trouvé dans le programme."); return; }
+            const q = encodeURIComponent(stay.hotelName + ' ' + (stay.city || ''));
+            window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank');
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  2. MODE "JE SUIS PERDU"
+        // ══════════════════════════════════════════════════════════════════
+        function showLostMode() {
+            const modal = document.getElementById('lost-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'flex-end';
+
+            // Prochaine activité
+            const now = new Date();
+            const nowStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+            const geoActs = dayActivities.filter(a => getActCoords(a));
+            const nextAct = geoActs.find(a => a.time >= nowStr) || geoActs[0];
+            if (nextAct) {
+                document.getElementById('lost-next-activity').textContent = nextAct.title;
+                document.getElementById('lost-next-time').textContent = nextAct.time + (nextAct.place?.name ? ' · ' + nextAct.place.name : '');
+            }
+
+            // Hôtel du soir
+            const stays = tripData?.stays || [];
+            const todayDate = tripData?.days?.[currentDayIndex]?.date || '';
+            const stay = stays.find(s => todayDate >= s.startDate && todayDate <= s.endDate) || stays[0];
+            if (stay) {
+                document.getElementById('lost-hotel-name').textContent = stay.hotelName || '—';
+                // Adresse en japonais si dispo, sinon ville
+                const jpAddr = stay.address_jp || stay.hotelAddress || stay.city || '—';
+                document.getElementById('lost-hotel-addr-jp').textContent = jpAddr;
+            }
+
+            // GPS
+            const gpsEl = document.getElementById('lost-gps');
+            const stationEl = document.getElementById('lost-station');
+            gpsEl.textContent = 'Localisation en cours…';
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const { latitude: lat, longitude: lng } = pos.coords;
+                    gpsEl.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                    // Chercher station proche via Places Nearby
+                    if (window.google?.maps?.places) {
+                        const svc = new google.maps.places.PlacesService(document.createElement('div'));
+                        svc.nearbySearch({
+                            location: { lat, lng },
+                            radius: 800,
+                            type: 'subway_station'
+                        }, (results, status) => {
+                            if (status === 'OK' && results[0]) {
+                                stationEl.textContent = '🚇 ' + results[0].name;
+                            } else {
+                                stationEl.textContent = 'Station proche : non trouvée';
+                            }
+                        });
+                    } else {
+                        stationEl.textContent = 'Ouvre Google Maps pour naviguer';
+                    }
+                }, err => {
+                    gpsEl.textContent = 'GPS non disponible — active la localisation';
+                    stationEl.textContent = '';
+                }, { timeout: 8000 });
+            } else {
+                gpsEl.textContent = 'GPS non supporté sur ce navigateur';
+            }
+        }
+
+        function closeLostMode() {
+            const modal = document.getElementById('lost-modal');
+            if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  3. BUDGET EN TEMPS RÉEL
+        // ══════════════════════════════════════════════════════════════════
+        // Structure : budgetData[dayIndex] = { target: 10000, items: [{actId, label, amount}] }
+        // budgetData déjà déclaré et chargé dans la section GESTION BUDGET
+
+        function _saveBudget() {
+            try { localStorage.setItem('japan_budget_v1', JSON.stringify(budgetData)); } catch(e) {}
+        }
+
+        function openBudgetModal() {
+            const modal = document.getElementById('budget-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'flex-end';
+            _renderBudgetModal();
+        }
+
+        function closeBudgetModal() {
+            const modal = document.getElementById('budget-modal');
+            if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
+        }
+
+        function _renderBudgetModal() {
+            const dk = currentDayIndex;
+            if (!budgetData[dk]) budgetData[dk] = { target: 10000, items: [] };
+            const day = budgetData[dk];
+
+            // Target input
+            const targetInput = document.getElementById('budget-target-input');
+            if (targetInput) targetInput.value = day.target || '';
+
+            // Total
+            const total = day.items.reduce((s, it) => s + (it.amount || 0), 0);
+            const totalEl = document.getElementById('budget-total-amount');
+            if (totalEl) totalEl.textContent = '¥' + total.toLocaleString();
+
+            // Remaining
+            const remEl = document.getElementById('budget-remaining');
+            if (remEl && day.target) {
+                const rem = day.target - total;
+                remEl.textContent = (rem >= 0 ? '¥' + rem.toLocaleString() + ' restant' : '−¥' + Math.abs(rem).toLocaleString() + ' dépassé');
+                remEl.style.color = rem >= 0 ? '#86efac' : '#fca5a5';
+            }
+
+            // Items list
+            const list = document.getElementById('budget-items-list');
+            if (!list) return;
+            list.innerHTML = '';
+
+            // Activités du jour avec leur budget
+            dayActivities.forEach(act => {
+                const actItems = day.items.filter(it => it.actId === act.id);
+                const actTotal = actItems.reduce((s, it) => s + (it.amount || 0), 0);
+
+                const row = document.createElement('div');
+                row.style.cssText = 'background:#f9fafb;border-radius:12px;padding:12px;';
+                row.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                        <div style="font-size:13px;font-weight:700;color:#111827;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${act.title}</div>
+                        <div style="font-size:14px;font-weight:800;color:#7c3aed;flex-shrink:0;margin-left:8px">${actTotal > 0 ? '¥'+actTotal.toLocaleString() : '—'}</div>
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <input id="budget-inp-${act.id}" type="number" placeholder="¥ entrée, repas…"
+                            style="flex:1;border:1.5px solid #e5e7eb;border-radius:8px;padding:6px 10px;font-size:12px;outline:none;min-width:0"/>
+                        <button onclick="addBudgetItem('${act.id}','${act.title.replace(/'/g,'')}')" style="padding:6px 12px;border-radius:8px;border:none;background:#7c3aed;color:white;font-size:12px;font-weight:700;cursor:pointer">+</button>
+                    </div>
+                    ${actItems.map(it => `
+                        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:#6b7280">
+                            <span>${it.label}</span>
+                            <span style="font-weight:700">¥${(it.amount||0).toLocaleString()}</span>
+                        </div>
+                    `).join('')}
+                `;
+                list.appendChild(row);
+            });
+
+            // Dépenses libres
+            day.items.filter(it => !it.actId).forEach(it => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#fef9ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 12px;';
+                row.innerHTML = `<span style="font-size:12px;color:#6b7280">${it.label}</span><span style="font-size:13px;font-weight:800;color:#7c3aed">¥${(it.amount||0).toLocaleString()}</span>`;
+                list.appendChild(row);
+            });
+        }
+
+        function addBudgetItem(actId, actTitle) {
+            const inp = document.getElementById('budget-inp-' + actId);
+            if (!inp || !inp.value) return;
+            const amount = parseInt(inp.value) || 0;
+            if (amount <= 0) return;
+            const dk = currentDayIndex;
+            if (!budgetData[dk]) budgetData[dk] = { target: 10000, items: [] };
+            budgetData[dk].items.push({ actId, label: actTitle, amount });
+            inp.value = '';
+            _saveBudget();
+            _renderBudgetModal();
+            _updateBudgetBadge();
+        }
+
+        function addFreeBudgetItem() {
+            const labelEl = document.getElementById('budget-free-label');
+            const amountEl = document.getElementById('budget-free-amount');
+            if (!labelEl || !amountEl) return;
+            const label = labelEl.value.trim() || 'Dépense';
+            const amount = parseInt(amountEl.value) || 0;
+            if (amount <= 0) return;
+            const dk = currentDayIndex;
+            if (!budgetData[dk]) budgetData[dk] = { target: 10000, items: [] };
+            budgetData[dk].items.push({ actId: null, label, amount });
+            labelEl.value = ''; amountEl.value = '';
+            _saveBudget();
+            _renderBudgetModal();
+            _updateBudgetBadge();
+        }
+
+        function updateBudgetTarget() {
+            const inp = document.getElementById('budget-target-input');
+            if (!inp) return;
+            const dk = currentDayIndex;
+            if (!budgetData[dk]) budgetData[dk] = { target: 10000, items: [] };
+            budgetData[dk].target = parseInt(inp.value) || 0;
+            _saveBudget();
+            _renderBudgetModal();
+        }
+
+        function _updateBudgetBadge() {
+            // Afficher total journalier sur le bouton nav
+            const dk = currentDayIndex;
+            const day = budgetData[dk];
+            const btn = document.getElementById('nav-budget-btn');
+            if (!btn) return;
+            if (day && day.items.length > 0) {
+                const total = day.items.reduce((s, it) => s + (it.amount||0), 0);
+                const span = btn.querySelector('span:first-child');
+                if (span) span.textContent = total >= 10000 ? '¥' + Math.round(total/1000) + 'k' : '¥' + total.toLocaleString();
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  4. HORAIRES EN TEMPS RÉEL SUR LES PINS (badge dans showMapPopup)
+        // ══════════════════════════════════════════════════════════════════
+        function _getOpenStatusBadge(place) {
+            if (!place) return null;
+            const hours = place.opening_hours;
+            if (!hours) return null;
+
+            const now = new Date();
+            const dayOfWeek = now.getDay(); // 0=dim
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+            // Utiliser open_now si dispo (Places API)
+            if (typeof place.open_now === 'boolean') {
+                return place.open_now
+                    ? { text: 'OUVERT', color: '#16a34a', bg: '#dcfce7' }
+                    : { text: 'FERMÉ', color: '#dc2626', bg: '#fee2e2' };
+            }
+
+            // Parser les periodes si dispo
+            if (hours.periods && Array.isArray(hours.periods)) {
+                const todayPeriods = hours.periods.filter(p => p.open?.day === dayOfWeek);
+                for (const period of todayPeriods) {
+                    const openMin  = (period.open.hours||0)*60  + (period.open.minutes||0);
+                    const closeMin = period.close ? (period.close.hours||0)*60 + (period.close.minutes||0) : 1440;
+                    if (currentMinutes >= openMin && currentMinutes < closeMin) {
+                        const minsLeft = closeMin - currentMinutes;
+                        if (minsLeft <= 60) return { text: `Ferme dans ${minsLeft}min`, color: '#d97706', bg: '#fef3c7' };
+                        return { text: 'OUVERT', color: '#16a34a', bg: '#dcfce7' };
+                    }
+                    if (currentMinutes < openMin) {
+                        const minsUntil = openMin - currentMinutes;
+                        if (minsUntil <= 60) return { text: `Ouvre dans ${minsUntil}min`, color: '#2563eb', bg: '#dbeafe' };
+                    }
+                }
+                return { text: 'FERMÉ', color: '#dc2626', bg: '#fee2e2' };
+            }
+
+            // Fallback texte
+            if (hours.weekday_text?.[dayOfWeek]) {
+                const txt = hours.weekday_text[dayOfWeek];
+                if (txt.includes('Fermé') || txt.includes('Closed')) return { text: 'FERMÉ', color: '#dc2626', bg: '#fee2e2' };
+            }
+            return null;
+        }
+
+        // Patch showMapPopup pour injecter le badge horaire + mettre à jour _mapCurrentAct
+        const _origShowMapPopup = showMapPopup;
+        showMapPopup = function(act, num, color) {
+            _mapCurrentAct = act;
+            _origShowMapPopup(act, num, color);
+
+            // Badge horaire dans la zone infos
+            const ratingEl = document.getElementById('map-act-rating');
+            if (ratingEl) {
+                const badge = _getOpenStatusBadge(act.place);
+                let badgeEl = document.getElementById('map-act-hours-badge');
+                if (!badgeEl) {
+                    badgeEl = document.createElement('span');
+                    badgeEl.id = 'map-act-hours-badge';
+                    badgeEl.style.cssText = 'font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;flex-shrink:0';
+                    ratingEl.parentElement.appendChild(badgeEl);
+                }
+                if (badge) {
+                    badgeEl.textContent = badge.text;
+                    badgeEl.style.background = badge.bg;
+                    badgeEl.style.color = badge.color;
+                    badgeEl.style.display = 'inline';
+                } else {
+                    badgeEl.style.display = 'none';
+                }
+            }
+
+            // Mettre à jour le label du bouton "Y aller"
+            const goLabel = document.getElementById('map-go-now-label');
+            if (goLabel) {
+                const coords = getActCoords(act);
+                goLabel.textContent = coords ? 'Y aller · ' + act.title.slice(0,20) + (act.title.length>20?'…':'') : 'Y aller maintenant';
+            }
+        };
+
+
+</script>
 
 
     <!-- ═══════════════════════════════════════════════════════════
@@ -6403,6 +6900,19 @@ async function toggleMapView() {
                         color:white;font-size:16px;cursor:pointer;
                         display:flex;align-items:center;justify-content:center">▶</button>
                 </div>
+
+                <!-- Bouton Y ALLER MAINTENANT -->
+                <button id="map-go-now-btn" onclick="_mapGoNow()" style="
+                    width:100%;padding:10px;border-radius:14px;border:none;
+                    background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                    color:white;font-size:13px;font-weight:800;
+                    display:flex;align-items:center;justify-content:center;gap:8px;
+                    margin-bottom:10px;cursor:pointer;
+                    box-shadow:0 4px 16px rgba(124,58,237,0.4);
+                    transition:all 0.2s;letter-spacing:0.02em">
+                    <span style="font-size:16px">🚇</span>
+                    <span id="map-go-now-label">Y aller maintenant</span>
+                </button>
 
                 <!-- Chips toutes activités -->
                 <div id="map-popup-chips" style="
