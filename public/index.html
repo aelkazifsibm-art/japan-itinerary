@@ -481,6 +481,51 @@
 
 
 
+
+    <!-- ══ MODALE JOURNAL DE VOYAGE ════════════════════════════════════ -->
+    <div id="journal-modal" class="fixed inset-0 z-[300] hidden" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)">
+        <div style="
+            position:absolute;bottom:0;left:0;right:0;
+            background:white;
+            border-radius:24px 24px 0 0;
+            display:flex;flex-direction:column;
+            height:85vh;max-height:85vh">
+
+            <!-- Handle + Header -->
+            <div style="flex-shrink:0;padding:12px 20px 0">
+                <div style="width:40px;height:4px;border-radius:2px;background:#e5e7eb;margin:0 auto 14px"></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                    <div>
+                        <div style="font-size:20px;font-weight:900;color:#111827">📖 Mon Journal</div>
+                        <div id="journal-subtitle" style="font-size:12px;color:#9ca3af;margin-top:2px">Activités complétées</div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <button onclick="shareJournal()" style="
+                            padding:8px 14px;border-radius:20px;border:none;
+                            background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                            color:white;font-size:12px;font-weight:700;cursor:pointer;
+                            display:flex;align-items:center;gap:5px">
+                            <span>📤</span><span>Partager</span>
+                        </button>
+                        <button onclick="closeJournal()" style="width:30px;height:30px;border-radius:50%;background:#f3f4f6;border:none;font-size:16px;cursor:pointer;color:#6b7280">✕</button>
+                    </div>
+                </div>
+                <!-- Filtre jours -->
+                <div id="journal-day-filters" style="
+                    display:flex;gap:6px;overflow-x:auto;
+                    padding-bottom:10px;border-bottom:1px solid #f3f4f6;
+                    scrollbar-width:none;-webkit-overflow-scrolling:touch">
+                </div>
+            </div>
+
+            <!-- Contenu journal -->
+            <div id="journal-content" style="flex:1;overflow-y:auto;padding:16px 20px calc(env(safe-area-inset-bottom,0px)+16px)"></div>
+        </div>
+    </div>
+
+    <!-- Canvas caché pour génération image partage -->
+    <canvas id="share-canvas" style="display:none;position:absolute;left:-9999px"></canvas>
+
     <!-- ══ PANNEAU CHAT IA — NÉGOCIATION PLANNING ═══════════════════════ -->
     <div id="ai-planner-panel" class="fixed inset-0 z-[250] hidden" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)">
         <div style="
@@ -779,6 +824,10 @@
                 <button id="nav-ai-btn" onclick="openAiPlanner()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Assistant IA">
                     <span style="font-size:16px;line-height:1">🤖</span>
                     <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">IA</span>
+                </button>
+                <button id="nav-journal-btn" onclick="openJournal()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Journal">
+                    <span style="font-size:16px;line-height:1">📖</span>
+                    <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">JOURNAL</span>
                 </button>
                 <button id="nav-config-btn" onclick="toggleConfigFAB()" class="flex-shrink-0 flex items-center justify-center transition-all" style="width:52px;height:64px;background:rgba(0,0,0,0.18);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Réglages">
                     <span id="nav-config-icon" style="font-size:17px;opacity:0.85">⚙️</span>
@@ -5007,11 +5056,16 @@
             const idx = completedActivities.indexOf(activityId);
             if (idx === -1) {
                 completedActivities.push(activityId); // valider
+                // ── Journal : enregistrer cette complétion ──────────────
+                _journalRecord(activityId);
             } else {
                 completedActivities.splice(idx, 1);   // dévalider
+                // ── Journal : retirer si décoché ────────────────────────
+                _journalRemove(activityId);
             }
             localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
             renderPlanning();
+            _updateJournalBadge();
         }
 
         function createConfetti(element) {
@@ -7067,6 +7121,352 @@ async function toggleMapView() {
         };
 
 
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  SPRINT 3 — JOURNAL AUTOMATIQUE + PARTAGE EN UN TAP
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ══════════════════════════════════════════════════════════════════
+        //  JOURNAL DE VOYAGE
+        //  Structure : journalData = { [actId]: { actId, title, dayIndex,
+        //    time, completedAt, note, photoRef, place, rating } }
+        // ══════════════════════════════════════════════════════════════════
+        const JOURNAL_KEY = 'japan_journal_v1';
+        let journalData = {};
+
+        function _journalLoad() {
+            try { journalData = JSON.parse(localStorage.getItem(JOURNAL_KEY) || '{}'); }
+            catch(e) { journalData = {}; }
+        }
+        function _journalSave() {
+            try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(journalData)); } catch(e) {}
+        }
+        _journalLoad();
+
+        function _journalRecord(actId) {
+            const act = activities.find(a => String(a.id) === String(actId));
+            if (!act) return;
+            const dayDate = getDayDate(act.dayIndex);
+            journalData[actId] = {
+                actId,
+                title:       act.title,
+                dayIndex:    act.dayIndex,
+                time:        act.time,
+                completedAt: new Date().toISOString(),
+                note:        journalData[actId]?.note || '',       // conserver note si réenregistrement
+                photoRef:    act.place?.photo_reference || null,
+                placeName:   act.place?.name || null,
+                rating:      act.place?.rating || null,
+                address:     act.place?.formatted_address || null,
+                dayDate:     dayDate ? dayDate.toISOString().slice(0,10) : null,
+            };
+            _journalSave();
+        }
+
+        function _journalRemove(actId) {
+            delete journalData[actId];
+            _journalSave();
+        }
+
+        function _updateJournalBadge() {
+            const btn = document.getElementById('nav-journal-btn');
+            if (!btn) return;
+            const total = Object.keys(journalData).length;
+            const span = btn.querySelector('span:first-child');
+            if (span && total > 0) span.textContent = '📖' + total;
+        }
+        _updateJournalBadge();
+
+        // ── Ouvrir le journal ─────────────────────────────────────────────
+        function openJournal() {
+            const modal = document.getElementById('journal-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'flex-end';
+            _renderJournal();
+        }
+
+        function closeJournal() {
+            const m = document.getElementById('journal-modal');
+            if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
+        }
+
+        // ── Rendu du journal ──────────────────────────────────────────────
+        let _journalFilterDay = 'all';
+
+        function _renderJournal() {
+            const entries = Object.values(journalData).sort((a,b) => {
+                if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                return a.time.localeCompare(b.time);
+            });
+
+            // Sous-titre
+            const subtitle = document.getElementById('journal-subtitle');
+            if (subtitle) subtitle.textContent = entries.length + ' souvenir' + (entries.length>1?'s':'') + ' enregistré' + (entries.length>1?'s':'');
+
+            // Filtres jours
+            const filterContainer = document.getElementById('journal-day-filters');
+            if (filterContainer) {
+                filterContainer.innerHTML = '';
+                const allBtn = _makeFilterChip('Tous', 'all');
+                filterContainer.appendChild(allBtn);
+                // Jours uniques
+                const days = [...new Set(entries.map(e => e.dayIndex))].sort((a,b)=>a-b);
+                days.forEach(di => {
+                    const d = getDayDate(di);
+                    const label = d ? d.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'}) : 'Jour ' + (di+1);
+                    filterContainer.appendChild(_makeFilterChip(label, di));
+                });
+            }
+
+            // Contenu
+            const content = document.getElementById('journal-content');
+            if (!content) return;
+
+            const filtered = _journalFilterDay === 'all'
+                ? entries
+                : entries.filter(e => e.dayIndex === _journalFilterDay);
+
+            if (filtered.length === 0) {
+                content.innerHTML = `
+                    <div style="text-align:center;padding:60px 20px;color:#9ca3af">
+                        <div style="font-size:48px;margin-bottom:12px">📷</div>
+                        <div style="font-size:15px;font-weight:700;color:#374151;margin-bottom:8px">Aucun souvenir encore</div>
+                        <div style="font-size:13px;line-height:1.5">
+                            Marque une activité comme <strong>"faite"</strong> en la glissant vers la droite<br>pour créer ton premier souvenir de voyage.
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            // Grouper par jour
+            const byDay = {};
+            filtered.forEach(e => {
+                if (!byDay[e.dayIndex]) byDay[e.dayIndex] = [];
+                byDay[e.dayIndex].push(e);
+            });
+
+            let html = '';
+            Object.keys(byDay).sort((a,b)=>Number(a)-Number(b)).forEach(di => {
+                const d = getDayDate(Number(di));
+                const dayLabel = d
+                    ? d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})
+                    : 'Jour ' + (Number(di)+1);
+
+                html += `<div style="margin-bottom:20px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                        <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:0.08em">${dayLabel}</div>
+                        <div style="flex:1;height:1px;background:#f3f4f6"></div>
+                        <div style="font-size:11px;color:#9ca3af">${byDay[di].length} lieu${byDay[di].length>1?'x':''}</div>
+                    </div>`;
+
+                byDay[di].forEach(entry => {
+                    const timeStr = entry.completedAt
+                        ? new Date(entry.completedAt).toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})
+                        : entry.time;
+
+                    html += `
+                    <div style="
+                        background:white;border-radius:16px;overflow:hidden;
+                        border:1px solid #f3f4f6;margin-bottom:12px;
+                        box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                        ${entry.photoRef ? `
+                        <div style="position:relative;height:140px;overflow:hidden;background:#f3f4f6">
+                            <img src="/api/place-photo?ref=${encodeURIComponent(entry.photoRef)}&maxw=600"
+                                style="width:100%;height:100%;object-fit:cover;display:block"
+                                onerror="this.closest('div').remove()" />
+                            <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,rgba(0,0,0,0.5))"></div>
+                            <div style="position:absolute;bottom:8px;left:12px;right:12px">
+                                <div style="font-size:15px;font-weight:800;color:white;text-shadow:0 1px 3px rgba(0,0,0,0.5)">${entry.title}</div>
+                                ${entry.rating ? `<div style="font-size:12px;color:rgba(255,255,255,0.85)">★ ${entry.rating.toFixed(1)}</div>` : ''}
+                            </div>
+                            <div style="position:absolute;top:8px;right:10px;background:rgba(0,0,0,0.5);color:white;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;backdrop-filter:blur(4px)">
+                                ✅ ${timeStr}
+                            </div>
+                        </div>` : `
+                        <div style="padding:14px 16px 10px;display:flex;align-items:center;gap:12px">
+                            <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#7c3aed22,#7c3aed11);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">
+                                ${entry.title.includes('temple') || entry.title.includes('Temple') || entry.title.includes('Shrine') ? '⛩️'
+                                 : entry.title.includes('restaurant') || entry.title.includes('Restaurant') || entry.title.includes('ramen') ? '🍜'
+                                 : entry.title.includes('parc') || entry.title.includes('garden') || entry.title.includes('Garden') ? '🌸'
+                                 : entry.title.includes('musée') || entry.title.includes('Museum') ? '🏛️'
+                                 : '📍'}
+                            </div>
+                            <div style="flex:1;min-width:0">
+                                <div style="font-size:14px;font-weight:800;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${entry.title}</div>
+                                ${entry.placeName ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px">${entry.placeName}</div>` : ''}
+                            </div>
+                            <div style="text-align:right;flex-shrink:0">
+                                <div style="font-size:11px;font-weight:700;color:#16a34a">✅ Fait</div>
+                                <div style="font-size:10px;color:#9ca3af">${timeStr}</div>
+                            </div>
+                        </div>`}
+                        <!-- Note perso -->
+                        <div style="padding:0 12px 12px">
+                            <div style="position:relative">
+                                <textarea
+                                    id="journal-note-${entry.actId}"
+                                    placeholder="Ajoute une note, un souvenir… 💭"
+                                    rows="2"
+                                    style="
+                                        width:100%;border:1.5px solid #f3f4f6;border-radius:10px;
+                                        padding:8px 10px;font-size:12px;color:#374151;
+                                        resize:none;outline:none;background:#fafafa;
+                                        font-family:inherit;box-sizing:border-box;
+                                        transition:border-color 0.2s"
+                                    onfocus="this.style.borderColor='#a78bfa'"
+                                    onblur="this.style.borderColor='#f3f4f6';_journalSaveNote('${entry.actId}',this.value)"
+                                >${entry.note || ''}</textarea>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                html += '</div>';
+            });
+
+            content.innerHTML = html;
+        }
+
+        function _makeFilterChip(label, value) {
+            const btn = document.createElement('button');
+            const isActive = _journalFilterDay === value;
+            btn.style.cssText = `
+                flex-shrink:0;padding:5px 12px;border-radius:20px;
+                border:1.5px solid ${isActive ? '#7c3aed' : '#e5e7eb'};
+                background:${isActive ? '#7c3aed' : 'white'};
+                color:${isActive ? 'white' : '#374151'};
+                font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap`;
+            btn.textContent = label;
+            btn.onclick = () => {
+                _journalFilterDay = value;
+                _renderJournal();
+            };
+            return btn;
+        }
+
+        function _journalSaveNote(actId, note) {
+            if (journalData[actId]) {
+                journalData[actId].note = note;
+                _journalSave();
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  PARTAGE EN UN TAP
+        //  Génère une image de la carte du jour ou partage texte
+        // ══════════════════════════════════════════════════════════════════
+        async function shareJournal() {
+            const entries = Object.values(journalData)
+                .filter(e => _journalFilterDay === 'all' || e.dayIndex === _journalFilterDay)
+                .sort((a,b) => {
+                    if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                    return a.time.localeCompare(b.time);
+                });
+
+            if (entries.length === 0) {
+                alert('Aucun souvenir à partager encore !');
+                return;
+            }
+
+            // Générer texte partage
+            const totalDays = tripData?.totalDays || '?';
+            let text = '🇯🇵 Mon voyage au Japon\n\n';
+
+            // Grouper par jour
+            const byDay = {};
+            entries.forEach(e => {
+                if (!byDay[e.dayIndex]) byDay[e.dayIndex] = [];
+                byDay[e.dayIndex].push(e);
+            });
+
+            Object.keys(byDay).sort((a,b)=>Number(a)-Number(b)).forEach(di => {
+                const d = getDayDate(Number(di));
+                const dayLabel = d
+                    ? d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})
+                    : 'Jour ' + (Number(di)+1);
+                text += `📅 ${dayLabel}
+`;
+                byDay[di].forEach(e => {
+                    text += `  ✅ ${e.time} — ${e.title}`;
+                    if (e.note) text += `\n     💭 "${e.note}"`;
+                    text += '\n';
+                });
+                text += '\n';
+            });
+
+            text += `✈️ ${entries.length} lieu${entries.length>1?'x':''} visité${entries.length>1?'s':''} sur ${totalDays} jours`;
+
+            // Essayer Web Share API
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: '🇯🇵 Mon voyage au Japon',
+                        text: text,
+                    });
+                    return;
+                } catch(e) {
+                    if (e.name === 'AbortError') return; // L'utilisateur a annulé
+                }
+            }
+
+            // Fallback : copier dans le presse-papier
+            try {
+                await navigator.clipboard.writeText(text);
+                _showShareToast('✅ Copié dans le presse-papier !');
+            } catch(e) {
+                // Fallback ultime : prompt
+                prompt('Copie ce texte :', text);
+            }
+        }
+
+        // Partage rapide d'une seule activité (depuis la carte)
+        async function shareActivity(act) {
+            if (!act) return;
+            const dayDate = getDayDate(act.dayIndex);
+            const dayStr = dayDate ? dayDate.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'}) : '';
+            const note = journalData[act.id]?.note || '';
+
+            const text = [
+                '📍 ' + act.title,
+                dayStr ? '📅 ' + dayStr + ' · ' + act.time : act.time,
+                act.place?.name ? '🏢 ' + act.place.name : '',
+                act.place?.rating ? '★ ' + act.place.rating.toFixed(1) : '',
+                note ? '💭 ' + note : '',
+                '',
+                '🇯🇵 Planifié avec My Japan Trip',
+            ].filter(Boolean).join('\n');
+
+            if (navigator.share) {
+                try { await navigator.share({ title: act.title, text }); return; }
+                catch(e) { if (e.name === 'AbortError') return; }
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                _showShareToast('✅ Copié !');
+            } catch(e) {}
+        }
+
+        function _showShareToast(msg) {
+            let toast = document.getElementById('share-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'share-toast';
+                toast.style.cssText = `
+                    position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+                    background:#111827;color:white;
+                    padding:10px 20px;border-radius:20px;
+                    font-size:13px;font-weight:700;
+                    z-index:9999;pointer-events:none;
+                    transition:opacity 0.3s`;
+                document.body.appendChild(toast);
+            }
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+        }
+
+
 </script>
 
 
@@ -7214,6 +7614,18 @@ async function toggleMapView() {
                     transition:all 0.2s;letter-spacing:0.02em">
                     <span style="font-size:16px">🚇</span>
                     <span id="map-go-now-label">Y aller maintenant</span>
+                </button>
+
+                <!-- Bouton PARTAGER activité -->
+                <button id="map-share-btn" onclick="shareActivity(_mapCurrentAct)" style="
+                    width:100%;padding:9px;border-radius:14px;border:1.5px solid rgba(124,58,237,0.3);
+                    background:transparent;
+                    color:#7c3aed;font-size:12px;font-weight:700;
+                    display:flex;align-items:center;justify-content:center;gap:6px;
+                    margin-bottom:10px;cursor:pointer;
+                    transition:all 0.2s">
+                    <span>📤</span>
+                    <span>Partager ce lieu</span>
                 </button>
 
                 <!-- Chips toutes activités -->
