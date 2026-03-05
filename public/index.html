@@ -482,6 +482,49 @@
 
 
 
+
+    <!-- ══ MODALE ALERTES MÉTÉO ═════════════════════════════════════════ -->
+    <div id="weather-alert-modal" class="fixed inset-0 z-[350] hidden" style="background:rgba(0,0,0,0.65);backdrop-filter:blur(4px)">
+        <div style="
+            position:absolute;bottom:0;left:0;right:0;
+            background:white;border-radius:24px 24px 0 0;
+            display:flex;flex-direction:column;max-height:85vh">
+            <div style="flex-shrink:0;padding:12px 20px 0">
+                <div style="width:40px;height:4px;border-radius:2px;background:#e5e7eb;margin:0 auto 14px"></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                    <div>
+                        <div style="font-size:19px;font-weight:900;color:#111827">🌦️ Météo du voyage</div>
+                        <div id="weather-alert-subtitle" style="font-size:12px;color:#9ca3af;margin-top:2px">Prévisions 7 jours</div>
+                    </div>
+                    <button onclick="closeWeatherAlert()" style="width:30px;height:30px;border-radius:50%;background:#f3f4f6;border:none;font-size:16px;cursor:pointer;color:#6b7280">✕</button>
+                </div>
+            </div>
+            <div id="weather-alert-content" style="flex:1;overflow-y:auto;padding:0 20px calc(env(safe-area-inset-bottom,0px)+20px)"></div>
+        </div>
+    </div>
+
+    <!-- ══ PANNEAU "QUE FAIRE AUTOUR" ═══════════════════════════════════ -->
+    <div id="nearby-panel" class="fixed inset-0 z-[350] hidden" style="background:rgba(0,0,0,0.65);backdrop-filter:blur(4px)">
+        <div style="
+            position:absolute;bottom:0;left:0;right:0;
+            background:#0f172a;border-radius:24px 24px 0 0;
+            display:flex;flex-direction:column;max-height:85vh">
+            <div style="flex-shrink:0;padding:12px 20px 12px">
+                <div style="width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);margin:0 auto 14px"></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                    <div>
+                        <div style="font-size:19px;font-weight:900;color:white">📍 Autour de moi</div>
+                        <div id="nearby-subtitle" style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px">Chargement position…</div>
+                    </div>
+                    <button onclick="closeNearbyPanel()" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;font-size:16px;cursor:pointer;color:rgba(255,255,255,0.6)">✕</button>
+                </div>
+                <!-- Filtres type -->
+                <div id="nearby-filters" style="display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none"></div>
+            </div>
+            <div id="nearby-content" style="flex:1;overflow-y:auto;padding:0 16px calc(env(safe-area-inset-bottom,0px)+16px)"></div>
+        </div>
+    </div>
+
     <!-- ══ MODALE JOURNAL DE VOYAGE ════════════════════════════════════ -->
     <div id="journal-modal" class="fixed inset-0 z-[300] hidden" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)">
         <div style="
@@ -824,6 +867,10 @@
                 <button id="nav-ai-btn" onclick="openAiPlanner()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Assistant IA">
                     <span style="font-size:16px;line-height:1">🤖</span>
                     <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">IA</span>
+                </button>
+                <button id="nav-weather-btn" onclick="openWeatherAlert()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Météo">
+                    <span id="nav-weather-icon" style="font-size:16px;line-height:1">🌦️</span>
+                    <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">MÉTÉO</span>
                 </button>
                 <button id="nav-journal-btn" onclick="openJournal()" class="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 transition-all" style="width:48px;height:64px;background:rgba(0,0,0,0.12);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Journal">
                     <span style="font-size:16px;line-height:1">📖</span>
@@ -7467,6 +7514,437 @@ async function toggleMapView() {
         }
 
 
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  SPRINT 4 — MÉTÉO PROGRAMME / VUE DEMAIN / RAYON AUTOUR
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ══════════════════════════════════════════════════════════════════
+        //  MÉTÉO LIÉE AU PROGRAMME
+        // ══════════════════════════════════════════════════════════════════
+        let _weatherForecast = null;   // cache forecast 7j
+        let _weatherLoading  = false;
+        const _WEATHER_CACHE_KEY = 'japan_weather_v1';
+
+        async function _loadWeatherForecast() {
+            if (_weatherLoading) return;
+            // Cache 3h
+            try {
+                const cached = JSON.parse(localStorage.getItem(_WEATHER_CACHE_KEY) || 'null');
+                if (cached && Date.now() - cached.ts < 3 * 3600 * 1000) {
+                    _weatherForecast = cached.data;
+                    _updateWeatherNav();
+                    return;
+                }
+            } catch(e) {}
+
+            // Coordonnées : prendre le premier lieu géocodé du voyage
+            const firstGeoAct = activities.find(a => a.place?.lat && a.place?.lng);
+            if (!firstGeoAct) return;
+            const { lat, lng } = firstGeoAct.place;
+
+            _weatherLoading = true;
+            try {
+                const res = await fetch(`/api/weather?lat=${lat}&lng=${lng}`);
+                const data = await res.json();
+                if (data.success && data.forecast) {
+                    _weatherForecast = data.forecast;
+                    localStorage.setItem(_WEATHER_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data.forecast }));
+                    _updateWeatherNav();
+                }
+            } catch(e) {} finally { _weatherLoading = false; }
+        }
+
+        function _updateWeatherNav() {
+            // Mettre à jour l'icône météo dans la nav selon la météo du jour actuel
+            if (!_weatherForecast) return;
+            const dayDate = getDayDate(currentDayIndex);
+            if (!dayDate) return;
+            const dayStr = dayDate.toLocaleDateString('fr-FR');
+            const dayForecast = _weatherForecast.daily?.find(d => d.date === dayStr);
+            const icon = document.getElementById('nav-weather-icon');
+            if (!icon) return;
+            if (dayForecast) {
+                const rain = dayForecast.rain_probability;
+                icon.textContent = rain >= 70 ? '🌧️' : rain >= 40 ? '🌦️' : rain >= 20 ? '⛅' : '☀️';
+            }
+        }
+
+        function _getWeatherForDay(dayIndex) {
+            if (!_weatherForecast?.daily) return null;
+            const dayDate = getDayDate(dayIndex);
+            if (!dayDate) return null;
+            const dayStr = dayDate.toLocaleDateString('fr-FR');
+            return _weatherForecast.daily.find(d => d.date === dayStr) || null;
+        }
+
+        function openWeatherAlert() {
+            const modal = document.getElementById('weather-alert-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'flex-end';
+            _renderWeatherModal();
+            // Charger si pas encore fait
+            if (!_weatherForecast) _loadWeatherForecast().then(() => _renderWeatherModal());
+        }
+
+        function closeWeatherAlert() {
+            const m = document.getElementById('weather-alert-modal');
+            if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
+        }
+
+        function _renderWeatherModal() {
+            const content = document.getElementById('weather-alert-content');
+            if (!content) return;
+
+            if (!_weatherForecast) {
+                content.innerHTML = '<div style="text-align:center;padding:40px;color:#9ca3af"><div style="font-size:32px;margin-bottom:12px">🌦️</div><div>Chargement des prévisions…</div><div style="font-size:12px;margin-top:8px;color:#d1d5db">Nécessite une clé OpenWeather dans .env</div></div>';
+                return;
+            }
+
+            const totalDays = tripData?.totalDays || activities.length;
+            let html = '';
+            let alertCount = 0;
+
+            for (let di = 0; di < totalDays; di++) {
+                const forecast = _getWeatherForDay(di);
+                const dayActs = activities.filter(a => a.dayIndex === di);
+                const outdoorActs = dayActs.filter(a =>
+                    a.place?.types?.some(t => ['park','natural_feature','shrine','temple','tourist_attraction','amusement_park'].includes(t))
+                    || a.title.toLowerCase().match(/parc|jardin|temple|shrine|mont|plage|forêt|arashi|ueno|shinjuku|gyoen/)
+                );
+                const dayDate = getDayDate(di);
+                const dayLabel = dayDate ? dayDate.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'}) : `Jour ${di+1}`;
+
+                const rainProb = forecast?.rain_probability ?? null;
+                const isAlert = forecast && rainProb >= 50 && outdoorActs.length > 0;
+                if (isAlert) alertCount++;
+
+                const bg    = isAlert ? '#fef2f2' : (forecast ? '#f0fdf4' : '#f9fafb');
+                const border = isAlert ? '#fecaca' : (forecast ? '#bbf7d0' : '#e5e7eb');
+                const icon  = !forecast ? '❓'
+                    : rainProb >= 70 ? '🌧️' : rainProb >= 40 ? '🌦️' : rainProb >= 20 ? '⛅' : '☀️';
+
+                html += `<div style="border-radius:16px;padding:14px;margin-bottom:10px;background:${bg};border:1px solid ${border}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                        <div>
+                            <div style="font-size:12px;font-weight:800;color:#374151;text-transform:capitalize">${dayLabel}</div>
+                            ${forecast ? `<div style="font-size:11px;color:#6b7280">${forecast.temp_min}°–${forecast.temp_max}° · ${forecast.description}</div>` : '<div style="font-size:11px;color:#9ca3af">Prévision non disponible</div>'}
+                        </div>
+                        <div style="text-align:right;flex-shrink:0">
+                            <div style="font-size:28px;line-height:1">${icon}</div>
+                            ${forecast ? `<div style="font-size:11px;font-weight:700;color:${rainProb>=50?'#dc2626':'#16a34a'}">${rainProb}% pluie</div>` : ''}
+                        </div>
+                    </div>
+                    ${isAlert ? `
+                    <div style="background:#fee2e2;border-radius:10px;padding:10px;margin-bottom:8px">
+                        <div style="font-size:11px;font-weight:800;color:#991b1b;margin-bottom:4px">⚠️ Activités extérieures sous la pluie</div>
+                        ${outdoorActs.slice(0,3).map(a => `<div style="font-size:11px;color:#b91c1c;padding:2px 0">• ${a.time} ${a.title}</div>`).join('')}
+                    </div>` : ''}
+                    ${dayActs.length > 0 ? `<div style="font-size:11px;color:#6b7280">${dayActs.length} activité${dayActs.length>1?'s':''} planifiée${dayActs.length>1?'s':''}</div>` : ''}
+                </div>`;
+            }
+
+            const subtitle = document.getElementById('weather-alert-subtitle');
+            if (subtitle) subtitle.textContent = alertCount > 0
+                ? `⚠️ ${alertCount} jour${alertCount>1?'s':''} à risque de pluie`
+                : '✅ Bon temps prévu sur l\'ensemble du voyage';
+
+            content.innerHTML = html || '<div style="text-align:center;padding:40px;color:#9ca3af">Aucun jour dans le programme</div>';
+        }
+
+        // Charger météo au démarrage (silencieux)
+        setTimeout(() => _loadWeatherForecast(), 2000);
+
+        // ══════════════════════════════════════════════════════════════════
+        //  VUE "DEMAIN" SUR LA CARTE
+        // ══════════════════════════════════════════════════════════════════
+        let _tomorrowViewActive = false;
+        let _tomorrowMarkers = [];
+
+        function toggleTomorrowView() {
+            _tomorrowViewActive = !_tomorrowViewActive;
+            const btn = document.getElementById('map-tomorrow-btn');
+
+            if (_tomorrowViewActive) {
+                if (btn) {
+                    btn.style.background = 'rgba(124,58,237,0.4)';
+                    btn.style.borderColor = 'rgba(124,58,237,0.6)';
+                    btn.style.color = 'white';
+                    btn.textContent = '📅 Auj.';
+                }
+                _showTomorrowMarkers();
+            } else {
+                if (btn) {
+                    btn.style.background = 'rgba(255,255,255,0.08)';
+                    btn.style.borderColor = 'rgba(255,255,255,0.15)';
+                    btn.style.color = 'rgba(255,255,255,0.7)';
+                    btn.textContent = '📅 Demain';
+                }
+                _clearTomorrowMarkers();
+            }
+        }
+
+        function _showTomorrowMarkers() {
+            if (!window._gmap) return;
+            const nextDay = currentDayIndex + 1;
+            const nextActs = activities.filter(a => a.dayIndex === nextDay);
+            if (nextActs.length === 0) {
+                _showMapToast('Pas d\'activités planifiées demain');
+                _tomorrowViewActive = false;
+                const btn = document.getElementById('map-tomorrow-btn');
+                if (btn) { btn.style.background='rgba(255,255,255,0.08)'; btn.textContent='📅 Demain'; }
+                return;
+            }
+
+            const nextWeather = _getWeatherForDay(nextDay);
+            const rainInfo = nextWeather ? ` · ${nextWeather.rain_probability}% pluie` : '';
+
+            _showMapToast(`Demain : ${nextActs.length} lieux${rainInfo}`);
+
+            nextActs.forEach((act, idx) => {
+                const coords = getActCoords(act);
+                if (!coords || !google?.maps) return;
+
+                const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='36' height='48' viewBox='0 0 36 48'>
+                    <ellipse cx='18' cy='45' rx='6' ry='3' fill='rgba(0,0,0,0.2)'/>
+                    <path d='M18 0 C8 0 0 8 0 18 C0 32 18 46 18 46 C18 46 36 32 36 18 C36 8 28 0 18 0Z' fill='rgba(107,114,128,0.85)' stroke='white' stroke-width='1.5'/>
+                    <circle cx='18' cy='18' r='9' fill='rgba(255,255,255,0.3)'/>
+                    <text x='18' y='23' text-anchor='middle' font-size='11' font-weight='800' fill='white'>${idx+1}</text>
+                </svg>`;
+
+                const marker = new google.maps.Marker({
+                    position: coords,
+                    map: _gmap,
+                    icon: {
+                        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+                        scaledSize: new google.maps.Size(36, 48),
+                        anchor: new google.maps.Point(18, 46)
+                    },
+                    title: act.title,
+                    opacity: 0.75,
+                    zIndex: 5
+                });
+                _tomorrowMarkers.push(marker);
+            });
+        }
+
+        function _clearTomorrowMarkers() {
+            _tomorrowMarkers.forEach(m => m.setMap(null));
+            _tomorrowMarkers = [];
+        }
+
+        function _showMapToast(msg) {
+            let toast = document.getElementById('map-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'map-toast';
+                toast.style.cssText = 'position:absolute;top:68px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:white;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:700;z-index:100;pointer-events:none;white-space:nowrap;backdrop-filter:blur(8px);transition:opacity 0.3s';
+                document.getElementById('map-zone')?.appendChild(toast);
+            }
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => { if(toast) toast.style.opacity='0'; }, 3000);
+        }
+
+        // Réinitialiser vue demain quand on change de jour
+        const _origShowDay = typeof showDay === 'function' ? showDay : null;
+
+        // ══════════════════════════════════════════════════════════════════
+        //  RAYON "QUE FAIRE AUTOUR DE MOI"
+        // ══════════════════════════════════════════════════════════════════
+        let _nearbyUserPos   = null;
+        let _nearbyType      = 'tourist_attraction';
+        let _nearbyResults   = [];
+        let _nearbyMarkers   = [];
+
+        const _NEARBY_TYPES = [
+            { key: 'tourist_attraction', label: '🏯 Sites',      radius: 800  },
+            { key: 'restaurant',         label: '🍜 Restaurants', radius: 500  },
+            { key: 'cafe',               label: '☕ Cafés',        radius: 400  },
+            { key: 'convenience_store',  label: '🏪 Combini',     radius: 300  },
+            { key: 'subway_station',     label: '🚇 Métro',       radius: 600  },
+            { key: 'park',               label: '🌸 Parcs',       radius: 600  },
+        ];
+
+        function openNearbyPanel() {
+            const panel = document.getElementById('nearby-panel');
+            if (!panel) return;
+            panel.classList.remove('hidden');
+            panel.style.display = 'flex';
+            panel.style.alignItems = 'flex-end';
+            _renderNearbyFilters();
+            _locateAndSearch();
+        }
+
+        function closeNearbyPanel() {
+            const p = document.getElementById('nearby-panel');
+            if (p) { p.classList.add('hidden'); p.style.display = 'none'; }
+            _nearbyMarkers.forEach(m => m.setMap(null));
+            _nearbyMarkers = [];
+        }
+
+        function _renderNearbyFilters() {
+            const container = document.getElementById('nearby-filters');
+            if (!container) return;
+            container.innerHTML = '';
+            _NEARBY_TYPES.forEach(t => {
+                const btn = document.createElement('button');
+                const isActive = _nearbyType === t.key;
+                btn.style.cssText = `flex-shrink:0;padding:6px 12px;border-radius:20px;border:1.5px solid ${isActive?'rgba(124,58,237,0.8)':'rgba(255,255,255,0.15)'};background:${isActive?'rgba(124,58,237,0.3)':'rgba(255,255,255,0.05)'};color:${isActive?'white':'rgba(255,255,255,0.6)'};font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap`;
+                btn.textContent = t.label;
+                btn.onclick = () => { _nearbyType = t.key; _renderNearbyFilters(); _searchNearby(); };
+                container.appendChild(btn);
+            });
+        }
+
+        function _locateAndSearch() {
+            const subtitle = document.getElementById('nearby-subtitle');
+            if (subtitle) subtitle.textContent = 'Localisation en cours…';
+
+            if (!navigator.geolocation) {
+                // Fallback : utiliser position de l'activité courante
+                if (_mapCurrentAct) {
+                    const coords = getActCoords(_mapCurrentAct);
+                    if (coords) {
+                        _nearbyUserPos = coords;
+                        _searchNearby();
+                        return;
+                    }
+                }
+                if (subtitle) subtitle.textContent = 'GPS non disponible';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    _nearbyUserPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    if (subtitle) subtitle.textContent = `📡 Position GPS · ${_nearbyUserPos.lat.toFixed(4)}, ${_nearbyUserPos.lng.toFixed(4)}`;
+                    _searchNearby();
+                },
+                err => {
+                    // Fallback activité carte
+                    if (_mapCurrentAct) {
+                        const coords = getActCoords(_mapCurrentAct);
+                        if (coords) {
+                            _nearbyUserPos = coords;
+                            if (subtitle) subtitle.textContent = `📍 Position : ${_mapCurrentAct.title}`;
+                            _searchNearby();
+                            return;
+                        }
+                    }
+                    if (subtitle) subtitle.textContent = 'GPS non disponible — ouvre la carte d\'abord';
+                },
+                { timeout: 6000, maximumAge: 60000 }
+            );
+        }
+
+        async function _searchNearby() {
+            if (!_nearbyUserPos) return;
+            const content = document.getElementById('nearby-content');
+            if (content) content.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4)"><div style="font-size:28px;margin-bottom:8px">🔍</div><div style="font-size:13px">Recherche en cours…</div></div>';
+
+            const typeConf = _NEARBY_TYPES.find(t => t.key === _nearbyType) || _NEARBY_TYPES[0];
+
+            if (!window.google?.maps?.places) {
+                if (content) content.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4)">Google Maps Places API non chargée</div>';
+                return;
+            }
+
+            const service = new google.maps.places.PlacesService(document.createElement('div'));
+            service.nearbySearch({
+                location: _nearbyUserPos,
+                radius: typeConf.radius,
+                type: _nearbyType,
+                language: 'fr'
+            }, (results, status) => {
+                if (status === 'OK' && results) {
+                    _nearbyResults = results.slice(0, 8);
+                    _renderNearbyResults();
+                    _plotNearbyOnMap();
+                } else {
+                    if (content) content.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4)"><div style="font-size:28px;margin-bottom:8px">😕</div><div>Aucun résultat trouvé</div></div>';
+                }
+            });
+        }
+
+        function _renderNearbyResults() {
+            const content = document.getElementById('nearby-content');
+            if (!content || !_nearbyResults.length) return;
+
+            let html = '';
+            _nearbyResults.forEach((place, idx) => {
+                const rating  = place.rating ? place.rating.toFixed(1) : null;
+                const isOpen  = place.opening_hours?.isOpen?.() ?? null;
+                const dist    = _nearbyUserPos ? _calcDistM(_nearbyUserPos, { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }) : null;
+
+                html += `<div onclick="_nearbyGoTo(${idx})" style="
+                    background:rgba(255,255,255,0.06);border-radius:14px;padding:14px;
+                    margin-bottom:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.08);
+                    display:flex;align-items:center;gap:12px;
+                    transition:background 0.15s"
+                    onmouseenter="this.style.background='rgba(255,255,255,0.1)'"
+                    onmouseleave="this.style.background='rgba(255,255,255,0.06)'">
+                    <div style="width:38px;height:38px;border-radius:12px;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">
+                        ${_nearbyType === 'restaurant' ? '🍜' : _nearbyType === 'cafe' ? '☕' : _nearbyType === 'convenience_store' ? '🏪' : _nearbyType === 'subway_station' ? '🚇' : _nearbyType === 'park' ? '🌸' : '🏯'}
+                    </div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:13px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${place.name}</div>
+                        <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
+                            ${rating ? `<span style="font-size:11px;color:#fbbf24;font-weight:700">★ ${rating}</span>` : ''}
+                            ${dist !== null ? `<span style="font-size:11px;color:rgba(255,255,255,0.4)">${dist < 1000 ? dist + 'm' : (dist/1000).toFixed(1) + 'km'}</span>` : ''}
+                            ${isOpen !== null ? `<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;background:${isOpen?'rgba(22,163,74,0.2)':'rgba(220,38,38,0.2)'};color:${isOpen?'#86efac':'#fca5a5'}">${isOpen?'OUVERT':'FERMÉ'}</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="flex-shrink:0;font-size:18px;opacity:0.5">→</div>
+                </div>`;
+            });
+
+            content.innerHTML = html;
+        }
+
+        function _nearbyGoTo(idx) {
+            const place = _nearbyResults[idx];
+            if (!place) return;
+            const lat  = place.geometry.location.lat();
+            const lng  = place.geometry.location.lng();
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=transit`, '_blank');
+        }
+
+        function _plotNearbyOnMap() {
+            _nearbyMarkers.forEach(m => m.setMap(null));
+            _nearbyMarkers = [];
+            if (!window._gmap || !_nearbyResults.length) return;
+
+            _nearbyResults.forEach((place, idx) => {
+                if (!google?.maps) return;
+                const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='30' height='40' viewBox='0 0 30 40'>
+                    <path d='M15 0 C6.7 0 0 6.7 0 15 C0 26.25 15 40 15 40 C15 40 30 26.25 30 15 C30 6.7 23.3 0 15 0Z' fill='rgba(245,158,11,0.9)' stroke='white' stroke-width='1.5'/>
+                    <circle cx='15' cy='15' r='8' fill='rgba(255,255,255,0.25)'/>
+                    <text x='15' y='19' text-anchor='middle' font-size='10' font-weight='800' fill='white'>${idx+1}</text>
+                </svg>`;
+                const marker = new google.maps.Marker({
+                    position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+                    map: _gmap,
+                    icon: { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg), scaledSize: new google.maps.Size(30, 40) },
+                    title: place.name,
+                    zIndex: 50
+                });
+                _nearbyMarkers.push(marker);
+            });
+        }
+
+        function _calcDistM(a, b) {
+            const R = 6371000;
+            const dLat = (b.lat - a.lat) * Math.PI / 180;
+            const dLng = (b.lng - a.lng) * Math.PI / 180;
+            const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+            return Math.round(R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h)));
+        }
+
+
 </script>
 
 
@@ -7514,6 +7992,18 @@ async function toggleMapView() {
                 border:1px solid rgba(255,255,255,0.18);
                 color:white;font-size:11px;font-weight:700;
                 white-space:nowrap;flex-shrink:0">🛰 Satellite</button>
+            <button id="map-tomorrow-btn" onclick="toggleTomorrowView()" style="
+                height:34px;padding:0 12px;border-radius:17px;
+                background:rgba(255,255,255,0.08);
+                border:1px solid rgba(255,255,255,0.15);
+                color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;
+                white-space:nowrap;flex-shrink:0">📅 Demain</button>
+            <button onclick="openNearbyPanel()" style="
+                height:34px;padding:0 12px;border-radius:17px;
+                background:rgba(255,255,255,0.08);
+                border:1px solid rgba(255,255,255,0.15);
+                color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;
+                white-space:nowrap;flex-shrink:0">📍 Autour</button>
         </div>
 
         <!-- ② CARTE flex ────────────────────────────────────────────── -->
