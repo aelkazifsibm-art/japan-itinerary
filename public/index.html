@@ -650,9 +650,9 @@
             box-shadow:0 -8px 32px rgba(0,0,0,0.4)">
 
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0">
-                <button onclick="openConfigScreen();switchTab('budget');toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
-                    <span style="font-size:22px">💴</span>
-                    <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Budget</span>
+                <button onclick="openConfigScreen();switchConfigTab('reglages');toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
+                    <span style="font-size:22px">⚙️</span>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Réglages</span>
                 </button>
                 <button onclick="openJournal();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
                     <span style="font-size:22px">📖</span>
@@ -866,7 +866,22 @@
             </div>
 
             <!-- Onglet IA -->
+            <!-- Onglet Assistant -->
             <div id="config-content-ia" class="config-content hidden p-4 space-y-3">
+
+                <!-- Bouton ouvrir assistant -->
+                <button onclick="closeConfigScreen();openAiPlanner()" style="
+                    width:100%;padding:14px;border-radius:16px;border:none;
+                    background:linear-gradient(135deg,#7c3aed,#6d28d9);
+                    color:white;font-size:15px;font-weight:800;cursor:pointer;
+                    display:flex;align-items:center;justify-content:center;gap:10px;
+                    box-shadow:0 4px 16px rgba(124,58,237,0.35)">
+                    <span style="font-size:22px">🤖</span>
+                    <span>Ouvrir l'assistant IA</span>
+                </button>
+                <p class="text-xs text-gray-500 text-center -mt-1">Planification intelligente, suggestions, optimisation</p>
+
+                <!-- Mode Fatigue -->
                 <div class="rounded-xl p-4 border-2" style="background:var(--budget-bg,#eff6ff);border-color:var(--budget-border,#bfdbfe)">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-3">
@@ -878,11 +893,13 @@
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="fatigue-toggle-config" onchange="toggleFatigueModeConfig()" class="sr-only peer">
-                            <div class="w-14 h-7 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                            <div class="w-14 h-7 bg-gray-300 rounded-full peer peer-checked:after:translate-x-7 after:content-[\'\'] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-500"></div>
                         </label>
                     </div>
                     <p class="text-xs text-gray-600">L'IA adapte le planning pour éviter trop d'activités intenses consécutives</p>
                 </div>
+
+                <!-- Adaptation Météo -->
                 <div class="rounded-xl p-4 border-2 weather-card" style="background:var(--budget-bg,#f0f9ff);border-color:var(--budget-border,#bae6fd)">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-3">
@@ -894,14 +911,14 @@
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="weather-toggle-config" onchange="toggleWeatherModeConfig()" class="sr-only peer">
-                            <div class="w-14 h-7 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-sky-600"></div>
+                            <div class="w-14 h-7 bg-gray-300 rounded-full peer peer-checked:after:translate-x-7 after:content-[\'\'] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-sky-500"></div>
                         </label>
                     </div>
                     <p class="text-xs text-gray-600">L'IA privilégie les activités intérieures si pluie, extérieures si beau temps</p>
                 </div>
+
             </div>
 
-            <!-- Onglet Budget -->
             <div id="config-content-budget" class="config-content hidden p-4 space-y-4">
                 <div class="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl p-4 shadow-lg">
                     <div class="text-sm opacity-90">Budget Total</div>
@@ -1033,12 +1050,12 @@
         <div class="absolute bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl">
             <div class="flex items-center h-16">
                 <button onclick="switchConfigTab('voyage')" id="config-tab-voyage" class="config-tab-bottom flex-1 flex flex-col items-center justify-center gap-1 py-2 text-purple-600 border-t-2 border-purple-600">
-                    <span class="text-xl">🗺️</span>
-                    <span class="text-xs font-bold">Voyage</span>
+                    <span class="text-xl">🏨</span>
+                    <span class="text-xs font-bold">Séjours</span>
                 </button>
                 <button onclick="switchConfigTab('ia')" id="config-tab-ia" class="config-tab-bottom flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-400 border-t-2 border-transparent">
-                    <span class="text-xl">🎯</span>
-                    <span class="text-xs font-bold">IA</span>
+                    <span class="text-xl">💬</span>
+                    <span class="text-xs font-bold">Assistant</span>
                 </button>
                 <button onclick="switchConfigTab('budget')" id="config-tab-budget" class="config-tab-bottom flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-400 border-t-2 border-transparent">
                     <span class="text-xl">💰</span>
@@ -1348,7 +1365,7 @@
             <div class="flex justify-between items-start">
                 <h2 class="text-xl font-bold" id="info-modal-title">Informations</h2>
                 <div style="display:flex;align-items:center;gap:8px">
-                    <button onclick="closeActivityInfoModal();openConfigScreen()" style="
+                    <button onclick="closeActivityInfoModal();openConfigScreen();switchConfigTab('reglages')" style="
                         width:32px;height:32px;border-radius:50%;
                         background:#f3f4f6;border:none;
                         font-size:16px;cursor:pointer;
@@ -5810,9 +5827,6 @@
                 }
             }
 
-            // ── Timeline scrollable en bas ────────────────────────────────
-            _renderMapTimeline(dayActs);
-            _renderMapFilters(dayActs);
 
             // Effacer les anciens marqueurs/polylines
             _mapMarkers.forEach(m => m.setMap(null));
