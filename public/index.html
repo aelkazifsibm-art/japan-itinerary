@@ -5624,7 +5624,7 @@
                     // Sans loading=async pour compatibilité maximale
                     const timer = setTimeout(() => reject(new Error('Timeout 12s — réseau lent ou clé refusée')), 12000);
                     const s = document.createElement('script');
-                    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&language=fr&v=weekly`;
+                    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&language=fr&v=weekly`;
                     s.onload = () => {
                         clearTimeout(timer);
                         _mapLog('✅','Script Maps chargé', 'google.maps disponible: ' + !!window.google?.maps);
@@ -6122,250 +6122,9 @@
             }
         }
 
-        function _renderMapTimeline(dayActs) {
-            // Supprimer ancienne timeline
-            const old = document.getElementById('map-timeline');
-            if (old) old.remove();
+        function _renderMapTimeline() {}  // supprimé — infos déjà en bas
 
-            if (dayActs.length === 0) return;
-
-            const dk = document.documentElement.classList.contains('dark');
-            const timeline = document.createElement('div');
-            timeline.id = 'map-timeline';
-            timeline.style.cssText = `
-                position:absolute;left:0;right:0;
-                bottom:8px;
-                padding:8px 12px;
-                display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;
-                z-index:19;pointer-events:auto;
-                -webkit-overflow-scrolling:touch;`;
-
-            dayActs.forEach((act, idx) => {
-                const color = MAP_THEME_COLORS[getThemeKey(act)] || '#7c3aed';
-                const chip = document.createElement('button');
-                chip.id = 'map-tl-' + idx;
-                chip.style.cssText = `
-                    flex-shrink:0;display:flex;flex-direction:column;align-items:center;
-                    padding:7px 12px;border-radius:14px;border:none;cursor:pointer;
-                    background:${dk ? 'rgba(30,41,59,0.92)' : 'rgba(255,255,255,0.92)'};
-                    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-                    box-shadow:0 2px 8px rgba(0,0,0,0.18);
-                    transition:all 0.25s;min-width:36px;padding:6px 8px;`;
-                chip.innerHTML =
-                    '<div style="width:28px;height:28px;border-radius:50%;background:' + color + ';color:white;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.3)">' + (idx+1) + '</div>';
-                chip.onclick = () => {
-                    const coords = getActCoords(act);
-                    if (coords && _gmap) _gmap.panTo(coords);
-                    showMapPopup(act, idx+1, color);
-                    _highlightTimelineStep(idx);
-                };
-                timeline.appendChild(chip);
-            });
-
-            document.getElementById('map-zone').appendChild(timeline);
-        }
-
-        function _highlightTimelineStep(activeIdx) {
-            const dk = document.documentElement.classList.contains('dark');
-            document.querySelectorAll('[id^="map-tl-"]').forEach((chip, idx) => {
-                const act = dayActivities[idx];
-                if (!act) return;
-                const color = MAP_THEME_COLORS[getThemeKey(act)] || '#7c3aed';
-                if (idx === activeIdx) {
-                    chip.style.background = color;
-                    chip.style.transform = 'scale(1.08) translateY(-2px)';
-                    chip.style.boxShadow = '0 4px 16px ' + color + '55';
-                    chip.querySelectorAll('div').forEach(d => { d.style.color = 'white'; });
-                    chip.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
-                } else {
-                    chip.style.background = dk ? 'rgba(30,41,59,0.92)' : 'rgba(255,255,255,0.92)';
-                    chip.style.transform = '';
-                    chip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
-                }
-            });
-        }
-
-
-        // ═══════════════════════════════════════════════════════════
-        //  SWIPE CARTE — overlay transparent au-dessus de Google Maps
-        // ═══════════════════════════════════════════════════════════
-        let _mapCurrentActIndex = 0;
-
-        function _initMapSwipe() {
-            const prev = document.getElementById('map-swipe-overlay');
-            if (prev) prev.remove();
-
-            // Overlay transparent qui capture les swipes H avant Google Maps
-            const ov = document.createElement('div');
-            ov.id = 'map-swipe-overlay';
-            // position:absolute pour rester dans map-view, z-index entre gmap(0) et popup(25)
-            // bottom = hauteur barre bas + hauteur popup éventuelle — on couvre juste la zone carte
-            ov.style.cssText = 'position:absolute;inset:0;z-index:16;touch-action:pan-y;pointer-events:auto;';
-            document.getElementById('gmap').after(ov);
-            ov.style.bottom = '0';
-
-            let sx = 0, sy = 0, live = false, locked = false, isH = false;
-
-            ov.addEventListener('touchstart', e => {
-                if (e.touches.length !== 1) return;
-                sx   = e.touches[0].clientX;
-                sy   = e.touches[0].clientY;
-                live = true; locked = false; isH = false;
-            }, { passive: true });
-
-            ov.addEventListener('touchmove', e => {
-                if (!live || e.touches.length !== 1) return;
-                const dx = e.touches[0].clientX - sx;
-                const dy = e.touches[0].clientY - sy;
-                if (!locked) {
-                    if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
-                    locked = true;
-                    isH = Math.abs(dx) > Math.abs(dy) * 1.2;
-                    if (!isH) {
-                        // Swipe vertical → laisser Maps pan
-                        ov.style.pointerEvents = 'none';
-                        setTimeout(() => { ov.style.pointerEvents = 'auto'; }, 400);
-                        live = false;
-                        return;
-                    }
-                }
-                if (isH) {
-                    e.preventDefault();
-                    if (Math.abs(dx) > 24) _showSwipeHint(dx > 0 ? 'prev' : 'next');
-                }
-            }, { passive: false });
-
-            ov.addEventListener('touchend', e => {
-                const wasLive = live; live = false; _hideSwipeHint();
-                if (!wasLive || !isH) return;
-                const dx = e.changedTouches[0].clientX - sx;
-                const dy = e.changedTouches[0].clientY - sy;
-                if (Math.abs(dx) < 52 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-
-                const geoActs = dayActivities.filter(a => getActCoords(a));
-                if (geoActs.length < 2) return;
-                const prev = _mapCurrentActIndex;
-                if (dx < 0) _mapCurrentActIndex = Math.min(_mapCurrentActIndex + 1, geoActs.length - 1);
-                else        _mapCurrentActIndex = Math.max(_mapCurrentActIndex - 1, 0);
-                if (_mapCurrentActIndex === prev) return;
-
-                const act = geoActs[_mapCurrentActIndex];
-                const realIdx = dayActivities.findIndex(a => a.id === act.id);
-                const color   = MAP_THEME_COLORS[getThemeKey(act)] || '#7c3aed';
-                if (_gmap) { const c = getActCoords(act); if (c) _gmap.panTo(c); if (_gmap.getZoom() < 14) _gmap.setZoom(15); }
-                showMapPopup(act, realIdx + 1, color);
-                if (navigator.vibrate) navigator.vibrate(20);
-            }, { passive: true });
-
-            _updateMapGestureIndicator();
-        }
-
-
-        function _updateMapGestureIndicator() {
-            const bar = document.getElementById('map-header-bar');
-            if (!bar) return;
-            let badge = document.getElementById('map-gesture-badge');
-            if (!badge) {
-                badge = document.createElement('div');
-                badge.id = 'map-gesture-badge';
-                badge.style.cssText = 'position:absolute;top:-26px;left:50%;' +
-                    'transform:translateX(-50%);white-space:nowrap;font-size:10px;' +
-                    'font-weight:700;padding:3px 10px;border-radius:20px;' +
-                    'pointer-events:none;transition:opacity 1s;';
-                bar.style.position = 'relative';
-                bar.appendChild(badge);
-            }
-            const spread = window._mapMaxSpread || 0;
-            if (window._mapIsCompact) {
-                badge.style.background = 'rgba(22,163,74,0.88)';
-                badge.style.color = 'white';
-                badge.textContent = '📍 Compact · swipe ← → pour naviguer';
-            } else if (spread < 8) {
-                badge.style.background = 'rgba(217,119,6,0.88)';
-                badge.style.color = 'white';
-                badge.textContent = '↔ Swipe pour naviguer entre activités';
-            } else {
-                badge.style.background = 'rgba(124,58,237,0.88)';
-                badge.style.color = 'white';
-                badge.textContent = '↔ Swipe activités · drag pour explorer';
-            }
-            badge.style.opacity = '1';
-            setTimeout(() => { badge.style.opacity = '0'; }, 3500);
-        }
-
-        function _showSwipeHint(dir) {
-            let hint = document.getElementById('map-swipe-hint');
-            if (!hint) {
-                hint = document.createElement('div');
-                hint.id = 'map-swipe-hint';
-                hint.style.cssText = 'position:absolute;top:50%;z-index:25;' +
-                    'pointer-events:none;font-size:32px;opacity:0;' +
-                    'text-shadow:0 2px 12px rgba(0,0,0,0.6);' +
-                    'transition:opacity 0.15s;transform:translateY(-50%);';
-                document.getElementById('map-view').appendChild(hint);
-            }
-            const geoActs = dayActivities.filter(a => getActCoords(a));
-            const canPrev = _mapCurrentActIndex > 0;
-            const canNext = _mapCurrentActIndex < geoActs.length - 1;
-            if (dir === 'prev') {
-                hint.style.left = '14px'; hint.style.right = '';
-                hint.textContent = canPrev ? '◀' : '✕';
-            } else {
-                hint.style.right = '14px'; hint.style.left = '';
-                hint.textContent = canNext ? '▶' : '✕';
-            }
-            hint.style.opacity = '1';
-        }
-
-        function _hideSwipeHint() {
-            const h = document.getElementById('map-swipe-hint');
-            if (h) h.style.opacity = '0';
-        }
-
-
-
-        // ── Filtres par catégorie (inspiré Voilà) ─────────────────────────────
-        let _mapActiveFilter = null; // null = tout afficher
-
-        function _renderMapFilters(dayActs) {
-            const old = document.getElementById('map-filters');
-            if (old) old.remove();
-            if (dayActs.length < 3) return; // inutile si peu d'activités
-
-            // Compter les thèmes présents
-            const themes = {};
-            dayActs.forEach(a => {
-                const k = getThemeKey(a);
-                if (!themes[k]) themes[k] = { count: 0, color: MAP_THEME_COLORS[k]||'#7c3aed', label: _themeLabel(k), emoji: _themeEmoji(k) };
-                themes[k].count++;
-            });
-            if (Object.keys(themes).length < 2) return; // un seul thème, filtre inutile
-
-            const dk = document.documentElement.classList.contains('dark');
-            const bar = document.createElement('div');
-            bar.id = 'map-filters';
-            bar.style.cssText = 'position:absolute;top:14px;left:0;right:0;' +
-                'display:flex;gap:6px;padding:0 12px;z-index:20;' +
-                'overflow-x:auto;scrollbar-width:none;pointer-events:auto;';
-
-            // Bouton "Tout"
-            const allBtn = document.createElement('button');
-            allBtn.style.cssText = _filterBtnStyle(null, !_mapActiveFilter, '#7c3aed', dk);
-            allBtn.textContent = '🗺 Tout';
-            allBtn.onclick = () => _applyMapFilter(null, dayActs);
-            bar.appendChild(allBtn);
-
-            Object.entries(themes).forEach(([k, t]) => {
-                const btn = document.createElement('button');
-                btn.dataset.theme = k;
-                btn.style.cssText = _filterBtnStyle(k, _mapActiveFilter === k, t.color, dk);
-                btn.textContent = t.emoji + ' ' + t.label + ' (' + t.count + ')';
-                btn.onclick = () => _applyMapFilter(k, dayActs);
-                bar.appendChild(btn);
-            });
-
-            document.getElementById('map-zone').appendChild(bar);
-        }
+        function _highlightTimelineStep() {}  // supprimé
 
         function _filterBtnStyle(theme, active, color, dk) {
             const bg = active ? color : (dk ? 'rgba(15,23,42,0.82)' : 'rgba(255,255,255,0.88)');
@@ -7700,13 +7459,23 @@ async function toggleMapView() {
                 return;
             }
 
-            const service = new google.maps.places.PlacesService(document.createElement('div'));
-            service.nearbySearch({
-                location: _nearbyUserPos,
+            // Utiliser un div attaché au body pour PlacesService (requis par certains navigateurs)
+            const serviceDiv = document.createElement('div');
+            document.body.appendChild(serviceDiv);
+            const service = new google.maps.places.PlacesService(serviceDiv);
+            const req = {
+                location: new google.maps.LatLng(_nearbyUserPos.lat, _nearbyUserPos.lng),
                 radius: typeConf.radius,
-                type: _nearbyType,
                 language: 'fr'
-            }, (results, status) => {
+            };
+            // Certains types nécessitent keyword plutôt que type
+            if (_nearbyType === 'tourist_attraction') {
+                req.keyword = 'tourist attraction sightseeing';
+            } else {
+                req.type = _nearbyType;
+            }
+            service.nearbySearch(req, (results, status) => {
+                serviceDiv.remove();
                 if (status === 'OK' && results) {
                     _nearbyResults = results.slice(0, 8);
                     _renderNearbyResults();
