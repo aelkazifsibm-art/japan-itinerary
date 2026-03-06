@@ -2287,6 +2287,22 @@
             window._navSwipeBlocked = false; // reset à chaque nouveau touch
             touchStartX = e.changedTouches[0].screenX;
             window._touchStartY = e.changedTouches[0].screenY;
+            // Bloquer si le touch commence dans la zone carte ou le panneau bas de carte
+            const t = e.target;
+            if (t && (
+                t.closest('#map-view') ||
+                t.closest('#map-bottom') ||
+                t.closest('#map-zone') ||
+                t.closest('#map-header-bar') ||
+                t.closest('.activity-info-modal') ||
+                t.closest('#ai-planner-panel') ||
+                t.closest('#journal-modal') ||
+                t.closest('#weather-alert-modal') ||
+                t.closest('#nearby-panel') ||
+                t.closest('#lost-modal')
+            )) {
+                window._navSwipeBlocked = true;
+            }
         }, { passive: true });
 
         document.addEventListener('touchend', e => {
@@ -6134,11 +6150,9 @@
                     background:${dk ? 'rgba(30,41,59,0.92)' : 'rgba(255,255,255,0.92)'};
                     backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
                     box-shadow:0 2px 8px rgba(0,0,0,0.18);
-                    transition:all 0.25s;min-width:80px;`;
+                    transition:all 0.25s;min-width:36px;padding:6px 8px;`;
                 chip.innerHTML =
-                    '<div style="width:22px;height:22px;border-radius:50%;background:' + color + ';color:white;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;margin-bottom:3px">' + (idx+1) + '</div>' +
-                    '<div style="font-size:10px;font-weight:700;color:' + (dk?'#f1f5f9':'#1f2937') + ';white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis">' + (act.title.length > 12 ? act.title.slice(0,11)+'…' : act.title) + '</div>' +
-                    '<div style="font-size:9px;color:' + color + ';font-weight:600">' + act.time + '</div>';
+                    '<div style="width:28px;height:28px;border-radius:50%;background:' + color + ';color:white;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.3)">' + (idx+1) + '</div>';
                 chip.onclick = () => {
                     const coords = getActCoords(act);
                     if (coords && _gmap) _gmap.panTo(coords);
@@ -7777,6 +7791,24 @@ async function toggleMapView() {
             return Math.round(R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h)));
         }
 
+
+
+        // ═══════════════════════════════════════════════════════
+        //  FIX — MORE MENU
+        // ═══════════════════════════════════════════════════════
+        function toggleMoreMenu() {
+            const menu = document.getElementById('more-menu');
+            if (!menu) return;
+            const isHidden = menu.classList.contains('hidden');
+            if (isHidden) {
+                menu.classList.remove('hidden');
+                menu.style.display = 'flex';
+                menu.style.alignItems = 'flex-end';
+            } else {
+                menu.classList.add('hidden');
+                menu.style.display = 'none';
+            }
+        }
 
 </script>
 
