@@ -831,9 +831,7 @@
                     <span style="font-size:16px;line-height:1">···</span>
                     <span style="font-size:8px;opacity:0.8;font-weight:700;letter-spacing:0.03em">PLUS</span>
                 </button>
-                <button id="nav-config-btn" onclick="toggleConfigFAB()" class="flex-shrink-0 flex items-center justify-center transition-all" style="width:52px;height:64px;background:rgba(0,0,0,0.18);border-left:1px solid rgba(255,255,255,0.12)" aria-label="Réglages">
-                    <span id="nav-config-icon" style="font-size:17px;opacity:0.85">⚙️</span>
-                </button>
+
             </div>
         </div>
     </div>
@@ -1349,7 +1347,16 @@
         <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-start">
                 <h2 class="text-xl font-bold" id="info-modal-title">Informations</h2>
-                <button onclick="closeActivityInfoModal()" class="text-2xl text-gray-400 hover:text-gray-600">×</button>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <button onclick="closeActivityInfoModal();openConfigScreen()" style="
+                        width:32px;height:32px;border-radius:50%;
+                        background:#f3f4f6;border:none;
+                        font-size:16px;cursor:pointer;
+                        display:flex;align-items:center;justify-content:center;
+                        color:#374151;transition:background 0.15s"
+                        title="Réglages">⚙️</button>
+                    <button onclick="closeActivityInfoModal()" class="text-2xl text-gray-400 hover:text-gray-600">×</button>
+                </div>
             </div>
             
             <div id="info-modal-content" class="space-y-4">
@@ -5998,28 +6005,7 @@
             if (nextBtn) { const d = _mapCurrentActIndex === geoActs.length-1; nextBtn.style.opacity = d?'0.3':'1'; nextBtn.disabled = d; }
 
             // ── Chips activités ────────────────────────────────────────────
-            const chipsEl = document.getElementById('map-popup-chips');
-            if (chipsEl) {
-                chipsEl.innerHTML = '';
-                dayActivities.forEach((a, idx) => {
-                    const isSelected = a.id === act.id;
-                    const aColor = MAP_THEME_COLORS[getThemeKey(a)] || '#7c3aed';
-                    const chip = document.createElement('button');
-                    chip.style.cssText = 'flex-shrink:0;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;border:none;cursor:pointer;transition:all 0.2s;' +
-                        (isSelected ? 'background:' + aColor + ';color:white;transform:scale(1.05);box-shadow:0 2px 8px ' + aColor + '55' : 'background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6)');
-                    chip.textContent = (idx+1) + '. ' + (a.title.length > 14 ? a.title.slice(0,13)+'…' : a.title);
-                    chip.onclick = () => {
-                        const coords = getActCoords(a);
-                        if (coords && _gmap) _gmap.panTo(coords);
-                        showMapPopup(a, idx+1, MAP_THEME_COLORS[getThemeKey(a)]||'#7c3aed');
-                    };
-                    chipsEl.appendChild(chip);
-                });
-                setTimeout(() => {
-                    const sel = chipsEl.querySelectorAll('button')[dayActivities.findIndex(a => a.id === act.id)];
-                    if (sel) sel.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
-                }, 50);
-            }
+            
 
             // ── Timeline + pan carte ───────────────────────────────────────
             _highlightTimelineStep(num - 1);
@@ -7752,11 +7738,7 @@ async function toggleMapView() {
                     <span>Partager ce lieu</span>
                 </button>
 
-                <!-- Chips toutes activités -->
-                <div id="map-popup-chips" style="
-                    display:flex;gap:6px;
-                    overflow-x:auto;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 4px);
-                    scrollbar-width:none;-webkit-overflow-scrolling:touch"></div>
+
             </div>
         </div>
 
