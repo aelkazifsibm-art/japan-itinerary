@@ -426,7 +426,7 @@ Format exact attendu :
             console.error('[activity-info] JSON.parse error:', parseErr.message, '| raw:', completionText.slice(0, 200));
             // Fallback: construire un objet minimal depuis le texte brut
             info = {
-                why_visit: completionText.slice(0, 300) || `${place_name} est un lieu incontournable au Japon.`,
+                why_visit: `${place_name} est un lieu incontournable au Japon, riche en histoire et en culture.`,
                 history_detail: '', cultural_context: '',
                 crowd_level: 'medium', best_times: ['09:00-11:00', '15:00-17:00'],
                 rules: [], tips: 'Arrivez tôt pour éviter la foule.',
