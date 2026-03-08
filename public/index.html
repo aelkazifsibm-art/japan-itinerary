@@ -639,6 +639,38 @@
     </div>
 
 
+
+    <!-- ══ MODALE GÉNÉRATION PROGRAMME ══════════════════════════════════════ -->
+    <div id="generate-program-modal" class="fixed inset-0 z-[320] hidden" style="background:rgba(0,0,0,0.75);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeGenerateModal()">
+        <div id="gen-modal-inner" style="
+            position:absolute;bottom:0;left:0;right:0;
+            max-width:30rem;margin:0 auto;
+            background:white;
+            border-radius:24px 24px 0 0;
+            max-height:92vh;display:flex;flex-direction:column;
+            overflow:hidden">
+
+            <!-- Handle + Header -->
+            <div style="background:linear-gradient(135deg,#7c3aed,#ec4899);padding:20px 20px 16px;flex-shrink:0">
+                <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.3);margin:0 auto 16px"></div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div>
+                        <div style="font-size:18px;font-weight:900;color:white">🗾 Générer un programme</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px">Programme complet optimisé par IA</div>
+                    </div>
+                    <button onclick="closeGenerateModal()" style="background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:32px;height:32px;color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+                </div>
+            </div>
+
+            <!-- Formulaire / Résultat -->
+            <div id="gen-content" style="flex:1;overflow-y:auto;padding:20px"></div>
+
+            <!-- Footer actions -->
+            <div id="gen-footer" style="padding:12px 16px;border-top:1px solid #f3f4f6;background:white;flex-shrink:0"></div>
+        </div>
+    </div>
+
+
     <!-- ══ MENU "PLUS" ══════════════════════════════════════════════════ -->
     <div id="more-menu" class="fixed inset-0 z-[280] hidden" onclick="if(event.target===this)toggleMoreMenu()">
         <div style="
@@ -681,7 +713,23 @@
                     <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Assistant IA</span>
                 </button>
             </div>
+            <!-- Ligne 3 : Génération programme IA -->
+            <div style="border-top:1px solid rgba(255,255,255,0.08)">
+                <button onclick="openGenerateModal();toggleMoreMenu()" style="
+                    display:flex;align-items:center;gap:12px;
+                    width:100%;padding:13px 20px;
+                    background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(236,72,153,0.1));
+                    border:none;cursor:pointer;text-align:left">
+                    <span style="font-size:24px">🗾</span>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:white;font-weight:800">Générer un programme IA</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Protocole affluence · Horaires réels · Astuces locales</div>
+                    </div>
+                    <span style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;flex-shrink:0">IA</span>
+                </button>
+            </div>
         </div>
+    </div>
     </div>
 
     <!-- ══ MODALE "JE SUIS PERDU" ══════════════════════════════════ -->
@@ -2849,7 +2897,7 @@
                 overlay.remove();
 
                 if (data.success) {
-                    showOptimizationTimeline(data.optimized_activities, data.day_summary, data.energy_level, dayActivities);
+                    showOptimizationTimeline(data.optimized_activities, data.day_summary, data.energy_level, dayActivities, data.warnings || []);
                 } else {
                     alert('Erreur : ' + (data.error || 'Optimisation impossible'));
                 }
@@ -2859,7 +2907,13 @@
             }
         }
 
-        function showOptimizationTimeline(optimized, daySummary, energyLevel, originalActivities) {
+        function showOptimizationTimeline(optimized, daySummary, energyLevel, originalActivities, warnings_list) {
+            // Stocker pour l'édition rapide
+            _currentOptimized = [...optimized];
+            _currentOptSummary = daySummary || '';
+            _currentOptEnergy = energyLevel || '';
+            _currentOptOriginals = originalActivities;
+            _currentOptWarnings = warnings_list || [];
             const energyEmoji = { 'légère': '😌', 'modérée': '🚶', 'soutenue': '💪', 'intense': '🔥' };
             const eEmoji = energyEmoji[energyLevel] || '🧭';
             const dk = document.documentElement.classList.contains('dark');
@@ -2880,28 +2934,48 @@
 
             // Construire la timeline
             let timelineHTML = '';
-            optimized.forEach((act, i) => {
+            optimized.forEach((act, idx) => {
                 const orig = originalActivities.find(a => a.id === act.id);
                 const origTime = orig ? orig.time : act.time;
                 const changed = act.time_changed && origTime !== act.time;
+                const isLast = idx === optimized.length - 1;
 
                 timelineHTML += `
                 <div class="flex gap-3">
+                    <!-- Heure + ligne verticale -->
                     <div class="flex flex-col items-center w-14 flex-shrink-0">
                         <div class="text-xs font-black whitespace-nowrap" style="color:${changed ? timeTxt : grayTimeTxt}">${act.time}</div>
-                        <div class="w-0.5 flex-1 bg-gradient-to-b from-purple-300 to-pink-200 mt-1 min-h-[20px]"></div>
+                        ${!isLast ? `<div class="w-0.5 flex-1 bg-gradient-to-b from-purple-300 to-pink-200 mt-1 min-h-[24px]"></div>` : ''}
                     </div>
-                    <div class="flex-1 pb-2">
-                        <div class="rounded-2xl p-3.5 border-2 shadow-sm mb-1" style="background:${changed ? changedBg : cardBg};border-color:${changed ? changedBd : (dk?'#334155':'#f3f4f6')}">
-                            <div class="flex items-start justify-between gap-2">
+                    <!-- Contenu -->
+                    <div class="flex-1 pb-3">
+                        <div class="rounded-2xl p-3.5 border-2 shadow-sm" data-opt-id="${act.id}" style="background:${changed ? changedBg : cardBg};border-color:${changed ? changedBd : '#e5e7eb'};transition:transform .2s">
+                            <!-- Titre + badge -->
+                            <div class="flex items-start justify-between gap-2 mb-1">
                                 <div class="font-bold text-sm leading-snug" style="color:${cardText}">${act.title}</div>
                                 ${changed
-                                    ? '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 mt-0.5" style="background:' + changedBadgeBg + ';color:' + changedBadgeTxt + '">' + origTime + ' → ' + act.time + '</span>'
-                                    : '<span class="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style="background:' + unchangedBg + ';color:' + unchangedTxt + '">Inchangé</span>'}
+                                    ? `<span class="text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 mt-0.5" style="background:${changedBadgeBg};color:${changedBadgeTxt}">↺ modifié</span>`
+                                    : `<span class="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style="background:${unchangedBg};color:${unchangedTxt}">inchangé</span>`
+                                }
                             </div>
-                            ${act.reason ? '<div class="text-[11px] mt-1.5 leading-snug" style="color:' + reasonTxt + '">💡 ' + act.reason + '</div>' : ''}
+                            <!-- Durée -->
+                            <div class="text-[11px] mb-1.5" style="color:${cardSub}">⏱ ${act.duration_minutes || 90} min</div>
+                            <!-- Raison de l'IA -->
+                            ${act.reason ? `<div class="text-[11px] leading-snug mb-1.5" style="color:${reasonTxt}">💡 ${act.reason}</div>` : ''}
+                            <!-- Astuce locale -->
+                            ${act.local_tip ? `<div class="text-[11px] leading-snug mb-1.5" style="color:${breathTxt}">🤫 ${act.local_tip}</div>` : ''}
+                            <!-- Alerte accessibilité -->
+                            ${act.accessibility_note ? `<div class="text-[11px] leading-snug px-2 py-1.5 rounded-xl mt-1" style="background:#fef3c7;color:#92400e">⚠️ ${act.accessibility_note}</div>` : ''}
                         </div>
-                        ${act.breathing_after_minutes > 0 ? '<div class="flex items-center gap-2 pl-2 py-1"><div class="text-base">🌬️</div><div><div class="text-[10px] font-bold" style="color:' + breathTxt + '">' + act.breathing_after_minutes + 'min de respiration</div><div class="text-[10px]" style="color:' + breathSub + '">' + act.breathing_reason + '</div></div></div>' : ''}
+                        <!-- Marge de respiration -->
+                        ${act.breathing_after_minutes > 0 ? `
+                        <div class="flex items-center gap-2 pl-2 py-2">
+                            <div class="text-base">🌿</div>
+                            <div>
+                                <div class="text-[11px] font-bold" style="color:${breathTxt}">${act.breathing_after_minutes} min de pause</div>
+                                ${act.breathing_reason ? `<div class="text-[10px]" style="color:${breathSub}">${act.breathing_reason}</div>` : ''}
+                            </div>
+                        </div>` : ''}
                     </div>
                 </div>`;
             });
@@ -2933,26 +3007,551 @@
                         </div>
                     </div>
 
-                    <!-- Actions -->
+                    <!-- Warnings IA (accessibilité, fermetures) -->
+                    ${(data_warnings => data_warnings && data_warnings.length ? `
+                    <div style="padding:10px 16px;background:#fef3c7;border-top:1px solid #fde68a">
+                        ${data_warnings.map(w => `<div style="font-size:11px;color:#92400e;margin-bottom:2px">⚠️ ${w}</div>`).join('')}
+                    </div>` : '')(warnings_list)}
+
+                    <!-- Barre d'édition rapide -->
+                    <div style="padding:10px 16px;border-top:1px solid ${_dkM?'#334155':'#f3f4f6'};background:${_dkM?'#1e293b':'#f8fafc'}">
+                        <div style="font-size:10px;font-weight:700;color:${_dkM?'#64748b':'#9ca3af'};margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Édition rapide</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                            <button onclick="window._optRemoveLast()" style="padding:5px 10px;background:${_dkM?'#1e1b4b':'#faf5ff'};border:1.5px solid #e9d5ff;border-radius:10px;font-size:11px;font-weight:700;color:#7c3aed;cursor:pointer">
+                                − Retirer la dernière
+                            </button>
+                            <button onclick="window._optAddBreak()" style="padding:5px 10px;background:${_dkM?'#022c22':'#f0fdf4'};border:1.5px solid #86efac;border-radius:10px;font-size:11px;font-weight:700;color:#15803d;cursor:pointer">
+                                + Pause 30min
+                            </button>
+                            <button onclick="window._optFatigue()" style="padding:5px 10px;background:${_dkM?'#1c1917':'#fff7ed'};border:1.5px solid #fed7aa;border-radius:10px;font-size:11px;font-weight:700;color:#c2410c;cursor:pointer">
+                                😮‍💨 Mode fatigue
+                            </button>
+                        </div>
+                        <div style="font-size:10px;color:${_dkM?'#475569':'#d1d5db'};margin-top:6px">Astuce : swipe ← une activité pour la retirer du planning</div>
+                    </div>
+
+                    <!-- Actions principales -->
                     <div class="p-4 flex gap-3 flex-shrink-0 rounded-b-3xl sm:rounded-b-2xl" style="border-top:1px solid ${_dkM?'#334155':'#f3f4f6'};background:${_dkM?'#0f172a':'white'}">
-                        <button onclick="document.getElementById('optimization-modal').remove()" 
+                        <button onclick="document.getElementById('optimization-modal').remove()"
                                 class="flex-1 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all" style="background:${dk?'#1e293b':'#f3f4f6'};color:${dk?'#cbd5e1':'#4b5563'}">
                             Annuler
                         </button>
                         <button onclick="applyOptimization(${JSON.stringify(optimized).replace(/"/g, '&quot;')})"
-                                class="flex-[2] bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-black text-sm shadow-lg active:scale-95 transition-all">
+                                class="flex-[2] bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-black text-sm active:scale-95 transition-all shadow-lg">
                             ✅ Appliquer ce planning
                         </button>
                     </div>
                 </div>
             `;
             document.body.appendChild(modal);
+            setTimeout(_attachOptSwipe, 100);
         }
 
         function closeOptimizationModal() {
             const modal = document.getElementById('optimization-modal');
             if (modal) modal.remove();
         }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // GÉNÉRATION DE PROGRAMME COMPLET
+        // ══════════════════════════════════════════════════════════════════════
+
+        let _genProgram = [];       // programme généré en cours
+        let _genDayStart = 0;       // jour de départ dans le voyage
+        let _genNbDays  = 0;
+
+        function openGenerateModal() {
+            const modal = document.getElementById('generate-program-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'flex-end';
+            _renderGenForm();
+        }
+
+        function closeGenerateModal() {
+            document.getElementById('generate-program-modal').classList.add('hidden');
+        }
+
+        function _renderGenForm() {
+            const content = document.getElementById('gen-content');
+            const footer  = document.getElementById('gen-footer');
+
+            // Pré-remplir avec les données du séjour actif
+            const stay = getStayForDay(currentDayIndex);
+            const cityDefault = stay?.city || 'Tokyo';
+            const hotelDefault = stay?.hotelName || '';
+            const hotelAddrDefault = stay?.address || stay?.place?.formatted_address || '';
+            const remainingDays = tripData ? Math.max(1, tripData.totalDays - currentDayIndex) : 3;
+            const defaultDays = Math.min(4, remainingDays);
+
+            content.innerHTML = `
+                <!-- Zone / Ville -->
+                <div style="margin-bottom:14px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Zone / Ville</label>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="gen-zone-pills">
+                        ${['Tokyo','Kyoto','Osaka','Nara','Hakone','Hiroshima'].map(z => `
+                        <button onclick="_genSelectZone('${z}')" id="gen-zone-${z}" style="
+                            padding:6px 14px;border-radius:20px;border:2px solid ${z===cityDefault?'#7c3aed':'#e5e7eb'};
+                            background:${z===cityDefault?'#faf5ff':'white'};
+                            color:${z===cityDefault?'#7c3aed':'#6b7280'};
+                            font-size:12px;font-weight:700;cursor:pointer">${z}</button>`).join('')}
+                    </div>
+                    <input id="gen-zone-custom" type="text" placeholder="Autre zone..."
+                        value="${['Tokyo','Kyoto','Osaka','Nara','Hakone','Hiroshima'].includes(cityDefault)?'':cityDefault}"
+                        style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 12px;font-size:13px;box-sizing:border-box;outline:none"
+                        oninput="_genClearZonePills()">
+                </div>
+
+                <!-- Hôtel -->
+                <div style="margin-bottom:14px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Hôtel / Point de départ</label>
+                    <input id="gen-hotel" type="text" placeholder="Nom de votre hôtel"
+                        value="${hotelDefault}"
+                        style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 12px;font-size:13px;box-sizing:border-box;outline:none;margin-bottom:6px">
+                    <input id="gen-hotel-addr" type="text" placeholder="Adresse (optionnel)"
+                        value="${hotelAddrDefault}"
+                        style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 12px;font-size:13px;box-sizing:border-box;outline:none">
+                </div>
+
+                <!-- Nombre de jours -->
+                <div style="margin-bottom:14px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Nombre de jours — <span id="gen-days-label">${defaultDays}</span></label>
+                    <input id="gen-days" type="range" min="1" max="${Math.min(7, remainingDays)}" value="${defaultDays}"
+                        oninput="document.getElementById('gen-days-label').textContent=this.value"
+                        style="width:100%;accent-color:#7c3aed">
+                    <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-top:3px">
+                        <span>1 jour</span><span>${Math.min(7, remainingDays)} jours max</span>
+                    </div>
+                </div>
+
+                <!-- Jour de départ dans le voyage -->
+                <div style="margin-bottom:14px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Commencer à partir du jour</label>
+                    <select id="gen-start-day" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px 12px;font-size:13px;background:white;outline:none">
+                        ${tripData ? Array.from({length: tripData.totalDays}, (_,i) => {
+                            const d = getDayDate(i);
+                            const label = d ? formatDate(d) : 'Jour ' + (i+1);
+                            return `<option value="${i}" ${i===currentDayIndex?'selected':''}>${'Jour ' + (i+1)} — ${label}</option>`;
+                        }).join('') : `<option value="0">Jour 1</option>`}
+                    </select>
+                </div>
+
+                <!-- Intensité -->
+                <div style="margin-bottom:6px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Intensité du programme</label>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                        ${[
+                            {id:'relax',  emoji:'😌', label:'Relax',   sub:'2-3 activités/jour'},
+                            {id:'normal', emoji:'🚶', label:'Équilibré',sub:'4 activités/jour'},
+                            {id:'intense',emoji:'🔥', label:'Intense', sub:'5 activités/jour'}
+                        ].map(item => `
+                        <button onclick="_genSelectIntensity('${item.id}')" id="gen-int-${item.id}" style="
+                            border-radius:14px;border:2px solid ${item.id==='normal'?'#7c3aed':'#e5e7eb'};
+                            background:${item.id==='normal'?'#faf5ff':'white'};
+                            padding:10px 6px;cursor:pointer;text-align:center">
+                            <div style="font-size:22px;margin-bottom:3px">${item.emoji}</div>
+                            <div style="font-size:12px;font-weight:800;color:${item.id==='normal'?'#7c3aed':'#374151'}">${item.label}</div>
+                            <div style="font-size:10px;color:#9ca3af;margin-top:1px">${item.sub}</div>
+                        </button>`).join('')}
+                    </div>
+                </div>
+            `;
+
+            footer.innerHTML = `
+                <button onclick="_launchGenerate()" style="
+                    width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#ec4899);
+                    color:white;border:none;border-radius:16px;font-size:15px;font-weight:900;
+                    cursor:pointer;letter-spacing:.3px">
+                    🗾 Générer le programme
+                </button>
+            `;
+
+            // État initial de la sélection zone
+            window._genSelectedZone = cityDefault;
+            window._genSelectedIntensity = 'normal';
+        }
+
+        window._genSelectZone = function(zone) {
+            window._genSelectedZone = zone;
+            document.getElementById('gen-zone-custom').value = '';
+            ['Tokyo','Kyoto','Osaka','Nara','Hakone','Hiroshima'].forEach(z => {
+                const btn = document.getElementById('gen-zone-' + z);
+                if (!btn) return;
+                const active = z === zone;
+                btn.style.borderColor  = active ? '#7c3aed' : '#e5e7eb';
+                btn.style.background   = active ? '#faf5ff' : 'white';
+                btn.style.color        = active ? '#7c3aed' : '#6b7280';
+            });
+        };
+
+        window._genClearZonePills = function() {
+            window._genSelectedZone = null;
+            ['Tokyo','Kyoto','Osaka','Nara','Hakone','Hiroshima'].forEach(z => {
+                const btn = document.getElementById('gen-zone-' + z);
+                if (btn) { btn.style.borderColor='#e5e7eb'; btn.style.background='white'; btn.style.color='#6b7280'; }
+            });
+        };
+
+        window._genSelectIntensity = function(id) {
+            window._genSelectedIntensity = id;
+            ['relax','normal','intense'].forEach(i => {
+                const btn = document.getElementById('gen-int-' + i);
+                if (!btn) return;
+                const active = i === id;
+                btn.style.borderColor = active ? '#7c3aed' : '#e5e7eb';
+                btn.style.background  = active ? '#faf5ff' : 'white';
+                btn.querySelector('div:nth-child(2)').style.color = active ? '#7c3aed' : '#374151';
+            });
+        };
+
+        async function _launchGenerate() {
+            const zone     = window._genSelectedZone || document.getElementById('gen-zone-custom')?.value?.trim() || 'Tokyo';
+            const hotel    = document.getElementById('gen-hotel')?.value?.trim() || '';
+            const hotelAddr= document.getElementById('gen-hotel-addr')?.value?.trim() || '';
+            const nbDays   = parseInt(document.getElementById('gen-days')?.value || '3');
+            const startDay = parseInt(document.getElementById('gen-start-day')?.value || '0');
+            const intensity= window._genSelectedIntensity || 'normal';
+
+            const content = document.getElementById('gen-content');
+            const footer  = document.getElementById('gen-footer');
+
+            // Loading
+            content.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center">
+                    <div style="font-size:48px;margin-bottom:16px;animation:spin 2s linear infinite">🗾</div>
+                    <div style="font-size:16px;font-weight:900;color:#1f2937;margin-bottom:6px">Génération en cours...</div>
+                    <div style="font-size:13px;color:#9ca3af;margin-bottom:20px">L'IA construit votre programme optimal</div>
+                    <div style="width:200px;height:4px;background:#f3f4f6;border-radius:4px;overflow:hidden">
+                        <div style="height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:4px;animation:progress 3s ease-in-out forwards"></div>
+                    </div>
+                    <div style="font-size:11px;color:#d1d5db;margin-top:10px">Protocole affluence · Horaires réels · Astuces locales</div>
+                </div>
+                <style>
+                    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+                    @keyframes progress { from{width:0%} to{width:90%} }
+                </style>
+            `;
+            footer.innerHTML = '';
+
+            try {
+                const existing = activities.filter(a => a.dayIndex >= startDay && a.dayIndex < startDay + nbDays);
+                const resp = await fetch('/api/generate-program', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        zone, city: getCityForDay(startDay) || zone,
+                        hotel_name: hotel, hotel_address: hotelAddr,
+                        nb_days: nbDays, start_day_index: startDay,
+                        start_date: tripData?.outbound?.departureDate || null,
+                        intensity, existing_activities: existing
+                    })
+                });
+                const data = await resp.json();
+
+                if (data.success) {
+                    _genProgram = data.program;
+                    _genDayStart = startDay;
+                    _genNbDays = nbDays;
+                    _renderGenResult(data);
+                } else {
+                    _renderGenError(data.error || 'Erreur inconnue');
+                }
+            } catch(e) {
+                _renderGenError('Erreur réseau : ' + e.message);
+            }
+        }
+
+        function _renderGenError(msg) {
+            document.getElementById('gen-content').innerHTML = `
+                <div style="text-align:center;padding:40px 20px">
+                    <div style="font-size:40px;margin-bottom:12px">⚠️</div>
+                    <div style="font-size:14px;font-weight:700;color:#dc2626;margin-bottom:6px">Erreur</div>
+                    <div style="font-size:12px;color:#6b7280">${msg}</div>
+                </div>
+            `;
+            document.getElementById('gen-footer').innerHTML = `
+                <button onclick="_renderGenForm()" style="width:100%;padding:12px;background:#f3f4f6;border:none;border-radius:14px;font-weight:700;font-size:13px;cursor:pointer">← Réessayer</button>
+            `;
+        }
+
+        function _renderGenResult(data) {
+            const content = document.getElementById('gen-content');
+            const footer  = document.getElementById('gen-footer');
+
+            let html = `
+                <div style="background:linear-gradient(135deg,#faf5ff,#fdf2f8);border-radius:16px;padding:14px;margin-bottom:16px">
+                    <div style="font-size:13px;font-weight:800;color:#7c3aed;margin-bottom:4px">📋 Programme généré</div>
+                    <div style="font-size:12px;color:#6b7280;line-height:1.5">${data.summary || ''}</div>
+                    <div style="font-size:11px;color:#a78bfa;margin-top:6px">${data.total_activities || 0} activités · Swipe ← pour retirer · Tap pour détails</div>
+                </div>
+            `;
+
+            // Afficher chaque jour
+            data.program.forEach((day, di) => {
+                const dayDate = getDayDate(day.day_index);
+                const dayStr  = dayDate ? formatDate(dayDate) : day.day_label;
+                const quartiers = (day.quartiers || []).join(' → ');
+
+                html += `
+                <div style="margin-bottom:16px">
+                    <!-- En-tête du jour -->
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                        <div style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border-radius:10px;padding:4px 10px;font-size:11px;font-weight:800;flex-shrink:0">Jour ${day.day_index+1}</div>
+                        <div>
+                            <div style="font-size:12px;font-weight:700;color:#1f2937">${dayStr}</div>
+                            ${quartiers ? `<div style="font-size:10px;color:#9ca3af">${quartiers}</div>` : ''}
+                        </div>
+                    </div>
+                    <!-- Activités du jour -->
+                    <div id="gen-day-${di}" style="display:flex;flex-direction:column;gap:6px">
+                `;
+
+                day.activities.forEach((act, ai) => {
+                    html += `
+                    <div id="gen-act-${di}-${ai}" data-di="${di}" data-ai="${ai}" style="
+                        display:flex;gap:10px;align-items:flex-start;
+                        background:white;border:1.5px solid #f3f4f6;border-radius:14px;
+                        padding:10px 12px;position:relative;overflow:hidden;
+                        transition:transform .2s,opacity .2s">
+                        <!-- Heure -->
+                        <div style="font-size:11px;font-weight:800;color:#7c3aed;width:38px;flex-shrink:0;padding-top:1px">${act.time}</div>
+                        <!-- Contenu -->
+                        <div style="flex:1;min-width:0">
+                            <div style="font-size:13px;font-weight:700;color:#1f2937;line-height:1.3">${act.title}</div>
+                            <div style="font-size:10px;color:#9ca3af;margin-top:2px">⏱ ${act.duration_minutes} min</div>
+                            ${act.local_tip ? `<div style="font-size:11px;color:#0d9488;margin-top:4px;line-height:1.4">🤫 ${act.local_tip}</div>` : ''}
+                        </div>
+                        <!-- Bouton supprimer -->
+                        <button onclick="_genRemoveActivity(${di},${ai})" style="
+                            background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;
+                            padding:4px 8px;font-size:11px;font-weight:700;color:#dc2626;
+                            cursor:pointer;flex-shrink:0">✕</button>
+                    </div>`;
+                });
+
+                html += `
+                    </div>
+                    <!-- Ajouter activité à ce jour -->
+                    <button onclick="_genAddToDay(${di})" style="
+                        width:100%;margin-top:6px;padding:8px;
+                        border:2px dashed #e9d5ff;border-radius:12px;
+                        background:#faf5ff;color:#a78bfa;
+                        font-size:12px;font-weight:700;cursor:pointer">
+                        + Ajouter une activité ce jour
+                    </button>
+                </div>`;
+            });
+
+            content.innerHTML = html;
+
+            // Swipe tactile sur les activités pour les retirer
+            _attachGenSwipe();
+
+            footer.innerHTML = `
+                <div style="display:flex;gap:8px">
+                    <button onclick="_renderGenForm()" style="
+                        flex:1;padding:12px;background:#f3f4f6;border:none;border-radius:14px;
+                        font-weight:700;font-size:13px;cursor:pointer;color:#6b7280">← Refaire</button>
+                    <button onclick="_applyGenProgram()" style="
+                        flex:2;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);
+                        color:white;border:none;border-radius:14px;font-weight:900;
+                        font-size:13px;cursor:pointer">
+                        ✅ Ajouter au voyage
+                    </button>
+                </div>
+            `;
+        }
+
+        // Retirer une activité du programme généré
+        window._genRemoveActivity = function(di, ai) {
+            if (!_genProgram[di]) return;
+            const el = document.getElementById(`gen-act-${di}-${ai}`);
+            if (el) { el.style.transform = 'translateX(-100%)'; el.style.opacity = '0'; }
+            setTimeout(() => {
+                _genProgram[di].activities.splice(ai, 1);
+                _renderGenResult({ program: _genProgram, summary: '', total_activities: _genProgram.reduce((s,d)=>s+(d.activities?.length||0),0) });
+            }, 200);
+        };
+
+        // Swipe gauche pour retirer
+        function _attachGenSwipe() {
+            document.querySelectorAll('[id^="gen-act-"]').forEach(el => {
+                let sx = 0;
+                el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive:true });
+                el.addEventListener('touchend', e => {
+                    const dx = e.changedTouches[0].clientX - sx;
+                    if (dx < -70) {
+                        const [,di,ai] = el.id.split('-').map(Number);
+                        window._genRemoveActivity(di, ai);
+                    }
+                }, { passive:true });
+            });
+        }
+
+        // Ajouter une activité libre à un jour
+        window._genAddToDay = function(di) {
+            const title = prompt('Nom de l\'activité à ajouter :');
+            if (!title?.trim()) return;
+            const lastAct = _genProgram[di]?.activities?.slice(-1)[0];
+            const newTime = lastAct ? (() => {
+                const [h,m] = lastAct.time.split(':').map(Number);
+                const total = h*60 + m + (lastAct.duration_minutes||60) + (lastAct.breathing_after||15);
+                return String(Math.floor(total/60)).padStart(2,'0') + ':' + String(total%60).padStart(2,'0');
+            })() : '10:00';
+            _genProgram[di].activities.push({ time: newTime, title, search_query: title + ' ' + (window._genSelectedZone||'Japan'), duration_minutes: 60, type: 'other', local_tip: '', breathing_after: 15 });
+            _renderGenResult({ program: _genProgram, summary: '', total_activities: _genProgram.reduce((s,d)=>s+(d.activities?.length||0),0) });
+        };
+
+        // Appliquer le programme : résoudre chaque activité via activity-analyze et l'ajouter
+        async function _applyGenProgram() {
+            const footer = document.getElementById('gen-footer');
+            const content = document.getElementById('gen-content');
+            footer.innerHTML = '';
+            content.innerHTML = `
+                <div style="text-align:center;padding:40px 20px">
+                    <div style="font-size:40px;margin-bottom:12px;animation:spin 2s linear infinite">⚙️</div>
+                    <div style="font-size:15px;font-weight:900;color:#1f2937;margin-bottom:6px">Application en cours...</div>
+                    <div id="gen-apply-status" style="font-size:12px;color:#9ca3af">Résolution des lieux...</div>
+                    <div style="width:200px;height:4px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin:16px auto 0">
+                        <div id="gen-apply-bar" style="height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:4px;width:0%;transition:width .4s"></div>
+                    </div>
+                </div>
+                <style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
+            `;
+
+            const allActs = _genProgram.flatMap(day => day.activities.map(a => ({ ...a, day_index: day.day_index })));
+            let added = 0;
+            const total = allActs.length;
+
+            for (const act of allActs) {
+                const statusEl = document.getElementById('gen-apply-status');
+                const barEl    = document.getElementById('gen-apply-bar');
+                if (statusEl) statusEl.textContent = `Ajout : ${act.title}`;
+                if (barEl) barEl.style.width = Math.round((added/total)*100) + '%';
+
+                try {
+                    const r = await fetch('/api/activity-analyze', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            description: act.search_query || act.title,
+                            time_flexible: true,
+                            day_index: act.day_index
+                        })
+                    });
+                    const d = await r.json();
+                    if (d.success && d.activity) {
+                        activities.push({
+                            id: Date.now() + Math.random(),
+                            dayIndex: act.day_index,
+                            time: act.time,
+                            time_flexible: true,
+                            title: d.activity.title || act.title,
+                            description: act.local_tip || '',
+                            duration_minutes: act.duration_minutes || d.activity.duration_minutes || 90,
+                            place: d.activity.place || null,
+                            source: 'generated'
+                        });
+                    } else {
+                        // Ajouter sans place si l'API échoue
+                        activities.push({
+                            id: Date.now() + Math.random(),
+                            dayIndex: act.day_index,
+                            time: act.time,
+                            time_flexible: true,
+                            title: act.title,
+                            description: act.local_tip || '',
+                            duration_minutes: act.duration_minutes || 90,
+                            place: null,
+                            source: 'generated'
+                        });
+                    }
+                } catch(e) {
+                    activities.push({
+                        id: Date.now() + Math.random(),
+                        dayIndex: act.day_index,
+                        time: act.time,
+                        time_flexible: true,
+                        title: act.title,
+                        description: act.local_tip || '',
+                        duration_minutes: act.duration_minutes || 90,
+                        place: null
+                    });
+                }
+                added++;
+                // Petit délai pour ne pas spammer l'API
+                await new Promise(r => setTimeout(r, 300));
+            }
+
+            activities.sort((a,b) => a.dayIndex !== b.dayIndex ? a.dayIndex-b.dayIndex : a.time.localeCompare(b.time));
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            closeGenerateModal();
+            renderPlanning();
+            showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré par IA', '🗾');
+        }
+
+
+        // ── Édition rapide depuis la modale d'optimisation ─────────────────────
+        let _currentOptimized = [];  // référence vivante pour l'édition
+
+        function _rebuildOptModal(opts, summary, energy, originals, warnings) {
+            const m = document.getElementById('optimization-modal');
+            if (m) { m.remove(); }
+            showOptimizationTimeline(opts, summary, energy, originals, warnings);
+        }
+
+        // Retirer la dernière activité du planning optimisé
+        window._optRemoveLast = function() {
+            if (_currentOptimized.length <= 1) return;
+            _currentOptimized = _currentOptimized.slice(0, -1);
+            _rebuildOptModal(_currentOptimized, _currentOptSummary, _currentOptEnergy, _currentOptOriginals, _currentOptWarnings);
+        };
+
+        // Ajouter une pause de 30min
+        window._optAddBreak = function() {
+            const lastAct = _currentOptimized[_currentOptimized.length - 1];
+            if (lastAct) {
+                lastAct.breathing_after_minutes = (lastAct.breathing_after_minutes || 0) + 30;
+                lastAct.breathing_reason = 'Pause ajoutée manuellement';
+                _rebuildOptModal(_currentOptimized, _currentOptSummary, _currentOptEnergy, _currentOptOriginals, _currentOptWarnings);
+            }
+        };
+
+        // Mode fatigue : retirer les 2 activités les plus longues/lointaines
+        window._optFatigue = function() {
+            if (_currentOptimized.length <= 2) return;
+            // Trier par durée décroissante et retirer la plus longue activité non-première
+            const sorted = [..._currentOptimized].slice(1).sort((a,b) => (b.duration_minutes||90) - (a.duration_minutes||90));
+            const toRemove = sorted[0]?.id;
+            if (toRemove) {
+                _currentOptimized = _currentOptimized.filter(a => a.id !== toRemove);
+                // Réduire toutes les durées de 15%
+                _currentOptimized = _currentOptimized.map(a => ({...a, duration_minutes: Math.round((a.duration_minutes||90)*0.85)}));
+                _rebuildOptModal(_currentOptimized, _currentOptSummary + ' (mode fatigue)', 'légère', _currentOptOriginals, _currentOptWarnings);
+            }
+        };
+
+        // Swipe gauche pour retirer une activité de la timeline (dans la modale)
+        function _attachOptSwipe() {
+            document.querySelectorAll('[data-opt-id]').forEach(el => {
+                let sx = 0;
+                el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive:true });
+                el.addEventListener('touchend', e => {
+                    const dx = e.changedTouches[0].clientX - sx;
+                    if (dx < -80) {
+                        const id = parseInt(el.dataset.optId);
+                        _currentOptimized = _currentOptimized.filter(a => a.id !== id);
+                        if (_currentOptimized.length > 0) {
+                            _rebuildOptModal(_currentOptimized, _currentOptSummary, _currentOptEnergy, _currentOptOriginals, _currentOptWarnings);
+                        }
+                    }
+                }, { passive:true });
+            });
+        }
+
+        let _currentOptSummary = '', _currentOptEnergy = '', _currentOptOriginals = [], _currentOptWarnings = [];
+
 
         function applyOptimization(optimizedActivities) {
             activities = activities.filter(a => a.dayIndex !== currentDayIndex);

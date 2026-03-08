@@ -720,6 +720,125 @@ Format exact: {"why_visit":"...","best_time":"...","duration_minutes":90,"crowd_
 });
 
 // --- OPTIMISATION JOURNÉE ---
+// ── GÉNÉRATION DE PROGRAMME COMPLET ─────────────────────────────────────────
+app.post("/api/generate-program", async (req, res) => {
+    try {
+        const { zone, city, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities } = req.body;
+
+        if (!zone || !nb_days) return res.status(400).json({ success: false, error: 'Zone et nb_days requis' });
+
+        // Calculer les jours de semaine réels
+        const dayNames = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+        const daysInfo = Array.from({ length: nb_days }, (_, i) => {
+            if (!start_date) return { index: (start_day_index||0) + i, name: 'Jour ' + (i+1), isWeekend: false };
+            const d = new Date(start_date);
+            d.setDate(d.getDate() + (start_day_index||0) + i);
+            const dow = d.getDay();
+            return {
+                index: (start_day_index||0) + i,
+                name: dayNames[dow],
+                isWeekend: dow === 0 || dow === 6,
+                isFriday: dow === 5,
+                date: d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+            };
+        });
+
+        // Activités déjà planifiées pour éviter doublons
+        const existingNames = (existing_activities || []).map(a => a.title?.toLowerCase() || '');
+
+        const intensityProfiles = {
+            relax:   { activitiesPerDay: 3, maxWalkMin: 20, notes: 'Journées légères : 2-3 activités max, longues pauses, éviter les sites bondés' },
+            normal:  { activitiesPerDay: 4, maxWalkMin: 35, notes: 'Journées équilibrées : 4 activités, pauses raisonnables' },
+            intense: { activitiesPerDay: 5, maxWalkMin: 50, notes: 'Journées chargées : 5 activités, pauses courtes, maximum de sites' }
+        };
+        const profile = intensityProfiles[intensity || 'normal'];
+
+        const prompt = `Tu es un expert en voyages au Japon. Génère un programme complet de ${nb_days} jour(s) à ${zone}${city && city !== zone ? ' / ' + city : ''}.
+
+CONTRAINTES OBLIGATOIRES :
+- Hôtel/point de départ : ${hotel_name || 'centre-ville'}${hotel_address ? ' (' + hotel_address + ')' : ''}
+- Intensité : ${intensity || 'normal'} — ${profile.notes}
+- Activités par jour : environ ${profile.activitiesPerDay}
+- Marche max entre activités : ${profile.maxWalkMin} min
+- ZÉRO répétition — chaque lieu est unique dans tout le programme
+- Activités déjà planifiées à éviter absolument : ${existingNames.length ? existingNames.join(', ') : 'aucune'}
+
+PLANNING DES JOURS :
+${daysInfo.map(d => `- Jour ${d.index + 1} (${d.name}${d.date ? ', ' + d.date : ''})${d.isWeekend ? ' ← WEEKEND : sites bondés, arriver tôt' : d.isFriday ? ' ← Vendredi : affluence modérée en fin de journée' : ' ← Semaine : créneau idéal'}`).join('\n')}
+
+PROTOCOLE DE SÉLECTION DES ACTIVITÉS :
+1. GROUPER par quartier — 1 quartier par demi-journée (ne jamais traverser la ville pour une seule activité)
+2. ALTERNER les types : temple → marché/street food → musée ou parc → activité culturelle/shopping
+3. HORAIRES D'OUVERTURE : musées = fermés lundi, marchés = matin seulement, temples = 6h-17h
+4. WEEKEND : placer les temples/parcs en début de matinée (avant 9h) pour éviter les foules
+5. PETIT-DÉJEUNER : toujours commencer par konbini ou kissaten (café rétro japonais) — local et rapide
+6. DÉJEUNER : teishoku dans restaurant de quartier (pas en zone touristique) — intégrer comme vraie activité
+7. ACCESSIBILITÉ : éviter les onsen avec règles strictes sur tattoos/étrangers sauf mention explicite
+8. ASTUCES LOCALES : intégrer des activités que les locaux font (marchés de quartier, parcs locaux, ramen de minuit)
+9. IMMERSION : 1 activité "hors-touristes" par jour minimum
+
+LIEUX INCONTOURNABLES PAR ZONE (à répartir sur les jours, sans tout mettre le même jour) :
+${zone.toLowerCase().includes('tokyo') ? `Tokyo : Senso-ji (Asakusa), Shinjuku Gyoen, Tsukiji outer market, Harajuku/Takeshita, Shimokitazawa (quartier local), Yanaka (vieux Tokyo), Akihabara, Odaiba, Meiji Jingu, teamLab (musée numérique), marché de Koenji, izakaya de Yurakucho` : ''}
+${zone.toLowerCase().includes('kyoto') ? `Kyoto : Fushimi Inari (avant 7h!), Arashiyama bamboo (tôt matin), Nishiki market (matin), Philosopher's Path, Gion le soir, Kinkaku-ji, Nijo Castle, Pontocho le soir` : ''}
+${zone.toLowerCase().includes('osaka') ? `Osaka : Dotonbori (soir), Kuromon market (matin), Osaka Castle, Shinsekai, Den Den Town, Hozenji Yokocho, street food Namba` : ''}
+
+Réponds UNIQUEMENT avec ce JSON exact (SANS backticks, SANS markdown, SANS texte autour) :
+{
+  "program": [
+    {
+      "day_index": 0,
+      "day_label": "Jour 1 — Asakusa & Ueno",
+      "quartiers": ["Asakusa", "Ueno"],
+      "activities": [
+        {
+          "time": "08:00",
+          "title": "Petit-déjeuner au konbini 7-Eleven",
+          "search_query": "7-Eleven convenience store Asakusa Tokyo",
+          "duration_minutes": 20,
+          "type": "food",
+          "local_tip": "Onigiri au saumon et café chaud — petit-déj local pour 300¥",
+          "breathing_after": 0
+        },
+        {
+          "time": "08:30",
+          "title": "Senso-ji Temple",
+          "search_query": "Senso-ji Temple Asakusa Tokyo",
+          "duration_minutes": 75,
+          "type": "temple",
+          "local_tip": "Arriver avant 9h pour la lumière dorée et éviter les groupes",
+          "breathing_after": 15
+        }
+      ]
+    }
+  ],
+  "summary": "Programme équilibré entre temples emblématiques et immersion locale",
+  "total_activities": 12
+}`;
+
+        const raw = await anthropicChat(
+            "Expert voyages Japon. Réponds UNIQUEMENT en JSON brut valide, SANS backticks ni markdown.",
+            prompt, 3000
+        );
+
+        let parsed;
+        try {
+            parsed = JSON.parse(raw);
+        } catch(e) {
+            const m = raw.match(/\{[\s\S]*\}/);
+            if (m) { try { parsed = JSON.parse(m[0]); } catch(e2) { throw new Error('JSON invalide: ' + e.message); } }
+            else throw new Error('Réponse IA non-JSON');
+        }
+
+        if (!parsed?.program) throw new Error('Structure JSON inattendue');
+
+        res.json({ success: true, program: parsed.program, summary: parsed.summary, total_activities: parsed.total_activities });
+
+    } catch(e) {
+        console.error('generate-program error:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.post("/api/optimize-day", async (req, res) => {
     try {
         const { activities, day_index, hotel } = req.body;
@@ -738,27 +857,88 @@ app.post("/api/optimize-day", async (req, res) => {
             is_flexible: a.time_flexible !== false
         }));
 
-        const prompt = `Tu es un expert en planification d'itinéraires au Japon. Crée un planning de journée optimal et humain.
+        // Contexte jour (date réelle pour calcul affluence)
+        const dayDate = (() => {
+            try {
+                const d = new Date(req.body.start_date || Date.now());
+                d.setDate(d.getDate() + (day_index || 0));
+                return d;
+            } catch(e) { return new Date(); }
+        })();
+        const dayOfWeek = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'][dayDate.getDay()];
+        const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
+        const fatigueMode = req.body.fatigue_mode || false;
+        const weatherMode = req.body.weather_mode || false;
 
-Activités:
+        const prompt = `Tu es un expert en planification d'itinéraires au Japon. Tu dois optimiser une journée de visite.
+
+CONTEXTE DU JOUR :
+- Jour : ${dayOfWeek}${isWeekend ? ' (WEEKEND — affluence élevée partout)' : ' (semaine — plus calme)'}
+- Mode fatigue : ${fatigueMode ? 'OUI — réduire l\'intensité, raccourcir les trajets, pause obligatoire après-midi' : 'NON'}
+- Mode météo adaptif : ${weatherMode ? 'OUI — privilégier les activités couvertes' : 'NON'}
+${hotelName ? `- Point de départ/retour : ${hotelName}` : ''}
+
+ACTIVITÉS À PLANIFIER :
 ${JSON.stringify(activitiesContext, null, 2)}
 
-${hotelName ? `Point de départ: ${hotelName}` : ''}
+PROTOCOLE D'OPTIMISATION (à appliquer dans cet ordre) :
 
-RÈGLES:
-1. Respecter les vrais horaires d'ouverture
-2. Éviter les pics d'affluence touristique
-3. Optimiser l'ordre géographique pour minimiser les trajets
-4. Ne JAMAIS changer is_flexible:false
-5. Marges de respiration INTELLIGENTES (temps de flâner, se perdre, souffler):
-   - Lieux proches: 15-20min
-   - Lieux éloignés: 30-45min
-   - Après marché/repas: 20min
-   - Après site intense/randonnée: 30min
-6. Journée réaliste: début 08h-09h, fin avant 21h
-7. Activités physiques le matin, culturelles/légères l'après-midi
+1. ACCESSIBILITÉ ÉTRANGERS
+   - Certains onsen traditionnels, izakaya locaux, clubs peuvent refuser les étrangers (gaijin)
+   - Toujours mentionner si un lieu peut poser problème dans "reason"
+   - Prioriser les alternatives accessibles à tous
 
-JSON de réponse:
+2. HORAIRES D'OUVERTURE ET JOURS DE FERMETURE
+   - La plupart des musées ferment le LUNDI
+   - Les marchés alimentaires : matin uniquement (avant 13h)
+   - Temples et sanctuaires : 6h-17h en général (certains 24h/24)
+   - Izakaya/restaurants de ramen : 11h-14h et 18h-23h
+   - Konbini (7-Eleven, Lawson) : 24h/24, pratiques pour petits-déjeuners
+
+3. PROTOCOLE AFFLUENCE PAR TYPE DE LIEU
+   ${isWeekend ? 
+   `WEEKEND : Multiplier l'affluence par 1.5 sur tous les sites touristiques
+   - Temples/sanctuaires populaires : arriver AVANT 8h ou APRÈS 16h
+   - Marchés : arriver dès l'ouverture (avant 9h)
+   - Musées : réserver en ligne, arriver 10min avant ouverture
+   - Parcs urbains : OK le matin, éviter 11h-15h` : 
+   `SEMAINE : Affluence normale
+   - 9h-11h : pic matin touristes (groupes)
+   - 11h-13h : pic heure du déjeuner
+   - 14h-16h : creux idéal pour musées/temples
+   - 16h-18h : re-pic fin de journée`}
+
+4. OPTIMISATION GÉOGRAPHIQUE
+   - Grouper les activités par quartier (ne pas traverser Tokyo pour 1 activité)
+   - Ordre logique : point de départ → quartier 1 (matin) → déjeuner local → quartier 2 (après-midi) → retour
+   - Temps de trajet Tokyo : métro 15-30min entre quartiers proches, 30-45min entre quartiers éloignés
+
+5. MARGES DE RESPIRATION (OBLIGATOIRES, ne pas compresser)
+   - Après temple/sanctuaire bondé : 20min (décompression)
+   - Après marché alimentaire : 25min (manger sur place)
+   - Après randonnée/montée : 30min
+   - Entre 2 quartiers différents : 15min tampon trajet minimum
+   - Après repas : 20min
+   - ${fatigueMode ? 'MODE FATIGUE: Pause de 45min obligatoire apres 13h (cafe ou parc)' : 'Pause libre de 15min minimum en milieu d\'apres-midi'}
+
+6. DURÉES RÉALISTES PAR TYPE
+   - Temple populaire (Senso-ji, Fushimi Inari) : 60-90min
+   - Temple calme/secondaire : 30-45min
+   - Musée national : 120-180min
+   - Petit musée/galerie : 60-90min  
+   - Marché (Tsukiji, Nishiki) : 60-90min
+   - Parc urbain : 45-60min
+   - Quartier shopping (Harajuku, Akihabara) : 90-120min
+   - Activité gastronomique (ramen, sushi) : 45-60min
+   - ${fatigueMode ? 'FATIGUE: Réduire toutes les durées de 20%' : ''}
+
+7. ASTUCES LOCALES À INTÉGRER
+   - Petit-déjeuner : konbini (pratique, pas cher, local) ou kissaten (café rétro japonais, ambiance locale)
+   - Déjeuner : teishoku (menu fixe) dans un restaurant de quartier, moins cher et plus authentique qu'en zone touristique
+   - Éviter les taxi sauf urgence : transports en commun + marche = expérience locale
+   - IC Card (Suica/Pasmo) obligatoire pour fluidifier les trajets
+
+Réponds UNIQUEMENT avec ce JSON (SANS backticks, SANS markdown) :
 {
   "optimized_activities": [
     {
@@ -767,18 +947,36 @@ JSON de réponse:
       "duration_minutes": 90,
       "breathing_after_minutes": 20,
       "breathing_reason": "Flâner dans les ruelles avant de reprendre",
-      "reason": "Ouverture à 8h30, lumière dorée et peu de monde",
+      "reason": "Ouverture à 8h30, lumière dorée et peu de monde en semaine",
+      "local_tip": "Prenez l'entrée latérale moins connue des touristes",
+      "accessibility_note": "",
       "time_changed": true
     }
   ],
   "day_summary": "Une journée fluide entre marchés animés et temples apaisants",
-  "energy_level": "modérée"
+  "energy_level": "modérée",
+  "quartiers": ["Asakusa", "Ueno"],
+  "warnings": []
 }`;
 
-        const completionText = await anthropicChat("Expert tourisme Japon. Réponds UNIQUEMENT en JSON valide.", prompt, 400);
 
+        const completionText = await anthropicChat(
+            "Expert tourisme Japon. Réponds UNIQUEMENT en JSON brut valide, SANS backticks, SANS markdown, SANS texte avant ou après le JSON.",
+            prompt, 1200);
 
-        const result = JSON.parse(completionText);
+        let result;
+        try {
+            result = JSON.parse(completionText);
+        } catch(parseErr) {
+            const jsonMatch = completionText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try { result = JSON.parse(jsonMatch[0]); }
+                catch(e2) { throw new Error(`JSON invalide : ${parseErr.message}`); }
+            } else {
+                throw new Error(`Réponse IA non-JSON : ${completionText.slice(0,200)}`);
+            }
+        }
+        if (!result?.optimized_activities) throw new Error('Structure JSON inattendue');
 
         const optimizedWithFullData = result.optimized_activities.map(opt => {
             const original = validActivities.find(a => a.id === opt.id);
