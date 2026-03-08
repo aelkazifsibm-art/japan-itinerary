@@ -25,8 +25,14 @@ async function anthropicChat(systemPrompt, userMessage, maxTokens = 400) {
         })
     });
     const data = await r.json();
-    if (!r.ok) throw new Error(data.error?.message || 'Erreur Anthropic');
-    return data.content?.[0]?.text || '';
+    if (!r.ok) {
+        const errMsg = data.error?.message || JSON.stringify(data);
+        console.error('[Anthropic] Erreur API:', errMsg);
+        throw new Error(errMsg);
+    }
+    const text = data.content?.[0]?.text || '';
+    // Nettoyer les backticks markdown que le modèle peut inclure dans les JSON
+    return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
 }
 
 
@@ -127,16 +133,15 @@ app.post("/api/normalize-text", async (req, res) => {
         const { text } = req.body;
         if (!text) return res.status(400).json({ error: "Texte manquant" });
 
-        const completionText = await anthropicChat(`Tu es un expert en voyages au Japon. 
-                    Normalise l'entrée utilisateur pour en faire un titre propre et suggérer un lieu Google Maps.
-                    Format JSON strict :
-                    {
-                        "title_clean": "Nom Propre — description courte",
-                        "suggested_location": "Nom du lieu, Ville, Japan"
-                    }`, text, 400);
+        const completionText = await anthropicChat(
+            `Tu es un expert en voyages au Japon. Réponds UNIQUEMENT avec du JSON brut valide, SANS backticks, SANS markdown, SANS texte avant ou après.\nFormat exact: {"title_clean":"Nom Propre — description courte","suggested_location":"Nom du lieu, Ville, Japan"}`,
+            text, 200
+        );
 
-
-        res.json(JSON.parse(completionText));
+        let parsedNorm;
+        try { parsedNorm = JSON.parse(completionText); }
+        catch(e) { parsedNorm = { title_clean: text, suggested_location: text + ", Japan" }; }
+        res.json(parsedNorm);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -406,23 +411,28 @@ app.post("/api/activity-info", async (req, res) => {
             return res.status(400).json({ error: "Nom du lieu manquant" });
         }
 
-        const completionText = await anthropicChat(`Tu es un expert du tourisme au Japon.
-                    Analyse le lieu et fournis des informations pratiques + un paragraphe de présentation.
-                    Format JSON strict :
-                    {
-                        "why_visit": "Paragraphe de 3-4 phrases : histoire, contexte culturel japonais, pourquoi ce lieu est incontournable.",
-                        "history_detail": "2-3 phrases sur l'histoire et l'anecdote la plus fascinante de ce lieu.",
-                        "cultural_context": "1-2 phrases sur la signification culturelle ou religieuse au Japon.",
-                        "crowd_level": "low|medium|high",
-                        "best_times": ["09:00-10:00", "15:00-16:00"],
-                        "rules": ["Règle 1", "Règle 2"],
-                        "tips": "Conseil pratique pour profiter au mieux",
-                        "local_tip": "Un conseil de local ou une astuce peu connue des touristes.",
-                        "nearby_food": "Un plat ou restaurant typique à essayer dans le quartier."
-                    }`, `Lieu: ${place_name}${place_address ? ", " + place_address : ""}. Visite: ${visit_time || "journée"}.`, 400);
+        const completionText = await anthropicChat(
+            `Tu es un expert du tourisme au Japon. Réponds UNIQUEMENT avec un objet JSON valide, SANS markdown, SANS backticks, SANS texte autour.
+Format exact attendu :
+{"why_visit":"...","history_detail":"...","cultural_context":"...","crowd_level":"low|medium|high","best_times":["09:00-10:00"],"rules":["Règle 1"],"tips":"...","local_tip":"...","nearby_food":"..."}`,
+            `Lieu: ${place_name}${place_address ? ", " + place_address : ""}. Heure de visite prévue: ${visit_time || "journée"}.`,
+            600
+        );
 
-
-        const info = JSON.parse(completionText);
+        let info;
+        try {
+            info = JSON.parse(completionText);
+        } catch(parseErr) {
+            console.error('[activity-info] JSON.parse error:', parseErr.message, '| raw:', completionText.slice(0, 200));
+            // Fallback: construire un objet minimal depuis le texte brut
+            info = {
+                why_visit: completionText.slice(0, 300) || `${place_name} est un lieu incontournable au Japon.`,
+                history_detail: '', cultural_context: '',
+                crowd_level: 'medium', best_times: ['09:00-11:00', '15:00-17:00'],
+                rules: [], tips: 'Arrivez tôt pour éviter la foule.',
+                local_tip: '', nearby_food: ''
+            };
+        }
         res.json({ success: true, info });
 
     } catch (e) {
@@ -571,8 +581,13 @@ app.post("/api/quick-add-activity", async (req, res) => {
 Pour duration_minutes: base-toi sur les recommandations réelles (TripAdvisor, guides). Ex: Senso-ji=90min, Tsukiji=60min, Fushimi Inari=150min, musée=120min, marché=45min.`, `Activité: "${description}"\n\nCrée une activité structurée avec la durée de visite recommandée.`, 400);
 
 
-        const parsed = JSON.parse(completionText);
-        
+        let parsed;
+        try { parsed = JSON.parse(completionText); }
+        catch(e) {
+            console.error('[activity-analyze] JSON.parse error:', e.message, '| raw:', completionText.slice(0,200));
+            parsed = { title: description, description: '', search_query: description + ' Japan', suggested_time: '10:00', duration_minutes: 90, duration_reason: '' };
+        }
+
         // Rechercher le lieu sur Google Places
         const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
         const searchUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
@@ -648,12 +663,20 @@ app.post("/api/suggestion-preview", async (req, res) => {
             .map(a => `${a.time} - ${a.title}`)
             .join('\n') || 'Aucune activité planifiée';
 
-        const completionText = await anthropicChat(`Tu es un expert du tourisme au Japon, passionné et enthousiaste. 
-Tu connais parfaitement les horaires, l'affluence touristique, les meilleures conditions de visite.
-Réponds UNIQUEMENT en JSON valide, sans markdown.`, `Activité : "${name}" (${query})`, 400);
+        const completionText = await anthropicChat(
+            `Tu es un expert du tourisme au Japon. Réponds UNIQUEMENT avec du JSON brut valide, SANS backticks, SANS markdown, SANS texte avant ou après.
+Format exact: {"why_visit":"...","best_time":"...","duration_minutes":90,"crowd_level":"low|medium|high","price_eur":null,"tips":"...","energy_level":"légère|modérée|intense"}`,
+            `Activité : "${name}" (${query})`,
+            400
+        );
 
-
-        const preview = JSON.parse(completionText);
+        let preview;
+        try {
+            preview = JSON.parse(completionText);
+        } catch(e) {
+            console.error('[suggestion-preview] JSON.parse error:', e.message, '| raw:', completionText.slice(0,200));
+            preview = { why_visit: `${name} est un lieu incontournable.`, best_time: '09:00', duration_minutes: 90, crowd_level: 'medium', price_eur: null, tips: '', energy_level: 'modérée' };
+        }
 
         // Rechercher le lieu sur Google Places pour avoir le place_id
         const serverKey = process.env.GOOGLE_MAPS_SERVER_KEY;

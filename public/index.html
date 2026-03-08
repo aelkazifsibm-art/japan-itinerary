@@ -4570,18 +4570,23 @@
                         </a>
                     `;
                 } else {
+                    const errMsg = data.error || 'Erreur inconnue';
+                    console.error('[activity-info] Server error:', errMsg);
                     content.innerHTML = `
                         <div class="text-center py-8 text-red-500">
                             <div class="text-4xl mb-2">⚠️</div>
-                            <div>Erreur lors du chargement des informations</div>
+                            <div>Erreur : ${errMsg}</div>
+                            <div class="text-xs text-gray-400 mt-2">Vérifiez la clé ANTHROPIC_API_KEY dans Render</div>
                         </div>
                     `;
                 }
             } catch (error) {
+                console.error('[activity-info] Catch error:', error);
                 content.innerHTML = `
                     <div class="text-center py-8 text-red-500">
                         <div class="text-4xl mb-2">⚠️</div>
-                        <div>Erreur réseau</div>
+                        <div>Erreur réseau : ${error.message}</div>
+                        <div class="text-xs text-gray-400 mt-2">Vérifiez que le serveur est démarré et la clé ANTHROPIC_API_KEY configurée</div>
                     </div>
                 `;
             }
@@ -6604,7 +6609,7 @@ async function toggleMapView() {
                 }
             }
 
-            // Mettre à jour le label du bouton "Y 
+            // Mettre à jour le label du bouton Y aller
         // ═══════════════════════════════════════════════════════════════════
         //  SPRINT 2 — RÉSUMÉ CULTUREL / SCORE FAISABILITÉ / IA PLANNER
         // ═══════════════════════════════════════════════════════════════════
@@ -6760,11 +6765,14 @@ async function toggleMapView() {
                 if (data.success) {
                     _aiAddMessage('assistant', data.reply);
                 } else {
-                    _aiAddMessage('assistant', '⚠️ Désolé, une erreur est survenue. Réessaie dans un instant.');
+                    const errMsg = data.error || 'Erreur inconnue';
+                    console.error('[IA] Erreur API:', errMsg);
+                    _aiAddMessage('assistant', `⚠️ Erreur : ${errMsg}`);
                 }
             } catch(e) {
                 _aiHideTyping();
-                _aiAddMessage('assistant', '⚠️ Connexion impossible au serveur.');
+                console.error('[IA] Catch:', e);
+                _aiAddMessage('assistant', `⚠️ Connexion impossible : ${e.message}`);
             }
         }
 
