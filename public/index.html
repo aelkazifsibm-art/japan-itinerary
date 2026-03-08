@@ -646,25 +646,39 @@
             max-width:28rem;margin:0 auto;
             background:#1e293b;
             border-radius:20px 20px 0 0;
-            padding:8px 0 4px;
+            padding:12px 0 8px;
             box-shadow:0 -8px 32px rgba(0,0,0,0.4)">
 
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0">
-                <button onclick="openConfigScreen();switchConfigTab('reglages');toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
-                    <span style="font-size:22px">⚙️</span>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0">
+                <!-- 1. Réglages -->
+                <button onclick="openConfigScreen();switchConfigTab('reglages');toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <span style="font-size:24px">⚙️</span>
                     <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Réglages</span>
                 </button>
-                <button onclick="openJournal();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
-                    <span style="font-size:22px">📖</span>
+                <!-- 2. Séjours -->
+                <button onclick="openConfigScreen();switchConfigTab('voyage');toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <span style="font-size:24px">🏨</span>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Séjours</span>
+                </button>
+                <!-- 3. Journal -->
+                <button onclick="openJournal();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <span style="font-size:24px">📖</span>
                     <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Journal</span>
                 </button>
-                <button onclick="openWeatherAlert();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
-                    <span id="more-weather-icon" style="font-size:22px">🌦️</span>
+                <!-- 4. Météo -->
+                <button onclick="openWeatherAlert();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
+                    <span id="more-weather-icon" style="font-size:24px">🌦️</span>
                     <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Météo</span>
                 </button>
-                <button onclick="openAiPlanner();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:transparent;border:none;cursor:pointer">
-                    <span style="font-size:22px">🤖</span>
-                    <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Assistant</span>
+                <!-- 5. Budget -->
+                <button onclick="openConfigScreen();switchConfigTab('budget');toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-right:1px solid rgba(255,255,255,0.06)">
+                    <span style="font-size:24px">💰</span>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Budget</span>
+                </button>
+                <!-- 6. Assistant IA -->
+                <button onclick="openAiPlanner();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 8px;background:transparent;border:none;cursor:pointer">
+                    <span style="font-size:24px">🤖</span>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Assistant IA</span>
                 </button>
             </div>
         </div>

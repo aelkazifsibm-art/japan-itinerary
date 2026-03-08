@@ -1,11 +1,34 @@
 import express from 'express';
-import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+// ── Helper Anthropic Claude ─────────────────────────────────────────────────
+async function anthropicChat(systemPrompt, userMessage, maxTokens = 400) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error('Clé ANTHROPIC_API_KEY manquante dans .env');
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: maxTokens,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: userMessage }]
+        })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error?.message || 'Erreur Anthropic');
+    return data.content?.[0]?.text || '';
+}
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +39,7 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// IA : appel direct Anthropic Claude via fetch
 
 // ── Cache suggestion-preview (mémoire serveur) ────────────────────────────
 // Clé : nom normalisé de l'activité → évite les appels OpenAI répétés
@@ -104,25 +127,16 @@ app.post("/api/normalize-text", async (req, res) => {
         const { text } = req.body;
         if (!text) return res.status(400).json({ error: "Texte manquant" });
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { 
-                    role: "system", 
-                    content: `Tu es un expert en voyages au Japon. 
+        const completionText = await anthropicChat(`Tu es un expert en voyages au Japon. 
                     Normalise l'entrée utilisateur pour en faire un titre propre et suggérer un lieu Google Maps.
                     Format JSON strict :
                     {
                         "title_clean": "Nom Propre — description courte",
                         "suggested_location": "Nom du lieu, Ville, Japan"
-                    }`
-                },
-                { role: "user", content: text }
-            ],
-            response_format: { type: "json_object" }
-        });
+                    }`, text, 400);
 
-        res.json(JSON.parse(completion.choices[0].message.content));
+
+        res.json(JSON.parse(completionText));
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -180,32 +194,12 @@ app.get("/api/places/details", async (req, res) => {
         if (needsHours || needsPrice) {
             try {
                 const tokyoTime = new Date().toLocaleString('fr-FR', {timeZone: 'Asia/Tokyo'});
-                const aiRes = await openai.chat.completions.create({
-                    model: "gpt-4o-search-preview",
-                    max_tokens: 600,
-                    messages: [{
-                        role: "system",
-                        content: "Tu es un assistant de voyage expert au Japon. Cherche sur le web (Google, Viator, TripAdvisor, site officiel) puis réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour."
-                    }, {
-                        role: "user",
-                        content: `Recherche sur le web les infos pour : "${p.name}", ${p.formatted_address}.
-Heure actuelle à Tokyo : ${tokyoTime}.
-IMPORTANT: cherche le prix d'ENTRÉE DIRECTE (billet d'entrée officiel), PAS les visites guidées.
-Sources prioritaires : site officiel, Japan-guide.com, Klook, Voyagin, GetYourGuide.
-Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
-{
-  "opening_hours": ["Lundi: 06:00 - 17:00", ...] ou null,
-  "open_now": true/false/null,
-  "price_level": 0 si gratuit, 1 si <1000¥, 2 si 1000-2000¥, 3 si 2000-4000¥, 4 si >4000¥, null si inconnu,
-  "price_detail": "ex: 800¥ adulte, 400¥ enfant" ou null,
-  "price_eur": 5.00 (prix adulte entrée directe en euros) ou null,
-  "visit_duration": 90 (durée typique en minutes) ou null,
-  "booking_url": "https://..." (URL directe billet officiel ou Klook/Voyagin si disponible) ou null,
-  "booking_required": true si réservation nécessaire, false si entrée libre/sans réservation
-}`
-                    }]
-                });
-                const raw = aiRes.choices[0]?.message?.content?.trim();
+                const aiResText = await anthropicChat(
+                    "Tu es un assistant de voyage expert au Japon. Cherche en mémoire les infos pratiques sur ce lieu japonais et réponds UNIQUEMENT en JSON valide.",
+                    `Infos pour : "${p.name}", ${p.formatted_address || "Japon"}. Heure à Tokyo : ${tokyoTime}.\nIMPORTANT: prix ENTRÉE DIRECTE (pas visites guidées). Sources: site officiel, Japan-guide.com.\nRéponds UNIQUEMENT avec ce JSON :\n{\n  "opening_hours": ["Lundi: 06:00 - 17:00", ...] ou null,\n  "open_now": true/false/null,\n  "price_level": 0 si gratuit, 1 si <1000¥, 2 si 1000-2000¥, 3 si 2000-4000¥, 4 si >4000¥, null si inconnu,\n  "price_detail": "ex: 800¥ adulte" ou null,\n  "price_eur": 5.00 ou null,\n  "visit_duration": 90 ou null,\n  "booking_url": "https://..." ou null,\n  "booking_required": true/false\n}`,
+                    600
+                );
+                const raw = aiResText?.trim();
                 const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
                 if (needsHours && parsed.opening_hours) opening_hours = parsed.opening_hours;
                 if (parsed.open_now !== undefined && open_now === null) open_now = parsed.open_now;
@@ -341,12 +335,7 @@ app.post('/api/route', async (req, res) => {
         }
 
         // Trajet avec transit — demander à l'IA la durée du segment en transports
-        const aiRoute = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                {
-                    role: "system",
-                    content: `Tu es un expert des transports en commun au Japon (Tokyo, Kyoto, Osaka...).
+        const aiRouteText = await anthropicChat(`Tu es un expert des transports en commun au Japon (Tokyo, Kyoto, Osaka...).
 On connait déjà les segments de marche. Tu dois UNIQUEMENT estimer la durée du trajet en transports entre deux stations.
 
 Données :
@@ -366,14 +355,10 @@ Réponds UNIQUEMENT avec ce JSON :
   "transit_min": <int>,
   "mode": "metro|train|bus",
   "line_hint": "ex: Ginza Line direction Shibuya"
-}`
-                },
-                { role: "user", content: `De "${bestFrom?.name}" à "${bestTo?.name}" pour aller de ${from_place.name} à ${to_place.name}.` }
-            ],
-            response_format: { type: "json_object" }
-        });
+}`, `De "${bestFrom?.name}" à "${bestTo?.name}" pour aller de ${from_place.name} à ${to_place.name}.`, 400);
 
-        const r = JSON.parse(aiRoute.choices[0].message.content);
+
+        const r = JSON.parse(aiRouteText);
 
         // Calcul arithmétique — serveur est maître du total
         transit = Math.max(1, parseInt(r.transit_min) || Math.round(distKm * 3));
@@ -421,12 +406,7 @@ app.post("/api/activity-info", async (req, res) => {
             return res.status(400).json({ error: "Nom du lieu manquant" });
         }
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { 
-                    role: "system", 
-                    content: `Tu es un expert du tourisme au Japon.
+        const completionText = await anthropicChat(`Tu es un expert du tourisme au Japon.
                     Analyse le lieu et fournis des informations pratiques + un paragraphe de présentation.
                     Format JSON strict :
                     {
@@ -439,29 +419,10 @@ app.post("/api/activity-info", async (req, res) => {
                         "tips": "Conseil pratique pour profiter au mieux",
                         "local_tip": "Un conseil de local ou une astuce peu connue des touristes.",
                         "nearby_food": "Un plat ou restaurant typique à essayer dans le quartier."
-                    }`
-                },
-                { 
-                    role: "user", 
-                    content: `Lieu: ${place_name}
-                    Adresse: ${place_address || 'Non spécifiée'}
-                    Heure de visite prévue: ${visit_time || 'Non spécifiée'}
-                    
-                    Donne-moi:
-                    1. Un résumé enrichi (histoire, contexte culturel, pourquoi visiter)
-                    2. L'anecdote historique la plus fascinante sur ce lieu
-                    3. La signification culturelle ou religieuse
-                    4. Le niveau d'affluence à cette heure (low/medium/high)
-                    5. Les meilleures heures pour éviter la foule (2-3 créneaux)
-                    6. Les règles importantes (dress code, photos, comportement)
-                    7. Un conseil pratique + un conseil de local peu connu
-                    8. Un plat ou resto typique à essayer nearby`
-                }
-            ],
-            response_format: { type: "json_object" }
-        });
+                    }`, `Lieu: ${place_name}${place_address ? ", " + place_address : ""}. Visite: ${visit_time || "journée"}.`, 400);
 
-        const info = JSON.parse(completion.choices[0].message.content);
+
+        const info = JSON.parse(completionText);
         res.json({ success: true, info });
 
     } catch (e) {
@@ -475,6 +436,9 @@ app.post('/api/ai-planner', async (req, res) => {
     try {
         const { message, context } = req.body;
         if (!message) return res.status(400).json({ error: 'Message manquant' });
+
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) return res.status(500).json({ success: false, error: 'Clé ANTHROPIC_API_KEY manquante dans .env' });
 
         const systemPrompt = `Tu es un assistant de voyage expert au Japon, intégré dans une app de planification.
 Tu as accès au programme complet du voyage.
@@ -491,24 +455,37 @@ Informations voyage :
 - Destination(s) : ${context.cities?.join(', ') || 'Japon'}
 - Durée totale : ${context.totalDays} jours
 - Activités ce jour : ${context.dayActivities?.length || 0}
-- Temps de trajet total estimé aujourd'hui : ${context.totalTravelMin || 0} min
+- Temps de trajet estimé aujourd'hui : ${context.totalTravelMin || 0} min
 
 Réponds en français, de façon concise et directe (max 3-4 phrases).
 Si tu proposes d'ajouter/déplacer des activités, sois précis sur l'heure et le nom.
 Tu peux suggérer des lieux japonais spécifiques avec leur nom en japonais.`;
 
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                ...((context.history || []).slice(-6)), // max 6 messages d'historique
-                { role: 'user', content: message }
-            ],
-            max_tokens: 400,
-            temperature: 0.7
+        // Construire l'historique (hors message système)
+        const history = (context.history || []).slice(-6).map(m => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.content
+        }));
+
+        const r = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 400,
+                system: systemPrompt,
+                messages: [...history, { role: 'user', content: message }]
+            })
         });
 
-        const reply = completion.choices[0].message.content;
+        const data = await r.json();
+        if (!r.ok) return res.status(500).json({ success: false, error: data.error?.message || 'Erreur Anthropic' });
+
+        const reply = data.content?.[0]?.text || '';
         res.json({ success: true, reply });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -582,12 +559,7 @@ app.post("/api/quick-add-activity", async (req, res) => {
         const { description, day_index, time_flexible, fixed_time } = req.body;
         
         // Analyser avec l'IA
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                {
-                    role: "system",
-                    content: `Tu es un expert du tourisme au Japon. Analyse l'activité et retourne un JSON:
+        const completionText = await anthropicChat(`Tu es un expert du tourisme au Japon. Analyse l'activité et retourne un JSON:
 {
   "title": "Titre propre de l'activité",
   "description": "Description courte (1 phrase)",
@@ -596,17 +568,10 @@ app.post("/api/quick-add-activity", async (req, res) => {
   "duration_minutes": 90,
   "duration_reason": "Raison courte ex: temple + jardins nécessitent 1h30 min"
 }
-Pour duration_minutes: base-toi sur les recommandations réelles (TripAdvisor, guides). Ex: Senso-ji=90min, Tsukiji=60min, Fushimi Inari=150min, musée=120min, marché=45min.`
-                },
-                {
-                    role: "user",
-                    content: `Activité: "${description}"\n\nCrée une activité structurée avec la durée de visite recommandée.`
-                }
-            ],
-            response_format: { type: "json_object" }
-        });
+Pour duration_minutes: base-toi sur les recommandations réelles (TripAdvisor, guides). Ex: Senso-ji=90min, Tsukiji=60min, Fushimi Inari=150min, musée=120min, marché=45min.`, `Activité: "${description}"\n\nCrée une activité structurée avec la durée de visite recommandée.`, 400);
 
-        const parsed = JSON.parse(completion.choices[0].message.content);
+
+        const parsed = JSON.parse(completionText);
         
         // Rechercher le lieu sur Google Places
         const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
@@ -683,39 +648,12 @@ app.post("/api/suggestion-preview", async (req, res) => {
             .map(a => `${a.time} - ${a.title}`)
             .join('\n') || 'Aucune activité planifiée';
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                {
-                    role: "system",
-                    content: `Tu es un expert du tourisme au Japon, passionné et enthousiaste. 
+        const completionText = await anthropicChat(`Tu es un expert du tourisme au Japon, passionné et enthousiaste. 
 Tu connais parfaitement les horaires, l'affluence touristique, les meilleures conditions de visite.
-Réponds UNIQUEMENT en JSON valide, sans markdown.`
-                },
-                {
-                    role: "user",
-                    content: `Activité : "${name}" (${query})
-Activités déjà planifiées ce jour :
-${activitiesContext}
+Réponds UNIQUEMENT en JSON valide, sans markdown.`, `Activité : "${name}" (${query})`, 400);
 
-Génère une fiche de présentation avec :
-{
-  "hook": "1-2 phrases poétiques/immersives qui donnent vraiment envie de visiter (max 120 caractères)",
-  "best_time": "HH:MM",
-  "best_time_reason": "Pourquoi c'est le meilleur moment (max 80 caractères, ex: Avant l'afflux de 10h, lumière dorée)",
-  "avoid_time": "Plage à éviter (ex: 10h-13h)",
-  "avoid_reason": "Pourquoi éviter (max 60 caractères)",
-  "duration": "Durée recommandée lisible (ex: 1h30)",
-  "duration_minutes": 90,
-  "tip": "1 conseil insider court et précis (max 80 caractères)",
-  "intensity": "balade|exploration|randonnée"
-}`
-                }
-            ],
-            response_format: { type: "json_object" }
-        });
 
-        const preview = JSON.parse(completion.choices[0].message.content);
+        const preview = JSON.parse(completionText);
 
         // Rechercher le lieu sur Google Places pour avoir le place_id
         const serverKey = process.env.GOOGLE_MAPS_SERVER_KEY;
@@ -814,16 +752,10 @@ JSON de réponse:
   "energy_level": "modérée"
 }`;
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { role: "system", content: "Expert tourisme Japon. Réponds UNIQUEMENT en JSON valide." },
-                { role: "user", content: prompt }
-            ],
-            response_format: { type: "json_object" }
-        });
+        const completionText = await anthropicChat("Expert tourisme Japon. Réponds UNIQUEMENT en JSON valide.", prompt, 400);
 
-        const result = JSON.parse(completion.choices[0].message.content);
+
+        const result = JSON.parse(completionText);
 
         const optimizedWithFullData = result.optimized_activities.map(opt => {
             const original = validActivities.find(a => a.id === opt.id);
