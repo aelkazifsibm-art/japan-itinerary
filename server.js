@@ -112,10 +112,19 @@ function mustEnv(name) {
     return v;
 }
 
-async function fetchJson(url, options) {
-    const r = await fetch(url, options);
-    const j = await r.json().catch(() => ({}));
-    return { ok: r.ok, status: r.status, json: j };
+async function fetchJson(url, options, timeoutMs = 9000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+        const r = await fetch(url, { ...options, signal: ctrl.signal });
+        clearTimeout(timer);
+        const j = await r.json().catch(() => ({}));
+        return { ok: r.ok, status: r.status, json: j };
+    } catch(e) {
+        clearTimeout(timer);
+        if (e.name === 'AbortError') throw new Error('Timeout Google Places (' + timeoutMs + 'ms)');
+        throw e;
+    }
 }
 
 /**
@@ -914,26 +923,52 @@ app.post("/api/resolve-place", async (req, res) => {
 
         const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
 
-        // Recherche texte directe
+        // ── Étape 1 : TextSearch (7s max) ─────────────────────────────────
         const searchUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
         searchUrl.searchParams.set("query", query);
         searchUrl.searchParams.set("language", "fr");
         searchUrl.searchParams.set("key", serverKey);
 
-        const placesRes = await fetchJson(searchUrl.toString());
-        const first = placesRes.json?.results?.[0];
-        if (!first) return res.json({ success: false, error: "Lieu non trouvé" });
+        let first;
+        try {
+            const placesRes = await fetchJson(searchUrl.toString(), {}, 7000);
+            first = placesRes.json?.results?.[0];
+        } catch(e) {
+            console.warn("[resolve-place] textsearch timeout:", query);
+            return res.json({ success: false, error: "Timeout recherche" });
+        }
 
-        // Détails enrichis
-        const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
-        detailsUrl.searchParams.set("place_id", first.place_id);
-        detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types,rating,user_ratings_total,photos,website,international_phone_number");
-        detailsUrl.searchParams.set("language", "fr");
-        detailsUrl.searchParams.set("key", serverKey);
+        if (!first) return res.json({ success: false, error: "Lieu non trouvé: " + query });
 
-        const detailsRes = await fetchJson(detailsUrl.toString());
-        const place = detailsRes.json?.result;
-        if (!place) return res.json({ success: false, error: "Détails non disponibles" });
+        // ── Étape 2 : Details (6s max) — optionnel, fallback sur textsearch ─
+        let place = null;
+        try {
+            const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+            detailsUrl.searchParams.set("place_id", first.place_id);
+            detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types,rating,user_ratings_total,photos,website");
+            detailsUrl.searchParams.set("language", "fr");
+            detailsUrl.searchParams.set("key", serverKey);
+            const detailsRes = await fetchJson(detailsUrl.toString(), {}, 6000);
+            place = detailsRes.json?.result || null;
+        } catch(e) {
+            console.warn("[resolve-place] details timeout, fallback textsearch:", query);
+        }
+
+        // Fallback : construire depuis le résultat textsearch si details a échoué
+        if (!place) {
+            place = {
+                place_id: first.place_id,
+                name: first.name,
+                formatted_address: first.formatted_address,
+                geometry: first.geometry,
+                types: first.types || [],
+                rating: first.rating || null,
+                user_ratings_total: first.user_ratings_total || 0,
+                photos: first.photos || [],
+                price_level: first.price_level ?? null,
+                opening_hours: null
+            };
+        }
 
         const photo = place.photos?.[0]?.photo_reference || null;
 
@@ -956,7 +991,7 @@ app.post("/api/resolve-place", async (req, res) => {
             }
         });
     } catch(e) {
-        console.error("resolve-place error:", e.message);
+        console.error("[resolve-place] error:", e.message);
         res.json({ success: false, error: e.message });
     }
 });

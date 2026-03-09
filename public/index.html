@@ -4100,6 +4100,15 @@
             const content = document.getElementById('gen-content');
             footer.innerHTML = '';
 
+            // Timeout global de sécurité : ferme la modale après 120s maximum
+            const _globalTimeout = setTimeout(() => {
+                console.warn('[_applyGenProgram] Timeout global 120s — fermeture forcée');
+                closeGenerateModal();
+                renderPlanning();
+                showAddConfirmation('Programme appliqué (partiel)', 'Timeout', '⚠️');
+                setTimeout(_resolveGeneratedActivities, 500);
+            }, 120000);
+
             // Collecter les blocs activity et meal
             const actBlocks = _genProgram.flatMap(day =>
                 (day.blocks||[])
@@ -4135,90 +4144,101 @@
                 }
             }
 
-            for (const blk of actBlocks) {
-                const statusEl = document.getElementById('gen-apply-status');
-                const barEl    = document.getElementById('gen-apply-bar');
-                const countEl  = document.getElementById('gen-apply-count');
-                if (statusEl) statusEl.textContent = blk.title;
-                if (barEl)    barEl.style.width = Math.round((added/total)*100)+'%';
-                if (countEl)  countEl.textContent = `${added} / ${total}`;
+            // ── Boucle principale dans try/finally pour garantir la fermeture ──
+            try {
+                for (const blk of actBlocks) {
+                    const statusEl = document.getElementById('gen-apply-status');
+                    const barEl    = document.getElementById('gen-apply-bar');
+                    const countEl  = document.getElementById('gen-apply-count');
+                    if (statusEl) statusEl.textContent = blk.title;
+                    if (barEl)    barEl.style.width = Math.round((added/total)*100)+'%';
+                    if (countEl)  countEl.textContent = `${added} / ${total}`;
 
-                if (blk.type === 'meal') {
-                    activities.push({
-                        id: Date.now()+Math.random(),
-                        dayIndex: blk.day_index,
-                        time: blk.time,
-                        time_flexible: true,
-                        title: blk.title,
-                        description: blk.suggestion || '',
-                        duration_minutes: blk.duration_minutes || 45,
-                        block_type: 'meal',
-                        meal_type: blk.meal_type || 'lunch',
-                        local_tip: blk.local_tip || '',
-                        place: null,
-                        source: 'generated'
-                    });
-                } else {
-                    // Activité — résolution Google Places directe (pas d'IA = rapide et fiable)
-                    let place = null;
-                    const resolvedTitle = blk.title;
-                    const resolvedDur   = blk.duration_minutes || 90;
+                    if (blk.type === 'meal') {
+                        activities.push({
+                            id: Date.now()+Math.random(),
+                            dayIndex: blk.day_index,
+                            time: blk.time,
+                            time_flexible: true,
+                            title: blk.title,
+                            description: blk.suggestion || '',
+                            duration_minutes: blk.duration_minutes || 45,
+                            block_type: 'meal',
+                            meal_type: blk.meal_type || 'lunch',
+                            local_tip: blk.local_tip || '',
+                            place: null,
+                            source: 'generated'
+                        });
+                    } else {
+                        // Résolution Google Places directe — timeout 8s, fallback sans place
+                        let place = null;
+                        const resolvedTitle = blk.title;
+                        const resolvedDur   = blk.duration_minutes || 90;
 
-                    try {
-                        const r = await fetchWithTimeout('/api/resolve-place', {
-                            method: 'POST',
-                            headers: {'Content-Type':'application/json'},
-                            body: JSON.stringify({
-                                search_query: blk.search_query || blk.title,
-                                title: blk.title
-                            })
-                        }, 10000);
-
-                        if (r.ok) {
-                            const d = await r.json();
-                            if (d.success && d.place) {
-                                place = d.place;
+                        try {
+                            const r = await fetchWithTimeout('/api/resolve-place', {
+                                method: 'POST',
+                                headers: {'Content-Type':'application/json'},
+                                body: JSON.stringify({
+                                    search_query: blk.search_query || blk.title,
+                                    title: blk.title
+                                })
+                            }, 8000);
+                            if (r.ok) {
+                                const d = await r.json();
+                                if (d.success && d.place) place = d.place;
                             }
+                        } catch(e) {
+                            console.warn('[resolve-place] timeout/erreur pour:', blk.title, e.message);
+                            // Continuer sans place — _resolveGeneratedActivities corrigera après
                         }
-                    } catch(e) {
-                        console.warn('resolve-place timeout/erreur pour:', blk.title, e.message);
+
+                        activities.push({
+                            id: Date.now()+Math.random(),
+                            dayIndex:          blk.day_index,
+                            time:              blk.time,
+                            time_flexible:     true,
+                            title:             resolvedTitle,
+                            description:       blk.local_tip || '',
+                            duration_minutes:  resolvedDur,
+                            local_tip:         blk.local_tip || '',
+                            crowd_note:        blk.crowd_note || '',
+                            place:             place,
+                            source:            'generated'
+                        });
                     }
 
-                    activities.push({
-                        id: Date.now()+Math.random(),
-                        dayIndex:          blk.day_index,
-                        time:              blk.time,
-                        time_flexible:     true,
-                        title:             resolvedTitle,
-                        description:       blk.local_tip || '',
-                        duration_minutes:  resolvedDur,
-                        local_tip:         blk.local_tip || '',
-                        crowd_note:        blk.crowd_note || '',
-                        place:             place,
-                        source:            'generated'
-                    });
+                    added++;
+                    // Mettre à jour barre à 100% sur la dernière activité
+                    if (added === total) {
+                        const b = document.getElementById('gen-apply-bar');
+                        if (b) b.style.width = '100%';
+                        const s = document.getElementById('gen-apply-status');
+                        if (s) s.textContent = 'Finalisation…';
+                        const cc = document.getElementById('gen-apply-count');
+                        if (cc) cc.textContent = `${added} / ${total}`;
+                    }
+                    await new Promise(r => setTimeout(r, 80));
                 }
-
-                added++;
-                // Délai court pour laisser l'UI se rafraîchir
-                await new Promise(r => setTimeout(r, 100));
+            } catch(loopErr) {
+                console.error('[_applyGenProgram] Erreur boucle:', loopErr);
+            } finally {
+                // ── FINALISATION GARANTIE quoi qu'il arrive ──────────────
+                clearTimeout(_globalTimeout); // annuler le timeout de sécurité
+                try {
+                    activities.sort((a,b) => a.dayIndex !== b.dayIndex
+                        ? a.dayIndex - b.dayIndex
+                        : a.time.localeCompare(b.time));
+                    localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                } catch(e) {
+                    console.error('Erreur sauvegarde:', e);
+                }
+                closeGenerateModal();
+                renderPlanning();
+                showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré', '🗾');
+                // Résoudre en arrière-plan les lieux sans place
+                setTimeout(_resolveGeneratedActivities, 800);
             }
-
-            // Finalisation garantie — sauvegarde et fermeture quoi qu'il arrive
-            try {
-                activities.sort((a,b) => a.dayIndex !== b.dayIndex
-                    ? a.dayIndex - b.dayIndex
-                    : a.time.localeCompare(b.time));
-                localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
-            } catch(e) {
-                console.error('Erreur sauvegarde:', e);
-            }
-
-            closeGenerateModal();
-            renderPlanning();
-            showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré', '🗾');
-            // Résoudre en arrière-plan les lieux manquants
-            setTimeout(_resolveGeneratedActivities, 800);
         }
 
         // ── Édition rapide depuis la modale d'optimisation ─────────────────────
