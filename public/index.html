@@ -2076,7 +2076,8 @@
         }
 
         function closeStayForm() {
-            document.getElementById('stay-modal').classList.add('hidden');
+            const _sm = document.getElementById('stay-modal');
+            if (_sm) { _sm.classList.add('hidden'); _sm.style.display = 'none'; }
             stayValidatedPlace = null;
         }
 
@@ -2748,7 +2749,8 @@
         }
 
         function closeModal() {
-            document.getElementById('activity-modal').classList.add('hidden');
+            const _am = document.getElementById('activity-modal');
+            if (_am) { _am.classList.add('hidden'); _am.style.display = 'none'; }
             // Reset au mode rapide
             document.getElementById('quick-add-mode').classList.remove('hidden');
             document.getElementById('manual-add-mode').classList.add('hidden');
@@ -3408,7 +3410,8 @@
         }
 
         function closeTravelerProfile() {
-            document.getElementById('traveler-profile-modal').classList.add('hidden');
+            const _tm = document.getElementById('traveler-profile-modal');
+            if (_tm) { _tm.classList.add('hidden'); _tm.style.display = 'none'; }
             _updateProfileMenuSummary();
         }
 
@@ -3645,7 +3648,12 @@
         }
 
         function closeGenerateModal() {
-            document.getElementById('generate-program-modal').classList.add('hidden');
+            const m = document.getElementById('generate-program-modal');
+            if (!m) return;
+            m.classList.add('hidden');
+            m.style.display = 'none';   // override le style inline mis par openGenerateModal
+            m.style.alignItems = '';
+            _genProgram = null;
         }
 
         // ── Autocomplete hôtel ──────────────────────────────────────────────
@@ -5767,7 +5775,8 @@
         }
 
         function closeDeleteConfirm() {
-            document.getElementById('delete-confirm-modal').classList.add('hidden');
+            const _dm = document.getElementById('delete-confirm-modal');
+            if (_dm) { _dm.classList.add('hidden'); _dm.style.display = 'none'; }
         }
 
                 function deleteActivity(id) {
@@ -6241,7 +6250,8 @@
 
         
         function closeActivityInfoModal() {
-            document.getElementById('activity-info-modal').classList.add('hidden');
+            const _aim = document.getElementById('activity-info-modal');
+            if (_aim) { _aim.classList.add('hidden'); _aim.style.display = 'none'; }
         }
 
         let _suggestionsOpen = false;
