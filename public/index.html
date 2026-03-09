@@ -320,6 +320,10 @@
             background-size: 200% 100%;
             animation: photoSkeleton 1.5s infinite;
         }
+        /* Quand l'image est déjà en cache, pas de skeleton */
+        .card-photo-banner.img-cached::before {
+            display: none;
+        }
         html.dark .card-photo-banner::before {
             background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
             background-size: 200% 100%;
@@ -4428,6 +4432,10 @@
             renderPlanning();
         }
 
+        // ── Cache des URLs d'images déjà chargées (évite le clignotement au re-render) ──
+        const _imgLoadedCache = new Set();
+        window._imgLoadedCache = _imgLoadedCache; // exposé pour les handlers inline
+
         // Token d'annulation : chaque render crée un token unique.
         // Si un nouveau render démarre, l'ancien est annulé proprement.
         let _renderToken = 0;
@@ -4889,13 +4897,13 @@
                 }
                 card.innerHTML = `
                     ${act.place?.photo_reference ? `
-                    <div class="card-photo-banner" style="position:relative;height:118px;overflow:hidden;border-radius:0">
+                    <div class="card-photo-banner${_imgLoadedCache.has('/api/place-photo?ref='+encodeURIComponent(act.place.photo_reference)+'&maxw=600') ? ' img-cached' : ''}" style="position:relative;height:118px;overflow:hidden;border-radius:0">
                         <img
                             src="/api/place-photo?ref=${encodeURIComponent(act.place.photo_reference)}&maxw=600"
                             alt="${act.title}"
                             loading="lazy"
-                            style="width:100%;height:100%;object-fit:cover;display:block;transition:opacity 0.4s"
-                            onload="this.style.opacity=1"
+                            style="width:100%;height:100%;object-fit:cover;display:block;transition:opacity 0.4s;opacity:${_imgLoadedCache.has('/api/place-photo?ref='+encodeURIComponent(act.place.photo_reference)+'&maxw=600') ? '1' : '0'}"
+                            onload="this.style.opacity=1;if(window._imgLoadedCache){window._imgLoadedCache.add(this.src);this.closest('.card-photo-banner')?.classList.add('img-cached')}"
                             onerror="this.closest('.card-photo-banner').remove()"
                         />
                         <!-- Gradient overlay bas pour lisibilité du titre -->
