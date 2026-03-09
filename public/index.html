@@ -3053,12 +3053,312 @@
         }
 
         // ══════════════════════════════════════════════════════════════════════
-        // GÉNÉRATION DE PROGRAMME COMPLET
+        // MOTEUR DE RECALCUL EN CASCADE — "J'ai terminé"
         // ══════════════════════════════════════════════════════════════════════
 
-        let _genProgram = [];       // programme généré en cours
-        let _genDayStart = 0;       // jour de départ dans le voyage
-        let _genNbDays  = 0;
+        async function _cascadeReschedule(finishedActId) {
+            const finished = activities.find(a => a.id === finishedActId);
+            if (!finished) { renderPlanning(); return; }
+
+            const dayIdx = finished.dayIndex;
+            const dayActs = activities
+                .filter(a => a.dayIndex === dayIdx)
+                .sort((a,b) => a.time.localeCompare(b.time));
+
+            const finIdx = dayActs.findIndex(a => a.id === finishedActId);
+            if (finIdx === -1) { renderPlanning(); return; }
+
+            // Heure réelle de fin = maintenant (heure actuelle)
+            const now = new Date();
+            const nowMin = now.getHours()*60 + now.getMinutes();
+            const plannedEndMin = _timeStrToMin(finished.time) + (finished.duration_minutes||90);
+            const timeGained = plannedEndMin - nowMin; // positif = on a fini avant
+
+            // Recalculer chaque activité suivante individuellement
+            // cursorMin = heure réelle actuelle (fin de "finished")
+            let cursorMin = nowMin;
+            const changes = []; // { act, oldTime, newTime, transitMin, mode, crowdNote }
+            const alerts  = []; // avertissements
+
+            for (let k = finIdx + 1; k < dayActs.length; k++) {
+                const act = dayActs[k];
+                const actIdx = activities.findIndex(a => a.id === act.id);
+                if (actIdx === -1) continue;
+
+                // ── Transit réel depuis Google Places (routeCache) ──────────
+                const prevAct = k === finIdx+1 ? finished : dayActs[k-1];
+                let transitMin = 0;
+                let transitMode = '';
+
+                if (prevAct.place?.place_id && act.place?.place_id) {
+                    // Clé identique à celle utilisée dans calculateNav
+                    const ck = `${prevAct.place.place_id}-${act.place.place_id}`;
+                    if (routeCache[ck]) {
+                        transitMin = routeCache[ck].total_minutes || 0;
+                        transitMode = routeCache[ck].mode || '';
+                    } else {
+                        // Pas encore calculé → appeler /api/route en live
+                        try {
+                            const r = await fetch('/api/route', {
+                                method:'POST', headers:{'Content-Type':'application/json'},
+                                body: JSON.stringify({ from_place: prevAct.place, to_place: act.place })
+                            });
+                            const d = await r.json();
+                            if (d.success) {
+                                const safe = Math.min(180, Math.max(1, parseInt(d.total_minutes)||0));
+                                routeCache[ck] = {
+                                    summary: d.summary, details: d.details,
+                                    total_minutes: safe,
+                                    walk_from_min: d.walk_from_min||0,
+                                    transit_min: d.transit_min||0,
+                                    walk_to_min: d.walk_to_min||0,
+                                    mode: d.mode||'metro'
+                                };
+                                localStorage.setItem('japan_route_cache_v4', JSON.stringify(routeCache));
+                                transitMin  = safe;
+                                transitMode = d.mode||'';
+                            }
+                        } catch(e) { /* gardien : transitMin reste 0 */ }
+                    }
+                } else if (prevAct.place?.lat && prevAct.place?.lng && act.place?.lat && act.place?.lng) {
+                    // Pas de place_id mais coordonnées disponibles → estimation haversine
+                    const R = 6371;
+                    const dLat = (act.place.lat - prevAct.place.lat) * Math.PI/180;
+                    const dLng = (act.place.lng - prevAct.place.lng) * Math.PI/180;
+                    const h = Math.sin(dLat/2)**2 + Math.cos(prevAct.place.lat*Math.PI/180)*Math.cos(act.place.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+                    const distKm = R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+                    transitMin = distKm < 0.8 ? Math.round(distKm*15) : Math.round(distKm*4+10);
+                    transitMode = distKm < 0.8 ? 'walk' : 'metro';
+                }
+
+                const newStartMin = cursorMin + transitMin;
+                const oldTime = act.time;
+                const newTime = _minToTimeStr(newStartMin);
+
+                // Vérifier ouverture à la nouvelle heure
+                const openNote = _checkOpeningHours(act, newTime);
+                if (openNote) alerts.push({ title: act.title, note: openNote });
+
+                // Vérifier affluence à la nouvelle heure (analyse indépendante par lieu)
+                const crowdNote = _checkCrowdChange(act, act.time, newTime);
+
+                // Vérifier repas hors créneau
+                if (act.block_type === 'meal' || act.meal_type) {
+                    const mealNote = _checkMealTiming(act.meal_type||'lunch', newStartMin);
+                    if (mealNote) alerts.push({ title: act.title, note: mealNote });
+                }
+
+                if (newTime !== oldTime) {
+                    activities[actIdx].time = newTime;
+                    changes.push({ act: act.title, oldTime, newTime, transitMin, transitMode, crowdNote });
+                }
+
+                cursorMin = newStartMin + (act.duration_minutes || 90);
+            }
+
+            // Sauvegarder
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+
+            // Proposer une activité si on a beaucoup de temps libre
+            let suggestion = null;
+            if (timeGained >= 60) {
+                suggestion = await _findNearbyActivity(finished, dayActs);
+            }
+
+            // Afficher le résumé du recalcul
+            _showCascadeResult(finished.title, timeGained, changes, alerts, suggestion);
+        }
+
+        function _timeStrToMin(t) {
+            if (!t) return 0;
+            const [h,m] = t.split(':').map(Number);
+            return h*60+(m||0);
+        }
+        function _minToTimeStr(m) {
+            const mm = ((m%1440)+1440)%1440;
+            return String(Math.floor(mm/60)).padStart(2,'0')+':'+String(mm%60).padStart(2,'0');
+        }
+
+        function _checkOpeningHours(act, newTime) {
+            if (!act.place?.opening_hours) return null;
+            const todayHours = act.place.opening_hours.find(h => {
+                const days=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+                const d = getDayDate(act.dayIndex);
+                return d && h.startsWith(days[d.getDay()]);
+            });
+            if (!todayHours) return null;
+            // Format "Lundi: 09:00 – 17:00"
+            const m = todayHours.match(/(\d{2}:\d{2})\s*[–-]\s*(\d{2}:\d{2})/);
+            if (!m) return null;
+            const closeMin = _timeStrToMin(m[2]);
+            const newMin   = _timeStrToMin(newTime);
+            const dur      = act.duration_minutes || 90;
+            if (newMin + dur > closeMin) {
+                const margin = closeMin - newMin;
+                if (margin <= 0) return `⛔ Fermé à ${newTime} (ferme à ${m[2]})`;
+                if (margin < dur) return `⚠️ Ferme à ${m[2]} — seulement ${margin} min disponibles`;
+            }
+            return null;
+        }
+
+        function _checkCrowdChange(act, oldTime, newTime) {
+            const oldH = parseInt(oldTime.split(':')[0]);
+            const newH = parseInt(newTime.split(':')[0]);
+            const d = getDayDate(act.dayIndex);
+            if (!d) return null;
+            const isWeekend = d.getDay()===0||d.getDay()===6;
+
+            const crowdScore = h => {
+                let s = 1;
+                if (isWeekend) s += 0.8;
+                if (h>=9&&h<=12) s += 0.5;
+                else if (h>=13&&h<=16) s += 0.3;
+                else if (h<8||h>=17) s -= 0.6;
+                return s;
+            };
+            const diff = crowdScore(newH) - crowdScore(oldH);
+            if (diff <= -0.4) return '💚 Moins de monde à cette heure';
+            if (diff >= 0.4)  return '⚠️ Plus d'affluence à cette heure';
+            return null;
+        }
+
+        function _checkMealTiming(mealType, startMin) {
+            const ranges = { breakfast:[360,600], lunch:[660,870], dinner:[1020,1260] }; // 6h-10h / 11h-14h30 / 17h-21h
+            const r = ranges[mealType];
+            if (!r) return null;
+            if (startMin < r[0]) return `⏰ ${mealType==='lunch'?'Déjeuner':'Dîner'} décalé trop tôt`;
+            if (startMin > r[1]) return `⏰ ${mealType==='lunch'?'Déjeuner':'Dîner'} décalé très tard (${_minToTimeStr(startMin)})`;
+            return null;
+        }
+
+        async function _findNearbyActivity(refAct, dayActs) {
+            if (!refAct.place?.lat||!refAct.place?.lng) return null;
+            // Lieux déjà planifiés dans TOUT le voyage
+            const plannedIds = new Set(activities.map(a=>a.place?.place_id).filter(Boolean));
+            const plannedTitles = new Set(activities.map(a=>a.title?.toLowerCase()));
+
+            try {
+                const r = await fetch('/api/nearby', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        lat: refAct.place.lat, lng: refAct.place.lng,
+                        radius: 1200, type: 'tourist_attraction'
+                    })
+                });
+                const d = await r.json();
+                if (!d.success||!d.places?.length) return null;
+                const candidate = d.places.find(p =>
+                    !plannedIds.has(p.place_id) &&
+                    !plannedTitles.has((p.name||'').toLowerCase())
+                );
+                return candidate ? { title: candidate.name, address: candidate.vicinity||'', rating: candidate.rating } : null;
+            } catch(e) { return null; }
+        }
+
+        function _showCascadeResult(finTitle, timeGained, changes, alerts, suggestion) {
+            // Afficher un panneau résumé non-bloquant en bas de l'écran
+            const existing = document.getElementById('cascade-result-panel');
+            if (existing) existing.remove();
+
+            const gained = Math.abs(timeGained);
+            const isEarly = timeGained > 0;
+
+            const panel = document.createElement('div');
+            panel.id = 'cascade-result-panel';
+            panel.style.cssText = [
+                'position:fixed','bottom:72px','left:0','right:0','z-index:290',
+                'max-width:30rem','margin:0 auto','padding:0 12px'
+            ].join(';');
+
+            const dk = document.documentElement.classList.contains('dark');
+            const cardBg = dk?'#1e293b':'white';
+            const cardBd = dk?'#334155':'#e5e7eb';
+
+            let html = `
+                <div style="background:${cardBg};border:1.5px solid ${cardBd};border-radius:20px;padding:16px;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
+                    <!-- Header -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                        <div>
+                            <div style="font-size:13px;font-weight:900;color:${dk?'#f1f5f9':'#1f2937'}">✅ ${finTitle}</div>
+                            <div style="font-size:11px;color:${isEarly?'#15803d':'#d97706'};margin-top:1px">
+                                ${isEarly?`Terminé ${gained} min plus tôt — Planning recalculé`:`Planning mis à jour`}
+                            </div>
+                        </div>
+                        <button onclick="document.getElementById('cascade-result-panel')?.remove();renderPlanning();"
+                            style="background:${dk?'#334155':'#f3f4f6'};border:none;border-radius:50%;width:28px;height:28px;color:${dk?'#94a3b8':'#6b7280'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+                    </div>`;
+
+            // Changements d'horaires
+            if (changes.length) {
+                html += `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">`;
+                changes.forEach(ch => {
+                    const modeIcon = {walk:'🚶',metro:'🚇',train:'🚄',bus:'🚌'}[ch.transitMode]||'🚇';
+                    html += `
+                    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:${dk?'#0f172a':'#f8fafc'};border-radius:10px">
+                        <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:38px">
+                            <span style="font-size:10px;color:#9ca3af;text-decoration:line-through">${ch.oldTime}</span>
+                            <span style="font-size:11px;color:#7c3aed;font-weight:900">${ch.newTime}</span>
+                        </div>
+                        ${ch.transitMin>0?`<div style="font-size:9px;color:#0284c7;background:#f0f9ff;border-radius:6px;padding:2px 5px;flex-shrink:0">${modeIcon} ${ch.transitMin}min</div>`:''}
+                        <span style="font-size:11px;color:${dk?'#e2e8f0':'#374151'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ch.act}</span>
+                        ${ch.crowdNote?`<span style="font-size:9px;color:#0d9488;flex-shrink:0">${ch.crowdNote}</span>`:''}
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+
+            // Alertes
+            if (alerts.length) {
+                alerts.forEach(al => {
+                    html += `
+                    <div style="padding:6px 10px;background:#fef3c7;border-radius:10px;margin-bottom:6px">
+                        <div style="font-size:11px;font-weight:700;color:#92400e">${al.title}</div>
+                        <div style="font-size:11px;color:#78350f">${al.note}</div>
+                    </div>`;
+                });
+            }
+
+            // Suggestion si temps libre
+            if (suggestion) {
+                html += `
+                    <div style="padding:10px 12px;background:${dk?'#1e1b4b':'#faf5ff'};border:1.5px solid #e9d5ff;border-radius:12px;margin-bottom:10px">
+                        <div style="font-size:11px;font-weight:800;color:#7c3aed;margin-bottom:3px">✨ +${gained} min libres — Suggestion à proximité</div>
+                        <div style="font-size:12px;font-weight:700;color:${dk?'#e2e8f0':'#1f2937'}">${suggestion.title}</div>
+                        ${suggestion.address?`<div style="font-size:10px;color:#9ca3af">${suggestion.address}</div>`:''}
+                        ${suggestion.rating?`<div style="font-size:10px;color:#f59e0b">⭐ ${suggestion.rating}</div>`:''}
+                        <button onclick="_addSuggestion('${suggestion.title.replace(/'/g,'\'')}')" style="
+                            margin-top:7px;padding:5px 12px;
+                            background:linear-gradient(135deg,#7c3aed,#ec4899);
+                            color:white;border:none;border-radius:8px;
+                            font-size:11px;font-weight:700;cursor:pointer">+ Ajouter à la journée</button>
+                    </div>`;
+            }
+
+            html += `</div>`;
+            panel.innerHTML = html;
+            document.body.appendChild(panel);
+            renderPlanning();
+        }
+
+        window._addSuggestion = function(title) {
+            document.getElementById('cascade-result-panel')?.remove();
+            openModal(); // Ouvrir la modale d'ajout pré-remplie
+            setTimeout(() => {
+                const inp = document.getElementById('activity-search');
+                if (inp) { inp.value = title; inp.dispatchEvent(new Event('input')); }
+            }, 300);
+        };
+
+
+        // ══════════════════════════════════════════════════════════════════════
+        // GÉNÉRATION DE PROGRAMME COMPLET — v2
+        // ══════════════════════════════════════════════════════════════════════
+
+        let _genProgram  = [];
+        let _genDayStart = 0;
+        let _genNbDays   = 0;
+        let _genZone     = '';
+        let _genHotelPlace = null; // {name, address, lat, lng}
 
         function openGenerateModal() {
             const modal = document.getElementById('generate-program-modal');
@@ -3073,86 +3373,169 @@
             document.getElementById('generate-program-modal').classList.add('hidden');
         }
 
+        // ── Autocomplete hôtel ──────────────────────────────────────────────
+        let _genAutocomplete = null;
+
+        function _initGenAutocomplete() {
+            const inp = document.getElementById('gen-hotel-input');
+            if (!inp || !window.google?.maps?.places) return;
+            if (_genAutocomplete) return; // déjà init
+
+            _genAutocomplete = new google.maps.places.Autocomplete(inp, {
+                types: ['lodging', 'establishment'],
+                fields: ['name','formatted_address','geometry','address_components']
+            });
+
+            _genAutocomplete.addListener('place_changed', () => {
+                const place = _genAutocomplete.getPlace();
+                if (!place?.geometry) return;
+
+                _genHotelPlace = {
+                    name: place.name || inp.value,
+                    address: place.formatted_address || '',
+                    lat: place.geometry.location.lat(),
+                    lng: place.geometry.location.lng()
+                };
+
+                // Extraire la ville depuis les composants d'adresse
+                const cityComp = place.address_components?.find(c =>
+                    c.types.includes('locality') || c.types.includes('administrative_area_level_1')
+                );
+                const rawCity = cityComp?.long_name || '';
+
+                // Mapper vers une ville connue
+                const cityMap = {
+                    'Tokyo': 'Tokyo', '東京': 'Tokyo',
+                    'Kyoto': 'Kyoto', '京都': 'Kyoto',
+                    'Osaka': 'Osaka', '大阪': 'Osaka',
+                    'Nara': 'Nara', '奈良': 'Nara',
+                    'Hakone': 'Hakone', '箱根': 'Hakone',
+                    'Hiroshima': 'Hiroshima', '広島': 'Hiroshima',
+                    'Nikko': 'Nikko', '日光': 'Nikko',
+                    'Kamakura': 'Kamakura', '鎌倉': 'Kamakura',
+                    'Kanazawa': 'Kanazawa', '金沢': 'Kanazawa',
+                };
+                const detectedCity = Object.entries(cityMap).find(([k]) =>
+                    rawCity.toLowerCase().includes(k.toLowerCase())
+                )?.[1] || rawCity;
+
+                if (detectedCity) {
+                    _genZone = detectedCity;
+                    // Mettre à jour l'affichage zone
+                    const zoneEl = document.getElementById('gen-detected-zone');
+                    if (zoneEl) {
+                        zoneEl.innerHTML = `
+                            <div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;font-size:12px">
+                                <span style="font-size:14px">📍</span>
+                                <span style="font-weight:700;color:#15803d">Zone détectée : ${detectedCity}</span>
+                                <button onclick="_genClearZone()" style="margin-left:auto;background:none;border:none;color:#6b7280;cursor:pointer;font-size:13px">✕</button>
+                            </div>`;
+                    }
+                    // Masquer le sélecteur manuel
+                    const manualEl = document.getElementById('gen-zone-manual');
+                    if (manualEl) manualEl.style.display = 'none';
+                }
+            });
+        }
+
+        window._genClearZone = function() {
+            _genZone = '';
+            _genHotelPlace = null;
+            const zoneEl = document.getElementById('gen-detected-zone');
+            if (zoneEl) zoneEl.innerHTML = '';
+            const manualEl = document.getElementById('gen-zone-manual');
+            if (manualEl) manualEl.style.display = 'block';
+            const inp = document.getElementById('gen-hotel-input');
+            if (inp) { inp.value = ''; inp.focus(); }
+        };
+
         function _renderGenForm() {
             const content = document.getElementById('gen-content');
             const footer  = document.getElementById('gen-footer');
+            _genAutocomplete = null; // reset pour réinit
 
-            // Pré-remplir avec les données du séjour actif
             const stay = getStayForDay(currentDayIndex);
-            const cityDefault = stay?.city || 'Tokyo';
             const hotelDefault = stay?.hotelName || '';
-            const hotelAddrDefault = stay?.address || stay?.place?.formatted_address || '';
             const remainingDays = tripData ? Math.max(1, tripData.totalDays - currentDayIndex) : 3;
             const defaultDays = Math.min(4, remainingDays);
 
+            // Pré-charger depuis le séjour actif si disponible
+            if (stay?.hotelName && !_genHotelPlace) {
+                _genHotelPlace = { name: stay.hotelName, address: stay.address || '', lat: stay.place?.lat, lng: stay.place?.lng };
+                _genZone = stay.city || '';
+            }
+
             content.innerHTML = `
-                <!-- Zone / Ville -->
-                <div style="margin-bottom:14px">
-                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Zone / Ville</label>
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="gen-zone-pills">
-                        ${['Tokyo','Kyoto','Osaka','Nara','Hakone','Hiroshima'].map(z => `
-                        <button onclick="_genSelectZone('${z}')" id="gen-zone-${z}" style="
-                            padding:6px 14px;border-radius:20px;border:2px solid ${z===cityDefault?'#7c3aed':'#e5e7eb'};
-                            background:${z===cityDefault?'#faf5ff':'white'};
-                            color:${z===cityDefault?'#7c3aed':'#6b7280'};
-                            font-size:12px;font-weight:700;cursor:pointer">${z}</button>`).join('')}
+                <!-- Hôtel avec autocomplete -->
+                <div style="margin-bottom:16px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Hôtel / Point de départ</label>
+                    <div style="position:relative">
+                        <input id="gen-hotel-input" type="text" placeholder="Tapez le nom de votre hôtel..."
+                            value="${_genHotelPlace?.name || hotelDefault}"
+                            style="width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;outline:none">
                     </div>
-                    <input id="gen-zone-custom" type="text" placeholder="Autre zone..."
-                        value="${['Tokyo','Kyoto','Osaka','Nara','Hakone','Hiroshima'].includes(cityDefault)?'':cityDefault}"
-                        style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 12px;font-size:13px;box-sizing:border-box;outline:none"
-                        oninput="_genClearZonePills()">
+                    <div style="font-size:10px;color:#9ca3af;margin-top:4px">La zone sera détectée automatiquement depuis l'adresse</div>
                 </div>
 
-                <!-- Hôtel -->
-                <div style="margin-bottom:14px">
-                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Hôtel / Point de départ</label>
-                    <input id="gen-hotel" type="text" placeholder="Nom de votre hôtel"
-                        value="${hotelDefault}"
-                        style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 12px;font-size:13px;box-sizing:border-box;outline:none;margin-bottom:6px">
-                    <input id="gen-hotel-addr" type="text" placeholder="Adresse (optionnel)"
-                        value="${hotelAddrDefault}"
-                        style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 12px;font-size:13px;box-sizing:border-box;outline:none">
+                <!-- Zone détectée OU sélection manuelle -->
+                <div id="gen-detected-zone" style="margin-bottom:12px">
+                    ${_genZone ? `
+                    <div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;font-size:12px">
+                        <span style="font-size:14px">📍</span>
+                        <span style="font-weight:700;color:#15803d">Zone détectée : ${_genZone}</span>
+                        <button onclick="_genClearZone()" style="margin-left:auto;background:none;border:none;color:#6b7280;cursor:pointer;font-size:13px">✕</button>
+                    </div>` : ''}
+                </div>
+                <div id="gen-zone-manual" style="${_genZone ? 'display:none' : ''}margin-bottom:16px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Zone (si hôtel non trouvé)</label>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        ${['Tokyo','Kyoto','Osaka','Nara','Hakone','Hiroshima','Kamakura','Nikko'].map(z=>`
+                        <button onclick="_genPickZone('${z}')" id="gen-zpill-${z}" style="
+                            padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;
+                            border:2px solid #e5e7eb;background:white;color:#6b7280">${z}</button>`).join('')}
+                    </div>
                 </div>
 
                 <!-- Nombre de jours -->
-                <div style="margin-bottom:14px">
-                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Nombre de jours — <span id="gen-days-label">${defaultDays}</span></label>
-                    <input id="gen-days" type="range" min="1" max="${Math.min(7, remainingDays)}" value="${defaultDays}"
+                <div style="margin-bottom:16px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">
+                        Nombre de jours — <span id="gen-days-label" style="color:#7c3aed">${defaultDays}</span>
+                    </label>
+                    <input id="gen-days" type="range" min="1" max="${Math.min(7,remainingDays)}" value="${defaultDays}"
                         oninput="document.getElementById('gen-days-label').textContent=this.value"
                         style="width:100%;accent-color:#7c3aed">
-                    <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-top:3px">
-                        <span>1 jour</span><span>${Math.min(7, remainingDays)} jours max</span>
+                    <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-top:2px">
+                        <span>1 jour</span><span>${Math.min(7,remainingDays)} max</span>
                     </div>
                 </div>
 
-                <!-- Jour de départ dans le voyage -->
-                <div style="margin-bottom:14px">
-                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Commencer à partir du jour</label>
-                    <select id="gen-start-day" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px 12px;font-size:13px;background:white;outline:none">
-                        ${tripData ? Array.from({length: tripData.totalDays}, (_,i) => {
-                            const d = getDayDate(i);
-                            const label = d ? formatDate(d) : 'Jour ' + (i+1);
-                            return `<option value="${i}" ${i===currentDayIndex?'selected':''}>${'Jour ' + (i+1)} — ${label}</option>`;
-                        }).join('') : `<option value="0">Jour 1</option>`}
+                <!-- Jour de départ -->
+                <div style="margin-bottom:16px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Commencer au jour</label>
+                    <select id="gen-start-day" style="width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:13px;background:white;outline:none">
+                        ${tripData ? Array.from({length:tripData.totalDays},(_,i)=>{
+                            const d=getDayDate(i);
+                            return `<option value="${i}" ${i===currentDayIndex?'selected':''}>Jour ${i+1}${d?' — '+formatDate(d):''}</option>`;
+                        }).join('') : '<option value="0">Jour 1</option>'}
                     </select>
                 </div>
 
                 <!-- Intensité -->
-                <div style="margin-bottom:6px">
-                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Intensité du programme</label>
+                <div style="margin-bottom:4px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Intensité</label>
                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
                         ${[
-                            {id:'relax',  emoji:'😌', label:'Relax',   sub:'2-3 activités/jour'},
-                            {id:'normal', emoji:'🚶', label:'Équilibré',sub:'4 activités/jour'},
-                            {id:'intense',emoji:'🔥', label:'Intense', sub:'5 activités/jour'}
-                        ].map(item => `
-                        <button onclick="_genSelectIntensity('${item.id}')" id="gen-int-${item.id}" style="
-                            border-radius:14px;border:2px solid ${item.id==='normal'?'#7c3aed':'#e5e7eb'};
-                            background:${item.id==='normal'?'#faf5ff':'white'};
+                            {id:'relax',  emoji:'😌',label:'Relax',   sub:'2 activités/jour'},
+                            {id:'normal', emoji:'🚶',label:'Équilibré',sub:'3 activités/jour'},
+                            {id:'intense',emoji:'🔥',label:'Intense', sub:'4 activités/jour'}
+                        ].map(it=>`
+                        <button onclick="_genPickIntensity('${it.id}')" id="gen-int-${it.id}" style="
+                            border-radius:14px;border:2px solid ${it.id==='normal'?'#7c3aed':'#e5e7eb'};
+                            background:${it.id==='normal'?'#faf5ff':'white'};
                             padding:10px 6px;cursor:pointer;text-align:center">
-                            <div style="font-size:22px;margin-bottom:3px">${item.emoji}</div>
-                            <div style="font-size:12px;font-weight:800;color:${item.id==='normal'?'#7c3aed':'#374151'}">${item.label}</div>
-                            <div style="font-size:10px;color:#9ca3af;margin-top:1px">${item.sub}</div>
+                            <div style="font-size:22px;margin-bottom:3px">${it.emoji}</div>
+                            <div style="font-size:11px;font-weight:800;color:${it.id==='normal'?'#7c3aed':'#374151'}">${it.label}</div>
+                            <div style="font-size:10px;color:#9ca3af;margin-top:1px">${it.sub}</div>
                         </button>`).join('')}
                     </div>
                 </div>
@@ -3160,106 +3543,96 @@
 
             footer.innerHTML = `
                 <button onclick="_launchGenerate()" style="
-                    width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#ec4899);
-                    color:white;border:none;border-radius:16px;font-size:15px;font-weight:900;
-                    cursor:pointer;letter-spacing:.3px">
-                    🗾 Générer le programme
-                </button>
-            `;
+                    width:100%;padding:14px;
+                    background:linear-gradient(135deg,#7c3aed,#ec4899);
+                    color:white;border:none;border-radius:16px;
+                    font-size:15px;font-weight:900;cursor:pointer">
+                    🗾 Générer le programme complet
+                </button>`;
 
-            // État initial de la sélection zone
-            window._genSelectedZone = cityDefault;
             window._genSelectedIntensity = 'normal';
+            // Init autocomplete après rendu
+            setTimeout(_initGenAutocomplete, 100);
         }
 
-        window._genSelectZone = function(zone) {
-            window._genSelectedZone = zone;
-            document.getElementById('gen-zone-custom').value = '';
-            ['Tokyo','Kyoto','Osaka','Nara','Hakone','Hiroshima'].forEach(z => {
-                const btn = document.getElementById('gen-zone-' + z);
-                if (!btn) return;
-                const active = z === zone;
-                btn.style.borderColor  = active ? '#7c3aed' : '#e5e7eb';
-                btn.style.background   = active ? '#faf5ff' : 'white';
-                btn.style.color        = active ? '#7c3aed' : '#6b7280';
+        window._genPickZone = function(z) {
+            _genZone = z;
+            ['Tokyo','Kyoto','Osaka','Nara','Hakone','Hiroshima','Kamakura','Nikko'].forEach(x => {
+                const b = document.getElementById('gen-zpill-'+x);
+                if (!b) return;
+                const on = x===z;
+                b.style.borderColor = on?'#7c3aed':'#e5e7eb';
+                b.style.background  = on?'#faf5ff':'white';
+                b.style.color       = on?'#7c3aed':'#6b7280';
             });
         };
 
-        window._genClearZonePills = function() {
-            window._genSelectedZone = null;
-            ['Tokyo','Kyoto','Osaka','Nara','Hakone','Hiroshima'].forEach(z => {
-                const btn = document.getElementById('gen-zone-' + z);
-                if (btn) { btn.style.borderColor='#e5e7eb'; btn.style.background='white'; btn.style.color='#6b7280'; }
-            });
-        };
-
-        window._genSelectIntensity = function(id) {
+        window._genPickIntensity = function(id) {
             window._genSelectedIntensity = id;
             ['relax','normal','intense'].forEach(i => {
-                const btn = document.getElementById('gen-int-' + i);
-                if (!btn) return;
-                const active = i === id;
-                btn.style.borderColor = active ? '#7c3aed' : '#e5e7eb';
-                btn.style.background  = active ? '#faf5ff' : 'white';
-                btn.querySelector('div:nth-child(2)').style.color = active ? '#7c3aed' : '#374151';
+                const b = document.getElementById('gen-int-'+i);
+                if (!b) return;
+                const on = i===id;
+                b.style.borderColor = on?'#7c3aed':'#e5e7eb';
+                b.style.background  = on?'#faf5ff':'white';
+                b.querySelector('div:nth-child(2)').style.color = on?'#7c3aed':'#374151';
             });
         };
 
+        // ── Lancement de la génération ──────────────────────────────────────
         async function _launchGenerate() {
-            const zone     = window._genSelectedZone || document.getElementById('gen-zone-custom')?.value?.trim() || 'Tokyo';
-            const hotel    = document.getElementById('gen-hotel')?.value?.trim() || '';
-            const hotelAddr= document.getElementById('gen-hotel-addr')?.value?.trim() || '';
-            const nbDays   = parseInt(document.getElementById('gen-days')?.value || '3');
-            const startDay = parseInt(document.getElementById('gen-start-day')?.value || '0');
-            const intensity= window._genSelectedIntensity || 'normal';
+            const hotelInp = document.getElementById('gen-hotel-input')?.value?.trim();
+            const zone     = _genZone || hotelInp || 'Tokyo';
+            if (!zone) { alert('Veuillez saisir un hôtel ou choisir une zone.'); return; }
+
+            const hotel    = _genHotelPlace?.name || hotelInp || '';
+            const hotelAddr= _genHotelPlace?.address || '';
+            const nbDays   = parseInt(document.getElementById('gen-days')?.value||'3');
+            const startDay = parseInt(document.getElementById('gen-start-day')?.value||'0');
+            const intensity= window._genSelectedIntensity||'normal';
 
             const content = document.getElementById('gen-content');
             const footer  = document.getElementById('gen-footer');
 
-            // Loading
             content.innerHTML = `
-                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center">
-                    <div style="font-size:48px;margin-bottom:16px;animation:spin 2s linear infinite">🗾</div>
+                <div style="text-align:center;padding:48px 20px">
+                    <div style="font-size:52px;margin-bottom:18px">🗾</div>
                     <div style="font-size:16px;font-weight:900;color:#1f2937;margin-bottom:6px">Génération en cours...</div>
-                    <div style="font-size:13px;color:#9ca3af;margin-bottom:20px">L'IA construit votre programme optimal</div>
-                    <div style="width:200px;height:4px;background:#f3f4f6;border-radius:4px;overflow:hidden">
-                        <div style="height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:4px;animation:progress 3s ease-in-out forwards"></div>
+                    <div style="font-size:12px;color:#9ca3af;margin-bottom:20px">
+                        Protocole affluence · Transits réels · Repas locaux · Astuces
                     </div>
-                    <div style="font-size:11px;color:#d1d5db;margin-top:10px">Protocole affluence · Horaires réels · Astuces locales</div>
+                    <div style="width:220px;height:5px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin:0 auto">
+                        <div style="height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:4px;animation:genprogress 4s ease-in-out forwards"></div>
+                    </div>
                 </div>
                 <style>
-                    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-                    @keyframes progress { from{width:0%} to{width:90%} }
-                </style>
-            `;
+                    @keyframes genprogress{from{width:0}to{width:85%}}
+                </style>`;
             footer.innerHTML = '';
 
             try {
                 const existing = activities.filter(a => a.dayIndex >= startDay && a.dayIndex < startDay + nbDays);
                 const resp = await fetch('/api/generate-program', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method:'POST', headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({
-                        zone, city: getCityForDay(startDay) || zone,
-                        hotel_name: hotel, hotel_address: hotelAddr,
+                        zone, hotel_name: hotel, hotel_address: hotelAddr,
+                        hotel_lat: _genHotelPlace?.lat, hotel_lng: _genHotelPlace?.lng,
                         nb_days: nbDays, start_day_index: startDay,
                         start_date: tripData?.outbound?.departureDate || null,
                         intensity, existing_activities: existing
                     })
                 });
                 const data = await resp.json();
-
                 if (data.success) {
-                    _genProgram = data.program;
+                    _genProgram  = data.program;
                     _genDayStart = startDay;
-                    _genNbDays = nbDays;
+                    _genNbDays   = nbDays;
+                    _genZone     = zone;
                     _renderGenResult(data);
                 } else {
-                    _renderGenError(data.error || 'Erreur inconnue');
+                    _renderGenError(data.error||'Erreur inconnue');
                 }
-            } catch(e) {
-                _renderGenError('Erreur réseau : ' + e.message);
-            }
+            } catch(e) { _renderGenError('Erreur réseau : '+e.message); }
         }
 
         function _renderGenError(msg) {
@@ -3267,230 +3640,268 @@
                 <div style="text-align:center;padding:40px 20px">
                     <div style="font-size:40px;margin-bottom:12px">⚠️</div>
                     <div style="font-size:14px;font-weight:700;color:#dc2626;margin-bottom:6px">Erreur</div>
-                    <div style="font-size:12px;color:#6b7280">${msg}</div>
-                </div>
-            `;
+                    <div style="font-size:12px;color:#6b7280;word-break:break-word">${msg}</div>
+                </div>`;
             document.getElementById('gen-footer').innerHTML = `
-                <button onclick="_renderGenForm()" style="width:100%;padding:12px;background:#f3f4f6;border:none;border-radius:14px;font-weight:700;font-size:13px;cursor:pointer">← Réessayer</button>
-            `;
+                <button onclick="_renderGenForm()" style="width:100%;padding:12px;background:#f3f4f6;border:none;border-radius:14px;font-weight:700;font-size:13px;cursor:pointer;color:#374151">← Réessayer</button>`;
         }
 
+        // ── Rendu du résultat — timeline avec blocs ─────────────────────────
         function _renderGenResult(data) {
             const content = document.getElementById('gen-content');
             const footer  = document.getElementById('gen-footer');
 
-            let html = `
-                <div style="background:linear-gradient(135deg,#faf5ff,#fdf2f8);border-radius:16px;padding:14px;margin-bottom:16px">
-                    <div style="font-size:13px;font-weight:800;color:#7c3aed;margin-bottom:4px">📋 Programme généré</div>
-                    <div style="font-size:12px;color:#6b7280;line-height:1.5">${data.summary || ''}</div>
-                    <div style="font-size:11px;color:#a78bfa;margin-top:6px">${data.total_activities || 0} activités · Swipe ← pour retirer · Tap pour détails</div>
-                </div>
-            `;
+            const blockColors = {
+                hotel_start: { bg:'#fff7ed', border:'#fed7aa', color:'#c2410c', emoji:'🏨' },
+                hotel_end:   { bg:'#fff7ed', border:'#fed7aa', color:'#c2410c', emoji:'🏨' },
+                transit:     { bg:'#f0f9ff', border:'#bae6fd', color:'#0284c7', emoji:'🚇' },
+                activity:    { bg:'#faf5ff', border:'#e9d5ff', color:'#7c3aed', emoji:'📍' },
+                meal:        { bg:'#f0fdf4', border:'#bbf7d0', color:'#15803d', emoji:'🍽️' },
+            };
+            const mealEmoji = { breakfast:'☕', lunch:'🍜', dinner:'🍶' };
+            const modeEmoji = { walk:'🚶', metro:'🚇', bus:'🚌', train:'🚄' };
 
-            // Afficher chaque jour
+            let html = `
+                <div style="background:linear-gradient(135deg,#faf5ff,#fdf2f8);border-radius:14px;padding:12px 14px;margin-bottom:16px">
+                    <div style="font-size:12px;font-weight:800;color:#7c3aed;margin-bottom:3px">📋 Programme généré — ${_genZone}</div>
+                    <div style="font-size:11px;color:#6b7280;line-height:1.5">${data.summary||''}</div>
+                    <div style="font-size:10px;color:#a78bfa;margin-top:5px">Swipe ← pour retirer · Tap durée repas pour modifier</div>
+                </div>`;
+
             data.program.forEach((day, di) => {
                 const dayDate = getDayDate(day.day_index);
-                const dayStr  = dayDate ? formatDate(dayDate) : day.day_label;
-                const quartiers = (day.quartiers || []).join(' → ');
-
+                const dayStr  = dayDate ? formatDate(dayDate) : day.day_label||'';
                 html += `
-                <div style="margin-bottom:16px">
-                    <!-- En-tête du jour -->
+                <div style="margin-bottom:18px">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
                         <div style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border-radius:10px;padding:4px 10px;font-size:11px;font-weight:800;flex-shrink:0">Jour ${day.day_index+1}</div>
                         <div>
                             <div style="font-size:12px;font-weight:700;color:#1f2937">${dayStr}</div>
-                            ${quartiers ? `<div style="font-size:10px;color:#9ca3af">${quartiers}</div>` : ''}
+                            ${(day.quartiers||[]).length?`<div style="font-size:10px;color:#9ca3af">${day.quartiers.join(' → ')}</div>`:''}
                         </div>
-                    </div>
-                    <!-- Activités du jour -->
-                    <div id="gen-day-${di}" style="display:flex;flex-direction:column;gap:6px">
-                `;
+                    </div>`;
 
-                day.activities.forEach((act, ai) => {
+                (day.blocks||[]).forEach((blk, bi) => {
+                    const bc  = blockColors[blk.type] || blockColors.activity;
+                    const em  = blk.type==='meal' ? (mealEmoji[blk.meal_type]||'🍽️') : (blk.type==='transit'?(modeEmoji[blk.mode]||'🚇'):bc.emoji);
+                    const isRemovable = blk.type==='activity' || blk.type==='meal';
+                    const isTransit   = blk.type==='transit';
+                    const isHotel     = blk.type==='hotel_start'||blk.type==='hotel_end';
+
+                    if (isHotel) {
+                        html += `
+                        <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:#fff7ed;border-radius:10px;margin-bottom:4px;border:1px solid #fed7aa">
+                            <span style="font-size:14px">🏨</span>
+                            <span style="font-size:11px;font-weight:700;color:#c2410c">${blk.time} — ${blk.title}</span>
+                        </div>`;
+                        return;
+                    }
+
+                    if (isTransit) {
+                        html += `
+                        <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;margin:2px 0 2px 16px">
+                            <span style="font-size:12px">${em}</span>
+                            <div style="flex:1">
+                                <span style="font-size:11px;color:#0284c7;font-weight:600">${blk.duration_minutes} min</span>
+                                <span style="font-size:10px;color:#9ca3af;margin-left:4px">${blk.from||''} → ${blk.to||''}</span>
+                            </div>
+                            ${blk.note?`<span style="font-size:9px;color:#bfdbfe">${blk.note}</span>`:''}
+                        </div>`;
+                        return;
+                    }
+
+                    // Activity ou meal
                     html += `
-                    <div id="gen-act-${di}-${ai}" data-di="${di}" data-ai="${ai}" style="
+                    <div id="gblk-${di}-${bi}" data-di="${di}" data-bi="${bi}" data-type="${blk.type}" style="
                         display:flex;gap:10px;align-items:flex-start;
-                        background:white;border:1.5px solid #f3f4f6;border-radius:14px;
-                        padding:10px 12px;position:relative;overflow:hidden;
-                        transition:transform .2s,opacity .2s">
-                        <!-- Heure -->
-                        <div style="font-size:11px;font-weight:800;color:#7c3aed;width:38px;flex-shrink:0;padding-top:1px">${act.time}</div>
+                        background:${bc.bg};border:1.5px solid ${bc.border};border-radius:14px;
+                        padding:10px 12px;margin-bottom:3px;
+                        transition:transform .2s,opacity .2s;position:relative;overflow:hidden">
+                        <!-- Heure + emoji -->
+                        <div style="text-align:center;flex-shrink:0;width:36px">
+                            <div style="font-size:16px">${em}</div>
+                            <div style="font-size:10px;font-weight:800;color:${bc.color}">${blk.time}</div>
+                        </div>
                         <!-- Contenu -->
                         <div style="flex:1;min-width:0">
-                            <div style="font-size:13px;font-weight:700;color:#1f2937;line-height:1.3">${act.title}</div>
-                            <div style="font-size:10px;color:#9ca3af;margin-top:2px">⏱ ${act.duration_minutes} min</div>
-                            ${act.local_tip ? `<div style="font-size:11px;color:#0d9488;margin-top:4px;line-height:1.4">🤫 ${act.local_tip}</div>` : ''}
+                            <div style="font-size:13px;font-weight:700;color:#1f2937;line-height:1.3">${blk.title}</div>
+                            ${blk.type==='meal'?`
+                            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+                                <span style="font-size:10px;color:${bc.color}">⏱</span>
+                                <button onclick="_genAdjustMeal(${di},${bi},-15)" style="background:white;border:1px solid ${bc.border};border-radius:6px;padding:1px 6px;font-size:10px;color:${bc.color};cursor:pointer">−15</button>
+                                <span id="gblk-dur-${di}-${bi}" style="font-size:11px;font-weight:700;color:${bc.color}">${blk.duration_minutes} min</span>
+                                <button onclick="_genAdjustMeal(${di},${bi},+15)" style="background:white;border:1px solid ${bc.border};border-radius:6px;padding:1px 6px;font-size:10px;color:${bc.color};cursor:pointer">+15</button>
+                            </div>
+                            ${blk.suggestion?`<div style="font-size:11px;color:#6b7280;margin-top:3px">${blk.suggestion}</div>`:''}
+                            `:
+                            `<div style="font-size:10px;color:#9ca3af;margin-top:2px">⏱ ${blk.duration_minutes} min</div>`}
+                            ${blk.local_tip?`<div style="font-size:11px;color:#0d9488;margin-top:4px;line-height:1.4">🤫 ${blk.local_tip}</div>`:''}
+                            ${blk.crowd_note?`<div style="font-size:10px;color:#d97706;margin-top:2px">👥 ${blk.crowd_note}</div>`:''}
                         </div>
-                        <!-- Bouton supprimer -->
-                        <button onclick="_genRemoveActivity(${di},${ai})" style="
-                            background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;
-                            padding:4px 8px;font-size:11px;font-weight:700;color:#dc2626;
-                            cursor:pointer;flex-shrink:0">✕</button>
+                        <!-- Supprimer si removable -->
+                        ${isRemovable?`
+                        <button onclick="_genRemoveBlock(${di},${bi})" style="
+                            background:rgba(220,38,38,0.08);border:none;border-radius:8px;
+                            padding:4px 7px;font-size:11px;color:#dc2626;cursor:pointer;flex-shrink:0">✕</button>`:''}
                     </div>`;
                 });
-
-                html += `
-                    </div>
-                    <!-- Ajouter activité à ce jour -->
-                    <button onclick="_genAddToDay(${di})" style="
-                        width:100%;margin-top:6px;padding:8px;
-                        border:2px dashed #e9d5ff;border-radius:12px;
-                        background:#faf5ff;color:#a78bfa;
-                        font-size:12px;font-weight:700;cursor:pointer">
-                        + Ajouter une activité ce jour
-                    </button>
-                </div>`;
+                html += `</div>`;
             });
 
             content.innerHTML = html;
-
-            // Swipe tactile sur les activités pour les retirer
-            _attachGenSwipe();
+            _attachGenBlockSwipe();
 
             footer.innerHTML = `
                 <div style="display:flex;gap:8px">
-                    <button onclick="_renderGenForm()" style="
-                        flex:1;padding:12px;background:#f3f4f6;border:none;border-radius:14px;
-                        font-weight:700;font-size:13px;cursor:pointer;color:#6b7280">← Refaire</button>
-                    <button onclick="_applyGenProgram()" style="
-                        flex:2;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);
-                        color:white;border:none;border-radius:14px;font-weight:900;
-                        font-size:13px;cursor:pointer">
-                        ✅ Ajouter au voyage
-                    </button>
-                </div>
-            `;
+                    <button onclick="_renderGenForm()" style="flex:1;padding:12px;background:#f3f4f6;border:none;border-radius:14px;font-weight:700;font-size:13px;cursor:pointer;color:#6b7280">← Refaire</button>
+                    <button onclick="_applyGenProgram()" style="flex:2;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-weight:900;font-size:13px;cursor:pointer">✅ Ajouter au voyage</button>
+                </div>`;
         }
 
-        // Retirer une activité du programme généré
-        window._genRemoveActivity = function(di, ai) {
-            if (!_genProgram[di]) return;
-            const el = document.getElementById(`gen-act-${di}-${ai}`);
-            if (el) { el.style.transform = 'translateX(-100%)'; el.style.opacity = '0'; }
-            setTimeout(() => {
-                _genProgram[di].activities.splice(ai, 1);
-                _renderGenResult({ program: _genProgram, summary: '', total_activities: _genProgram.reduce((s,d)=>s+(d.activities?.length||0),0) });
+        // Ajuster durée repas et recalculer les heures suivantes
+        window._genAdjustMeal = function(di, bi, delta) {
+            const blk = _genProgram[di]?.blocks?.[bi];
+            if (!blk) return;
+            blk.duration_minutes = Math.max(10, (blk.duration_minutes||30) + delta);
+            // Recalculer les heures de tous les blocs suivants
+            _genRecalcTimes(di, bi);
+            // Mettre à jour l'affichage sans full re-render
+            const durEl = document.getElementById(`gblk-dur-${di}-${bi}`);
+            if (durEl) durEl.textContent = blk.duration_minutes + ' min';
+            // Mettre à jour les heures affichées
+            _renderGenResult({ program: _genProgram, summary: '' });
+        };
+
+        function _genRecalcTimes(di, fromBi) {
+            const blocks = _genProgram[di]?.blocks;
+            if (!blocks) return;
+            // Partir de l'heure du bloc modifié + sa durée
+            let cursor = _timeToMin(blocks[fromBi].time) + (blocks[fromBi].duration_minutes||0);
+            for (let bi = fromBi+1; bi < blocks.length; bi++) {
+                blocks[bi].time = _minToTime(cursor);
+                cursor += (blocks[bi].duration_minutes || 0);
+            }
+        }
+
+        function _timeToMin(t) {
+            if (!t) return 0;
+            const [h,m] = t.split(':').map(Number);
+            return h*60+(m||0);
+        }
+        function _minToTime(m) {
+            const h = Math.floor(m/60)%24;
+            const mn = m%60;
+            return String(h).padStart(2,'0')+':'+String(mn).padStart(2,'0');
+        }
+
+        window._genRemoveBlock = function(di, bi) {
+            if (!_genProgram[di]?.blocks) return;
+            const el = document.getElementById(`gblk-${di}-${bi}`);
+            if (el) { el.style.transform='translateX(-100%)'; el.style.opacity='0'; }
+            setTimeout(()=>{
+                _genProgram[di].blocks.splice(bi, 1);
+                _renderGenResult({ program:_genProgram, summary:'' });
             }, 200);
         };
 
-        // Swipe gauche pour retirer
-        function _attachGenSwipe() {
-            document.querySelectorAll('[id^="gen-act-"]').forEach(el => {
-                let sx = 0;
-                el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive:true });
-                el.addEventListener('touchend', e => {
+        function _attachGenBlockSwipe() {
+            document.querySelectorAll('[id^="gblk-"]').forEach(el => {
+                let sx=0;
+                el.addEventListener('touchstart', e=>{ sx=e.touches[0].clientX; }, {passive:true});
+                el.addEventListener('touchend', e=>{
                     const dx = e.changedTouches[0].clientX - sx;
                     if (dx < -70) {
-                        const [,di,ai] = el.id.split('-').map(Number);
-                        window._genRemoveActivity(di, ai);
+                        const parts = el.id.split('-');
+                        window._genRemoveBlock(parseInt(parts[1]), parseInt(parts[2]));
                     }
-                }, { passive:true });
+                }, {passive:true});
             });
         }
 
-        // Ajouter une activité libre à un jour
-        window._genAddToDay = function(di) {
-            const title = prompt('Nom de l\'activité à ajouter :');
-            if (!title?.trim()) return;
-            const lastAct = _genProgram[di]?.activities?.slice(-1)[0];
-            const newTime = lastAct ? (() => {
-                const [h,m] = lastAct.time.split(':').map(Number);
-                const total = h*60 + m + (lastAct.duration_minutes||60) + (lastAct.breathing_after||15);
-                return String(Math.floor(total/60)).padStart(2,'0') + ':' + String(total%60).padStart(2,'0');
-            })() : '10:00';
-            _genProgram[di].activities.push({ time: newTime, title, search_query: title + ' ' + (window._genSelectedZone||'Japan'), duration_minutes: 60, type: 'other', local_tip: '', breathing_after: 15 });
-            _renderGenResult({ program: _genProgram, summary: '', total_activities: _genProgram.reduce((s,d)=>s+(d.activities?.length||0),0) });
-        };
-
-        // Appliquer le programme : résoudre chaque activité via activity-analyze et l'ajouter
+        // ── Application : résoudre les activités et injecter dans le voyage ──
         async function _applyGenProgram() {
-            const footer = document.getElementById('gen-footer');
+            const footer  = document.getElementById('gen-footer');
             const content = document.getElementById('gen-content');
             footer.innerHTML = '';
+
+            // Collecter seulement les blocs activity (les meals et transits sont stockés séparément)
+            const actBlocks = _genProgram.flatMap(day =>
+                (day.blocks||[])
+                    .filter(b => b.type==='activity' || b.type==='meal')
+                    .map(b => ({ ...b, day_index: day.day_index }))
+            );
+            const total = actBlocks.length;
+            let added = 0;
+
             content.innerHTML = `
                 <div style="text-align:center;padding:40px 20px">
-                    <div style="font-size:40px;margin-bottom:12px;animation:spin 2s linear infinite">⚙️</div>
+                    <div style="font-size:40px;margin-bottom:12px">⚙️</div>
                     <div style="font-size:15px;font-weight:900;color:#1f2937;margin-bottom:6px">Application en cours...</div>
                     <div id="gen-apply-status" style="font-size:12px;color:#9ca3af">Résolution des lieux...</div>
                     <div style="width:200px;height:4px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin:16px auto 0">
                         <div id="gen-apply-bar" style="height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:4px;width:0%;transition:width .4s"></div>
                     </div>
-                </div>
-                <style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
-            `;
+                </div>`;
 
-            const allActs = _genProgram.flatMap(day => day.activities.map(a => ({ ...a, day_index: day.day_index })));
-            let added = 0;
-            const total = allActs.length;
-
-            for (const act of allActs) {
+            for (const blk of actBlocks) {
                 const statusEl = document.getElementById('gen-apply-status');
                 const barEl    = document.getElementById('gen-apply-bar');
-                if (statusEl) statusEl.textContent = `Ajout : ${act.title}`;
-                if (barEl) barEl.style.width = Math.round((added/total)*100) + '%';
+                if (statusEl) statusEl.textContent = `Ajout : ${blk.title}`;
+                if (barEl) barEl.style.width = Math.round((added/total)*100)+'%';
 
-                try {
-                    const r = await fetch('/api/activity-analyze', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            description: act.search_query || act.title,
-                            time_flexible: true,
-                            day_index: act.day_index
-                        })
+                if (blk.type === 'meal') {
+                    // Repas : ajouter directement sans résolution Places
+                    activities.push({
+                        id: Date.now()+Math.random(),
+                        dayIndex: blk.day_index,
+                        time: blk.time,
+                        time_flexible: true,
+                        title: blk.title,
+                        description: blk.suggestion || '',
+                        duration_minutes: blk.duration_minutes || 45,
+                        block_type: 'meal',
+                        meal_type: blk.meal_type || 'lunch',
+                        local_tip: blk.local_tip || '',
+                        place: null, source: 'generated'
                     });
-                    const d = await r.json();
-                    if (d.success && d.activity) {
+                } else {
+                    try {
+                        const r = await fetch('/api/activity-analyze', {
+                            method:'POST', headers:{'Content-Type':'application/json'},
+                            body: JSON.stringify({ description: blk.search_query||blk.title, time_flexible:true, day_index:blk.day_index })
+                        });
+                        const d = await r.json();
                         activities.push({
-                            id: Date.now() + Math.random(),
-                            dayIndex: act.day_index,
-                            time: act.time,
+                            id: Date.now()+Math.random(),
+                            dayIndex: blk.day_index,
+                            time: blk.time,
                             time_flexible: true,
-                            title: d.activity.title || act.title,
-                            description: act.local_tip || '',
-                            duration_minutes: act.duration_minutes || d.activity.duration_minutes || 90,
-                            place: d.activity.place || null,
+                            title: d.success&&d.activity ? (d.activity.title||blk.title) : blk.title,
+                            description: blk.local_tip||'',
+                            duration_minutes: blk.duration_minutes || (d.success&&d.activity?.duration_minutes)||90,
+                            local_tip: blk.local_tip||'',
+                            crowd_note: blk.crowd_note||'',
+                            place: d.success&&d.activity ? d.activity.place : null,
                             source: 'generated'
                         });
-                    } else {
-                        // Ajouter sans place si l'API échoue
+                    } catch(e) {
                         activities.push({
-                            id: Date.now() + Math.random(),
-                            dayIndex: act.day_index,
-                            time: act.time,
-                            time_flexible: true,
-                            title: act.title,
-                            description: act.local_tip || '',
-                            duration_minutes: act.duration_minutes || 90,
-                            place: null,
-                            source: 'generated'
+                            id: Date.now()+Math.random(), dayIndex: blk.day_index, time: blk.time,
+                            time_flexible:true, title:blk.title, description:blk.local_tip||'',
+                            duration_minutes:blk.duration_minutes||90, place:null, source:'generated'
                         });
                     }
-                } catch(e) {
-                    activities.push({
-                        id: Date.now() + Math.random(),
-                        dayIndex: act.day_index,
-                        time: act.time,
-                        time_flexible: true,
-                        title: act.title,
-                        description: act.local_tip || '',
-                        duration_minutes: act.duration_minutes || 90,
-                        place: null
-                    });
                 }
                 added++;
-                // Petit délai pour ne pas spammer l'API
-                await new Promise(r => setTimeout(r, 300));
+                await new Promise(r=>setTimeout(r, 250));
             }
 
-            activities.sort((a,b) => a.dayIndex !== b.dayIndex ? a.dayIndex-b.dayIndex : a.time.localeCompare(b.time));
+            activities.sort((a,b)=>a.dayIndex!==b.dayIndex?a.dayIndex-b.dayIndex:a.time.localeCompare(b.time));
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
             closeGenerateModal();
             renderPlanning();
-            showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré par IA', '🗾');
+            showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré', '🗾');
         }
-
 
         // ── Édition rapide depuis la modale d'optimisation ─────────────────────
         let _currentOptimized = [];  // référence vivante pour l'édition
@@ -5567,7 +5978,7 @@
                 element.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.8), 0 8px 24px rgba(139,92,246,0.25)';
                 // Overlay violet persistant : signal clair "sélectionné, tu peux swiper"
                 overlay.style.transition = 'opacity 0.2s ease, background 0.1s ease';
-                setOverlay('rgba(139,92,246,0.22)', '1', '↔ Glisse pour valider ou supprimer');
+                setOverlay('rgba(139,92,246,0.22)', '1', '→ Terminé · ← Supprimer');
                 hint.style.fontSize = '12px';
                 hint.style.fontWeight = '700';
             }
@@ -5644,19 +6055,19 @@
                     hint.style.fontWeight = '900';
                     const alreadyDone = completedActivities.includes(activityId);
 
-                    if (swipeDir === 'left') {
-                        // Gauche → Valider (vert) ou Dé-valider (bleu)
+                    if (swipeDir === 'right') {
+                        // Droite → "J'ai terminé" + recalcul cascade (vert)
                         if (alreadyDone) {
                             setOverlay('rgba(96,165,250,' + (0.45 + pct*0.45) + ')', '1',
                                 pct > 0.3 ? '↩  Dé-valider' : '');
                             element.style.boxShadow = '0 6px 24px rgba(96,165,250,' + (0.3+pct*0.4) + ')';
                         } else {
                             setOverlay('rgba(22,163,74,' + (0.45 + pct*0.45) + ')', '1',
-                                pct > 0.3 ? '✓  Valider' : '');
+                                pct > 0.3 ? '✅  J'ai terminé !' : '→');
                             element.style.boxShadow = '0 6px 24px rgba(22,163,74,' + (0.3+pct*0.4) + ')';
                         }
                     } else {
-                        // Droite → Supprimer
+                        // Gauche → Supprimer
                         setOverlay('rgba(220,38,38,' + (0.45 + pct*0.45) + ')', '1',
                             pct > 0.3 ? '✕  Supprimer' : '');
                         element.style.boxShadow = '0 6px 24px rgba(220,38,38,' + (0.3+pct*0.4) + ')';
@@ -5675,27 +6086,31 @@
                     const diffX = touchCurrentX - touchStartX;
                     const alreadyDone = completedActivities.includes(activityId);
 
-                    if (swipeDir === 'left' && diffX < -80) {
-                        const alreadyDoneEnd = completedActivities.includes(activityId);
-                        // Fade out overlay, reset transform, puis re-render
+                    if (swipeDir === 'right' && diffX > 80) {
+                        // Droite → "J'ai terminé" + recalcul cascade
                         overlay.style.transition = 'opacity 0.2s ease';
                         overlay.style.opacity = 0;
                         hint.style.opacity = 0;
                         element.style.transition = 'transform 0.2s ease';
                         element.style.transform = 'translateX(0)';
-
                         setTimeout(() => {
                             clearOverlay();
-                            // Toggle
-                            const idx = completedActivities.indexOf(activityId);
-                            if (idx === -1) completedActivities.push(activityId);
-                            else           completedActivities.splice(idx, 1);
-                            localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
-                            renderPlanning();
+                            const alreadyDoneEnd = completedActivities.includes(activityId);
+                            if (alreadyDoneEnd) {
+                                // Dé-valider
+                                completedActivities.splice(completedActivities.indexOf(activityId), 1);
+                                localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
+                                renderPlanning();
+                            } else {
+                                // Marquer terminé + lancer recalcul cascade
+                                completedActivities.push(activityId);
+                                localStorage.setItem('japan_completed_v1', JSON.stringify(completedActivities));
+                                _cascadeReschedule(activityId);
+                            }
                         }, 220);
 
-                    } else if (swipeDir === 'right' && diffX > 80) {
-                        // Droite → Confirmation avant suppression
+                    } else if (swipeDir === 'left' && diffX < -80) {
+                        // Gauche → Confirmation suppression
                         overlay.style.transition = 'opacity 0.15s ease';
                         overlay.style.opacity = 0;
                         hint.style.opacity = 0;
