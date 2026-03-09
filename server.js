@@ -40,6 +40,28 @@ function buildProfileContext(profile) {
 }
 
 
+// ── Nettoyage robuste du JSON IA ─────────────────────────────────────────────
+function sanitizeJson(text) {
+    let j = text.trim();
+    j = j.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+    j = j.replace(/[""]/g, '"').replace(/['']/g, "'");
+    j = j.replace(/,\s*([}\]])/g, '$1');
+    const m = j.match(/\{[\s\S]*\}/);
+    if (m) j = m[0];
+    try { JSON.parse(j); } catch(e) {
+        const lastComma = j.lastIndexOf(',');
+        const trimmed = j.slice(0, lastComma > 0 ? lastComma : j.length);
+        let work = trimmed;
+        const openB = (work.match(/\[/g)||[]).length - (work.match(/\]/g)||[]).length;
+        const openC = (work.match(/\{/g)||[]).length - (work.match(/\}/g)||[]).length;
+        for (let i=0; i<openB; i++) work += ']';
+        for (let i=0; i<openC; i++) work += '}';
+        work = work.replace(/,\s*([}\]])/g, '$1');
+        try { JSON.parse(work); j = work; } catch(e2) { /* garder j original */ }
+    }
+    return j;
+}
+
 async function anthropicChat(systemPrompt, userMessage, maxTokens = 400) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error('Clé ANTHROPIC_API_KEY manquante dans .env');
@@ -862,44 +884,6 @@ JSON BRUT UNIQUEMENT (pas de markdown):
                 prompt, 3000
             );
 
-            // Nettoyage robuste du JSON
-            function sanitizeJson(text) {
-                let j = text.trim();
-                // Retirer les backticks markdown
-                j = j.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-                // Guillemets typographiques → droits
-                j = j.replace(/[""]/g, '"').replace(/['']/g, "'");
-                // Trailing commas
-                j = j.replace(/,\s*([}\]])/g, '$1');
-                // Extraire l'objet JSON principal
-                const m = j.match(/\{[\s\S]*\}/);
-                if (m) j = m[0];
-                // ── Réparer JSON tronqué ──────────────────────────────────────
-                // Si le JSON ne parse pas, tenter de fermer les structures ouvertes
-                try { JSON.parse(j); } catch(e) {
-                    // 1. Fermer une string non terminée : trouver la dernière " sans fermeture
-                    //    Couper à la dernière virgule ou clé complète propre
-                    const lastComma = j.lastIndexOf(',');
-                    const lastColon = j.lastIndexOf(':');
-                    const lastComplete = Math.min(
-                        lastComma > 0 ? lastComma : j.length,
-                        j.length
-                    );
-                    // Si le dernier caractère utile n'est pas } ou ], tronquer avant la dernière virgule
-                    const trimmed = j.slice(0, lastComma > 0 ? lastComma : j.length);
-                    // Recompter et fermer les accolades/crochets ouverts
-                    let work = trimmed;
-                    const openB = (work.match(/\[/g)||[]).length - (work.match(/\]/g)||[]).length;
-                    const openC = (work.match(/\{/g)||[]).length - (work.match(/\}/g)||[]).length;
-                    for (let i=0; i<openB; i++) work += ']';
-                    for (let i=0; i<openC; i++) work += '}';
-                    // Retirer trailing commas apparus
-                    work = work.replace(/,\s*([}\]])/g, '$1');
-                    try { JSON.parse(work); j = work; } catch(e2) { /* garder j original */ }
-                }
-                return j;
-            }
-
             let dayParsed;
             try { dayParsed = JSON.parse(raw); }
             catch(e) {
@@ -1127,6 +1111,32 @@ app.post("/api/optimize-day", async (req, res) => {
 
     } catch (e) {
         console.error("optimize-day error:", e);
+        // ── Fallback : retourner les activités non-modifiées plutôt que d'échouer ──
+        // Permet au client d'afficher un mode édition pour que l'utilisateur reprenne
+        const { activities } = req.body || {};
+        const validFallback = (activities || []).filter(a => a.place && a.place.name);
+        if (validFallback.length > 0) {
+            console.warn('[optimize-day] Fallback: retour activités originales non optimisées');
+            return res.json({
+                success: false,
+                partial: true,
+                error: e.message,
+                optimized_activities: validFallback.map(a => ({
+                    id: a.id,
+                    time: a.time,
+                    title: a.title,
+                    description: a.description || '',
+                    place: a.place,
+                    reason: '',
+                    breathing_after_minutes: 0,
+                    breathing_reason: '',
+                    duration_minutes: a.duration_minutes || 60,
+                    time_changed: false
+                })),
+                day_summary: '',
+                energy_level: ''
+            });
+        }
         res.status(500).json({ success: false, error: e.message });
     }
 });
