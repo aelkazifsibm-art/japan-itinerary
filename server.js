@@ -723,145 +723,145 @@ Format exact: {"why_visit":"...","best_time":"...","duration_minutes":90,"crowd_
 // ── GÉNÉRATION DE PROGRAMME COMPLET ─────────────────────────────────────────
 app.post("/api/generate-program", async (req, res) => {
     try {
-        const { zone, hotel_name, hotel_address, hotel_lat, hotel_lng,
-                nb_days, start_day_index, start_date, intensity, existing_activities } = req.body;
-
+        const { zone, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities } = req.body;
         if (!zone || !nb_days) return res.status(400).json({ success: false, error: 'Zone et nb_days requis' });
 
         const dayNames = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-        const daysInfo = Array.from({ length: nb_days }, (_, i) => {
-            const dayIdx = (start_day_index||0) + i;
-            if (!start_date) return { index: dayIdx, name: 'Jour '+(i+1), isWeekend: false, isFriday: false, isMonday: false };
-            const d = new Date(start_date);
-            d.setDate(d.getDate() + dayIdx);
-            const dow = d.getDay();
-            return {
-                index: dayIdx, name: dayNames[dow],
-                isWeekend: dow===0||dow===6, isSaturday: dow===6, isSunday: dow===0,
-                isFriday: dow===5, isMonday: dow===1,
-                date: d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})
-            };
-        });
-
         const intensityProfiles = {
-            relax:   { n: 2, mealDur: {breakfast:25,lunch:55,dinner:70}, startHour:'08:30', note:'Journées légères, longues pauses, rythme lent' },
-            normal:  { n: 3, mealDur: {breakfast:20,lunch:45,dinner:60}, startHour:'08:00', note:'Journées équilibrées, 3 activités culturelles' },
-            intense: { n: 4, mealDur: {breakfast:15,lunch:35,dinner:55}, startHour:'07:30', note:'Journées denses, 4 activités, pauses courtes' }
+            relax:   { n: 2, mealDur: {breakfast:25,lunch:55,dinner:70}, startHour:'08:30' },
+            normal:  { n: 3, mealDur: {breakfast:20,lunch:45,dinner:60}, startHour:'08:00' },
+            intense: { n: 4, mealDur: {breakfast:15,lunch:35,dinner:55}, startHour:'07:30' }
         };
         const profile = intensityProfiles[intensity||'normal'];
+        const existingTitles = (existing_activities||[]).map(a=>(a.title||'').toLowerCase()).slice(0,10);
 
-        const existingTitles = (existing_activities||[]).map(a=>(a.title||'').toLowerCase());
+        // Règles transit selon zone
+        const getTransitRules = (z) => {
+            const zl = z.toLowerCase();
+            if (zl.includes('tokyo')) return 'Tokyo: meme quartier=12min marche, adjacent=20min metro, eloigne=35min metro, heure pointe +12min';
+            if (zl.includes('kyoto')) return 'Kyoto: centre=15min, Arashiyama=30min JR, Fushimi=15min Keihan, Nara=45min Kintetsu';
+            return 'Calculer transit realiste point a point selon distance';
+        };
 
-        // Règles transits par zone
-        const transitRules = zone.toLowerCase().includes('tokyo') ? `
-TOKYO — Règles de transit individuelles :
-- Même quartier (Asakusa→Asakusa, Shinjuku→Shinjuku) : 10-15 min marche
-- Quartiers adjacents (Asakusa→Ueno, Shibuya→Harajuku) : 15-20 min métro
-- Quartiers éloignés (Asakusa→Shibuya, Ueno→Shinjuku) : 30-40 min métro
-- Très éloignés (Asakusa→Odaiba, Shinjuku→Tokyo Disney) : 45-60 min
-- Heure de pointe 7h30-9h30 et 17h30-19h30 : +10-15 min sur tous les trajets
-- Règle dure : si transit > 45 min → 1 seul A/R dans ce sens par demi-journée
-Quartiers Tokyo : Asakusa, Ueno, Akihabara, Ginza, Shibuya, Harajuku, Shinjuku, Shimokitazawa, Yanaka, Odaiba, Roppongi, Ikebukuro, Nakameguro` :
-        zone.toLowerCase().includes('kyoto') ? `
-KYOTO — Règles de transit :
-- Centre→Arashiyama : 30 min JR/bus
-- Centre→Fushimi Inari : 15 min Keihan
-- Gion→Philosopher's Path : 25 min marche
-- Kyoto→Nara : 45 min Kintetsu
-- Kyoto→Osaka : 15 min Shinkansen / 30 min Keihan` :
-        `Règles générales : calculer transit réaliste point à point selon la distance approximative entre les lieux`;
+        const getDayInfo = (i) => {
+            const dayIdx = (start_day_index||0) + i;
+            if (!start_date) return { index: dayIdx, name: 'Jour '+(i+1), isWeekend:false, isMonday:false, isFriday:false };
+            const d = new Date(start_date); d.setDate(d.getDate() + dayIdx);
+            const dow = d.getDay();
+            return { index: dayIdx, name: dayNames[dow], isWeekend: dow===0||dow===6,
+                     isMonday: dow===1, isFriday: dow===5, isSaturday: dow===6, isSunday: dow===0,
+                     date: d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) };
+        };
 
-        const prompt = `Tu es un expert en voyages au Japon. Génère un programme COMPLET de ${nb_days} jour(s) à ${zone}.
+        // ── Génération jour par jour pour éviter troncature JSON ──────────────
+        const allDays = [];
+        let globalSummary = '';
 
-PARAMÈTRES :
-- Hôtel/point de départ et retour chaque jour : ${hotel_name||'centre-ville'}${hotel_address?' ('+hotel_address+')':''}
-- Intensité : ${intensity||'normal'} — ${profile.note}
-- Activités culturelles par jour : ${profile.n} (hors repas et transits)
-- Heure de départ de l'hôtel : ${profile.startHour} chaque matin
-- Activités à NE PAS RÉPÉTER (déjà dans le voyage) : ${existingTitles.length?existingTitles.join(', '):'aucune'}
+        for (let di = 0; di < nb_days; di++) {
+            const dayInfo = getDayInfo(di);
+            const dayNote = dayInfo.isMonday ? 'LUNDI: pas de musees, privilegier parcs/quartiers/shopping' :
+                            dayInfo.isSaturday ? 'SAMEDI: forte affluence, temples avant 9h' :
+                            dayInfo.isSunday ? 'DIMANCHE: forte affluence, familles dans les parcs' :
+                            dayInfo.isFriday ? 'VENDREDI: affluence montante apres 14h' :
+                            'Semaine: creneaux ideaux 14h-17h pour musees';
 
-JOURS DU VOYAGE :
-${daysInfo.map(d=>`Jour ${d.index+1} (${d.name}${d.date?', '+d.date:''}) — ${
-    d.isMonday?'⚠️ LUNDI: Musées fermés → parcs, quartiers locaux, shopping, ramen uniquement':
-    d.isSaturday?'🔴 SAMEDI: Forte affluence partout → temples avant 8h, marchés à l\'ouverture':
-    d.isSunday?'🔴 DIMANCHE: Forte affluence → même règles que samedi, familles dans les parcs':
-    d.isFriday?'🟡 VENDREDI: Affluence montante après 14h → sites populaires le matin':
-    '🟢 SEMAINE: Créneau idéal, créneaux 14h-17h parfaits pour musées'
-}`).join('\n')}
+            const prompt = `Expert voyages Japon. Genere 1 journee complete a ${zone} pour le ${dayInfo.name} (${dayInfo.date||'jour '+(di+1)}).
+Hotel: ${hotel_name||'centre-ville'}${hotel_address?' ('+hotel_address+')':''}
+Intensite: ${intensity||'normal'} — ${profile.n} activites culturelles
+Note jour: ${dayNote}
+Transits: ${getTransitRules(zone)}
+Deja planifie (a eviter): ${existingTitles.join(', ')||'aucun'}
 
-${transitRules}
+STRUCTURE OBLIGATOIRE:
+- hotel_start a ${profile.startHour}
+- breakfast konbini/kissaten (${profile.mealDur.breakfast}min)
+- transit + activity x${profile.n} avec transit entre chaque
+- lunch teishoku local (${profile.mealDur.lunch}min)
+- transit + activity suite
+- transit + dinner izakaya (${profile.mealDur.dinner}min)
+- hotel_end avant 22h
 
-PROTOCOLE OBLIGATOIRE — STRUCTURE DE CHAQUE JOURNÉE :
-Chaque jour doit contenir ces blocs dans cet ordre :
-1. hotel_start — départ hôtel à ${profile.startHour}
-2. transit — trajet hôtel → première activité (calcul précis point à point)
-3. activity — première activité culturelle
-4. transit — trajet vers le déjeuner
-5. meal:lunch — déjeuner (durée ${profile.mealDur.lunch}min, type local + quartier suggéré)
-6. transit — trajet déjeuner → activité suivante
-7. activity × ${profile.n-1} — autres activités avec transit entre chaque
-8. transit — trajet dernière activité → lieu du dîner
-9. meal:dinner — dîner (durée ${profile.mealDur.dinner}min, type local + quartier)
-10. transit — retour hôtel
-11. hotel_end — arrivée hôtel (cible avant 22h)
+REGLES:
+- Grouper les activites par quartier (min de transit)
+- Jamais 2 temples consecutifs
+- 1 activite hors-touristes minimum
+- Titres courts (max 30 chars)
+- Notes courtes (max 60 chars)
 
-RÈGLES DE CONTENU :
-- Petit-déjeuner : konbini (7-Eleven, Lawson) ou kissaten — TOUJOURS premier bloc après hotel_start le matin
-- Déjeuner : teishoku ou ramen dans le quartier visité — PAS en zone ultra-touristique
-- Dîner : izakaya local ou restaurant de quartier — ambiance locale
-- JAMAIS 2 temples consécutifs sans repas/pause transit entre
-- JAMAIS le même type d'activité 2 fois dans la même journée
-- 1 activité "hors-touristes" minimum par jour (quartier local, parc de proximité, épicerie)
-- Activités physiques : aucune restriction horaire, l'utilisateur juge
-- Weekend : temples/sanctuaires populaires placés AVANT 9h (ou bloquer + note affluence)
-
-Réponds UNIQUEMENT avec ce JSON exact (SANS backticks, SANS markdown, JSON brut) :
+JSON BRUT UNIQUEMENT (pas de markdown):
 {
-  "program": [
-    {
-      "day_index": 0,
-      "day_label": "Asakusa & Ueno",
-      "quartiers": ["Asakusa","Ueno"],
-      "blocks": [
-        {"type":"hotel_start","time":"08:00","title":"Départ de l'hôtel","duration_minutes":0},
-        {"type":"transit","time":"08:00","title":"Trajet hôtel → Asakusa","duration_minutes":25,"from":"Hôtel Shinjuku","to":"Asakusa","mode":"metro","note":"Prendre la ligne Ginza direction Asakusa"},
-        {"type":"meal","meal_type":"breakfast","time":"08:25","title":"Petit-déjeuner konbini 7-Eleven","duration_minutes":15,"quartier":"Asakusa","suggestion":"Onigiri + café chaud, ~300¥","local_tip":"Choisir devant le temple pour manger en marchant"},
-        {"type":"transit","time":"08:40","title":"Marche vers Senso-ji","duration_minutes":5,"from":"Konbini Asakusa","to":"Senso-ji","mode":"walk","note":""},
-        {"type":"activity","time":"08:45","title":"Senso-ji Temple","search_query":"Senso-ji Temple Asakusa Tokyo","duration_minutes":75,"local_tip":"Arriver avant 9h pour la lumière et sans foule","crowd_note":"Affluence faible avant 9h","breathing_after":10},
-        {"type":"transit","time":"10:10","title":"Métro vers Ueno","duration_minutes":15,"from":"Asakusa","to":"Ueno","mode":"metro","note":"Ligne Ginza 2 stations"},
-        {"type":"activity","time":"10:25","title":"Tokyo National Museum","search_query":"Tokyo National Museum Ueno","duration_minutes":120,"local_tip":"Salle Horyuji-kan pour les trésors bouddhiques","crowd_note":"Ouverture à 9h30, peu de monde avant 11h","breathing_after":15},
-        {"type":"transit","time":"12:40","title":"Marche vers Ueno parc","duration_minutes":10,"from":"Tokyo National Museum","to":"Restaurant Ueno","mode":"walk","note":""},
-        {"type":"meal","meal_type":"lunch","time":"12:50","title":"Déjeuner teishoku — Ueno","duration_minutes":45,"quartier":"Ueno","suggestion":"Menu teishoku (poisson+riz+miso) dans une ruelle derrière le parc, ~900¥","local_tip":"Les restaurants sur Ameyoko sont bondés — prendre une ruelle parallèle"},
-        {"type":"transit","time":"13:35","title":"Trajet Ueno → Yanaka","duration_minutes":20,"from":"Ueno","to":"Yanaka","mode":"walk","note":"Marche depuis Ueno, quartier rétro non-touristique"},
-        {"type":"activity","time":"13:55","title":"Quartier de Yanaka","search_query":"Yanaka historic district Tokyo","duration_minutes":90,"local_tip":"Flâner dans Yanaka Ginza, l'ancienne rue commerçante des années 50","crowd_note":"Quartier local, très peu de touristes","breathing_after":0},
-        {"type":"transit","time":"15:25","title":"Trajet vers Akihabara","duration_minutes":20,"from":"Yanaka","to":"Akihabara","mode":"metro","note":""},
-        {"type":"activity","time":"15:45","title":"Akihabara Electric Town","search_query":"Akihabara Electric Town Tokyo","duration_minutes":75,"local_tip":"Sous-sols des grands magasins pour les vraies occasions","crowd_note":"Modéré en semaine après 15h","breathing_after":15},
-        {"type":"transit","time":"17:15","title":"Trajet vers Izakaya Yurakucho","duration_minutes":25,"from":"Akihabara","to":"Yurakucho","mode":"metro","note":""},
-        {"type":"meal","meal_type":"dinner","time":"17:40","title":"Dîner izakaya — Yurakucho","duration_minutes":60,"quartier":"Yurakucho","suggestion":"Izakaya sous les arches de Yurakucho, ambiance salaryman, ~2000¥","local_tip":"Commander le yakitori directement au comptoir face au chef"},
-        {"type":"transit","time":"18:40","title":"Retour hôtel","duration_minutes":30,"from":"Yurakucho","to":"Hôtel Shinjuku","mode":"metro","note":""},
-        {"type":"hotel_end","time":"19:10","title":"Retour à l'hôtel","duration_minutes":0}
-      ]
-    }
-  ],
-  "summary": "Programme équilibré entre temples emblématiques et immersion locale à Tokyo",
-  "total_blocks": 18
+  "day_index": ${dayInfo.index},
+  "day_label": "Quartier1 & Quartier2",
+  "quartiers": ["Q1","Q2"],
+  "blocks": [
+    {"type":"hotel_start","time":"08:00","title":"Depart hotel","duration_minutes":0},
+    {"type":"transit","time":"08:00","title":"Hotel vers Q1","duration_minutes":20,"from":"Hotel","to":"Q1","mode":"metro","note":"Ligne X"},
+    {"type":"meal","meal_type":"breakfast","time":"08:20","title":"Konbini 7-Eleven","duration_minutes":15,"quartier":"Q1","suggestion":"Onigiri + cafe ~300Y","local_tip":"Manger devant le temple"},
+    {"type":"transit","time":"08:35","title":"Marche vers A1","duration_minutes":5,"from":"Konbini","to":"A1","mode":"walk","note":""},
+    {"type":"activity","time":"08:40","title":"Activite 1","search_query":"Activite 1 ${zone}","duration_minutes":80,"local_tip":"Conseil court","crowd_note":"Peu de monde avant 9h"},
+    {"type":"transit","time":"10:00","title":"Metro vers Q2","duration_minutes":20,"from":"Q1","to":"Q2","mode":"metro","note":""},
+    {"type":"activity","time":"10:20","title":"Activite 2","search_query":"Activite 2 ${zone}","duration_minutes":100,"local_tip":"Conseil court","crowd_note":""},
+    {"type":"transit","time":"12:00","title":"Vers restaurant","duration_minutes":10,"from":"Q2","to":"Resto","mode":"walk","note":""},
+    {"type":"meal","meal_type":"lunch","time":"12:10","title":"Dejeuner teishoku","duration_minutes":${profile.mealDur.lunch},"quartier":"Q2","suggestion":"Teishoku poisson+riz ~900Y","local_tip":"Eviter les rues principales"},
+    {"type":"transit","time":"13:00","title":"Vers Q3","duration_minutes":15,"from":"Q2","to":"Q3","mode":"metro","note":""},
+    {"type":"activity","time":"13:15","title":"Activite 3","search_query":"Activite 3 ${zone}","duration_minutes":90,"local_tip":"Conseil court","crowd_note":"Ideal apres 13h"},
+    {"type":"transit","time":"15:00","title":"Vers diner","duration_minutes":20,"from":"Q3","to":"Quartier diner","mode":"metro","note":""},
+    {"type":"meal","meal_type":"dinner","time":"15:20","title":"Diner izakaya","duration_minutes":${profile.mealDur.dinner},"quartier":"Quartier diner","suggestion":"Yakitori + biere ~2000Y","local_tip":"Comptoir face au chef"},
+    {"type":"transit","time":"16:20","title":"Retour hotel","duration_minutes":25,"from":"Quartier diner","to":"Hotel","mode":"metro","note":""},
+    {"type":"hotel_end","time":"16:45","title":"Retour hotel","duration_minutes":0}
+  ]
 }`;
 
-        const raw = await anthropicChat(
-            "Expert voyages Japon. Réponds UNIQUEMENT en JSON brut valide, SANS backticks ni markdown ni texte avant/après.",
-            prompt, 4000
-        );
+            const raw = await anthropicChat(
+                "Expert voyages Japon. Reponds UNIQUEMENT avec le JSON demande, SANS backticks, SANS texte avant ou apres. Utilise uniquement des guillemets doubles. Titres et notes en francais.",
+                prompt, 3000
+            );
 
-        let parsed;
-        try { parsed = JSON.parse(raw); }
-        catch(e) {
-            const m = raw.match(/\{[\s\S]*\}/);
-            if (m) { try { parsed = JSON.parse(m[0]); } catch(e2) { throw new Error('JSON invalide: '+e.message); } }
-            else throw new Error('Réponse IA non-JSON: '+raw.slice(0,200));
+            // Nettoyage robuste du JSON
+            function sanitizeJson(text) {
+                let j = text.trim();
+                j = j.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+                // Extraire l'objet JSON
+                const m = j.match(/\{[\s\S]*\}/);
+                if (m) j = m[0];
+                // Trailing commas
+                j = j.replace(/,\s*([}\]])/g, '$1');
+                // Guillemets typographiques
+                j = j.replace(/[""]/g, '"').replace(/['']/g, "'");
+                // Apostrophes non échappées dans les valeurs (heuristique)
+                // Remplacer les séquences du type ": 'valeur'" par ": \"valeur\""
+                return j;
+            }
+
+            let dayParsed;
+            try { dayParsed = JSON.parse(raw); }
+            catch(e) {
+                try { dayParsed = JSON.parse(sanitizeJson(raw)); }
+                catch(e2) {
+                    console.error(`Jour ${di+1} JSON invalide:`, e2.message, raw.slice(0,200));
+                    // Fallback minimal pour ce jour
+                    dayParsed = {
+                        day_index: dayInfo.index,
+                        day_label: zone,
+                        quartiers: [zone],
+                        blocks: [
+                            {type:'hotel_start', time: profile.startHour, title:'Depart hotel', duration_minutes:0},
+                            {type:'activity', time:'09:00', title:`Exploration ${zone}`, search_query:`tourist attractions ${zone}`, duration_minutes:180, local_tip:'Journee libre', crowd_note:''},
+                            {type:'meal', meal_type:'lunch', time:'12:00', title:'Dejeuner local', duration_minutes:45, quartier:zone, suggestion:'Restaurant de quartier', local_tip:''},
+                            {type:'activity', time:'14:00', title:`${zone} centre`, search_query:`${zone} center attractions`, duration_minutes:120, local_tip:'', crowd_note:''},
+                            {type:'meal', meal_type:'dinner', time:'19:00', title:'Diner izakaya', duration_minutes:60, quartier:zone, suggestion:'Izakaya local', local_tip:''},
+                            {type:'hotel_end', time:'20:30', title:'Retour hotel', duration_minutes:0}
+                        ]
+                    };
+                }
+            }
+
+            allDays.push(dayParsed);
+            if (di === 0) globalSummary = `Programme ${nb_days} jour(s) a ${zone} — ${intensity||'normal'}`;
         }
-        if (!parsed?.program) throw new Error('Structure JSON inattendue');
 
-        res.json({ success: true, program: parsed.program, summary: parsed.summary });
+        res.json({ success: true, program: allDays, summary: globalSummary });
+
     } catch(e) {
         console.error('generate-program error:', e);
         res.status(500).json({ success: false, error: e.message });
