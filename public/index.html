@@ -8443,6 +8443,13 @@ async function toggleMapView() {
             }
 
             // Mettre à jour le label du bouton Y aller
+            const goLabel = document.getElementById('map-go-now-label');
+            if (goLabel) {
+                const coords = getActCoords(act);
+                goLabel.textContent = coords ? 'Y aller · ' + act.title.slice(0,20) + (act.title.length>20?'…':'') : 'Y aller maintenant';
+            }
+        };
+
         // ═══════════════════════════════════════════════════════════════════
         //  SPRINT 2 — RÉSUMÉ CULTUREL / SCORE FAISABILITÉ / IA PLANNER
         // ═══════════════════════════════════════════════════════════════════
@@ -8608,13 +8615,6 @@ async function toggleMapView() {
                 _aiAddMessage('assistant', `⚠️ Connexion impossible : ${e.message}`);
             }
         }
-
-            const goLabel = document.getElementById('map-go-now-label');
-            if (goLabel) {
-                const coords = getActCoords(act);
-                goLabel.textContent = coords ? 'Y aller · ' + act.title.slice(0,20) + (act.title.length>20?'…':'') : 'Y aller maintenant';
-            }
-        };
 
 
 
