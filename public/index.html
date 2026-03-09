@@ -309,17 +309,15 @@
         #nav-map-btn.active { background: rgba(255,255,255,0.28) !important; }
 
         /* Bandeau photo activité */
-        /* Photos : opacity gérée uniquement par JS (pas de règle CSS qui force 0) */
-        .card-photo-banner img { opacity: 0; transition: opacity 0.35s ease; }
-        .card-photo-banner img.img-loaded { opacity: 1; }
-        /* Skeleton uniquement si pas encore chargée */
+        /* Photos : skeleton animé pendant chargement, masqué une fois chargée */
         .card-photo-banner:not(.img-cached)::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background: linear-gradient(90deg, #e5e7eb 25%, #d1d5db 50%, #e5e7eb 75%);
             background-size: 200% 100%;
             animation: photoSkeleton 1.5s infinite;
+            z-index: 1;
         }
         .card-photo-banner.img-cached::before { display: none; }
         html.dark .card-photo-banner::before {
@@ -4468,9 +4466,25 @@
             renderPlanning();
         }
 
+        // Map persistant : actId → {imgEl, photoRef} — survit aux re-renders
+        if (!window._cardImgCache) window._cardImgCache = new Map();
+
         function renderPlanning() {
             const myToken = ++_renderToken;
             const list = document.getElementById('planning-list');
+
+            // ── Sauvegarder les imgs déjà chargées avant de vider ──────────
+            list.querySelectorAll('.activity-card[data-act-id]').forEach(card => {
+                const actId = card.dataset.actId;
+                const img = card.querySelector('.card-photo-banner img');
+                if (img && img.complete && img.naturalWidth > 0 && img.src) {
+                    window._cardImgCache.set(actId, {
+                        photoRef: img.src,  // URL complète déjà résolue par le browser
+                        loaded: true
+                    });
+                }
+            });
+
             list.innerHTML = '';
 
             dayActivities = activities
@@ -4895,14 +4909,12 @@
                 }
                 card.innerHTML = `
                     ${act.place?.photo_reference ? `
-                    <div class="card-photo-banner${_imgLoadedCache.has('/api/place-photo?ref='+encodeURIComponent(act.place.photo_reference)+'&maxw=600') ? ' img-cached' : ''}" style="position:relative;height:118px;overflow:hidden;border-radius:0;background:#e5e7eb">
+                    <div class="card-photo-banner" data-photo-ref="${act.place.photo_reference}" style="position:relative;height:118px;overflow:hidden;border-radius:0;background:#e5e7eb">
                         <img
                             src="/api/place-photo?ref=${encodeURIComponent(act.place.photo_reference)}&maxw=600"
                             alt="${act.title}"
-                            loading="lazy"
-                            class="${_imgLoadedCache.has('/api/place-photo?ref='+encodeURIComponent(act.place.photo_reference)+'&maxw=600') ? 'img-loaded' : ''}"
-                            style="width:100%;height:100%;object-fit:cover;display:block"
-                            onload="this.classList.add('img-loaded');if(window._imgLoadedCache){window._imgLoadedCache.add(this.src);this.closest('.card-photo-banner')?.classList.add('img-cached')}"
+                            style="width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity 0.3s"
+                            onload="this.style.opacity=1;this.closest('.card-photo-banner')?.classList.add('img-cached')"
                             onerror="this.closest('.card-photo-banner').remove()"
                         />
                         <!-- Gradient overlay bas pour lisibilité du titre -->
@@ -4990,6 +5002,32 @@
                     });
                 }
                 list.appendChild(card);
+
+                // ── Réinjecter l'img depuis le cache pour éviter le clignotement ──
+                const _cachedImg = window._cardImgCache?.get(String(act.id));
+                if (_cachedImg?.loaded) {
+                    const _banner = card.querySelector('.card-photo-banner');
+                    const _newImg = _banner?.querySelector('img');
+                    if (_banner && _newImg) {
+                        // Recycler : mettre l'img en opacity:1 immédiatement
+                        _newImg.style.opacity = '1';
+                        _newImg.style.transition = 'none';
+                        _banner.classList.add('img-cached');
+                        // Pré-charger silencieusement pour s'assurer que le browser a bien l'image
+                        if (_cachedImg.photoRef) {
+                            _newImg.src = _cachedImg.photoRef; // même URL = browser renvoie depuis cache HTTP
+                        }
+                        // Si l'img est déjà complète (cache HTTP), forcer opacity:1
+                        if (_newImg.complete) {
+                            _newImg.style.opacity = '1';
+                        } else {
+                            _newImg.onload = function() {
+                                this.style.opacity = '1';
+                                this.closest('.card-photo-banner')?.classList.add('img-cached');
+                            };
+                        }
+                    }
+                }
 
                 // Bloc trajet entre act[i] et act[i+1]
                 if (i < dayActivities.length - 1) {
