@@ -8481,8 +8481,9 @@ async function toggleMapView() {
             const msgs = document.getElementById('ai-chat-messages');
             if (msgs && msgs.children.length === 0) {
                 const acts = dayActivities.length;
+                const dayLabel = tripData?.days?.[currentDayIndex]?.label || ('Jour ' + (currentDayIndex+1));
                 _aiAddMessage('assistant',
-                    `Bonjour ! 👋 Tu as ${acts} activité${acts>1?'s':''} planifiée${acts>1?'s':''} aujourd'hui. Comment puis-je t'aider ? Je peux analyser ton programme, suggérer des ajustements, ou trouver des activités pour tes créneaux libres.`
+                    `Bonjour ! 👋 Je suis ton assistant planning — je peux **vraiment modifier ton programme**.\n\nJour actuel : **${dayLabel}** · ${acts} activité${acts>1?'s':''} planifiée${acts>1?'s':''}.\n\nDis-moi ce que tu veux : ajouter des activités, déplacer des horaires, supprimer, ou avoir des conseils sur n'importe quel jour.`
                 );
                 _renderAiSuggestions();
             }
@@ -8501,6 +8502,12 @@ async function toggleMapView() {
             if (!msgs) return;
             const isUser = role === 'user';
 
+            // Rendre le markdown basique (bold, listes)
+            const rendered = text
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/^[\-\*] /gm, '• ')
+                .split('\n').join('<br>');
+
             const bubble = document.createElement('div');
             bubble.style.cssText = `
                 display:flex;
@@ -8514,7 +8521,7 @@ async function toggleMapView() {
                     background:${isUser ? 'linear-gradient(135deg,#7c3aed,#6d28d9)' : 'rgba(255,255,255,0.08)'};
                     color:${isUser ? 'white' : 'rgba(255,255,255,0.9)'};
                     font-size:13px;line-height:1.5;font-weight:${isUser?'600':'400'}">
-                    ${text.split('\n').join('<br>')}
+                    ${rendered}
                 </div>`;
             msgs.appendChild(bubble);
             msgs.scrollTop = msgs.scrollHeight;
@@ -8568,16 +8575,23 @@ async function toggleMapView() {
             input.value = '';
             input.style.borderColor = 'rgba(255,255,255,0.12)';
 
-            // Vider suggestions
             const sugg = document.getElementById('ai-suggestions');
             if (sugg) sugg.innerHTML = '';
 
             _aiAddMessage('user', msg);
             _aiShowTyping();
 
-            // Construire contexte
+            // Contexte enrichi : toutes les journées + activités du jour courant
             const totalTravelMin = Object.values(routeCache).reduce((s, r) => s + (r.total_minutes||0), 0);
-            const cities = [...new Set(activities.map(a => a.place?.name?.split(',').pop()?.trim()).filter(Boolean))];
+            const allDays = (tripData?.days || []).map((d, i) => ({
+                dayIndex: i,
+                label: d.label || d.city || ('Jour ' + (i+1)),
+                count: activities.filter(a => a.dayIndex === i).length
+            }));
+            const city = tripData?.stays?.find(s => {
+                const d = tripData?.days?.[currentDayIndex];
+                return d && d.date >= s.startDate && d.date <= s.endDate;
+            })?.city || tripData?.stays?.[0]?.city || 'Japon';
 
             try {
                 const res = await fetch('/api/ai-planner', {
@@ -8587,33 +8601,121 @@ async function toggleMapView() {
                         message: msg,
                         context: {
                             dayIndex: currentDayIndex,
-                            totalDays: tripData?.totalDays || activities.length,
+                            totalDays: tripData?.totalDays || (tripData?.days?.length || 1),
+                            city,
+                            allDays,
                             dayActivities: dayActivities.map(a => ({
+                                id: a.id,
                                 time: a.time,
                                 title: a.title,
                                 duration_minutes: a.duration_minutes,
                                 place: { name: a.place?.name, rating: a.place?.rating }
                             })),
                             totalTravelMin,
-                            cities,
-                            history: _aiChatHistory.slice(-6)
+                            history: _aiChatHistory.slice(-8)
                         }
                     })
                 });
                 const data = await res.json();
                 _aiHideTyping();
+
                 if (data.success) {
-                    _aiAddMessage('assistant', data.reply);
+                    // ── Afficher la réponse textuelle ──
+                    _aiAddMessage('assistant', data.reply || '');
+
+                    // ── Exécuter les actions ──
+                    const actions = data.actions || [];
+                    if (actions.length > 0) {
+                        await _aiExecuteActions(actions);
+                    }
                 } else {
-                    const errMsg = data.error || 'Erreur inconnue';
-                    console.error('[IA] Erreur API:', errMsg);
-                    _aiAddMessage('assistant', `⚠️ Erreur : ${errMsg}`);
+                    _aiAddMessage('assistant', `⚠️ Erreur : ${data.error || 'Erreur inconnue'}`);
                 }
             } catch(e) {
                 _aiHideTyping();
-                console.error('[IA] Catch:', e);
                 _aiAddMessage('assistant', `⚠️ Connexion impossible : ${e.message}`);
             }
+        }
+
+        // ── Exécuter les actions retournées par l'IA ──────────────────────
+        async function _aiExecuteActions(actions) {
+            let added = 0, moved = 0, removed = 0;
+
+            for (const action of actions) {
+                if (action.type === 'add') {
+                    const newId = Date.now() + Math.floor(Math.random() * 1000);
+                    const targetDay = action.dayIndex ?? currentDayIndex;
+                    const activity = {
+                        id: newId,
+                        source: 'ai_chat',
+                        dayIndex: targetDay,
+                        time: action.time || '09:00',
+                        time_flexible: false,
+                        title: action.place?.name || action.title,
+                        description: action.note || '',
+                        duration_minutes: action.duration_minutes || 90,
+                        place: action.place || null
+                    };
+                    activities.push(activity);
+                    added++;
+
+                    // Si pas de lieu résolu, lancer résolution en background
+                    if (!activity.place && action.search_query) {
+                        _resolveAiActivityPlace(activity.id, action.search_query);
+                    }
+
+                } else if (action.type === 'move') {
+                    const idx = activities.findIndex(a => a.id === action.activity_id);
+                    if (idx >= 0) {
+                        activities[idx].time = action.new_time;
+                        moved++;
+                    }
+                } else if (action.type === 'remove') {
+                    const idx = activities.findIndex(a => a.id === action.activity_id);
+                    if (idx >= 0) {
+                        activities.splice(idx, 1);
+                        removed++;
+                    }
+                }
+            }
+
+            if (added + moved + removed > 0) {
+                // Trier par jour + heure
+                activities.sort((a, b) => {
+                    if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+                    return a.time.localeCompare(b.time);
+                });
+                localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                renderPlanning();
+
+                // Confirmation dans le chat
+                const parts = [];
+                if (added > 0) parts.push(`✅ ${added} activité${added>1?'s':''} ajoutée${added>1?'s':''}`);
+                if (moved > 0) parts.push(`🕐 ${moved} déplacée${moved>1?'s':''}`);
+                if (removed > 0) parts.push(`🗑️ ${removed} supprimée${removed>1?'s':''}`);
+                _aiAddMessage('assistant', parts.join(' · ') + ' — Planning mis à jour !');
+            }
+        }
+
+        // ── Résoudre le lieu d'une activité IA en arrière-plan ───────────
+        async function _resolveAiActivityPlace(actId, query) {
+            try {
+                const r = await fetch('/api/resolve-place', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ search_query: query })
+                });
+                const d = await r.json();
+                if (d.success && d.place) {
+                    const idx = activities.findIndex(a => a.id === actId);
+                    if (idx >= 0) {
+                        activities[idx].place = d.place;
+                        activities[idx].title = d.place.name || activities[idx].title;
+                        localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+                        renderPlanning();
+                    }
+                }
+            } catch(e) { /* silencieux */ }
         }
 
 

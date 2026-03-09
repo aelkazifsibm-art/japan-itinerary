@@ -515,29 +515,41 @@ app.post('/api/ai-planner', async (req, res) => {
         const apiKey = process.env.ANTHROPIC_API_KEY;
         if (!apiKey) return res.status(500).json({ success: false, error: 'Clé ANTHROPIC_API_KEY manquante dans .env' });
 
+        const dayActsSummary = (context.dayActivities || []).map(a =>
+            `- id:${a.id} "${a.title}" à ${a.time} (${a.duration_minutes||90}min) — ${a.place?.name || 'lieu ?'}`
+        ).join('\n') || '(aucune activité)';
+
+        const allDaysSummary = (context.allDays || []).map((d, i) =>
+            `Jour ${i+1} [dayIndex:${i}]: ${d.label || ''} — ${d.count||0} activité(s)`
+        ).join('\n') || '';
+
         const systemPrompt = `Tu es un assistant de voyage expert au Japon, intégré dans une app de planification.
-Tu as accès au programme complet du voyage.
+Tu peux VRAIMENT modifier le planning : ajouter, déplacer, supprimer des activités.
 
-Programme actuel (Jour ${context.dayIndex + 1}/${context.totalDays}) :
-${JSON.stringify(context.dayActivities?.map(a => ({
-    time: a.time,
-    title: a.title,
-    duration: a.duration_minutes,
-    place: a.place?.name
-})) || [], null, 2)}
+PROGRAMME COMPLET :
+${allDaysSummary}
 
-Informations voyage :
-- Destination(s) : ${context.cities?.join(', ') || 'Japon'}
-- Durée totale : ${context.totalDays} jours
-- Activités ce jour : ${context.dayActivities?.length || 0}
-- Temps de trajet estimé aujourd'hui : ${context.totalTravelMin || 0} min
+JOUR ACTUEL (Jour ${(context.dayIndex||0)+1}, dayIndex:${context.dayIndex||0}) :
+${dayActsSummary}
 
-Réponds en français, de façon concise et directe (max 3-4 phrases).
-Si tu proposes d'ajouter/déplacer des activités, sois précis sur l'heure et le nom.
-Tu peux suggérer des lieux japonais spécifiques avec leur nom en japonais.`;
+Ville(s) visitée(s) : ${context.cities?.join(', ') || context.city || 'Japon'}
+Durée totale : ${context.totalDays||1} jour(s)
 
-        // Construire l'historique (hors message système)
-        const history = (context.history || []).slice(-6).map(m => ({
+INSTRUCTIONS :
+- Réponds TOUJOURS avec un JSON valide, SANS backticks.
+- Format : {"reply":"message en français max 4 phrases","actions":[...]}
+- Actions possibles :
+  * Ajouter : {"type":"add","dayIndex":N,"title":"Nom lieu","search_query":"Nom lieu Ville Japan","time":"HH:MM","duration_minutes":N,"note":"conseil court"}
+  * Déplacer : {"type":"move","activity_id":N,"new_time":"HH:MM"}
+  * Supprimer : {"type":"remove","activity_id":N}
+  * Rien : actions:[]
+- Si l'utilisateur dit "oui" ou confirme, EXECUTE les actions proposées dans le message précédent.
+- Si l'utilisateur demande d'ajouter des activités sur un autre jour, utilise le bon dayIndex.
+- Propose max 3 activités à la fois.
+- Utilise des lieux japonais réels avec leur nom en japonais entre parenthèses.
+- Ne promets JAMAIS d'ajouter si tu ne mets pas l'action correspondante dans "actions".`;
+
+        const history = (context.history || []).slice(-8).map(m => ({
             role: m.role === 'assistant' ? 'assistant' : 'user',
             content: m.content
         }));
@@ -551,7 +563,7 @@ Tu peux suggérer des lieux japonais spécifiques avec leur nom en japonais.`;
             },
             body: JSON.stringify({
                 model: 'claude-haiku-4-5-20251001',
-                max_tokens: 400,
+                max_tokens: 800,
                 system: systemPrompt,
                 messages: [...history, { role: 'user', content: message }]
             })
@@ -560,8 +572,50 @@ Tu peux suggérer des lieux japonais spécifiques avec leur nom en japonais.`;
         const data = await r.json();
         if (!r.ok) return res.status(500).json({ success: false, error: data.error?.message || 'Erreur Anthropic' });
 
-        const reply = data.content?.[0]?.text || '';
-        res.json({ success: true, reply });
+        const raw = data.content?.[0]?.text || '{}';
+        let parsed;
+        try {
+            parsed = JSON.parse(sanitizeJson(raw));
+        } catch(e) {
+            // Fallback : texte pur sans actions
+            parsed = { reply: raw.replace(/\{[\s\S]*\}/g, '').trim() || raw, actions: [] };
+        }
+
+        // ── Résoudre les lieux via Google Places pour chaque action "add" ──
+        const serverKey = process.env.GOOGLE_MAPS_SERVER_KEY;
+        const resolvedActions = [];
+        for (const action of (parsed.actions || [])) {
+            if (action.type === 'add' && serverKey) {
+                try {
+                    const query = action.search_query || action.title;
+                    const searchUrl = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
+                    searchUrl.searchParams.set('query', query);
+                    searchUrl.searchParams.set('language', 'fr');
+                    searchUrl.searchParams.set('key', serverKey);
+                    const placesRes = await fetchJson(searchUrl.toString(), {}, 6000);
+                    const first = placesRes.json?.results?.[0];
+                    if (first) {
+                        action.place = {
+                            place_id: first.place_id,
+                            name: first.name,
+                            formatted_address: first.formatted_address,
+                            lat: first.geometry?.location?.lat,
+                            lng: first.geometry?.location?.lng,
+                            types: first.types || [],
+                            rating: first.rating || null,
+                            user_ratings_total: first.user_ratings_total || 0,
+                            photo_reference: first.photos?.[0]?.photo_reference || null,
+                            rating_source: 'google'
+                        };
+                    }
+                } catch(e) {
+                    console.warn('[ai-planner] place resolve failed:', e.message);
+                }
+            }
+            resolvedActions.push(action);
+        }
+
+        res.json({ success: true, reply: parsed.reply || '', actions: resolvedActions });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
