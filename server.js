@@ -7,6 +7,39 @@ import { fileURLToPath } from 'url';
 dotenv.config();
 
 // ── Helper Anthropic Claude ─────────────────────────────────────────────────
+// ── Convertir le profil voyageur en contexte pour les prompts IA ─────────────
+function buildProfileContext(profile) {
+    if (!profile) return '';
+    const typeMap = { solo:'voyage solo', couple:'voyage en couple', famille:'voyage en famille', amis:'voyage entre amis', groupe:'voyage en groupe' };
+    const intMap  = {
+        culture:'temples/sanctuaires/quartiers historiques/châteaux',
+        art:"musées d'art moderne/TeamLab/galeries contemporaines",
+        nature:'parcs/jardins/forêts/nature',
+        gastro:'marchés alimentaires/cours de cuisine/street food/restaurants typiques',
+        shopping:'boutiques locales/vintage/artisanat',
+        pop:'Akihabara/anime/manga/arcades/pop culture',
+        wellness:'onsen/jardins zen/temples calmes/promenades',
+        adventure:'randonnées/vélo/activités sportives',
+        experiences:'cérémonie du thé/calligraphie/poterie/cours de cuisine',
+        musees:'musées nationaux/musées de site/musées thématiques/expositions'
+    };
+    const budgetMap = { econome:'budget serré (konbini, < 1000¥, entrées gratuites prioritaires)', modere:'budget modéré (restaurants 1000–3000¥)', confortable:'budget confortable (restaurants et expériences premium OK)', luxe:'budget luxe (ryokan, gastronomique, exclusif)' };
+    const constMap  = { mobility:'accessibilité PMR obligatoire', vegetarien:'options végétariennes', vegan:'options végétaliennes', halal:'options halal', noalcool:'sans alcool', nogluten:'sans gluten', enfants:'adapté aux jeunes enfants' };
+
+    const parts = [];
+    if (profile.travel_type) parts.push('Type: ' + (typeMap[profile.travel_type]||profile.travel_type));
+    if (profile.interests?.length) {
+        parts.push("Centres intérêt: " + profile.interests.map(i => intMap[i]||i).join(' | '));
+        parts.push("→ OBLIGATION: alterner les types d'activités selon ces centres. Max 1 activité du même type par demi-journée.");
+    }
+    if (profile.budget) parts.push('Budget: ' + (budgetMap[profile.budget]||profile.budget));
+    if (profile.constraints?.length) parts.push('Contraintes: ' + profile.constraints.map(c => constMap[c]||c).join(', '));
+    if (profile.custom_constraint) parts.push('Contrainte spéciale: ' + profile.custom_constraint);
+    if (!parts.length) return '';
+    return '\n=== PROFIL VOYAGEUR (OBLIGATOIRE À RESPECTER) ===\n' + parts.join('\n') + '\n=== FIN PROFIL ===\n';
+}
+
+
 async function anthropicChat(systemPrompt, userMessage, maxTokens = 400) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error('Clé ANTHROPIC_API_KEY manquante dans .env');
@@ -405,7 +438,8 @@ app.get("/api/health", async (req, res) => {
 // --- INFOS ACTIVITÉ AVEC IA ---
 app.post("/api/activity-info", async (req, res) => {
     try {
-        const { place_name, place_address, visit_time } = req.body;
+        const { place_name, place_address, visit_time, traveler_profile: tp_info } = req.body;
+        const profileCtxInfo = buildProfileContext(tp_info);
         
         if (!place_name) {
             return res.status(400).json({ error: "Nom du lieu manquant" });
@@ -415,7 +449,7 @@ app.post("/api/activity-info", async (req, res) => {
             `Tu es un expert du tourisme au Japon. Réponds UNIQUEMENT avec un objet JSON valide, SANS markdown, SANS backticks, SANS texte autour.
 Format exact attendu :
 {"why_visit":"...","history_detail":"...","cultural_context":"...","crowd_level":"low|medium|high","best_times":["09:00-10:00"],"rules":["Règle 1"],"tips":"...","local_tip":"...","nearby_food":"..."}`,
-            `Lieu: ${place_name}${place_address ? ", " + place_address : ""}. Heure de visite prévue: ${visit_time || "journée"}.`,
+            `${profileCtxInfo}Lieu: ${place_name}${place_address ? ", " + place_address : ""}. Heure de visite prévue: ${visit_time || "journée"}.`,
             600
         );
 
@@ -723,7 +757,8 @@ Format exact: {"why_visit":"...","best_time":"...","duration_minutes":90,"crowd_
 // ── GÉNÉRATION DE PROGRAMME COMPLET ─────────────────────────────────────────
 app.post("/api/generate-program", async (req, res) => {
     try {
-        const { zone, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities } = req.body;
+        const { zone, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities, traveler_profile } = req.body;
+        const profileCtx = buildProfileContext(traveler_profile);
         if (!zone || !nb_days) return res.status(400).json({ success: false, error: 'Zone et nb_days requis' });
 
         const dayNames = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
@@ -781,6 +816,7 @@ STRUCTURE OBLIGATOIRE:
 - transit + dinner izakaya (${profile.mealDur.dinner}min)
 - hotel_end avant 22h
 
+${profileCtx}
 REGLES:
 - Grouper les activites par quartier (min de transit)
 - Jamais 2 temples consecutifs
@@ -869,9 +905,67 @@ JSON BRUT UNIQUEMENT (pas de markdown):
 });
 
 
+// ── RÉSOLUTION PLACE DIRECTE (sans IA, pour generate-program) ───────────────
+app.post("/api/resolve-place", async (req, res) => {
+    try {
+        const { search_query, title } = req.body;
+        const query = search_query || title;
+        if (!query) return res.json({ success: false, error: "query manquant" });
+
+        const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
+
+        // Recherche texte directe
+        const searchUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
+        searchUrl.searchParams.set("query", query);
+        searchUrl.searchParams.set("language", "fr");
+        searchUrl.searchParams.set("key", serverKey);
+
+        const placesRes = await fetchJson(searchUrl.toString());
+        const first = placesRes.json?.results?.[0];
+        if (!first) return res.json({ success: false, error: "Lieu non trouvé" });
+
+        // Détails enrichis
+        const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+        detailsUrl.searchParams.set("place_id", first.place_id);
+        detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types,rating,user_ratings_total,photos,website,international_phone_number");
+        detailsUrl.searchParams.set("language", "fr");
+        detailsUrl.searchParams.set("key", serverKey);
+
+        const detailsRes = await fetchJson(detailsUrl.toString());
+        const place = detailsRes.json?.result;
+        if (!place) return res.json({ success: false, error: "Détails non disponibles" });
+
+        const photo = place.photos?.[0]?.photo_reference || null;
+
+        res.json({
+            success: true,
+            place: {
+                place_id: place.place_id,
+                name: place.name,
+                formatted_address: place.formatted_address,
+                lat: place.geometry?.location?.lat,
+                lng: place.geometry?.location?.lng,
+                opening_hours: place.opening_hours?.weekday_text || null,
+                price_level: place.price_level ?? null,
+                types: place.types || [],
+                rating: place.rating || null,
+                user_ratings_total: place.user_ratings_total || 0,
+                photo_reference: photo,
+                website: place.website || null,
+                rating_source: 'google'
+            }
+        });
+    } catch(e) {
+        console.error("resolve-place error:", e.message);
+        res.json({ success: false, error: e.message });
+    }
+});
+
+
 app.post("/api/optimize-day", async (req, res) => {
     try {
-        const { activities, day_index, hotel } = req.body;
+        const { activities, day_index, hotel, traveler_profile: tp_opt } = req.body;
+        const profileCtxOpt = buildProfileContext(tp_opt);
 
         const validActivities = activities.filter(a => a.place && a.place.name);
         if (validActivities.length === 0) {
@@ -901,7 +995,7 @@ app.post("/api/optimize-day", async (req, res) => {
         const weatherMode = req.body.weather_mode || false;
 
         const prompt = `Tu es un expert en planification d'itinéraires au Japon. Tu dois optimiser une journée de visite.
-
+${profileCtxOpt}
 CONTEXTE DU JOUR :
 - Jour : ${dayOfWeek}${isWeekend ? ' (WEEKEND — affluence élevée partout)' : ' (semaine — plus calme)'}
 - Mode fatigue : ${fatigueMode ? 'OUI — réduire l\'intensité, raccourcir les trajets, pause obligatoire après-midi' : 'NON'}

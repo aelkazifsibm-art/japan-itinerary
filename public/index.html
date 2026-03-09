@@ -640,6 +640,21 @@
 
 
 
+    <!-- ══ MODALE PROFIL VOYAGEUR ════════════════════════════════════════════ -->
+    <div id="traveler-profile-modal" class="fixed inset-0 z-[350] hidden" style="background:rgba(0,0,0,0.75);backdrop-filter:blur(4px)" onclick="if(event.target===this&&window._profileCanDismiss)closeTravelerProfile()">
+        <div style="position:absolute;bottom:0;left:0;right:0;max-width:30rem;margin:0 auto;background:white;border-radius:24px 24px 0 0;max-height:92vh;display:flex;flex-direction:column">
+            <div style="flex-shrink:0;padding:12px 20px 0;text-align:center">
+                <div style="width:40px;height:4px;border-radius:2px;background:#e5e7eb;margin:0 auto 12px"></div>
+            </div>
+            <div style="flex-shrink:0;padding:16px 20px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white">
+                <div style="font-size:22px;font-weight:900;margin-bottom:2px">&#x1F464; Mon profil voyageur</div>
+                <div style="font-size:12px;opacity:.75">L'IA adapte tout votre voyage &#xe0; votre profil</div>
+            </div>
+            <div id="profile-content" style="flex:1;overflow-y:auto;padding:20px"></div>
+            <div id="profile-footer" style="flex-shrink:0;padding:12px 20px calc(env(safe-area-inset-bottom,0px)+12px);border-top:1px solid #f3f4f6"></div>
+        </div>
+    </div>
+
     <!-- ══ MODALE GÉNÉRATION PROGRAMME ══════════════════════════════════════ -->
     <div id="generate-program-modal" class="fixed inset-0 z-[320] hidden" style="background:rgba(0,0,0,0.75);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeGenerateModal()">
         <div id="gen-modal-inner" style="
@@ -726,6 +741,20 @@
                         <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Protocole affluence · Horaires réels · Astuces locales</div>
                     </div>
                     <span style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;flex-shrink:0">IA</span>
+                </button>
+            </div>
+            <!-- Ligne 4 : Profil voyageur -->
+            <div style="border-top:1px solid rgba(255,255,255,0.08)">
+                <button onclick="openTravelerProfile(true);toggleMoreMenu()" style="
+                    display:flex;align-items:center;gap:12px;
+                    width:100%;padding:13px 20px;
+                    background:none;border:none;cursor:pointer;text-align:left">
+                    <span style="font-size:24px">&#x1F464;</span>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:white;font-weight:800">Mon profil voyageur</div>
+                        <div id="profile-menu-summary" style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Non configuré</div>
+                    </div>
+                    <span style="font-size:11px;color:rgba(255,255,255,0.3)">&#x276F;</span>
                 </button>
             </div>
         </div>
@@ -2890,7 +2919,8 @@
                         day_index: currentDayIndex,
                         hotel: getStayForDay(currentDayIndex) || null,
                         fatigue_mode: _modes.fatigue,
-                        weather_mode: _modes.weather
+                        weather_mode: _modes.weather,
+                        traveler_profile: travelerProfile
                     })
                 });
                 const data = await res.json();
@@ -3350,6 +3380,251 @@
         };
 
 
+
+        // ══════════════════════════════════════════════════════════════════════
+        // PROFIL VOYAGEUR
+        // ══════════════════════════════════════════════════════════════════════
+
+        const PROFILE_KEY = 'japan_traveler_profile_v1';
+
+        // Structure par défaut
+        const PROFILE_DEFAULT = {
+            travel_type: '',        // solo|couple|famille|amis|groupe
+            interests: [],          // culture|art|nature|gastro|shopping|pop|wellness|adventure|experiences
+            budget: '',             // econome|modere|confortable|luxe
+            constraints: [],        // mobility|vegetarien|vegan|halal|noalcool|nogluten|enfants
+            custom_constraint: ''   // texte libre
+        };
+
+        let travelerProfile = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null') || { ...PROFILE_DEFAULT };
+        window._profileCanDismiss = false;
+
+        // ── Ouvrir la modale ──────────────────────────────────────────────────
+        function openTravelerProfile(canDismiss) {
+            window._profileCanDismiss = !!canDismiss;
+            const modal = document.getElementById('traveler-profile-modal');
+            modal.classList.remove('hidden');
+            _renderProfileForm();
+        }
+
+        function closeTravelerProfile() {
+            document.getElementById('traveler-profile-modal').classList.add('hidden');
+            _updateProfileMenuSummary();
+        }
+
+        // ── Rendu du formulaire ───────────────────────────────────────────────
+        function _renderProfileForm() {
+            const content = document.getElementById('profile-content');
+            const footer  = document.getElementById('profile-footer');
+            const p = travelerProfile;
+
+            const travelTypes = [
+                { id:'solo',    emoji:'🧍', label:'Solo' },
+                { id:'couple',  emoji:'💑', label:'Couple' },
+                { id:'famille', emoji:'👨‍👩‍👧', label:'Famille' },
+                { id:'amis',    emoji:'👫', label:'Amis' },
+                { id:'groupe',  emoji:'👥', label:'Groupe' },
+            ];
+
+            const interests = [
+                { id:'culture',      emoji:'🏛️', label:'Culture & Histoire' },
+                { id:'art',          emoji:'🎨', label:'Art moderne' },
+                { id:'nature',       emoji:'🌿', label:'Nature & Parcs' },
+                { id:'gastro',       emoji:'🍜', label:'Gastronomie' },
+                { id:'shopping',     emoji:'🛍️', label:'Shopping' },
+                { id:'pop',          emoji:'🎮', label:'Pop culture' },
+                { id:'wellness',     emoji:'🧘', label:'Bien-être' },
+                { id:'adventure',    emoji:'🏃', label:'Aventure' },
+                { id:'experiences',  emoji:'🎭', label:'Expériences' },
+                { id:'musees',       emoji:'🏛️', label:'Musées' },
+            ];
+
+            const budgets = [
+                { id:'econome',     emoji:'💴', label:'Économe',    sub:'< 50€/j' },
+                { id:'modere',      emoji:'💵', label:'Modéré',     sub:'50–100€/j' },
+                { id:'confortable', emoji:'💳', label:'Confortable',sub:'100–200€/j' },
+                { id:'luxe',        emoji:'💎', label:'Luxe',       sub:'200€+/j' },
+            ];
+
+            const constraints = [
+                { id:'mobility',    emoji:'♿', label:'Mobilité réduite' },
+                { id:'vegetarien',  emoji:'🥗', label:'Végétarien' },
+                { id:'vegan',       emoji:'🌱', label:'Végétalien' },
+                { id:'halal',       emoji:'🌙', label:'Halal' },
+                { id:'noalcool',    emoji:'🚫🍺', label:'Sans alcool' },
+                { id:'nogluten',    emoji:'🌾', label:'Sans gluten' },
+                { id:'enfants',     emoji:'👶', label:'Enfants en bas âge' },
+            ];
+
+            const pill = (isOn) => isOn
+                ? 'background:#7c3aed;color:white;border-color:#7c3aed'
+                : 'background:white;color:#374151;border-color:#e5e7eb';
+
+            content.innerHTML = `
+            <!-- Type de voyage -->
+            <div style="margin-bottom:20px">
+                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Type de voyage</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    ${travelTypes.map(t => `
+                    <button onclick="_profileToggle('travel_type','${t.id}',true)"
+                        id="ptype-${t.id}"
+                        style="display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:20px;border:2px solid;font-size:12px;font-weight:700;cursor:pointer;${pill(p.travel_type===t.id)}">
+                        <span>${t.emoji}</span><span>${t.label}</span>
+                    </button>`).join('')}
+                </div>
+            </div>
+
+            <!-- Centres d'intérêt -->
+            <div style="margin-bottom:20px">
+                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Centres d'intérêt <span style="font-size:10px;font-weight:500;color:#9ca3af">(plusieurs possibles)</span></div>
+                <div style="display:flex;gap:7px;flex-wrap:wrap">
+                    ${interests.map(t => `
+                    <button onclick="_profileToggle('interests','${t.id}',false)"
+                        id="pint-${t.id}"
+                        style="display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:16px;border:2px solid;font-size:12px;font-weight:700;cursor:pointer;${pill((p.interests||[]).includes(t.id))}">
+                        <span>${t.emoji}</span><span>${t.label}</span>
+                    </button>`).join('')}
+                </div>
+            </div>
+
+            <!-- Budget global -->
+            <div style="margin-bottom:20px">
+                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Budget global</div>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+                    ${budgets.map(b => `
+                    <button onclick="_profileToggle('budget','${b.id}',true)"
+                        id="pbudget-${b.id}"
+                        style="border-radius:14px;border:2px solid;padding:10px 8px;cursor:pointer;text-align:center;${pill(p.budget===b.id)}">
+                        <div style="font-size:20px;margin-bottom:3px">${b.emoji}</div>
+                        <div style="font-size:12px;font-weight:800">${b.label}</div>
+                        <div style="font-size:10px;opacity:.65;margin-top:1px">${b.sub}</div>
+                    </button>`).join('')}
+                </div>
+            </div>
+
+            <!-- Contraintes -->
+            <div style="margin-bottom:20px">
+                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Contraintes & besoins <span style="font-size:10px;font-weight:500;color:#9ca3af">(optionnel)</span></div>
+                <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">
+                    ${constraints.map(t => `
+                    <button onclick="_profileToggle('constraints','${t.id}',false)"
+                        id="pconst-${t.id}"
+                        style="display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:16px;border:2px solid;font-size:12px;font-weight:700;cursor:pointer;${pill((p.constraints||[]).includes(t.id))}">
+                        <span>${t.emoji}</span><span>${t.label}</span>
+                    </button>`).join('')}
+                </div>
+                <input id="profile-custom-constraint" type="text"
+                    placeholder="Autre contrainte (allergie, etc.)"
+                    value="${p.custom_constraint||''}"
+                    oninput="travelerProfile.custom_constraint=this.value"
+                    style="width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none">
+            </div>`;
+
+            const isNew = !localStorage.getItem(PROFILE_KEY);
+            footer.innerHTML = `
+                <button onclick="_saveProfile()" style="
+                    width:100%;padding:14px;
+                    background:linear-gradient(135deg,#7c3aed,#ec4899);
+                    color:white;border:none;border-radius:16px;
+                    font-size:15px;font-weight:900;cursor:pointer">
+                    ${isNew ? '✅ Créer mon profil' : '💾 Enregistrer'}
+                </button>`;
+        }
+
+        // ── Toggle sélection ─────────────────────────────────────────────────
+        window._profileToggle = function(field, value, single) {
+            const pill = (isOn) => isOn
+                ? 'background:#7c3aed;color:white;border-color:#7c3aed'
+                : 'background:white;color:#374151;border-color:#e5e7eb';
+
+            if (single) {
+                travelerProfile[field] = travelerProfile[field] === value ? '' : value;
+                // Mettre à jour tous les boutons du groupe
+                document.querySelectorAll(`[id^="p${field[0]}"]`).forEach(b => {
+                    const id = b.id.replace(/^p[^-]+-/, '').replace(/^p\w+-/, '');
+                });
+                // Refresh simplifié — reparcourir
+                ['solo','couple','famille','amis','groupe'].forEach(id => {
+                    const b = document.getElementById('ptype-'+id);
+                    if (b) b.setAttribute('style', b.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border-color:[^;]+/, pill(travelerProfile.travel_type===id)));
+                });
+                ['econome','modere','confortable','luxe'].forEach(id => {
+                    const b = document.getElementById('pbudget-'+id);
+                    if (b) b.setAttribute('style', b.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border-color:[^;]+/, pill(travelerProfile.budget===id)));
+                });
+            } else {
+                const arr = travelerProfile[field] || [];
+                const idx = arr.indexOf(value);
+                if (idx === -1) arr.push(value);
+                else arr.splice(idx, 1);
+                travelerProfile[field] = arr;
+                const b = document.getElementById('pint-'+value) || document.getElementById('pconst-'+value);
+                if (b) b.setAttribute('style', b.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border-color:[^;]+/, pill(arr.includes(value))));
+            }
+        };
+
+        // ── Sauvegarder ──────────────────────────────────────────────────────
+        function _saveProfile() {
+            travelerProfile.custom_constraint = document.getElementById('profile-custom-constraint')?.value || '';
+            localStorage.setItem(PROFILE_KEY, JSON.stringify(travelerProfile));
+            closeTravelerProfile();
+            // Petite confirmation
+            showAddConfirmation('Profil enregistré !', "L'IA adaptera tout votre voyage", '👤');
+        }
+
+        // ── Résumé dans le menu ───────────────────────────────────────────────
+        function _updateProfileMenuSummary() {
+            const el = document.getElementById('profile-menu-summary');
+            if (!el) return;
+            const p = travelerProfile;
+            if (!p.travel_type && !p.interests?.length) {
+                el.textContent = 'Non configuré';
+                return;
+            }
+            const typeLabel = { solo:'Solo', couple:'Couple', famille:'Famille', amis:'Amis', groupe:'Groupe' }[p.travel_type] || '';
+            const intLabel = (p.interests||[]).slice(0,2).map(i => ({
+                culture:'Culture', art:'Art', nature:'Nature', gastro:'Gastro',
+                shopping:'Shopping', pop:'Pop culture', wellness:'Bien-être',
+                adventure:'Aventure', experiences:'Expériences', musees:'Musées'
+            }[i]||i)).join(', ');
+            el.textContent = [typeLabel, intLabel].filter(Boolean).join(' · ') || 'Configuré';
+        }
+
+        // ── Construire le contexte profil pour les prompts IA ────────────────
+        function getProfileContext() {
+            const p = travelerProfile;
+            if (!p.travel_type && !p.interests?.length && !p.budget && !p.constraints?.length) return '';
+
+            const typeMap = { solo:'voyage solo', couple:'voyage en couple', famille:'voyage en famille', amis:'voyage entre amis', groupe:'voyage en groupe' };
+            const intMap  = {
+                culture:'temples/sanctuaires/quartiers historiques/châteaux',
+                art:'musées d\'art moderne/TeamLab/galeries contemporaines',
+                nature:'parcs/jardins/forêts/bords de mer',
+                gastro:'marchés alimentaires/cours de cuisine/street food/restaurants typiques',
+                shopping:'boutiques locales/vintage/artisanat/centres commerciaux',
+                pop:'Akihabara/anime/manga/arcades/pop culture japonaise',
+                wellness:'onsen/jardins zen/temples peu fréquentés/promenades calmes',
+                adventure:'randonnées/vélo/activités sportives/escalade',
+                experiences:'cérémonie du thé/calligraphie/poterie/cours de cuisine/ninja',
+                musees:'musées nationaux/musées de site/musées thématiques/expositions'
+            };
+            const budgetMap = { econome:'budget serré (konbini, teishoku < 1000¥, entrées gratuites prioritaires)', modere:'budget modéré (restaurants 1000–3000¥, entrées payantes OK)', confortable:'budget confortable (bons restaurants, expériences premium)', luxe:'budget luxe (ryokan, restaurants gastronomiques, expériences exclusives)' };
+            const constMap  = { mobility:'accessibilité PMR obligatoire', vegetarien:'options végétariennes', vegan:'options végétalines', halal:'options halal', noalcool:'sans alcool', nogluten:'sans gluten', enfants:'adapté aux jeunes enfants (poussettes, horaires courts)' };
+
+            const parts = [];
+            if (p.travel_type) parts.push(typeMap[p.travel_type]||p.travel_type);
+            if (p.interests?.length) {
+                const intDetails = p.interests.map(i => intMap[i]||i).join(' | ');
+                parts.push(`centres d'intérêt: ${intDetails}`);
+            }
+            if (p.budget) parts.push(budgetMap[p.budget]||p.budget);
+            if (p.constraints?.length) parts.push('contraintes: '+p.constraints.map(c=>constMap[c]||c).join(', '));
+            if (p.custom_constraint) parts.push('contrainte spéciale: '+p.custom_constraint);
+
+            return '\nPROFIL VOYAGEUR:\n' + parts.join('\n') + '\n→ Adapter TOUTES les suggestions à ce profil. Varier obligatoirement les types d\'activités selon les centres d\'intérêt. Ne pas répéter le même type 2 fois consécutives.\n';
+        }
+
+
         // ══════════════════════════════════════════════════════════════════════
         // GÉNÉRATION DE PROGRAMME COMPLET — v2
         // ══════════════════════════════════════════════════════════════════════
@@ -3619,7 +3894,8 @@
                         hotel_lat: _genHotelPlace?.lat, hotel_lng: _genHotelPlace?.lng,
                         nb_days: nbDays, start_day_index: startDay,
                         start_date: tripData?.outbound?.departureDate || null,
-                        intensity, existing_activities: existing
+                        intensity, existing_activities: existing,
+                        traveler_profile: travelerProfile
                     })
                 });
                 const data = await resp.json();
@@ -3883,33 +4159,29 @@
                         source: 'generated'
                     });
                 } else {
-                    // Activité — tenter la résolution Places, fallback si erreur/timeout
+                    // Activité — résolution Google Places directe (pas d'IA = rapide et fiable)
                     let place = null;
-                    let resolvedTitle = blk.title;
-                    let resolvedDur   = blk.duration_minutes || 90;
+                    const resolvedTitle = blk.title;
+                    const resolvedDur   = blk.duration_minutes || 90;
 
                     try {
-                        const r = await fetchWithTimeout('/api/activity-analyze', {
-                            method:'POST',
-                            headers:{'Content-Type':'application/json'},
+                        const r = await fetchWithTimeout('/api/resolve-place', {
+                            method: 'POST',
+                            headers: {'Content-Type':'application/json'},
                             body: JSON.stringify({
-                                description: blk.search_query || blk.title,
-                                time_flexible: true,
-                                day_index: blk.day_index
+                                search_query: blk.search_query || blk.title,
+                                title: blk.title
                             })
-                        }, 8000);
+                        }, 10000);
 
                         if (r.ok) {
                             const d = await r.json();
-                            if (d.success && d.activity) {
-                                place         = d.activity.place || null;
-                                resolvedTitle = d.activity.title || blk.title;
-                                resolvedDur   = blk.duration_minutes || d.activity.duration_minutes || 90;
+                            if (d.success && d.place) {
+                                place = d.place;
                             }
                         }
                     } catch(e) {
-                        // Timeout ou erreur réseau — on continue sans place
-                        console.warn('activity-analyze timeout/error for:', blk.title, e.message);
+                        console.warn('resolve-place timeout/erreur pour:', blk.title, e.message);
                     }
 
                     activities.push({
@@ -3945,6 +4217,8 @@
             closeGenerateModal();
             renderPlanning();
             showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré', '🗾');
+            // Résoudre en arrière-plan les lieux manquants
+            setTimeout(_resolveGeneratedActivities, 800);
         }
 
         // ── Édition rapide depuis la modale d'optimisation ─────────────────────
@@ -4129,6 +4403,37 @@
         // Token d'annulation : chaque render crée un token unique.
         // Si un nouveau render démarre, l'ancien est annulé proprement.
         let _renderToken = 0;
+
+        // Résoudre les activités générées sans lieu (lancé au chargement)
+        async function _resolveGeneratedActivities() {
+            const toResolve = activities.filter(a =>
+                a.source === 'generated' && !a.place && a.title &&
+                a.block_type !== 'meal' && a.meal_type == null
+            );
+            if (!toResolve.length) return;
+
+            for (const act of toResolve) {
+                try {
+                    const r = await fetch('/api/resolve-place', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({ search_query: act.title + ' Tokyo Japan', title: act.title })
+                    });
+                    const d = await r.json();
+                    if (d.success && d.place) {
+                        const idx = activities.findIndex(a => a.id === act.id);
+                        if (idx >= 0) {
+                            activities[idx].place = d.place;
+                            activities[idx].title = d.place.name || act.title;
+                        }
+                    }
+                } catch(e) { /* continuer */ }
+                await new Promise(r => setTimeout(r, 400));
+            }
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            renderPlanning();
+        }
+
         function renderPlanning() {
             const myToken = ++_renderToken;
             const list = document.getElementById('planning-list');
@@ -5573,7 +5878,8 @@
                     body: JSON.stringify({
                         place_name: activity.place?.name || activity.title,
                         place_address: activity.place?.formatted_address || '',
-                        visit_time: activity.time
+                        visit_time: activity.time,
+                        traveler_profile: travelerProfile
                     })
                 });
 
@@ -7726,6 +8032,12 @@ async function toggleMapView() {
                 setTimeout(() => {
                     splash.style.display = 'none';
                     
+                    // Onboarding profil au 1er lancement
+                    if (!localStorage.getItem('japan_traveler_profile_v1')) {
+                        setTimeout(() => openTravelerProfile(false), 300);
+                    }
+                    _updateProfileMenuSummary();
+
                     if (tripData) {
                         // Si voyage déjà configuré, afficher directement le planning
                         document.getElementById('main-header').classList.remove('hidden');
@@ -7737,6 +8049,8 @@ async function toggleMapView() {
                         updateCitySelector();
                         renderStaysList();
                         renderPlanning();
+                        // Résoudre les activités générées sans lieu (background)
+                        setTimeout(_resolveGeneratedActivities, 1500);
                         // Pré-charger la clé Maps pour les mini-cartes inline
                         fetch('/api/maps-key').then(r=>r.json()).then(d=>{ if(d.key) window._mapsKey=d.key; });
                         // Montrer l'onboarding si aucun séjour configuré
