@@ -865,16 +865,38 @@ JSON BRUT UNIQUEMENT (pas de markdown):
             // Nettoyage robuste du JSON
             function sanitizeJson(text) {
                 let j = text.trim();
+                // Retirer les backticks markdown
                 j = j.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-                // Extraire l'objet JSON
-                const m = j.match(/\{[\s\S]*\}/);
-                if (m) j = m[0];
+                // Guillemets typographiques → droits
+                j = j.replace(/[""]/g, '"').replace(/['']/g, "'");
                 // Trailing commas
                 j = j.replace(/,\s*([}\]])/g, '$1');
-                // Guillemets typographiques
-                j = j.replace(/[""]/g, '"').replace(/['']/g, "'");
-                // Apostrophes non échappées dans les valeurs (heuristique)
-                // Remplacer les séquences du type ": 'valeur'" par ": \"valeur\""
+                // Extraire l'objet JSON principal
+                const m = j.match(/\{[\s\S]*\}/);
+                if (m) j = m[0];
+                // ── Réparer JSON tronqué ──────────────────────────────────────
+                // Si le JSON ne parse pas, tenter de fermer les structures ouvertes
+                try { JSON.parse(j); } catch(e) {
+                    // 1. Fermer une string non terminée : trouver la dernière " sans fermeture
+                    //    Couper à la dernière virgule ou clé complète propre
+                    const lastComma = j.lastIndexOf(',');
+                    const lastColon = j.lastIndexOf(':');
+                    const lastComplete = Math.min(
+                        lastComma > 0 ? lastComma : j.length,
+                        j.length
+                    );
+                    // Si le dernier caractère utile n'est pas } ou ], tronquer avant la dernière virgule
+                    const trimmed = j.slice(0, lastComma > 0 ? lastComma : j.length);
+                    // Recompter et fermer les accolades/crochets ouverts
+                    let work = trimmed;
+                    const openB = (work.match(/\[/g)||[]).length - (work.match(/\]/g)||[]).length;
+                    const openC = (work.match(/\{/g)||[]).length - (work.match(/\}/g)||[]).length;
+                    for (let i=0; i<openB; i++) work += ']';
+                    for (let i=0; i<openC; i++) work += '}';
+                    // Retirer trailing commas apparus
+                    work = work.replace(/,\s*([}\]])/g, '$1');
+                    try { JSON.parse(work); j = work; } catch(e2) { /* garder j original */ }
+                }
                 return j;
             }
 
@@ -1016,7 +1038,6 @@ app.post("/api/optimize-day", async (req, res) => {
             is_flexible: a.time_flexible !== false
         }));
 
-        // Contexte jour (date réelle pour calcul affluence)
         const dayDate = (() => {
             try {
                 const d = new Date(req.body.start_date || Date.now());
@@ -1029,110 +1050,53 @@ app.post("/api/optimize-day", async (req, res) => {
         const fatigueMode = req.body.fatigue_mode || false;
         const weatherMode = req.body.weather_mode || false;
 
-        const prompt = `Tu es un expert en planification d'itinéraires au Japon. Tu dois optimiser une journée de visite.
-${profileCtxOpt}
-CONTEXTE DU JOUR :
-- Jour : ${dayOfWeek}${isWeekend ? ' (WEEKEND — affluence élevée partout)' : ' (semaine — plus calme)'}
-- Mode fatigue : ${fatigueMode ? 'OUI — réduire l\'intensité, raccourcir les trajets, pause obligatoire après-midi' : 'NON'}
-- Mode météo adaptif : ${weatherMode ? 'OUI — privilégier les activités couvertes' : 'NON'}
-${hotelName ? `- Point de départ/retour : ${hotelName}` : ''}
-
-ACTIVITÉS À PLANIFIER :
-${JSON.stringify(activitiesContext, null, 2)}
-
-PROTOCOLE D'OPTIMISATION (à appliquer dans cet ordre) :
-
-1. ACCESSIBILITÉ ÉTRANGERS
-   - Certains onsen traditionnels, izakaya locaux, clubs peuvent refuser les étrangers (gaijin)
-   - Toujours mentionner si un lieu peut poser problème dans "reason"
-   - Prioriser les alternatives accessibles à tous
-
-2. HORAIRES D'OUVERTURE ET JOURS DE FERMETURE
-   - La plupart des musées ferment le LUNDI
-   - Les marchés alimentaires : matin uniquement (avant 13h)
-   - Temples et sanctuaires : 6h-17h en général (certains 24h/24)
-   - Izakaya/restaurants de ramen : 11h-14h et 18h-23h
-   - Konbini (7-Eleven, Lawson) : 24h/24, pratiques pour petits-déjeuners
-
-3. PROTOCOLE AFFLUENCE PAR TYPE DE LIEU
-   ${isWeekend ? 
-   `WEEKEND : Multiplier l'affluence par 1.5 sur tous les sites touristiques
-   - Temples/sanctuaires populaires : arriver AVANT 8h ou APRÈS 16h
-   - Marchés : arriver dès l'ouverture (avant 9h)
-   - Musées : réserver en ligne, arriver 10min avant ouverture
-   - Parcs urbains : OK le matin, éviter 11h-15h` : 
-   `SEMAINE : Affluence normale
-   - 9h-11h : pic matin touristes (groupes)
-   - 11h-13h : pic heure du déjeuner
-   - 14h-16h : creux idéal pour musées/temples
-   - 16h-18h : re-pic fin de journée`}
-
-4. OPTIMISATION GÉOGRAPHIQUE
-   - Grouper les activités par quartier (ne pas traverser Tokyo pour 1 activité)
-   - Ordre logique : point de départ → quartier 1 (matin) → déjeuner local → quartier 2 (après-midi) → retour
-   - Temps de trajet Tokyo : métro 15-30min entre quartiers proches, 30-45min entre quartiers éloignés
-
-5. MARGES DE RESPIRATION (OBLIGATOIRES, ne pas compresser)
-   - Après temple/sanctuaire bondé : 20min (décompression)
-   - Après marché alimentaire : 25min (manger sur place)
-   - Après randonnée/montée : 30min
-   - Entre 2 quartiers différents : 15min tampon trajet minimum
-   - Après repas : 20min
-   - ${fatigueMode ? 'MODE FATIGUE: Pause de 45min obligatoire apres 13h (cafe ou parc)' : 'Pause libre de 15min minimum en milieu d\'apres-midi'}
-
-6. DURÉES RÉALISTES PAR TYPE
-   - Temple populaire (Senso-ji, Fushimi Inari) : 60-90min
-   - Temple calme/secondaire : 30-45min
-   - Musée national : 120-180min
-   - Petit musée/galerie : 60-90min  
-   - Marché (Tsukiji, Nishiki) : 60-90min
-   - Parc urbain : 45-60min
-   - Quartier shopping (Harajuku, Akihabara) : 90-120min
-   - Activité gastronomique (ramen, sushi) : 45-60min
-   - ${fatigueMode ? 'FATIGUE: Réduire toutes les durées de 20%' : ''}
-
-7. ASTUCES LOCALES À INTÉGRER
-   - Petit-déjeuner : konbini (pratique, pas cher, local) ou kissaten (café rétro japonais, ambiance locale)
-   - Déjeuner : teishoku (menu fixe) dans un restaurant de quartier, moins cher et plus authentique qu'en zone touristique
-   - Éviter les taxi sauf urgence : transports en commun + marche = expérience locale
-   - IC Card (Suica/Pasmo) obligatoire pour fluidifier les trajets
-
-Réponds UNIQUEMENT avec ce JSON (SANS backticks, SANS markdown) :
-{
-  "optimized_activities": [
-    {
-      "id": 123,
-      "time": "09:00",
-      "duration_minutes": 90,
-      "breathing_after_minutes": 20,
-      "breathing_reason": "Flâner dans les ruelles avant de reprendre",
-      "reason": "Ouverture à 8h30, lumière dorée et peu de monde en semaine",
-      "local_tip": "Prenez l'entrée latérale moins connue des touristes",
-      "accessibility_note": "",
-      "time_changed": true
-    }
-  ],
-  "day_summary": "Une journée fluide entre marchés animés et temples apaisants",
-  "energy_level": "modérée",
-  "quartiers": ["Asakusa", "Ueno"],
-  "warnings": []
-}`;
-
+        // ── Prompt ultra-compact pour éviter la troncature JSON ──────────────
+        const actListStr = activitiesContext.map(a =>
+            '- id:' + a.id + ' "' + a.title + '" (' + a.place + ') a ' + a.current_time
+        ).join('\n');
+        const contexte = dayOfWeek
+            + (isWeekend ? ' (weekend, affluence élevée)' : ' (semaine)')
+            + (fatigueMode ? ' | Mode fatigue: reduire intensite, pause apres-midi' : '')
+            + (weatherMode ? ' | Privilegier activites couvertes' : '')
+            + (hotelName ? ' | Depart: ' + hotelName : '');
+        const regles = 'Grouper par quartier, respecter horaires (musees fermes lundi), marges 15-25min, durees: temple 60-90min, musee 90-150min, resto 45min.'
+            + (isWeekend ? ' Weekend: temples avant 9h ou apres 16h.' : '')
+            + (fatigueMode ? ' Fatigue: -20% durees, pause 45min apres 13h.' : '');
+        const prompt = 'Optimise cette journee au Japon. Reponds UNIQUEMENT en JSON brut valide.\n'
+            + profileCtxOpt + '\n'
+            + 'Contexte: ' + contexte + '\n\n'
+            + 'Activites:\n' + actListStr + '\n\n'
+            + regles + '\n\n'
+            + 'REPONSE: JSON brut, ' + validActivities.length + ' objets dans optimized_activities.\n'
+            + 'Format: {"optimized_activities":[{"id":NUM,"time":"HH:MM","duration_minutes":NUM,"breathing_after_minutes":NUM,"breathing_reason":"txt","reason":"txt","local_tip":"txt","time_changed":BOOL}],"day_summary":"txt","energy_level":"txt","warnings":[]}\n'
+            + 'IMPORTANT: Inclure TOUTES les ' + validActivities.length + ' activites. Textes courts (<60 chars).\n';
 
         const completionText = await anthropicChat(
-            "Expert tourisme Japon. Réponds UNIQUEMENT en JSON brut valide, SANS backticks, SANS markdown, SANS texte avant ou après le JSON.",
-            prompt, 1200);
+            "Expert Japon. JSON brut uniquement, SANS backticks ni markdown.",
+            prompt, 4000);
 
         let result;
         try {
-            result = JSON.parse(completionText);
+            result = JSON.parse(sanitizeJson(completionText));
         } catch(parseErr) {
-            const jsonMatch = completionText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                try { result = JSON.parse(jsonMatch[0]); }
-                catch(e2) { throw new Error(`JSON invalide : ${parseErr.message}`); }
+            // Tentative de réparation : extraire le tableau optimized_activities même si JSON tronqué
+            const arrMatch = completionText.match(/"optimized_activities"\s*:\s*(\[[\s\S]*)/);
+            if (arrMatch) {
+                try {
+                    let partial = arrMatch[1];
+                    // Fermer le tableau et l'objet si tronqué
+                    const openBrackets = (partial.match(/\[/g)||[]).length - (partial.match(/\]/g)||[]).length;
+                    const openBraces  = (partial.match(/\{/g)||[]).length - (partial.match(/\}/g)||[]).length;
+                    for (let i=0; i<openBraces; i++) partial += '}';
+                    for (let i=0; i<openBrackets; i++) partial += ']';
+                    const repaired = `{"optimized_activities":${sanitizeJson(partial)},"day_summary":"","energy_level":"modérée","warnings":[]}`;
+                    result = JSON.parse(repaired);
+                    console.warn('[optimize-day] JSON réparé après troncature');
+                } catch(e2) {
+                    throw new Error(`JSON invalide : ${parseErr.message}`);
+                }
             } else {
-                throw new Error(`Réponse IA non-JSON : ${completionText.slice(0,200)}`);
+                throw new Error(`JSON invalide : ${parseErr.message}`);
             }
         }
         if (!result?.optimized_activities) throw new Error('Structure JSON inattendue');
