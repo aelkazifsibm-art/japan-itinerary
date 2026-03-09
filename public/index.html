@@ -309,10 +309,11 @@
         #nav-map-btn.active { background: rgba(255,255,255,0.28) !important; }
 
         /* Bandeau photo activité */
-        .card-photo-banner img { opacity: 0; }
-        .card-photo-banner img[src] { opacity: 0; }
-        /* Skeleton loader pendant chargement photo */
-        .card-photo-banner::before {
+        /* Photos : opacity gérée uniquement par JS (pas de règle CSS qui force 0) */
+        .card-photo-banner img { opacity: 0; transition: opacity 0.35s ease; }
+        .card-photo-banner img.img-loaded { opacity: 1; }
+        /* Skeleton uniquement si pas encore chargée */
+        .card-photo-banner:not(.img-cached)::before {
             content: '';
             position: absolute;
             inset: 0;
@@ -320,10 +321,7 @@
             background-size: 200% 100%;
             animation: photoSkeleton 1.5s infinite;
         }
-        /* Quand l'image est déjà en cache, pas de skeleton */
-        .card-photo-banner.img-cached::before {
-            display: none;
-        }
+        .card-photo-banner.img-cached::before { display: none; }
         html.dark .card-photo-banner::before {
             background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
             background-size: 200% 100%;
@@ -4897,13 +4895,14 @@
                 }
                 card.innerHTML = `
                     ${act.place?.photo_reference ? `
-                    <div class="card-photo-banner${_imgLoadedCache.has('/api/place-photo?ref='+encodeURIComponent(act.place.photo_reference)+'&maxw=600') ? ' img-cached' : ''}" style="position:relative;height:118px;overflow:hidden;border-radius:0">
+                    <div class="card-photo-banner${_imgLoadedCache.has('/api/place-photo?ref='+encodeURIComponent(act.place.photo_reference)+'&maxw=600') ? ' img-cached' : ''}" style="position:relative;height:118px;overflow:hidden;border-radius:0;background:#e5e7eb">
                         <img
                             src="/api/place-photo?ref=${encodeURIComponent(act.place.photo_reference)}&maxw=600"
                             alt="${act.title}"
                             loading="lazy"
-                            style="width:100%;height:100%;object-fit:cover;display:block;transition:opacity 0.4s;opacity:${_imgLoadedCache.has('/api/place-photo?ref='+encodeURIComponent(act.place.photo_reference)+'&maxw=600') ? '1' : '0'}"
-                            onload="this.style.opacity=1;if(window._imgLoadedCache){window._imgLoadedCache.add(this.src);this.closest('.card-photo-banner')?.classList.add('img-cached')}"
+                            class="${_imgLoadedCache.has('/api/place-photo?ref='+encodeURIComponent(act.place.photo_reference)+'&maxw=600') ? 'img-loaded' : ''}"
+                            style="width:100%;height:100%;object-fit:cover;display:block"
+                            onload="this.classList.add('img-loaded');if(window._imgLoadedCache){window._imgLoadedCache.add(this.src);this.closest('.card-photo-banner')?.classList.add('img-cached')}"
                             onerror="this.closest('.card-photo-banner').remove()"
                         />
                         <!-- Gradient overlay bas pour lisibilité du titre -->
