@@ -457,6 +457,39 @@
         </div>
     </div>
 
+    <!-- ══ WIZARD SÉJOURS ══════════════════════════════════════════════ -->
+    <div id="stays-wizard" class="fixed inset-0 z-[210] hidden" style="background:rgba(0,0,0,0.7);backdrop-filter:blur(6px)">
+        <div style="
+            position:absolute;bottom:0;left:0;right:0;
+            background:white;
+            border-radius:28px 28px 0 0;
+            display:flex;flex-direction:column;
+            max-height:92vh">
+
+            <!-- Handle + Header -->
+            <div style="flex-shrink:0;padding:14px 20px 0">
+                <div style="width:44px;height:4px;border-radius:2px;background:#e5e7eb;margin:0 auto 18px"></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                    <div>
+                        <div style="font-size:20px;font-weight:900;color:#111827" id="wizard-title">🗾 Construis ton itinéraire</div>
+                        <div id="wizard-subtitle" style="font-size:12px;color:#9ca3af;margin-top:2px">Étape 1 — Point d'arrivée</div>
+                    </div>
+                    <button onclick="_wizardClose()" style="width:32px;height:32px;border-radius:50%;background:#f3f4f6;border:none;font-size:17px;cursor:pointer;color:#6b7280">✕</button>
+                </div>
+                <!-- Progress bar -->
+                <div style="height:3px;background:#f3f4f6;border-radius:2px;margin:12px 0 0;overflow:hidden">
+                    <div id="wizard-progress" style="height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:2px;transition:width .4s ease;width:0%"></div>
+                </div>
+            </div>
+
+            <!-- Contenu dynamique -->
+            <div id="wizard-content" style="flex:1;overflow-y:auto;padding:16px 20px 0"></div>
+
+            <!-- Footer boutons -->
+            <div id="wizard-footer" style="flex-shrink:0;padding:12px 20px calc(env(safe-area-inset-bottom,0px)+14px);border-top:1px solid #f3f4f6;display:flex;gap:10px"></div>
+        </div>
+    </div>
+
     <!-- HEADER -->
     <header id="main-header" class="bg-white shadow-sm sticky top-0 z-50 hidden">
         <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between gap-3">
@@ -1678,6 +1711,539 @@
         document.getElementById('departure-date').addEventListener('change', calculateDays);
         document.getElementById('return-date').addEventListener('change', calculateDays);
 
+        // ═══════════════════════════════════════════════════════════════════
+        //  WIZARD SÉJOURS — PROTOCOLE D'ITINÉRAIRE INTELLIGENT
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ── Base de données d'itinéraires selon durée ──────────────────────
+        const ITINERARY_TEMPLATES = {
+            // 5-6 jours : Tokyo uniquement
+            short: {
+                label: '5–6 jours · Tokyo & environs',
+                description: 'Parfait pour une première immersion — concentre toute l\'énergie sur Tokyo avec une escapade à Nikko ou Kamakura.',
+                zones: [
+                    { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 3, maxDays: 6,
+                      desc: 'Shibuya, Shinjuku, Asakusa, Akihabara', airports: ['HND','NRT'],
+                      tip: 'Arrivée idéale — Haneda est à 30 min du centre en monorail' }
+                ]
+            },
+            // 7-9 jours : Golden Route rapide
+            medium_short: {
+                label: '7–9 jours · Golden Route express',
+                description: 'Le classique Tokyo → Kyoto. Shinkansen entre les deux, temples et modernité.',
+                zones: [
+                    { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5,
+                      desc: 'Shibuya, Asakusa, Harajuku, Akihabara', airports: ['HND','NRT'],
+                      tip: 'Commence par Tokyo quand tu es le plus en forme malgré le jet-lag' },
+                    { city: 'Hakone', emoji: '🌋', days: 1, minDays: 1, maxDays: 2,
+                      desc: 'Onsen, vue sur le Fuji, Ryokan', airports: [],
+                      tip: 'En route entre Tokyo et Kyoto — 90 min de shinkansen' },
+                    { city: 'Kyoto', emoji: '⛩️', days: 3, minDays: 2, maxDays: 4,
+                      desc: 'Fushimi Inari, Arashiyama, Gion', airports: ['KIX'],
+                      tip: 'Terminer par Kyoto/Kansai permet de repartir depuis Osaka KIX' }
+                ]
+            },
+            // 10-13 jours : Golden Route complète
+            medium: {
+                label: '10–13 jours · Golden Route complète',
+                description: 'Tokyo + Kyoto + Osaka + Nara + Hiroshima. Le meilleur du Japon pour un premier voyage.',
+                zones: [
+                    { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5,
+                      desc: 'Shinjuku, Shibuya, Asakusa, Harajuku, Akihabara', airports: ['HND','NRT'],
+                      tip: 'Point de départ idéal depuis l\'Europe via Paris CDG ou Amsterdam' },
+                    { city: 'Hakone', emoji: '🌋', days: 1, minDays: 1, maxDays: 2,
+                      desc: 'Onsen, vue Fuji, Ryokan traditionnel', airports: [],
+                      tip: 'Étape entre Tokyo et Kyoto — repos et bains japonais' },
+                    { city: 'Kyoto', emoji: '⛩️', days: 3, minDays: 2, maxDays: 4,
+                      desc: 'Fushimi Inari, Arashiyama, Nishiki, Gion', airports: [],
+                      tip: 'Base idéale pour visiter Nara en day-trip (45 min de train)' },
+                    { city: 'Osaka', emoji: '🏙️', days: 2, minDays: 1, maxDays: 3,
+                      desc: 'Dotonbori, Namba, Takoyaki, Universal', airports: ['KIX','ITM'],
+                      tip: 'Terminer par Osaka — départ depuis KIX, 25 min du centre' }
+                ]
+            },
+            // 14-17 jours : Golden Route + extension
+            long: {
+                label: '2 semaines · Golden Route + Hiroshima',
+                description: 'Le circuit parfait avec Hiroshima et Miyajima. Une vraie plongée dans l\'histoire et la beauté du Japon.',
+                zones: [
+                    { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 6,
+                      desc: 'Tous les quartiers emblématiques + Nikko ou Kamakura en day-trip', airports: ['HND','NRT'],
+                      tip: '5 jours pour vraiment explorer Tokyo en profondeur' },
+                    { city: 'Hakone', emoji: '🌋', days: 2, minDays: 1, maxDays: 2,
+                      desc: 'Onsen, Fuji, Randonnée, Ryokan', airports: [],
+                      tip: 'Prends le temps d\'un Ryokan avec vue sur le Fuji' },
+                    { city: 'Kyoto', emoji: '⛩️', days: 4, minDays: 3, maxDays: 5,
+                      desc: 'Temples, geishas, jardins zen, Nara en day-trip', airports: [],
+                      tip: 'Base parfaite : Nara à 45 min, Osaka à 15 min' },
+                    { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3,
+                      desc: 'Mémorial de la Paix, Miyajima, Torii flottant', airports: [],
+                      tip: 'Miyajima à 30 min en ferry — prévoir une nuit sur l\'île' },
+                    { city: 'Osaka', emoji: '🏙️', days: 2, minDays: 1, maxDays: 3,
+                      desc: 'Dotonbori, Namba, street food légendaire', airports: ['KIX','ITM'],
+                      tip: 'Finale en feu d\'artifice culinaire avant l\'aéroport' }
+                ]
+            },
+            // 18-21 jours : Grand tour
+            very_long: {
+                label: '3 semaines · Grand tour du Japon',
+                description: 'Le voyage complet avec une escapade au Japon profond — Kanazawa ou Kyushu pour sortir des sentiers battus.',
+                zones: [
+                    { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 7,
+                      desc: 'Tokyo en profondeur + Nikko + Kamakura', airports: ['HND','NRT'],
+                      tip: 'Prends ton temps — Tokyo à elle seule mérite une semaine' },
+                    { city: 'Hakone', emoji: '🌋', days: 2, minDays: 1, maxDays: 2,
+                      desc: 'Onsen, Ryokan, Fuji, randonnée', airports: [],
+                      tip: 'Pause nature obligatoire avant les villes' },
+                    { city: 'Kanazawa', emoji: '🏯', days: 2, minDays: 2, maxDays: 3,
+                      desc: 'Jardin Kenroku-en, Higashi Chaya, fruits de mer', airports: [],
+                      tip: 'Le "Kyoto alternatif" sans les foules touristiques' },
+                    { city: 'Kyoto', emoji: '⛩️', days: 4, minDays: 3, maxDays: 5,
+                      desc: 'Les incontournables + Nara + villages Ohara', airports: [],
+                      tip: 'Tu as le luxe du temps — va dans les quartiers secrets' },
+                    { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3,
+                      desc: 'Paix, Miyajima, Torii, faisan Momiji', airports: [],
+                      tip: 'Nuit à Miyajima pour voir le Torii sans touristes' },
+                    { city: 'Osaka', emoji: '🏙️', days: 3, minDays: 2, maxDays: 4,
+                      desc: 'Dotonbori, Universal Studios, Namba, street food', airports: ['KIX','ITM'],
+                      tip: 'Finir fort — Osaka est la capitale culinaire du Japon' }
+                ]
+            },
+            // 22 jours et + : circuit étendu
+            extra_long: {
+                label: '3+ semaines · Aventure hors des sentiers battus',
+                description: 'Ajoutez Kyushu ou Hokkaido pour une expérience vraiment unique — très peu de touristes hors des grandes villes.',
+                zones: [
+                    { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 7,
+                      desc: 'Tokyo en profondeur + excursions', airports: ['HND','NRT'],
+                      tip: 'Tokyo = base de départ vers toutes les directions' },
+                    { city: 'Nikko', emoji: '🌿', days: 1, minDays: 1, maxDays: 2,
+                      desc: 'Sanctuaires UNESCO, cascades, forêts', airports: [],
+                      tip: 'Day-trip depuis Tokyo ou nuit sur place' },
+                    { city: 'Hakone', emoji: '🌋', days: 2, minDays: 1, maxDays: 2,
+                      desc: 'Onsen, Fuji, Ryokan premium', airports: [],
+                      tip: 'Étape incontournable' },
+                    { city: 'Kyoto', emoji: '⛩️', days: 5, minDays: 4, maxDays: 6,
+                      desc: 'Exploration complète + villages autour', airports: [],
+                      tip: 'Prends le temps d\'aller à Kurama et Kibune' },
+                    { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3,
+                      desc: 'Paix + Miyajima', airports: [],
+                      tip: 'Nuit sur Miyajima pour le lever du soleil sur le Torii' },
+                    { city: 'Fukuoka', emoji: '🍜', days: 3, minDays: 2, maxDays: 4,
+                      desc: 'Ramen Hakata, Yatai (food trucks), Dazaifu', airports: ['FUK'],
+                      tip: 'Kyushu = moins touristique, nourriture exceptionnelle' },
+                    { city: 'Osaka', emoji: '🏙️', days: 3, minDays: 2, maxDays: 4,
+                      desc: 'Dotonbori, Namba, Shinsekai, street food', airports: ['KIX','ITM'],
+                      tip: 'Retour en force par Osaka avant l\'aéroport' }
+                ]
+            }
+        };
+
+        // ── Choisir le template adapté à la durée ──────────────────────────
+        function _wizardGetTemplate(totalDays) {
+            if (totalDays <= 6)  return 'short';
+            if (totalDays <= 9)  return 'medium_short';
+            if (totalDays <= 13) return 'medium';
+            if (totalDays <= 17) return 'long';
+            if (totalDays <= 21) return 'very_long';
+            return 'extra_long';
+        }
+
+        // ── État du wizard ─────────────────────────────────────────────────
+        let _wiz = {
+            step: 0,            // 0=choix itinéraire, 1..N=config chaque séjour, N+1=résumé
+            template: null,
+            zones: [],          // zones choisies (copie modifiable du template)
+            staysBuilt: [],     // stays[] construits au fur et à mesure
+            arrivalAirport: '', // depuis tripData
+            totalDays: 0,
+            daysCursor: 0       // pointeur de jour courant (0-based)
+        };
+
+        // ── Ouvrir le wizard ───────────────────────────────────────────────
+        function openStaysWizard() {
+            if (!tripData) return;
+            _wiz.arrivalAirport = tripData.outbound.arrivalAirport || '';
+            _wiz.totalDays = tripData.totalDays;
+            _wiz.template  = _wizardGetTemplate(_wiz.totalDays);
+            _wiz.zones     = JSON.parse(JSON.stringify(ITINERARY_TEMPLATES[_wiz.template].zones));
+            _wiz.staysBuilt = [];
+            _wiz.daysCursor = 0;
+            _wiz.step = 0;
+
+            document.getElementById('stays-wizard').classList.remove('hidden');
+            _wizardRender();
+        }
+
+        window._wizardClose = function() {
+            document.getElementById('stays-wizard').classList.add('hidden');
+        };
+
+        // ── Rendu principal selon l'étape ──────────────────────────────────
+        function _wizardRender() {
+            const totalSteps = _wiz.zones.length + 2; // étape 0 + N séjours + résumé
+            const stepNum    = _wiz.step;
+            const pct        = Math.round((stepNum / (totalSteps - 1)) * 100);
+
+            document.getElementById('wizard-progress').style.width = pct + '%';
+
+            if (_wiz.step === 0) {
+                _wizardRenderStep0();
+            } else if (_wiz.step <= _wiz.zones.length) {
+                _wizardRenderStepN(_wiz.step - 1);
+            } else {
+                _wizardRenderSummary();
+            }
+        }
+
+        // ── Étape 0 : Choix de l'itinéraire suggéré ou alternatif ─────────
+        function _wizardRenderStep0() {
+            document.getElementById('wizard-subtitle').textContent = 'Étape 1 — Itinéraire suggéré';
+
+            const tpl = ITINERARY_TEMPLATES[_wiz.template];
+            const days = _wiz.totalDays;
+            const airport = _wiz.arrivalAirport;
+
+            // Aéroport d'arrivée mis en avant
+            const airportInfo = {
+                HND: { label: 'Tokyo Haneda', city: 'Tokyo', emoji: '✈️', tip: '30 min du centre en monorail · Le plus pratique pour Tokyo' },
+                NRT: { label: 'Tokyo Narita', city: 'Tokyo', emoji: '✈️', tip: '60 min du centre en Narita Express (N\'EX) · Ticket ~3 000¥' },
+                KIX: { label: 'Osaka Kansai', city: 'Osaka', emoji: '✈️', tip: '75 min en Haruka Express vers Kyoto · Idéal pour commencer par le Kansai' },
+                ITM: { label: 'Osaka Itami', city: 'Osaka', emoji: '✈️', tip: 'Surtout pour vols domestiques · Limbus/taxi vers centre Osaka' },
+                FUK: { label: 'Fukuoka', city: 'Fukuoka', emoji: '✈️', tip: 'Métro direct centre-ville en 5 min · Parfait pour débuter par Kyushu' },
+                NGO: { label: 'Nagoya', city: 'Nagoya', emoji: '✈️', tip: 'Meitetsu Airport Express vers Nagoya en 28 min' },
+                CTS: { label: 'Sapporo', city: 'Sapporo', emoji: '✈️', tip: 'Accès Hokkaido · Idéal hiver/été' },
+                OKA: { label: 'Okinawa Naha', city: 'Okinawa', emoji: '✈️', tip: 'Plages tropicales · Connexions intérieures vers Tokyo' },
+            }[airport] || { label: airport, city: '?', emoji: '✈️', tip: '' };
+
+            // Alternatives selon durée
+            const alternatives = _wizardGetAlternatives(days);
+
+            const content = document.getElementById('wizard-content');
+            content.innerHTML = `
+                <!-- Durée détectée -->
+                <div style="background:linear-gradient(135deg,#faf5ff,#fdf2f8);border:2px solid #e9d5ff;border-radius:16px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+                    <div style="font-size:32px">📅</div>
+                    <div>
+                        <div style="font-size:14px;font-weight:900;color:#7c3aed">${days} jours au Japon</div>
+                        <div style="font-size:11px;color:#9ca3af;margin-top:2px">Du ${_wizardFormatDate(tripData.outbound.departureDate)} au ${_wizardFormatDate(tripData.return.departureDate)}</div>
+                    </div>
+                </div>
+
+                <!-- Aéroport d'arrivée -->
+                <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:14px;padding:12px 14px;margin-bottom:20px;display:flex;align-items:flex-start;gap:10px">
+                    <div style="font-size:24px">🛬</div>
+                    <div>
+                        <div style="font-size:13px;font-weight:800;color:#15803d">Arrivée : ${airportInfo.label}</div>
+                        <div style="font-size:11px;color:#6b7280;margin-top:3px">${airportInfo.tip}</div>
+                    </div>
+                </div>
+
+                <!-- Itinéraire suggéré -->
+                <div style="margin-bottom:12px">
+                    <div style="font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">✨ Itinéraire recommandé pour ${days} jours</div>
+                    <div id="wiz-tpl-suggested" onclick="_wizardSelectTemplate('${_wiz.template}')" style="
+                        border:2.5px solid #7c3aed;background:#faf5ff;border-radius:18px;padding:14px 16px;cursor:pointer;margin-bottom:10px">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                            <span style="font-size:20px">🎯</span>
+                            <div style="font-size:13px;font-weight:900;color:#7c3aed">${tpl.label}</div>
+                            <div style="margin-left:auto;width:20px;height:20px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center">
+                                <div style="width:8px;height:8px;border-radius:50%;background:white"></div>
+                            </div>
+                        </div>
+                        <div style="font-size:11px;color:#6b7280;line-height:1.5;margin-bottom:10px">${tpl.description}</div>
+                        <!-- Villes en chips -->
+                        <div style="display:flex;flex-wrap:wrap;gap:5px">
+                            ${tpl.zones.map(z => `<span style="
+                                padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;
+                                background:#ede9fe;color:#7c3aed">${z.emoji} ${z.city} · ${z.days}j</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alternatives -->
+                ${alternatives.length > 0 ? `
+                <div style="margin-bottom:20px">
+                    <div style="font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🔀 Autres options</div>
+                    ${alternatives.map(alt => {
+                        const t = ITINERARY_TEMPLATES[alt.key];
+                        return `<div onclick="_wizardSelectTemplate('${alt.key}')" id="wiz-tpl-${alt.key}" style="
+                            border:2px solid #e5e7eb;background:white;border-radius:16px;padding:12px 14px;cursor:pointer;margin-bottom:8px">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                                <span style="font-size:16px">${alt.emoji}</span>
+                                <div style="font-size:12px;font-weight:800;color:#374151">${t.label}</div>
+                            </div>
+                            <div style="font-size:11px;color:#9ca3af;margin-bottom:8px">${alt.reason}</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:4px">
+                                ${t.zones.map(z => `<span style="padding:2px 8px;border-radius:14px;font-size:10px;font-weight:700;background:#f3f4f6;color:#6b7280">${z.emoji} ${z.city}</span>`).join('')}
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>` : ''}
+            `;
+
+            document.getElementById('wizard-footer').innerHTML = `
+                <button onclick="_wizardSkip()" style="flex:1;padding:13px;background:#f3f4f6;border:none;border-radius:16px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer">
+                    Configurer manuellement
+                </button>
+                <button onclick="_wizardNext()" style="flex:2;padding:13px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:16px;font-size:14px;font-weight:900;cursor:pointer">
+                    Utiliser cet itinéraire →
+                </button>`;
+        }
+
+        // ── Sélection d'un template alternatif ────────────────────────────
+        window._wizardSelectTemplate = function(key) {
+            _wiz.template = key;
+            _wiz.zones = JSON.parse(JSON.stringify(ITINERARY_TEMPLATES[key].zones));
+            // Update UI
+            document.querySelectorAll('[id^="wiz-tpl-"]').forEach(el => {
+                const isSelected = el.id === 'wiz-tpl-' + key;
+                el.style.borderColor = isSelected ? '#7c3aed' : '#e5e7eb';
+                el.style.background  = isSelected ? '#faf5ff' : 'white';
+            });
+        };
+
+        // ── Étape N : Configuration d'une ville ───────────────────────────
+        function _wizardRenderStepN(zoneIdx) {
+            const zone = _wiz.zones[zoneIdx];
+            const isFirst = zoneIdx === 0;
+            const remaining = _wiz.totalDays - _wiz.daysCursor;
+            const isLast  = zoneIdx === _wiz.zones.length - 1;
+
+            // Adapter min/max jours au nombre restant
+            const maxDays = isLast ? remaining : Math.min(zone.maxDays, remaining - (_wiz.zones.length - zoneIdx - 1));
+            const minDays = Math.max(1, Math.min(zone.minDays, maxDays));
+            const defDays = Math.max(minDays, Math.min(zone.days, maxDays));
+
+            document.getElementById('wizard-subtitle').textContent =
+                `Étape ${_wiz.step + 1} — ${zone.emoji} ${zone.city} (${_wiz.daysCursor + 1}–${_wiz.daysCursor + defDays}/${_wiz.totalDays})`;
+
+            // Calculer les dates
+            const startDate = _wizardAddDays(tripData.outbound.departureDate, _wiz.daysCursor);
+            const endDate   = _wizardAddDays(tripData.outbound.departureDate, _wiz.daysCursor + defDays - 1);
+
+            const content = document.getElementById('wizard-content');
+            content.innerHTML = `
+                <!-- Titre ville -->
+                <div style="text-align:center;margin-bottom:20px">
+                    <div style="font-size:52px;margin-bottom:8px">${zone.emoji}</div>
+                    <div style="font-size:22px;font-weight:900;color:#111827">${zone.city}</div>
+                    <div style="font-size:12px;color:#9ca3af;margin-top:4px">${zone.desc}</div>
+                    ${isFirst ? `<div style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #86efac;border-radius:20px;padding:5px 12px">
+                        <span style="font-size:12px">🛬</span>
+                        <span style="font-size:11px;font-weight:700;color:#15803d">${zone.tip}</span>
+                    </div>` : `<div style="margin-top:10px;display:inline-block;background:#f0f9ff;border:1px solid #bae6fd;border-radius:20px;padding:5px 12px;font-size:11px;color:#0369a1;font-weight:600">💡 ${zone.tip}</div>`}
+                </div>
+
+                <!-- Jours -->
+                <div style="background:#faf5ff;border:2px solid #e9d5ff;border-radius:16px;padding:14px 16px;margin-bottom:16px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                        <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px">Nombre de nuits</div>
+                        <div style="font-size:20px;font-weight:900;color:#7c3aed" id="wiz-days-val">${defDays}</div>
+                    </div>
+                    <input id="wiz-days-slider" type="range" min="${minDays}" max="${maxDays}" value="${defDays}"
+                        oninput="_wizardUpdateDaysSlider(${zoneIdx})"
+                        style="width:100%;accent-color:#7c3aed">
+                    <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-top:4px">
+                        <span>${minDays} nuit${minDays>1?'s':''}</span><span>${maxDays} nuits max</span>
+                    </div>
+                    <div id="wiz-dates-preview" style="margin-top:10px;text-align:center;font-size:12px;color:#6b7280;background:white;border-radius:10px;padding:8px">
+                        📅 <strong>${_wizardFormatDate2(startDate)}</strong> → <strong>${_wizardFormatDate2(endDate)}</strong>
+                    </div>
+                </div>
+
+                <!-- Hôtel (optionnel) -->
+                <div style="margin-bottom:16px">
+                    <div style="font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🏨 Hôtel à ${zone.city} <span style="font-weight:500;text-transform:none;color:#d1d5db">(optionnel — tu peux ajouter plus tard)</span></div>
+                    <input id="wiz-hotel-name" type="text" placeholder="Nom de l'hôtel ou ryokan..."
+                        style="width:100%;border:2px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;outline:none;margin-bottom:8px">
+                    <input id="wiz-hotel-addr" type="text" placeholder="Adresse (facultatif)..."
+                        style="width:100%;border:2px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;outline:none">
+                </div>
+
+                <!-- Jours restants info -->
+                <div id="wiz-remaining-info" style="text-align:center;font-size:11px;color:#9ca3af;padding-bottom:8px">
+                    ${remaining - defDays > 0 && !isLast ? `<span style="color:#f59e0b;font-weight:700">⚠️ Il reste ${remaining - defDays} jours à planifier après ${zone.city}</span>` :
+                      isLast && remaining - defDays > 0 ? `<span style="color:#f59e0b;font-weight:700">⚠️ ${remaining - defDays} jours non couverts — ajuste le slider</span>` :
+                      `<span style="color:#10b981;font-weight:700">✅ Tous les jours sont couverts</span>`}
+                </div>
+            `;
+
+            const footerBtns = document.getElementById('wizard-footer');
+            footerBtns.innerHTML = `
+                ${_wiz.step > 1 ? `<button onclick="_wizardBack()" style="padding:13px 18px;background:#f3f4f6;border:none;border-radius:16px;font-size:20px;cursor:pointer">←</button>` : ''}
+                <button onclick="_wizardSaveStep(${zoneIdx})" style="flex:1;padding:13px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:16px;font-size:14px;font-weight:900;cursor:pointer">
+                    ${isLast ? '✅ Terminer' : `${zone.city} validée — ${_wiz.zones[zoneIdx+1]?.emoji || ''} ${_wiz.zones[zoneIdx+1]?.city || ''} →`}
+                </button>`;
+
+            // Store defDays in state
+            _wiz._currentDays = defDays;
+            _wiz._currentZoneIdx = zoneIdx;
+        }
+
+        window._wizardUpdateDaysSlider = function(zoneIdx) {
+            const slider = document.getElementById('wiz-days-slider');
+            const val    = parseInt(slider.value);
+            _wiz._currentDays = val;
+            document.getElementById('wiz-days-val').textContent = val;
+
+            const startDate = _wizardAddDays(tripData.outbound.departureDate, _wiz.daysCursor);
+            const endDate   = _wizardAddDays(tripData.outbound.departureDate, _wiz.daysCursor + val - 1);
+            const prevEl    = document.getElementById('wiz-dates-preview');
+            if (prevEl) prevEl.innerHTML = `📅 <strong>${_wizardFormatDate2(startDate)}</strong> → <strong>${_wizardFormatDate2(endDate)}</strong>`;
+
+            const zone     = _wiz.zones[zoneIdx];
+            const remaining = _wiz.totalDays - _wiz.daysCursor;
+            const isLast   = zoneIdx === _wiz.zones.length - 1;
+            const remInfo  = document.getElementById('wiz-remaining-info');
+            if (remInfo) {
+                const left = remaining - val;
+                remInfo.innerHTML = left > 0 && !isLast
+                    ? `<span style="color:#f59e0b;font-weight:700">⚠️ Il reste ${left} jours à planifier après ${zone.city}</span>`
+                    : isLast && left > 0
+                    ? `<span style="color:#f59e0b;font-weight:700">⚠️ ${left} jours non couverts — ajuste le slider</span>`
+                    : `<span style="color:#10b981;font-weight:700">✅ Tous les jours sont couverts</span>`;
+            }
+        };
+
+        // ── Sauvegarder l'étape en cours ──────────────────────────────────
+        window._wizardSaveStep = function(zoneIdx) {
+            const zone    = _wiz.zones[zoneIdx];
+            const nDays   = _wiz._currentDays || zone.days;
+            const hotel   = document.getElementById('wiz-hotel-name')?.value?.trim() || '';
+            const addr    = document.getElementById('wiz-hotel-addr')?.value?.trim() || '';
+            const startDay = _wiz.daysCursor;
+            const endDay   = _wiz.daysCursor + nDays - 1;
+
+            _wiz.staysBuilt.push({
+                city:      zone.city,
+                hotelName: hotel,
+                address:   addr,
+                place:     null,
+                price:     '',
+                currency:  'EUR',
+                startDay,
+                endDay
+            });
+
+            _wiz.daysCursor += nDays;
+            _wiz.step++;
+            _wizardRender();
+        };
+
+        // ── Étape résumé final ─────────────────────────────────────────────
+        function _wizardRenderSummary() {
+            document.getElementById('wizard-subtitle').textContent = 'Résumé — Ton itinéraire';
+
+            const uncovered = _wiz.totalDays - _wiz.daysCursor;
+
+            const content = document.getElementById('wizard-content');
+            content.innerHTML = `
+                <div style="text-align:center;margin-bottom:20px">
+                    <div style="font-size:48px;margin-bottom:8px">🎌</div>
+                    <div style="font-size:18px;font-weight:900;color:#111827">Itinéraire prêt !</div>
+                    <div style="font-size:12px;color:#9ca3af;margin-top:4px">${_wiz.totalDays} jours · ${_wiz.staysBuilt.length} séjours</div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+                    ${_wiz.staysBuilt.map((s, i) => {
+                        const startD = _wizardAddDays(tripData.outbound.departureDate, s.startDay);
+                        const endD   = _wizardAddDays(tripData.outbound.departureDate, s.endDay);
+                        const nDays  = s.endDay - s.startDay + 1;
+                        const zone   = _wiz.zones[i] || {};
+                        return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#faf5ff;border:2px solid #e9d5ff;border-radius:16px">
+                            <div style="font-size:28px">${zone.emoji || '📍'}</div>
+                            <div style="flex:1">
+                                <div style="font-size:14px;font-weight:800;color:#1f2937">${s.city}</div>
+                                ${s.hotelName ? `<div style="font-size:11px;color:#7c3aed;font-weight:700">🏨 ${s.hotelName}</div>` : ''}
+                                <div style="font-size:11px;color:#9ca3af;margin-top:2px">Jours ${s.startDay+1}–${s.endDay+1} · ${_wizardFormatDate2(startD)} → ${_wizardFormatDate2(endD)}</div>
+                            </div>
+                            <div style="text-align:center;background:#ede9fe;border-radius:10px;padding:5px 9px">
+                                <div style="font-size:16px;font-weight:900;color:#7c3aed">${nDays}</div>
+                                <div style="font-size:9px;color:#a78bfa;font-weight:700">NUITS</div>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+
+                ${uncovered > 0 ? `<div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:14px;padding:12px 14px;margin-bottom:14px;display:flex;gap:8px">
+                    <span style="font-size:20px">⚠️</span>
+                    <div style="font-size:12px;color:#c2410c">${uncovered} jours non couverts — tu pourras ajouter d'autres séjours depuis les options de voyage.</div>
+                </div>` : ''}
+
+                <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:14px;padding:12px 14px;margin-bottom:8px;font-size:12px;color:#15803d">
+                    💡 Tu peux modifier chaque séjour depuis l'onglet <strong>Séjours</strong> dans les options de voyage.
+                </div>
+            `;
+
+            document.getElementById('wizard-footer').innerHTML = `
+                <button onclick="_wizardBack()" style="padding:13px 18px;background:#f3f4f6;border:none;border-radius:16px;font-size:20px;cursor:pointer">←</button>
+                <button onclick="_wizardApply()" style="flex:1;padding:13px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">
+                    🌸 Lancer le planning !
+                </button>`;
+        }
+
+        // ── Navigation ─────────────────────────────────────────────────────
+        window._wizardNext = function() {
+            _wiz.step = 1;
+            _wiz.daysCursor = 0;
+            _wizardRender();
+        };
+
+        window._wizardBack = function() {
+            if (_wiz.step === 0) return;
+            if (_wiz.step === 1) { _wiz.step = 0; _wiz.daysCursor = 0; _wiz.staysBuilt = []; _wizardRender(); return; }
+            // Retirer le dernier séjour ajouté
+            const last = _wiz.staysBuilt.pop();
+            _wiz.daysCursor -= (last.endDay - last.startDay + 1);
+            _wiz.step--;
+            _wizardRender();
+        };
+
+        window._wizardSkip = function() {
+            _wizardClose();
+        };
+
+        // ── Appliquer les séjours ──────────────────────────────────────────
+        window._wizardApply = function() {
+            // Remplacer les stays existants par les nouveaux
+            stays = _wiz.staysBuilt;
+            saveStays();
+            renderStaysList();
+            _wizardClose();
+            showAddConfirmation(`${stays.length} séjours créés 🎌`, 'Itinéraire configuré', '✅');
+        };
+
+        // ── Helpers date ───────────────────────────────────────────────────
+        function _wizardAddDays(dateStr, n) {
+            if (!dateStr) return null;
+            const [y,mo,dd] = dateStr.split('T')[0].split('-').map(Number);
+            const d = new Date(y, mo-1, dd);
+            d.setDate(d.getDate() + n);
+            return d;
+        }
+        function _wizardFormatDate(dateStr) {
+            if (!dateStr) return '?';
+            const [y,mo,dd] = dateStr.split('T')[0].split('-').map(Number);
+            return new Date(y, mo-1, dd).toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'});
+        }
+        function _wizardFormatDate2(date) {
+            if (!date) return '?';
+            return date.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
+        }
+        function _wizardGetAlternatives(totalDays) {
+            const all = ['short','medium_short','medium','long','very_long','extra_long'];
+            const cur = _wiz.template;
+            const res = [];
+            // Proposer le template inférieur et supérieur s'ils font sens
+            const idx = all.indexOf(cur);
+            if (idx > 0)             res.push({ key: all[idx-1], emoji: '🗜️', reason: 'Version plus condensée — idéal si tu préfères aller moins loin mais vivre chaque étape pleinement' });
+            if (idx < all.length-1)  res.push({ key: all[idx+1], emoji: '🔭', reason: 'Version plus étendue — ajoute une destination pour un voyage plus riche' });
+            return res.slice(0, 2);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+
         function startTrip() {
             const depDate = document.getElementById('departure-date').value;
             const depTime = document.getElementById('departure-time').value;
@@ -1736,8 +2302,10 @@
             updateCitySelector();
             renderPlanning();
 
-            // Onboarding : afficher le tooltip FAB si aucun séjour configuré
+            // Onboarding : afficher le wizard si aucun séjour configuré
             if (stays.length === 0) {
+                setTimeout(openStaysWizard, 300);
+            } else {
                 showFabOnboarding();
             }
         }
@@ -8246,9 +8814,9 @@ async function toggleMapView() {
                         setTimeout(_resolveGeneratedActivities, 1500);
                         // Pré-charger la clé Maps pour les mini-cartes inline
                         fetch('/api/maps-key').then(r=>r.json()).then(d=>{ if(d.key) window._mapsKey=d.key; });
-                        // Montrer l'onboarding si aucun séjour configuré
+                        // Montrer le wizard si aucun séjour configuré
                         if (stays.length === 0) {
-                            showFabOnboarding();
+                            setTimeout(openStaysWizard, 500);
                         }
                     } else {
                         // Sinon afficher l'écran de bienvenue

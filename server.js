@@ -866,7 +866,10 @@ app.post("/api/generate-program", async (req, res) => {
         const getDayInfo = (i) => {
             const dayIdx = (start_day_index||0) + i;
             if (!start_date) return { index: dayIdx, name: 'Jour '+(i+1), isWeekend:false, isMonday:false, isFriday:false };
-            const d = new Date(start_date); d.setDate(d.getDate() + dayIdx);
+            // Parse en local (évite le décalage UTC)
+            const [y,mo,dd] = start_date.split('T')[0].split('-').map(Number);
+            const d = new Date(y, mo-1, dd);
+            d.setDate(d.getDate() + dayIdx);
             const dow = d.getDay();
             return { index: dayIdx, name: dayNames[dow], isWeekend: dow===0||dow===6,
                      isMonday: dow===1, isFriday: dow===5, isSaturday: dow===6, isSunday: dow===0,
