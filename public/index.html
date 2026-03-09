@@ -3824,7 +3824,7 @@
             const content = document.getElementById('gen-content');
             footer.innerHTML = '';
 
-            // Collecter seulement les blocs activity (les meals et transits sont stockés séparément)
+            // Collecter les blocs activity et meal
             const actBlocks = _genProgram.flatMap(day =>
                 (day.blocks||[])
                     .filter(b => b.type==='activity' || b.type==='meal')
@@ -3835,22 +3835,39 @@
 
             content.innerHTML = `
                 <div style="text-align:center;padding:40px 20px">
-                    <div style="font-size:40px;margin-bottom:12px">⚙️</div>
+                    <div style="font-size:40px;margin-bottom:12px;animation:spin 2s linear infinite">⚙️</div>
                     <div style="font-size:15px;font-weight:900;color:#1f2937;margin-bottom:6px">Application en cours...</div>
-                    <div id="gen-apply-status" style="font-size:12px;color:#9ca3af">Résolution des lieux...</div>
-                    <div style="width:200px;height:4px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin:16px auto 0">
-                        <div id="gen-apply-bar" style="height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:4px;width:0%;transition:width .4s"></div>
+                    <div id="gen-apply-status" style="font-size:12px;color:#9ca3af;margin-bottom:4px">Résolution des lieux...</div>
+                    <div id="gen-apply-count" style="font-size:11px;color:#c4b5fd">0 / ${total}</div>
+                    <div style="width:200px;height:4px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin:12px auto 0">
+                        <div id="gen-apply-bar" style="height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:4px;width:0%;transition:width .3s"></div>
                     </div>
-                </div>`;
+                </div>
+                <style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>`;
+
+            // Fetch avec timeout garanti
+            async function fetchWithTimeout(url, opts, timeoutMs=8000) {
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+                try {
+                    const r = await fetch(url, { ...opts, signal: ctrl.signal });
+                    clearTimeout(timer);
+                    return r;
+                } catch(e) {
+                    clearTimeout(timer);
+                    throw e;
+                }
+            }
 
             for (const blk of actBlocks) {
                 const statusEl = document.getElementById('gen-apply-status');
                 const barEl    = document.getElementById('gen-apply-bar');
-                if (statusEl) statusEl.textContent = `Ajout : ${blk.title}`;
-                if (barEl) barEl.style.width = Math.round((added/total)*100)+'%';
+                const countEl  = document.getElementById('gen-apply-count');
+                if (statusEl) statusEl.textContent = blk.title;
+                if (barEl)    barEl.style.width = Math.round((added/total)*100)+'%';
+                if (countEl)  countEl.textContent = `${added} / ${total}`;
 
                 if (blk.type === 'meal') {
-                    // Repas : ajouter directement sans résolution Places
                     activities.push({
                         id: Date.now()+Math.random(),
                         dayIndex: blk.day_index,
@@ -3862,42 +3879,69 @@
                         block_type: 'meal',
                         meal_type: blk.meal_type || 'lunch',
                         local_tip: blk.local_tip || '',
-                        place: null, source: 'generated'
+                        place: null,
+                        source: 'generated'
                     });
                 } else {
+                    // Activité — tenter la résolution Places, fallback si erreur/timeout
+                    let place = null;
+                    let resolvedTitle = blk.title;
+                    let resolvedDur   = blk.duration_minutes || 90;
+
                     try {
-                        const r = await fetch('/api/activity-analyze', {
-                            method:'POST', headers:{'Content-Type':'application/json'},
-                            body: JSON.stringify({ description: blk.search_query||blk.title, time_flexible:true, day_index:blk.day_index })
-                        });
-                        const d = await r.json();
-                        activities.push({
-                            id: Date.now()+Math.random(),
-                            dayIndex: blk.day_index,
-                            time: blk.time,
-                            time_flexible: true,
-                            title: d.success&&d.activity ? (d.activity.title||blk.title) : blk.title,
-                            description: blk.local_tip||'',
-                            duration_minutes: blk.duration_minutes || (d.success&&d.activity?.duration_minutes)||90,
-                            local_tip: blk.local_tip||'',
-                            crowd_note: blk.crowd_note||'',
-                            place: d.success&&d.activity ? d.activity.place : null,
-                            source: 'generated'
-                        });
+                        const r = await fetchWithTimeout('/api/activity-analyze', {
+                            method:'POST',
+                            headers:{'Content-Type':'application/json'},
+                            body: JSON.stringify({
+                                description: blk.search_query || blk.title,
+                                time_flexible: true,
+                                day_index: blk.day_index
+                            })
+                        }, 8000);
+
+                        if (r.ok) {
+                            const d = await r.json();
+                            if (d.success && d.activity) {
+                                place         = d.activity.place || null;
+                                resolvedTitle = d.activity.title || blk.title;
+                                resolvedDur   = blk.duration_minutes || d.activity.duration_minutes || 90;
+                            }
+                        }
                     } catch(e) {
-                        activities.push({
-                            id: Date.now()+Math.random(), dayIndex: blk.day_index, time: blk.time,
-                            time_flexible:true, title:blk.title, description:blk.local_tip||'',
-                            duration_minutes:blk.duration_minutes||90, place:null, source:'generated'
-                        });
+                        // Timeout ou erreur réseau — on continue sans place
+                        console.warn('activity-analyze timeout/error for:', blk.title, e.message);
                     }
+
+                    activities.push({
+                        id: Date.now()+Math.random(),
+                        dayIndex:          blk.day_index,
+                        time:              blk.time,
+                        time_flexible:     true,
+                        title:             resolvedTitle,
+                        description:       blk.local_tip || '',
+                        duration_minutes:  resolvedDur,
+                        local_tip:         blk.local_tip || '',
+                        crowd_note:        blk.crowd_note || '',
+                        place:             place,
+                        source:            'generated'
+                    });
                 }
+
                 added++;
-                await new Promise(r=>setTimeout(r, 250));
+                // Délai court pour laisser l'UI se rafraîchir
+                await new Promise(r => setTimeout(r, 100));
             }
 
-            activities.sort((a,b)=>a.dayIndex!==b.dayIndex?a.dayIndex-b.dayIndex:a.time.localeCompare(b.time));
-            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            // Finalisation garantie — sauvegarde et fermeture quoi qu'il arrive
+            try {
+                activities.sort((a,b) => a.dayIndex !== b.dayIndex
+                    ? a.dayIndex - b.dayIndex
+                    : a.time.localeCompare(b.time));
+                localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
+            } catch(e) {
+                console.error('Erreur sauvegarde:', e);
+            }
+
             closeGenerateModal();
             renderPlanning();
             showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré', '🗾');
