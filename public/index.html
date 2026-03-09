@@ -875,10 +875,25 @@
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
                             <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide">🏨 Séjours</h3>
-                            <button onclick="openAddStay()" class="bg-purple-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-purple-600 active:scale-95 transition-all shadow-md">
-                                + Ajouter
-                            </button>
+                            <div style="display:flex;gap:8px">
+                                <button onclick="openAddStay()" class="bg-purple-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-purple-600 active:scale-95 transition-all shadow-md">
+                                    + Ajouter
+                                </button>
+                            </div>
                         </div>
+                        <!-- Bouton wizard itinéraire -->
+                        <button onclick="closeSidebar();setTimeout(openStaysWizard,200)" style="
+                            width:100%;display:flex;align-items:center;gap:12px;
+                            padding:12px 16px;border-radius:16px;border:2px dashed #c4b5fd;
+                            background:linear-gradient(135deg,#faf5ff,#fdf2f8);cursor:pointer;
+                            text-align:left">
+                            <span style="font-size:24px">🗾</span>
+                            <div>
+                                <div style="font-size:13px;font-weight:800;color:#7c3aed">Reconstruire l'itinéraire</div>
+                                <div style="font-size:11px;color:#a78bfa;margin-top:2px">Laisse l'assistant suggérer les villes selon ta durée</div>
+                            </div>
+                            <span style="margin-left:auto;font-size:16px;color:#c4b5fd">→</span>
+                        </button>
                         <div id="stays-list" class="space-y-3">
                             <!-- Rempli dynamiquement -->
                         </div>
@@ -1715,131 +1730,242 @@
         //  WIZARD SÉJOURS — PROTOCOLE D'ITINÉRAIRE INTELLIGENT
         // ═══════════════════════════════════════════════════════════════════
 
-        // ── Base de données d'itinéraires selon durée ──────────────────────
-        const ITINERARY_TEMPLATES = {
-            // 5-6 jours : Tokyo uniquement
+        // ── Base de données d'itinéraires par durée (alternatives incluses) ──
+        // Chaque durée a 1 itinéraire "recommandé" + 2-3 "alternatives" pour les mêmes jours
+        const ITINERARY_DB = {
+            // ──────────────────────────────────── 5-6 jours ──
             short: {
-                label: '5–6 jours · Tokyo & environs',
-                description: 'Parfait pour une première immersion — concentre toute l\'énergie sur Tokyo avec une escapade à Nikko ou Kamakura.',
-                zones: [
-                    { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 3, maxDays: 6,
-                      desc: 'Shibuya, Shinjuku, Asakusa, Akihabara', airports: ['HND','NRT'],
-                      tip: 'Arrivée idéale — Haneda est à 30 min du centre en monorail' }
+                recommended: {
+                    key: 'short_classic',
+                    label: 'Tokyo & Nikko — Immersion totale',
+                    description: 'Tokyo en profondeur + excursion d\'une journée à Nikko (sanctuaires UNESCO à 2h). Pas besoin de déplacer les bagages.',
+                    source: '⭐ Recommandé par Japan-Guide pour les courts séjours',
+                    zones: [
+                        { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 6,
+                          desc: 'Shibuya, Asakusa, Harajuku, Akihabara + day-trip Nikko ou Kamakura',
+                          tip: 'Nikko en day-trip depuis Tokyo : 2h de train · Sanctuaires Toshogu UNESCO' }
+                    ]
+                },
+                alternatives: [
+                    {
+                        key: 'short_fuji',
+                        label: 'Tokyo + Fuji — Nature & modernité',
+                        description: 'Tokyo puis 1 nuit à Hakone ou Kawaguchiko au pied du Mont Fuji. Onsen avec vue.',
+                        source: '💬 Forum TripAdvisor : "Incontournable même en peu de temps"',
+                        zones: [
+                            { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5, desc: 'Quartiers emblématiques', tip: 'Commence par Tokyo — plein de choses à voir même en 3-4j' },
+                            { city: 'Hakone', emoji: '🌋', days: 1, minDays: 1, maxDays: 2, desc: 'Fuji, onsen, ryokan', tip: 'Onsen avec vue sur le Fuji — le plus beau coucher de soleil du Japon' }
+                        ]
+                    },
+                    {
+                        key: 'short_kansai',
+                        label: 'Kansai express — Kyoto + Osaka',
+                        description: 'Si tu atterris à KIX ou veux éviter Tokyo. Kyoto et Osaka en 5 jours, dense mais inoubliable.',
+                        source: '💬 Reddit r/JapanTravel : "Parfait depuis KIX, Kyoto reste la priorité"',
+                        zones: [
+                            { city: 'Kyoto', emoji: '⛩️', days: 3, minDays: 2, maxDays: 4, desc: 'Fushimi Inari, Arashiyama, Gion', tip: 'Commence par Kyoto quand tu es le plus en forme' },
+                            { city: 'Osaka', emoji: '🏙️', days: 2, minDays: 1, maxDays: 3, desc: 'Dotonbori, Namba, street food', tip: 'Terminer par Osaka — départ depuis KIX à 25 min du centre' }
+                        ]
+                    }
                 ]
             },
-            // 7-9 jours : Golden Route rapide
+            // ──────────────────────────────────── 7-9 jours ──
             medium_short: {
-                label: '7–9 jours · Golden Route express',
-                description: 'Le classique Tokyo → Kyoto. Shinkansen entre les deux, temples et modernité.',
-                zones: [
-                    { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5,
-                      desc: 'Shibuya, Asakusa, Harajuku, Akihabara', airports: ['HND','NRT'],
-                      tip: 'Commence par Tokyo quand tu es le plus en forme malgré le jet-lag' },
-                    { city: 'Hakone', emoji: '🌋', days: 1, minDays: 1, maxDays: 2,
-                      desc: 'Onsen, vue sur le Fuji, Ryokan', airports: [],
-                      tip: 'En route entre Tokyo et Kyoto — 90 min de shinkansen' },
-                    { city: 'Kyoto', emoji: '⛩️', days: 3, minDays: 2, maxDays: 4,
-                      desc: 'Fushimi Inari, Arashiyama, Gion', airports: ['KIX'],
-                      tip: 'Terminer par Kyoto/Kansai permet de repartir depuis Osaka KIX' }
+                recommended: {
+                    key: 'ms_golden',
+                    label: 'Golden Route express — Tokyo → Kyoto',
+                    description: 'Le grand classique. Tokyo puis Kyoto via Hakone. Shinkansen, temples, modernité. Valider à 100% même en peu de temps.',
+                    source: '⭐ Itinéraire #1 sur Japan-Guide pour 7-9 jours',
+                    zones: [
+                        { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5, desc: 'Shibuya, Asakusa, Harajuku, Akihabara', tip: 'Tokyo en premier — jet-lag + énergie, la ville ne dort jamais' },
+                        { city: 'Hakone', emoji: '🌋', days: 1, minDays: 1, maxDays: 2, desc: 'Onsen, vue Fuji, Ryokan', tip: 'Etape naturelle entre Tokyo et Kyoto · 90 min de Shinkansen' },
+                        { city: 'Kyoto', emoji: '⛩️', days: 3, minDays: 2, maxDays: 4, desc: 'Fushimi Inari, Arashiyama, Gion, Nara day-trip', tip: 'Départ possible depuis Osaka KIX à 15 min en train' }
+                    ]
+                },
+                alternatives: [
+                    {
+                        key: 'ms_tokyo_osaka',
+                        label: 'Tokyo + Osaka — Contraste extrême',
+                        description: 'Sauter Hakone pour faire Tokyo + Osaka en duo. Maximum street food et vie urbaine, moins de nature.',
+                        source: '💬 Nomadic Matt : "Si vous aimez la nourriture et la nuit, ce duo est parfait"',
+                        zones: [
+                            { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5, desc: 'Tokyo complet + day-trip Kamakura', tip: '4 jours = juste assez pour voir l\'essentiel de Tokyo' },
+                            { city: 'Osaka', emoji: '🏙️', days: 3, minDays: 2, maxDays: 4, desc: 'Dotonbori, Namba, Kuromon, Universal Studios', tip: 'Osaka → Kyoto en 15 min : visite Kyoto en day-trip depuis Osaka' }
+                        ]
+                    },
+                    {
+                        key: 'ms_sendai',
+                        label: 'Tokyo + Tohoku — Hors des sentiers',
+                        description: 'Tokyo + Sendai pour découvrir le Japon authentique du nord. Matsushima (une des 3 plus belles vues du Japon) et Yamadera.',
+                        source: '💬 Most Wandered Blog : "Sendai est sous-estimé, les photos sont incroyables"',
+                        zones: [
+                            { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 6, desc: 'Tokyo + excursion Nikko', tip: 'Tokyo d\'abord, puis direction nord en Shinkansen' },
+                            { city: 'Sendai', emoji: '🌊', days: 2, minDays: 1, maxDays: 3, desc: 'Matsushima, Yamadera, Kokubuncho', tip: '1h30 de Tokyo en Shinkansen · Peu de touristes étrangers = expérience authentique' }
+                        ]
+                    },
+                    {
+                        key: 'ms_kanazawa',
+                        label: 'Tokyo + Kanazawa — Le Kyoto sans foules',
+                        description: 'Alternative à Kyoto pour éviter la surpopulation. Kanazawa = art, samouraïs, fruits de mer. Accessible depuis Tokyo en Shinkansen.',
+                        source: '💬 Rick Steves Forum : "Kanazawa est le meilleur secret du Japon"',
+                        zones: [
+                            { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 6, desc: 'Tokyo complet', tip: 'Shinkansen Hokuriku direct Tokyo → Kanazawa en 2h30' },
+                            { city: 'Kanazawa', emoji: '🏯', days: 2, minDays: 2, maxDays: 3, desc: 'Kenroku-en, Higashi Chaya, marché Omicho', tip: 'Peu de touristes étrangers · Les fruits de mer sont réputés les meilleurs du Japon' }
+                        ]
+                    }
                 ]
             },
-            // 10-13 jours : Golden Route complète
+            // ──────────────────────────────────── 10-13 jours ──
             medium: {
-                label: '10–13 jours · Golden Route complète',
-                description: 'Tokyo + Kyoto + Osaka + Nara + Hiroshima. Le meilleur du Japon pour un premier voyage.',
-                zones: [
-                    { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5,
-                      desc: 'Shinjuku, Shibuya, Asakusa, Harajuku, Akihabara', airports: ['HND','NRT'],
-                      tip: 'Point de départ idéal depuis l\'Europe via Paris CDG ou Amsterdam' },
-                    { city: 'Hakone', emoji: '🌋', days: 1, minDays: 1, maxDays: 2,
-                      desc: 'Onsen, vue Fuji, Ryokan traditionnel', airports: [],
-                      tip: 'Étape entre Tokyo et Kyoto — repos et bains japonais' },
-                    { city: 'Kyoto', emoji: '⛩️', days: 3, minDays: 2, maxDays: 4,
-                      desc: 'Fushimi Inari, Arashiyama, Nishiki, Gion', airports: [],
-                      tip: 'Base idéale pour visiter Nara en day-trip (45 min de train)' },
-                    { city: 'Osaka', emoji: '🏙️', days: 2, minDays: 1, maxDays: 3,
-                      desc: 'Dotonbori, Namba, Takoyaki, Universal', airports: ['KIX','ITM'],
-                      tip: 'Terminer par Osaka — départ depuis KIX, 25 min du centre' }
+                recommended: {
+                    key: 'med_golden_full',
+                    label: 'Golden Route complète — Le meilleur de tout',
+                    description: 'Tokyo + Hakone + Kyoto + Nara + Osaka. L\'itinéraire parfait pour un premier voyage — tout le monde le fait, et pour cause.',
+                    source: '⭐ Recommandé par Japan-Guide, Nomadic Matt et 90% des forums de voyage',
+                    zones: [
+                        { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5, desc: 'Tous les quartiers emblématiques', tip: 'Tokyo = meilleure intro au Japon moderne' },
+                        { city: 'Hakone', emoji: '🌋', days: 1, minDays: 1, maxDays: 2, desc: 'Fuji, onsen, ryokan', tip: 'Pause nature idéale · Une nuit minimum pour profiter de l\'onsen' },
+                        { city: 'Kyoto', emoji: '⛩️', days: 3, minDays: 2, maxDays: 4, desc: 'Fushimi Inari, Arashiyama, Gion', tip: 'Base pour Nara en day-trip (45 min) · Gion à l\'aube pour les geishas' },
+                        { city: 'Osaka', emoji: '🏙️', days: 2, minDays: 1, maxDays: 3, desc: 'Dotonbori, Namba, street food', tip: 'Finale culinaire · KIX à 25 min pour le vol retour' }
+                    ]
+                },
+                alternatives: [
+                    {
+                        key: 'med_hiroshima',
+                        label: 'Tokyo + Kyoto + Hiroshima — Histoire & émotions',
+                        description: 'Remplace Hakone par Hiroshima et Miyajima. Le Mémorial de la Paix + Torii flottant = deux des expériences les plus marquantes du Japon.',
+                        source: '💬 TripAdvisor : "Hiroshima est incontournable, et Miyajima reste magique"',
+                        zones: [
+                            { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5, desc: 'Tokyo complet', tip: 'Tokyo en premier quand l\'énergie est au max' },
+                            { city: 'Kyoto', emoji: '⛩️', days: 4, minDays: 3, maxDays: 5, desc: 'Kyoto + Nara day-trip', tip: 'Prendre le temps de Kyoto sans se presser' },
+                            { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3, desc: 'Mémorial, Miyajima, Torii flottant', tip: 'Shinkansen Kyoto→Hiroshima en 1h15 · Miyajima à 30 min en ferry' }
+                        ]
+                    },
+                    {
+                        key: 'med_kyushu',
+                        label: 'Tokyo + Kansai + Fukuoka — Kyushu au bout',
+                        description: 'Finir par Fukuoka si le vol retour est depuis FUK. Ramen Hakata, yatai (food trucks de rue), et une atmosphère radicalement différente.',
+                        source: '💬 Girl Eat World : "Fukuoka pour les amateurs de nourriture — le ramen Hakata change la vie"',
+                        zones: [
+                            { city: 'Tokyo', emoji: '🗼', days: 3, minDays: 2, maxDays: 4, desc: 'Tokyo express', tip: 'Version compressée de Tokyo pour gagner du temps' },
+                            { city: 'Kyoto', emoji: '⛩️', days: 3, minDays: 2, maxDays: 4, desc: 'Temples, Nara day-trip', tip: 'Priorités : Fushimi Inari tôt le matin, Arashiyama, Gion' },
+                            { city: 'Osaka', emoji: '🏙️', days: 2, minDays: 1, maxDays: 3, desc: 'Dotonbori, Namba', tip: 'Base pour Osaka avant de prendre le Shinkansen vers Fukuoka' },
+                            { city: 'Fukuoka', emoji: '🍜', days: 2, minDays: 1, maxDays: 3, desc: 'Yatai, ramen Hakata, Dazaifu', tip: 'Shinkansen Osaka→Fukuoka en 2h15 · Aéroport à 5 min du centre' }
+                        ]
+                    }
                 ]
             },
-            // 14-17 jours : Golden Route + extension
+            // ──────────────────────────────────── 14-17 jours ──
             long: {
-                label: '2 semaines · Golden Route + Hiroshima',
-                description: 'Le circuit parfait avec Hiroshima et Miyajima. Une vraie plongée dans l\'histoire et la beauté du Japon.',
-                zones: [
-                    { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 6,
-                      desc: 'Tous les quartiers emblématiques + Nikko ou Kamakura en day-trip', airports: ['HND','NRT'],
-                      tip: '5 jours pour vraiment explorer Tokyo en profondeur' },
-                    { city: 'Hakone', emoji: '🌋', days: 2, minDays: 1, maxDays: 2,
-                      desc: 'Onsen, Fuji, Randonnée, Ryokan', airports: [],
-                      tip: 'Prends le temps d\'un Ryokan avec vue sur le Fuji' },
-                    { city: 'Kyoto', emoji: '⛩️', days: 4, minDays: 3, maxDays: 5,
-                      desc: 'Temples, geishas, jardins zen, Nara en day-trip', airports: [],
-                      tip: 'Base parfaite : Nara à 45 min, Osaka à 15 min' },
-                    { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3,
-                      desc: 'Mémorial de la Paix, Miyajima, Torii flottant', airports: [],
-                      tip: 'Miyajima à 30 min en ferry — prévoir une nuit sur l\'île' },
-                    { city: 'Osaka', emoji: '🏙️', days: 2, minDays: 1, maxDays: 3,
-                      desc: 'Dotonbori, Namba, street food légendaire', airports: ['KIX','ITM'],
-                      tip: 'Finale en feu d\'artifice culinaire avant l\'aéroport' }
+                recommended: {
+                    key: 'long_classic',
+                    label: 'Grand tour classique — + Hiroshima & Miyajima',
+                    description: 'La Golden Route complète avec Hiroshima et Miyajima en plus. Deux semaines qui couvrent tout l\'essentiel sans se précipiter.',
+                    source: '⭐ Japan-Guide itinéraire 14 jours — le plus plébiscité',
+                    zones: [
+                        { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 6, desc: 'Tokyo + Nikko ou Kamakura en day-trip', tip: '5 jours pour explorer Tokyo sans se presser + une excursion' },
+                        { city: 'Hakone', emoji: '🌋', days: 2, minDays: 1, maxDays: 2, desc: 'Onsen, Fuji, Ryokan', tip: 'Minimum 1 nuit en ryokan pour l\'expérience complète' },
+                        { city: 'Kyoto', emoji: '⛩️', days: 3, minDays: 2, maxDays: 4, desc: 'Fushimi Inari, Gion, Nara day-trip', tip: 'Gion à 6h du matin pour voir les maikos' },
+                        { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3, desc: 'Mémorial Paix, Miyajima, Torii flottant', tip: 'Nuit à Miyajima = voir le Torii sans personne au lever du soleil' },
+                        { city: 'Osaka', emoji: '🏙️', days: 2, minDays: 1, maxDays: 3, desc: 'Dotonbori, Namba, Shinsekai', tip: 'Terminer fort — KIX à 25 min du centre' }
+                    ]
+                },
+                alternatives: [
+                    {
+                        key: 'long_kanazawa',
+                        label: 'Tokyo + Kanazawa + Kyoto + Osaka',
+                        description: 'Ajouter Kanazawa sur la route entre Tokyo et Kyoto. Le "Kyoto sans touristes" avec son marché aux fruits de mer et ses jardins zen.',
+                        source: '💬 Most Wandered : "Kanazawa dépasse mes attentes à chaque fois"',
+                        zones: [
+                            { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 6, desc: 'Tokyo complet', tip: 'Départ en Shinkansen Hokuriku direct vers Kanazawa (2h30)' },
+                            { city: 'Kanazawa', emoji: '🏯', days: 2, minDays: 2, maxDays: 3, desc: 'Kenroku-en, Higashi Chaya, Omicho', tip: 'Le jardin Kenroku-en est parmi les 3 plus beaux du Japon' },
+                            { city: 'Kyoto', emoji: '⛩️', days: 4, minDays: 3, maxDays: 5, desc: 'Temples, geishas, Nara', tip: 'Train direct Kanazawa → Kyoto en 2h · Belle vue sur la montagne' },
+                            { city: 'Osaka', emoji: '🏙️', days: 2, minDays: 1, maxDays: 3, desc: 'Dotonbori, street food', tip: 'Finale gastronomique' }
+                        ]
+                    },
+                    {
+                        key: 'long_reverse',
+                        label: 'Itinéraire inversé — Osaka → Tokyo',
+                        description: 'Commencer par Osaka/Kyoto si tu atterris à KIX. Même circuit à l\'envers — pratique et logistiquement impeccable.',
+                        source: '💬 Never Ending Voyage Forum : "L\'itinéraire inversé fonctionne parfaitement depuis KIX"',
+                        zones: [
+                            { city: 'Osaka', emoji: '🏙️', days: 2, minDays: 1, maxDays: 3, desc: 'Dotonbori, Namba, Kuromon', tip: 'Arrivée à KIX · 25 min de train jusqu\'au centre d\'Osaka' },
+                            { city: 'Kyoto', emoji: '⛩️', days: 4, minDays: 3, maxDays: 5, desc: 'Temples + Nara day-trip', tip: '15 min d\'Osaka en train · Gion, Arashiyama, Fushimi Inari' },
+                            { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3, desc: 'Mémorial, Miyajima', tip: 'Shinkansen Kyoto→Hiroshima en 1h15' },
+                            { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 6, desc: 'Tokyo + excursion Nikko', tip: 'Shinkansen Hiroshima→Tokyo en 4h · Vol retour depuis HND ou NRT' }
+                        ]
+                    }
                 ]
             },
-            // 18-21 jours : Grand tour
+            // ──────────────────────────────────── 18-21 jours ──
             very_long: {
-                label: '3 semaines · Grand tour du Japon',
-                description: 'Le voyage complet avec une escapade au Japon profond — Kanazawa ou Kyushu pour sortir des sentiers battus.',
-                zones: [
-                    { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 7,
-                      desc: 'Tokyo en profondeur + Nikko + Kamakura', airports: ['HND','NRT'],
-                      tip: 'Prends ton temps — Tokyo à elle seule mérite une semaine' },
-                    { city: 'Hakone', emoji: '🌋', days: 2, minDays: 1, maxDays: 2,
-                      desc: 'Onsen, Ryokan, Fuji, randonnée', airports: [],
-                      tip: 'Pause nature obligatoire avant les villes' },
-                    { city: 'Kanazawa', emoji: '🏯', days: 2, minDays: 2, maxDays: 3,
-                      desc: 'Jardin Kenroku-en, Higashi Chaya, fruits de mer', airports: [],
-                      tip: 'Le "Kyoto alternatif" sans les foules touristiques' },
-                    { city: 'Kyoto', emoji: '⛩️', days: 4, minDays: 3, maxDays: 5,
-                      desc: 'Les incontournables + Nara + villages Ohara', airports: [],
-                      tip: 'Tu as le luxe du temps — va dans les quartiers secrets' },
-                    { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3,
-                      desc: 'Paix, Miyajima, Torii, faisan Momiji', airports: [],
-                      tip: 'Nuit à Miyajima pour voir le Torii sans touristes' },
-                    { city: 'Osaka', emoji: '🏙️', days: 3, minDays: 2, maxDays: 4,
-                      desc: 'Dotonbori, Universal Studios, Namba, street food', airports: ['KIX','ITM'],
-                      tip: 'Finir fort — Osaka est la capitale culinaire du Japon' }
+                recommended: {
+                    key: 'vl_grand',
+                    label: 'Grand tour — + Kanazawa & Hiroshima',
+                    description: '3 semaines qui couvrent le meilleur du Japon avec des étapes moins touristiques. Rythme confortable, pas de stress.',
+                    source: '⭐ Recommandé par Nomadic Matt et Japan-Guide pour 3 semaines',
+                    zones: [
+                        { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 7, desc: 'Tokyo + Nikko + Kamakura day-trips', tip: '5 jours = explorer Tokyo vraiment en profondeur' },
+                        { city: 'Hakone', emoji: '🌋', days: 2, minDays: 1, maxDays: 2, desc: 'Fuji, onsen, ryokan', tip: 'Ryokan avec vue sur le Fuji = une nuit inoubliable' },
+                        { city: 'Kanazawa', emoji: '🏯', days: 2, minDays: 2, maxDays: 3, desc: 'Kenroku-en, samouraïs, fruits de mer', tip: 'Shinkansen depuis Hakone via Odawara · Peu touristique, très authentique' },
+                        { city: 'Kyoto', emoji: '⛩️', days: 4, minDays: 3, maxDays: 5, desc: 'Tout Kyoto + Nara + villages Ohara', tip: 'Avec 4 jours, tu peux aller dans les villages secrets comme Ohara ou Kurama' },
+                        { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3, desc: 'Paix, Miyajima, Torii flottant', tip: 'Une nuit à Miyajima pour voir le Torii sans personne' },
+                        { city: 'Osaka', emoji: '🏙️', days: 3, minDays: 2, maxDays: 4, desc: 'Dotonbori, Namba, Universal Studios', tip: 'Finir fort à Osaka — la capitale mondiale de la nourriture de rue' }
+                    ]
+                },
+                alternatives: [
+                    {
+                        key: 'vl_kyushu',
+                        label: 'Golden Route + Kyushu',
+                        description: 'Ajouter Fukuoka et l\'île de Kyushu. Une chance de voir le Japon hors des foules — volcans, onsen et ramen légendaire.',
+                        source: '💬 Japan-Guide : "Kyushu = le Japon authentique que peu d\'étrangers voient"',
+                        zones: [
+                            { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5, desc: 'Tokyo express', tip: 'Version compacte de Tokyo pour avoir du temps pour Kyushu' },
+                            { city: 'Kyoto', emoji: '⛩️', days: 4, minDays: 3, maxDays: 5, desc: 'Kyoto + Nara + Osaka en day-trip', tip: 'Base Kyoto · Osaka à 15 min, Nara à 45 min' },
+                            { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3, desc: 'Mémorial, Miyajima', tip: 'Etape naturelle avant Kyushu' },
+                            { city: 'Fukuoka', emoji: '🍜', days: 3, minDays: 2, maxDays: 4, desc: 'Hakata ramen, yatai, Dazaifu, Beppu onsen', tip: 'Shinkansen Hiroshima→Fukuoka en 1h · Beppu à 1h30 en train' },
+                            { city: 'Osaka', emoji: '🏙️', days: 3, minDays: 2, maxDays: 4, desc: 'Dotonbori, Shinsekai', tip: 'Retour vers Osaka pour le vol depuis KIX' }
+                        ]
+                    }
                 ]
             },
-            // 22 jours et + : circuit étendu
+            // ──────────────────────────────────── 22+ jours ──
             extra_long: {
-                label: '3+ semaines · Aventure hors des sentiers battus',
-                description: 'Ajoutez Kyushu ou Hokkaido pour une expérience vraiment unique — très peu de touristes hors des grandes villes.',
-                zones: [
-                    { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 7,
-                      desc: 'Tokyo en profondeur + excursions', airports: ['HND','NRT'],
-                      tip: 'Tokyo = base de départ vers toutes les directions' },
-                    { city: 'Nikko', emoji: '🌿', days: 1, minDays: 1, maxDays: 2,
-                      desc: 'Sanctuaires UNESCO, cascades, forêts', airports: [],
-                      tip: 'Day-trip depuis Tokyo ou nuit sur place' },
-                    { city: 'Hakone', emoji: '🌋', days: 2, minDays: 1, maxDays: 2,
-                      desc: 'Onsen, Fuji, Ryokan premium', airports: [],
-                      tip: 'Étape incontournable' },
-                    { city: 'Kyoto', emoji: '⛩️', days: 5, minDays: 4, maxDays: 6,
-                      desc: 'Exploration complète + villages autour', airports: [],
-                      tip: 'Prends le temps d\'aller à Kurama et Kibune' },
-                    { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3,
-                      desc: 'Paix + Miyajima', airports: [],
-                      tip: 'Nuit sur Miyajima pour le lever du soleil sur le Torii' },
-                    { city: 'Fukuoka', emoji: '🍜', days: 3, minDays: 2, maxDays: 4,
-                      desc: 'Ramen Hakata, Yatai (food trucks), Dazaifu', airports: ['FUK'],
-                      tip: 'Kyushu = moins touristique, nourriture exceptionnelle' },
-                    { city: 'Osaka', emoji: '🏙️', days: 3, minDays: 2, maxDays: 4,
-                      desc: 'Dotonbori, Namba, Shinsekai, street food', airports: ['KIX','ITM'],
-                      tip: 'Retour en force par Osaka avant l\'aéroport' }
+                recommended: {
+                    key: 'xl_complete',
+                    label: 'Tour complet — Aventure hors des sentiers',
+                    description: 'Le voyage de rêve. Tokyo + Tohoku ou Hokkaido + Golden Route + Kyushu. Chaque région du Japon a sa propre personnalité.',
+                    source: '⭐ Recommandé pour 3+ semaines par Nomadic Matt et The Invisible Tourist',
+                    zones: [
+                        { city: 'Tokyo', emoji: '🗼', days: 5, minDays: 4, maxDays: 7, desc: 'Tokyo en profondeur + excursions', tip: 'Base de départ pour explorer le Japon' },
+                        { city: 'Nikko', emoji: '🌿', days: 1, minDays: 1, maxDays: 2, desc: 'Sanctuaires UNESCO, cascades, forêts', tip: '2h de Tokyo en Shinkansen + Tobu Limited Express' },
+                        { city: 'Hakone', emoji: '🌋', days: 2, minDays: 1, maxDays: 2, desc: 'Onsen, Fuji, Ryokan', tip: 'Pause nature incontournable' },
+                        { city: 'Kanazawa', emoji: '🏯', days: 2, minDays: 2, maxDays: 3, desc: 'Kenroku-en, Higashi Chaya, fruits de mer', tip: 'Shinkansen Hokuriku depuis Odawara' },
+                        { city: 'Kyoto', emoji: '⛩️', days: 5, minDays: 4, maxDays: 6, desc: 'Kyoto complet + villages Ohara + Kurama + Nara', tip: 'Avec 5 jours, explore les coins secrets' },
+                        { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3, desc: 'Paix, Miyajima, Torii flottant', tip: 'Nuit sur l\'île de Miyajima' },
+                        { city: 'Fukuoka', emoji: '🍜', days: 3, minDays: 2, maxDays: 4, desc: 'Kyushu, ramen Hakata, yatai, nature', tip: 'Kyushu = expérience radicalement différente' },
+                        { city: 'Osaka', emoji: '🏙️', days: 3, minDays: 2, maxDays: 4, desc: 'Dotonbori, Namba, Shinsaibashi', tip: 'Finale gastronomique avant KIX' }
+                    ]
+                },
+                alternatives: [
+                    {
+                        key: 'xl_hokkaido',
+                        label: 'Golden Route + Hokkaido',
+                        description: 'Ajouter Hokkaido pour une aventure dans le grand nord. Sapporo, volcans, crabe géant et neige en hiver — ou lavande et randonnées en été.',
+                        source: '💬 The Invisible Tourist : "Hokkaido m\'a laissé sans voix — rien à voir avec le reste du Japon"',
+                        zones: [
+                            { city: 'Tokyo', emoji: '🗼', days: 4, minDays: 3, maxDays: 5, desc: 'Tokyo express', tip: 'Vol interne Tokyo → Sapporo en 1h30 ou Shinkansen en 5h' },
+                            { city: 'Sapporo', emoji: '❄️', days: 4, minDays: 3, maxDays: 5, desc: 'Hokkaido, Otaru, Noboribetsu onsen, Furano', tip: 'Hiver = festival de neige · Été = lavande de Furano · Automne = feuillages rouges' },
+                            { city: 'Kyoto', emoji: '⛩️', days: 4, minDays: 3, maxDays: 5, desc: 'Temples + Nara', tip: 'Vol interne Sapporo → Osaka puis train vers Kyoto' },
+                            { city: 'Hiroshima', emoji: '☮️', days: 2, minDays: 1, maxDays: 3, desc: 'Paix, Miyajima', tip: 'Incontournable' },
+                            { city: 'Osaka', emoji: '🏙️', days: 3, minDays: 2, maxDays: 4, desc: 'Dotonbori, Namba', tip: 'Finale + vol retour depuis KIX' }
+                        ]
+                    }
                 ]
             }
         };
 
-        // ── Choisir le template adapté à la durée ──────────────────────────
+        // ── Résoudre la tranche de durée ──────────────────────────────────
         function _wizardGetTemplate(totalDays) {
             if (totalDays <= 6)  return 'short';
             if (totalDays <= 9)  return 'medium_short';
@@ -1848,6 +1974,11 @@
             if (totalDays <= 21) return 'very_long';
             return 'extra_long';
         }
+
+        // Compatibilité : ITINERARY_TEMPLATES référence la recommandation de chaque tranche
+        const ITINERARY_TEMPLATES = Object.fromEntries(
+            Object.entries(ITINERARY_DB).map(([k, v]) => [k, { label: v.recommended.label, description: v.recommended.description, zones: v.recommended.zones }])
+        );
 
         // ── État du wizard ─────────────────────────────────────────────────
         let _wiz = {
@@ -1900,86 +2031,82 @@
         function _wizardRenderStep0() {
             document.getElementById('wizard-subtitle').textContent = 'Étape 1 — Itinéraire suggéré';
 
-            const tpl = ITINERARY_TEMPLATES[_wiz.template];
-            const days = _wiz.totalDays;
+            const db      = ITINERARY_DB[_wiz.template];
+            const rec     = db.recommended;
+            const alts    = db.alternatives || [];
+            const days    = _wiz.totalDays;
             const airport = _wiz.arrivalAirport;
 
-            // Aéroport d'arrivée mis en avant
             const airportInfo = {
-                HND: { label: 'Tokyo Haneda', city: 'Tokyo', emoji: '✈️', tip: '30 min du centre en monorail · Le plus pratique pour Tokyo' },
-                NRT: { label: 'Tokyo Narita', city: 'Tokyo', emoji: '✈️', tip: '60 min du centre en Narita Express (N\'EX) · Ticket ~3 000¥' },
-                KIX: { label: 'Osaka Kansai', city: 'Osaka', emoji: '✈️', tip: '75 min en Haruka Express vers Kyoto · Idéal pour commencer par le Kansai' },
-                ITM: { label: 'Osaka Itami', city: 'Osaka', emoji: '✈️', tip: 'Surtout pour vols domestiques · Limbus/taxi vers centre Osaka' },
-                FUK: { label: 'Fukuoka', city: 'Fukuoka', emoji: '✈️', tip: 'Métro direct centre-ville en 5 min · Parfait pour débuter par Kyushu' },
-                NGO: { label: 'Nagoya', city: 'Nagoya', emoji: '✈️', tip: 'Meitetsu Airport Express vers Nagoya en 28 min' },
-                CTS: { label: 'Sapporo', city: 'Sapporo', emoji: '✈️', tip: 'Accès Hokkaido · Idéal hiver/été' },
-                OKA: { label: 'Okinawa Naha', city: 'Okinawa', emoji: '✈️', tip: 'Plages tropicales · Connexions intérieures vers Tokyo' },
-            }[airport] || { label: airport, city: '?', emoji: '✈️', tip: '' };
-
-            // Alternatives selon durée
-            const alternatives = _wizardGetAlternatives(days);
+                HND: { label: 'Tokyo Haneda', emoji: '✈️', tip: '30 min du centre en monorail · Le plus pratique pour Tokyo' },
+                NRT: { label: 'Tokyo Narita', emoji: '✈️', tip: '60 min via Narita Express (N\'EX) · ~3 000¥' },
+                KIX: { label: 'Osaka Kansai', emoji: '✈️', tip: '75 min en Haruka Express vers Kyoto · Idéal pour commencer par le Kansai' },
+                ITM: { label: 'Osaka Itami', emoji: '✈️', tip: 'Limousine bus vers Osaka en 30-40 min' },
+                FUK: { label: 'Fukuoka', emoji: '✈️', tip: 'Métro direct centre-ville en 5 min · Parfait pour débuter par Kyushu' },
+                NGO: { label: 'Nagoya', emoji: '✈️', tip: 'Meitetsu Express vers Nagoya en 28 min' },
+                CTS: { label: 'Sapporo', emoji: '✈️', tip: 'New Chitose · Accès Hokkaido · 40 min du centre en train' },
+                OKA: { label: 'Okinawa Naha', emoji: '✈️', tip: 'Monorail Yui Rail depuis l\'aéroport · Plages tropicales' },
+            }[airport] || { label: airport, emoji: '✈️', tip: '' };
 
             const content = document.getElementById('wizard-content');
             content.innerHTML = `
-                <!-- Durée détectée -->
-                <div style="background:linear-gradient(135deg,#faf5ff,#fdf2f8);border:2px solid #e9d5ff;border-radius:16px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
-                    <div style="font-size:32px">📅</div>
-                    <div>
-                        <div style="font-size:14px;font-weight:900;color:#7c3aed">${days} jours au Japon</div>
-                        <div style="font-size:11px;color:#9ca3af;margin-top:2px">Du ${_wizardFormatDate(tripData.outbound.departureDate)} au ${_wizardFormatDate(tripData.return.departureDate)}</div>
-                    </div>
-                </div>
-
-                <!-- Aéroport d'arrivée -->
-                <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:14px;padding:12px 14px;margin-bottom:20px;display:flex;align-items:flex-start;gap:10px">
-                    <div style="font-size:24px">🛬</div>
-                    <div>
-                        <div style="font-size:13px;font-weight:800;color:#15803d">Arrivée : ${airportInfo.label}</div>
-                        <div style="font-size:11px;color:#6b7280;margin-top:3px">${airportInfo.tip}</div>
-                    </div>
-                </div>
-
-                <!-- Itinéraire suggéré -->
-                <div style="margin-bottom:12px">
-                    <div style="font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">✨ Itinéraire recommandé pour ${days} jours</div>
-                    <div id="wiz-tpl-suggested" onclick="_wizardSelectTemplate('${_wiz.template}')" style="
-                        border:2.5px solid #7c3aed;background:#faf5ff;border-radius:18px;padding:14px 16px;cursor:pointer;margin-bottom:10px">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                            <span style="font-size:20px">🎯</span>
-                            <div style="font-size:13px;font-weight:900;color:#7c3aed">${tpl.label}</div>
-                            <div style="margin-left:auto;width:20px;height:20px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center">
-                                <div style="width:8px;height:8px;border-radius:50%;background:white"></div>
-                            </div>
+                <!-- Durée + aéroport -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+                    <div style="background:linear-gradient(135deg,#faf5ff,#fdf2f8);border:2px solid #e9d5ff;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+                        <div style="font-size:26px">📅</div>
+                        <div>
+                            <div style="font-size:16px;font-weight:900;color:#7c3aed">${days}j</div>
+                            <div style="font-size:10px;color:#9ca3af">au Japon</div>
                         </div>
-                        <div style="font-size:11px;color:#6b7280;line-height:1.5;margin-bottom:10px">${tpl.description}</div>
-                        <!-- Villes en chips -->
-                        <div style="display:flex;flex-wrap:wrap;gap:5px">
-                            ${tpl.zones.map(z => `<span style="
-                                padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;
-                                background:#ede9fe;color:#7c3aed">${z.emoji} ${z.city} · ${z.days}j</span>`).join('')}
+                    </div>
+                    <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+                        <div style="font-size:22px">🛬</div>
+                        <div>
+                            <div style="font-size:12px;font-weight:800;color:#15803d;line-height:1.2">${airportInfo.label}</div>
+                            <div style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1.3">${airportInfo.tip}</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Alternatives -->
-                ${alternatives.length > 0 ? `
-                <div style="margin-bottom:20px">
-                    <div style="font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🔀 Autres options</div>
-                    ${alternatives.map(alt => {
-                        const t = ITINERARY_TEMPLATES[alt.key];
-                        return `<div onclick="_wizardSelectTemplate('${alt.key}')" id="wiz-tpl-${alt.key}" style="
-                            border:2px solid #e5e7eb;background:white;border-radius:16px;padding:12px 14px;cursor:pointer;margin-bottom:8px">
-                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                                <span style="font-size:16px">${alt.emoji}</span>
-                                <div style="font-size:12px;font-weight:800;color:#374151">${t.label}</div>
+                <!-- Itinéraire recommandé -->
+                <div style="font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">✨ Recommandé pour ${days} jours</div>
+                <div id="wiz-tpl-${rec.key}" onclick="_wizardSelectAlt('${rec.key}', true)" style="
+                    border:2.5px solid #7c3aed;background:#faf5ff;border-radius:18px;padding:14px 16px;cursor:pointer;margin-bottom:14px;position:relative">
+                    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
+                        <span style="font-size:20px">🎯</span>
+                        <div style="flex:1">
+                            <div style="font-size:13px;font-weight:900;color:#7c3aed;line-height:1.3">${rec.label}</div>
+                            <div style="font-size:11px;color:#9ca3af;margin-top:2px">${rec.source}</div>
+                        </div>
+                        <div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center">
+                            <div style="width:8px;height:8px;border-radius:50%;background:white"></div>
+                        </div>
+                    </div>
+                    <div style="font-size:11px;color:#6b7280;line-height:1.5;margin-bottom:10px">${rec.description}</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px">
+                        ${rec.zones.map(z => `<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#ede9fe;color:#7c3aed">${z.emoji} ${z.city} · ${z.days}j</span>`).join('')}
+                    </div>
+                </div>
+
+                <!-- Alternatives — mêmes jours, autres villes -->
+                ${alts.length > 0 ? `
+                <div style="font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🔀 Autres routes pour ${days} jours</div>
+                ${alts.map(alt => `
+                    <div id="wiz-tpl-${alt.key}" onclick="_wizardSelectAlt('${alt.key}', false)" style="
+                        border:2px solid #e5e7eb;background:white;border-radius:16px;padding:13px 14px;cursor:pointer;margin-bottom:10px">
+                        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
+                            <div style="flex:1">
+                                <div style="font-size:13px;font-weight:800;color:#374151">${alt.label}</div>
+                                <div style="font-size:10px;color:#9ca3af;margin-top:2px">${alt.source}</div>
                             </div>
-                            <div style="font-size:11px;color:#9ca3af;margin-bottom:8px">${alt.reason}</div>
-                            <div style="display:flex;flex-wrap:wrap;gap:4px">
-                                ${t.zones.map(z => `<span style="padding:2px 8px;border-radius:14px;font-size:10px;font-weight:700;background:#f3f4f6;color:#6b7280">${z.emoji} ${z.city}</span>`).join('')}
-                            </div>
-                        </div>`;
-                    }).join('')}
-                </div>` : ''}
+                            <div id="wiz-radio-${alt.key}" style="flex-shrink:0;width:22px;height:22px;border-radius:50%;border:2px solid #e5e7eb;background:white"></div>
+                        </div>
+                        <div style="font-size:11px;color:#6b7280;line-height:1.5;margin-bottom:8px">${alt.description}</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                            ${alt.zones.map(z => `<span style="padding:2px 9px;border-radius:14px;font-size:11px;font-weight:700;background:#f3f4f6;color:#6b7280">${z.emoji} ${z.city} · ${z.days}j</span>`).join('')}
+                        </div>
+                    </div>`).join('')}
+                ` : ''}
             `;
 
             document.getElementById('wizard-footer').innerHTML = `
@@ -1989,19 +2116,51 @@
                 <button onclick="_wizardNext()" style="flex:2;padding:13px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:16px;font-size:14px;font-weight:900;cursor:pointer">
                     Utiliser cet itinéraire →
                 </button>`;
+
+            // État sélectionné par défaut
+            _wiz._selectedAltKey = rec.key;
+            _wiz._selectedAltZones = rec.zones;
         }
 
-        // ── Sélection d'un template alternatif ────────────────────────────
-        window._wizardSelectTemplate = function(key) {
-            _wiz.template = key;
-            _wiz.zones = JSON.parse(JSON.stringify(ITINERARY_TEMPLATES[key].zones));
-            // Update UI
-            document.querySelectorAll('[id^="wiz-tpl-"]').forEach(el => {
-                const isSelected = el.id === 'wiz-tpl-' + key;
-                el.style.borderColor = isSelected ? '#7c3aed' : '#e5e7eb';
-                el.style.background  = isSelected ? '#faf5ff' : 'white';
+        // ── Sélection d'un itinéraire (recommandé ou alternatif) ──────────
+        window._wizardSelectAlt = function(key, isRecommended) {
+            _wiz._selectedAltKey = key;
+            const db  = ITINERARY_DB[_wiz.template];
+            const rec = db.recommended;
+            const alts = db.alternatives || [];
+
+            // Trouver les zones correspondantes
+            if (key === rec.key) {
+                _wiz._selectedAltZones = rec.zones;
+            } else {
+                const found = alts.find(a => a.key === key);
+                _wiz._selectedAltZones = found ? found.zones : rec.zones;
+            }
+
+            // Mettre à jour tous les boutons radio visuellement
+            // Recommandé
+            const recEl = document.getElementById('wiz-tpl-' + rec.key);
+            if (recEl) {
+                const isRecSelected = key === rec.key;
+                recEl.style.borderColor = isRecSelected ? '#7c3aed' : '#e5e7eb';
+                recEl.style.background  = isRecSelected ? '#faf5ff' : 'white';
+                const dot = recEl.querySelector('div:last-child');
+                if (dot) { dot.style.background = isRecSelected ? '#7c3aed' : 'white'; dot.style.border = isRecSelected ? 'none' : '2px solid #e5e7eb'; }
+            }
+            // Alternatives
+            alts.forEach(alt => {
+                const el    = document.getElementById('wiz-tpl-' + alt.key);
+                const radio = document.getElementById('wiz-radio-' + alt.key);
+                if (!el) return;
+                const isSel = key === alt.key;
+                el.style.borderColor = isSel ? '#7c3aed' : '#e5e7eb';
+                el.style.background  = isSel ? '#faf5ff' : 'white';
+                if (radio) { radio.style.background = isSel ? '#7c3aed' : 'white'; radio.style.borderColor = isSel ? '#7c3aed' : '#e5e7eb'; radio.innerHTML = isSel ? '<div style="width:8px;height:8px;border-radius:50%;background:white;margin:auto;margin-top:5px"></div>' : ''; }
             });
         };
+
+        // Compat : ancienne API (si des endroits utilisent encore _wizardSelectTemplate)
+        window._wizardSelectTemplate = function(key) { _wizardSelectAlt(key, true); };
 
         // ── Étape N : Configuration d'une ville ───────────────────────────
         function _wizardRenderStepN(zoneIdx) {
@@ -2185,6 +2344,8 @@
 
         // ── Navigation ─────────────────────────────────────────────────────
         window._wizardNext = function() {
+            // Utiliser les zones de l'itinéraire sélectionné (recommandé ou alternatif)
+            _wiz.zones = JSON.parse(JSON.stringify(_wiz._selectedAltZones || ITINERARY_DB[_wiz.template].recommended.zones));
             _wiz.step = 1;
             _wiz.daysCursor = 0;
             _wizardRender();
@@ -2231,17 +2392,6 @@
             if (!date) return '?';
             return date.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
         }
-        function _wizardGetAlternatives(totalDays) {
-            const all = ['short','medium_short','medium','long','very_long','extra_long'];
-            const cur = _wiz.template;
-            const res = [];
-            // Proposer le template inférieur et supérieur s'ils font sens
-            const idx = all.indexOf(cur);
-            if (idx > 0)             res.push({ key: all[idx-1], emoji: '🗜️', reason: 'Version plus condensée — idéal si tu préfères aller moins loin mais vivre chaque étape pleinement' });
-            if (idx < all.length-1)  res.push({ key: all[idx+1], emoji: '🔭', reason: 'Version plus étendue — ajoute une destination pour un voyage plus riche' });
-            return res.slice(0, 2);
-        }
-
         // ═══════════════════════════════════════════════════════════════════
 
         function startTrip() {
