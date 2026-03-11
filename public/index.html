@@ -356,12 +356,16 @@
         <!-- Fond animé -->
         <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 50%, rgba(124,58,237,0.15) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(236,72,153,0.1) 0%, transparent 50%);pointer-events:none"></div>
 
-        <!-- Conteneur principal — full height avec scroll interne -->
+        <!-- Conteneur principal — full height -->
         <div style="display:flex;flex-direction:column;height:100%;height:100dvh;max-width:480px;margin:0 auto;position:relative">
 
-            <!-- Progress dots en haut -->
+            <!-- Progress dots — statiques, mis à jour par JS -->
             <div id="ob-dots" style="flex-shrink:0;display:flex;justify-content:center;gap:6px;padding:max(env(safe-area-inset-top,16px),16px) 20px 0">
-                ${[0,1,2,3].map(i=>`<div id="ob-dot-${i}" style="height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all .35s ease;width:${i===0?'24px':'8px'}"></div>`).join('')}
+                <div id="ob-dot-0" style="height:4px;border-radius:2px;background:rgba(167,139,250,0.9);transition:all .35s ease;width:24px"></div>
+                <div id="ob-dot-1" style="height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all .35s ease;width:8px"></div>
+                <div id="ob-dot-2" style="height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all .35s ease;width:8px"></div>
+                <div id="ob-dot-3" style="height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all .35s ease;width:8px"></div>
+                <div id="ob-dot-4" style="height:4px;border-radius:2px;background:rgba(255,255,255,0.15);transition:all .35s ease;width:8px"></div>
             </div>
 
             <!-- Zone de contenu scrollable -->
@@ -1632,652 +1636,264 @@
         };
 
         // ========== GESTION DU VOYAGE ==========
+        // ========== GESTION DU VOYAGE ==========
         // ═══════════════════════════════════════════════════════════════════
-        //  ONBOARDING — 4 ÉTAPES
-        //  0: Splash + dates  1: Aéroports  2: Mode voyage  3: Profil voyageur
+        //  ONBOARDING — 5 ÉTAPES
+        //  0: Dates  1: Aéroport arrivée  2: Aéroport retour  3: Mode  4: Profil
         // ═══════════════════════════════════════════════════════════════════
 
         const AIRPORTS = [
-            { code:'HND', city:'Tokyo',     emoji:'🗼', name:'Tokyo Haneda',           tip:'30 min du centre en monorail' },
-            { code:'NRT', city:'Tokyo',     emoji:'🗼', name:'Tokyo Narita',           tip:'60 min via N\'EX · ~3 000¥' },
-            { code:'KIX', city:'Osaka',     emoji:'🏯', name:'Osaka Kansai',           tip:'75 min en Haruka vers Kyoto' },
-            { code:'ITM', city:'Osaka',     emoji:'🏯', name:'Osaka Itami',            tip:'Limousine bus 30-40 min' },
-            { code:'FUK', city:'Fukuoka',   emoji:'🍜', name:'Fukuoka',                tip:'Métro centre en 5 min' },
-            { code:'NGO', city:'Nagoya',    emoji:'🏰', name:'Nagoya Centrair',        tip:'Meitetsu Express 28 min' },
-            { code:'CTS', city:'Sapporo',   emoji:'❄️', name:'Sapporo New Chitose',   tip:'Train centre 40 min' },
-            { code:'OKA', city:'Okinawa',   emoji:'🌊', name:'Naha Okinawa',           tip:'Monorail Yui Rail direct' },
+            { code:'HND', city:'Tokyo',   emoji:'🗼', name:'Tokyo Haneda',         tip:'30 min du centre en monorail' },
+            { code:'NRT', city:'Tokyo',   emoji:'🗼', name:'Tokyo Narita',         tip:"60 min via N'EX · ~3 000¥" },
+            { code:'KIX', city:'Osaka',   emoji:'🏯', name:'Osaka Kansai',         tip:'75 min en Haruka vers Kyoto' },
+            { code:'ITM', city:'Osaka',   emoji:'🏯', name:'Osaka Itami',          tip:'Limousine bus 30-40 min' },
+            { code:'FUK', city:'Fukuoka', emoji:'🍜', name:'Fukuoka',              tip:'Métro centre en 5 min' },
+            { code:'NGO', city:'Nagoya',  emoji:'🏰', name:'Nagoya Centrair',      tip:'Meitetsu Express 28 min' },
+            { code:'CTS', city:'Sapporo', emoji:'❄️', name:'Sapporo New Chitose', tip:'Train centre 40 min' },
+            { code:'OKA', city:'Okinawa', emoji:'🌊', name:'Naha Okinawa',         tip:'Monorail Yui Rail direct' },
         ];
 
         const MONTHS_FR = ['Janv','Févr','Mars','Avr','Mai','Juin','Juil','Août','Sept','Oct','Nov','Déc'];
         const DAYS_FR   = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 
-        // État onboarding
         let _ob = {
-            step: 0,
-            depYear: null, depMonth: null, depDay: null, depHour: 8, depMin: 0,
-            retYear: null, retMonth: null, retDay: null, retHour: 18, retMin: 0,
-            arrAirport: '', depAirport: '',
-            mode: '',     // solo_builder | guided | full_ai
-            calTarget: null  // 'dep' | 'ret'
+            step:0,
+            depYear:null,depMonth:null,depDay:null,depHour:8,depMin:0,
+            retYear:null,retMonth:null,retDay:null,retHour:18,retMin:0,
+            arrAirport:'',depAirport:'',mode:'',calTarget:null
         };
+
+        const OB_TOTAL_STEPS = 5;
 
         function _obShowWelcome() {
             document.getElementById('welcome-screen').classList.remove('hidden');
-            _ob.step = 0;
-            _obRender();
+            _ob.step=0; _obRender();
         }
 
         function _obUpdateDots(step) {
-            for (let i = 0; i < 4; i++) {
-                const d = document.getElementById('ob-dot-'+i);
-                if (!d) continue;
-                d.style.width     = i === step ? '24px' : '8px';
-                d.style.background = i <= step ? 'rgba(167,139,250,0.9)' : 'rgba(255,255,255,0.15)';
+            for(let i=0;i<OB_TOTAL_STEPS;i++){
+                const d=document.getElementById('ob-dot-'+i); if(!d) continue;
+                d.style.width=i===step?'24px':'8px';
+                d.style.background=i<=step?'rgba(167,139,250,0.9)':'rgba(255,255,255,0.15)';
             }
         }
 
         function _obRender() {
             _obUpdateDots(_ob.step);
-            const content = document.getElementById('ob-content');
-            const footer  = document.getElementById('ob-footer');
-            content.scrollTop = 0;
-            if (_ob.step === 0) _obRenderStep0(content, footer);
-            else if (_ob.step === 1) _obRenderStep1(content, footer);
-            else if (_ob.step === 2) _obRenderStep2(content, footer);
-            else if (_ob.step === 3) _obRenderStep3(content, footer);
+            const c=document.getElementById('ob-content'), f=document.getElementById('ob-footer');
+            c.scrollTop=0;
+            if(_ob.step===0) _obRenderStep0(c,f);
+            else if(_ob.step===1) _obRenderAirportStep(c,f,'arr');
+            else if(_ob.step===2) _obRenderAirportStep(c,f,'dep');
+            else if(_ob.step===3) _obRenderStep3(c,f);
+            else if(_ob.step===4) _obRenderStep4(c,f);
         }
 
-        // ── STEP 0 : Dates de voyage ───────────────────────────────────────
+        // ── STEP 0 : Dates compact sans scroll ────────────────────────────
         function _obRenderStep0(content, footer) {
-            const depStr = _ob.depYear ? `${DAYS_FR[new Date(_ob.depYear,_ob.depMonth,_ob.depDay).getDay()]} ${_ob.depDay} ${MONTHS_FR[_ob.depMonth]} ${_ob.depYear}` : null;
-            const retStr = _ob.retYear ? `${DAYS_FR[new Date(_ob.retYear,_ob.retMonth,_ob.retDay).getDay()]} ${_ob.retDay} ${MONTHS_FR[_ob.retMonth]} ${_ob.retYear}` : null;
-            const days   = _obCalcDays();
+            const depStr=_ob.depYear?`${DAYS_FR[new Date(_ob.depYear,_ob.depMonth,_ob.depDay).getDay()]} ${_ob.depDay} ${MONTHS_FR[_ob.depMonth]} ${_ob.depYear}`:null;
+            const retStr=_ob.retYear?`${DAYS_FR[new Date(_ob.retYear,_ob.retMonth,_ob.retDay).getDay()]} ${_ob.retDay} ${MONTHS_FR[_ob.retMonth]} ${_ob.retYear}`:null;
+            const days=_obCalcDays();
+            const dH=String(_ob.depHour).padStart(2,'0'), dM=String(_ob.depMin).padStart(2,'0');
+            const rH=String(_ob.retHour).padStart(2,'0'), rM=String(_ob.retMin).padStart(2,'0');
 
-            content.innerHTML = `
-                <div style="padding-top:28px;padding-bottom:100px">
-                    <!-- Hero -->
-                    <div style="text-align:center;margin-bottom:36px">
-                        <div style="font-size:56px;margin-bottom:12px">🗾</div>
-                        <div style="font-size:28px;font-weight:900;color:white;line-height:1.2">Ton voyage<br>au Japon</div>
-                        <div style="font-size:14px;color:rgba(255,255,255,0.45);margin-top:8px">Commence par les dates de ton séjour</div>
-                    </div>
-
-                    <!-- Aller -->
-                    <div style="margin-bottom:12px">
-                        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">🛫 Départ vers le Japon</div>
-                        <div style="display:grid;grid-template-columns:1fr auto;gap:10px">
-                            <button onclick="_obOpenCal('dep')" style="
-                                background:rgba(255,255,255,0.06);border:1.5px solid ${_ob.depYear ? 'rgba(167,139,250,0.6)' : 'rgba(255,255,255,0.12)'};
-                                border-radius:16px;padding:14px 16px;cursor:pointer;text-align:left;
-                                display:flex;align-items:center;gap:10px">
-                                <span style="font-size:20px">📅</span>
-                                <div>
-                                    <div style="font-size:13px;font-weight:800;color:${_ob.depYear ? 'white' : 'rgba(255,255,255,0.3)'}">
-                                        ${depStr || 'Choisir la date'}
-                                    </div>
-                                    ${_ob.depYear ? '<div style="font-size:10px;color:rgba(167,139,250,0.7);margin-top:2px">Date de départ</div>' : ''}
-                                </div>
-                            </button>
-                            <button onclick="_obOpenTimePicker('dep')" style="
-                                background:rgba(255,255,255,0.06);border:1.5px solid ${_ob.depYear ? 'rgba(167,139,250,0.6)' : 'rgba(255,255,255,0.12)'};
-                                border-radius:16px;padding:14px;cursor:pointer;min-width:72px;
-                                display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
-                                <span style="font-size:16px">⏰</span>
-                                <span style="font-size:13px;font-weight:800;color:${_ob.depYear ? 'white' : 'rgba(255,255,255,0.3)'}">
-                                    ${String(_ob.depHour).padStart(2,'0')}:${String(_ob.depMin).padStart(2,'0')}
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Retour -->
-                    <div style="margin-bottom:20px">
-                        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">🛬 Retour depuis le Japon</div>
-                        <div style="display:grid;grid-template-columns:1fr auto;gap:10px">
-                            <button onclick="_obOpenCal('ret')" style="
-                                background:rgba(255,255,255,0.06);border:1.5px solid ${_ob.retYear ? 'rgba(236,72,153,0.6)' : 'rgba(255,255,255,0.12)'};
-                                border-radius:16px;padding:14px 16px;cursor:pointer;text-align:left;
-                                display:flex;align-items:center;gap:10px">
-                                <span style="font-size:20px">📅</span>
-                                <div>
-                                    <div style="font-size:13px;font-weight:800;color:${_ob.retYear ? 'white' : 'rgba(255,255,255,0.3)'}">
-                                        ${retStr || 'Choisir la date'}
-                                    </div>
-                                    ${_ob.retYear ? '<div style="font-size:10px;color:rgba(236,72,153,0.7);margin-top:2px">Date de retour</div>' : ''}
-                                </div>
-                            </button>
-                            <button onclick="_obOpenTimePicker('ret')" style="
-                                background:rgba(255,255,255,0.06);border:1.5px solid ${_ob.retYear ? 'rgba(236,72,153,0.6)' : 'rgba(255,255,255,0.12)'};
-                                border-radius:16px;padding:14px;cursor:pointer;min-width:72px;
-                                display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
-                                <span style="font-size:16px">⏰</span>
-                                <span style="font-size:13px;font-weight:800;color:${_ob.retYear ? 'white' : 'rgba(255,255,255,0.3)'}">
-                                    ${String(_ob.retHour).padStart(2,'0')}:${String(_ob.retMin).padStart(2,'0')}
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Résumé durée -->
-                    ${days > 0 ? `
-                    <div style="background:linear-gradient(135deg,rgba(124,58,237,0.25),rgba(236,72,153,0.2));border:1.5px solid rgba(167,139,250,0.4);border-radius:18px;padding:16px;text-align:center">
-                        <div style="font-size:40px;font-weight:900;color:white;line-height:1">${days}</div>
-                        <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:4px">jours au Japon 🌸</div>
-                    </div>` : ''}
-                </div>
-
-                <!-- Calendrier (hidden par défaut) -->
-                <div id="ob-cal-overlay" style="display:none;position:fixed;inset:0;z-index:10;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)" onclick="_obCloseCal()">
-                    <div onclick="event.stopPropagation()" style="
-                        position:absolute;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;
-                        background:#1a1a2e;border-radius:28px 28px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,20px),20px)">
-                        <div style="width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);margin:0 auto 20px"></div>
-                        <div id="ob-cal-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-                            <button onclick="_obCalPrevMonth()" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:white;font-size:18px;cursor:pointer">‹</button>
-                            <div id="ob-cal-month-label" style="font-size:16px;font-weight:800;color:white"></div>
-                            <button onclick="_obCalNextMonth()" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:white;font-size:18px;cursor:pointer">›</button>
-                        </div>
-                        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px">
-                            ${['L','M','M','J','V','S','D'].map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);padding:6px 0">${d}</div>`).join('')}
-                        </div>
-                        <div id="ob-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+            content.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px;padding-top:18px;padding-bottom:8px">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <span style="font-size:30px">🗾</span>
+                    <div>
+                        <div style="font-size:19px;font-weight:900;color:white;line-height:1.15">Ton voyage au Japon</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,0.38);margin-top:2px">Quand pars-tu ?</div>
                     </div>
                 </div>
-
-                <!-- Sélecteur heure (hidden par défaut) -->
-                <div id="ob-time-overlay" style="display:none;position:fixed;inset:0;z-index:10;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)" onclick="_obCloseTime()">
-                    <div onclick="event.stopPropagation()" style="
-                        position:absolute;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;
-                        background:#1a1a2e;border-radius:28px 28px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,24px),24px)">
-                        <div style="width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);margin:0 auto 20px"></div>
-                        <div style="font-size:15px;font-weight:800;color:white;text-align:center;margin-bottom:20px" id="ob-time-title">Heure de départ</div>
-                        <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:24px">
-                            <!-- Heures -->
-                            <div style="text-align:center">
-                                <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);margin-bottom:8px">HEURES</div>
-                                <div style="display:flex;align-items:center;gap:10px">
-                                    <button onclick="_obTimeAdj('h',-1)" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:white;font-size:20px;cursor:pointer">−</button>
-                                    <div id="ob-time-h" style="font-size:36px;font-weight:900;color:white;min-width:52px;text-align:center">08</div>
-                                    <button onclick="_obTimeAdj('h',+1)" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:white;font-size:20px;cursor:pointer">+</button>
-                                </div>
+                <div>
+                    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.32);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">🛫 Départ vers le Japon</div>
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+                        <button onclick="_obOpenCal('dep')" style="background:rgba(255,255,255,0.05);border:1.5px solid ${_ob.depYear?'rgba(167,139,250,0.55)':'rgba(255,255,255,0.09)'};border-radius:14px;padding:12px 14px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px">
+                            <span style="font-size:17px">📅</span>
+                            <div>
+                                <div style="font-size:14px;font-weight:800;color:${_ob.depYear?'white':'rgba(255,255,255,0.22)'}">${depStr||'Choisir la date'}</div>
+                                ${_ob.depYear?'<div style="font-size:10px;color:rgba(167,139,250,0.65);margin-top:1px">Date de départ</div>':''}
                             </div>
-                            <div style="font-size:32px;font-weight:900;color:rgba(255,255,255,0.4);padding-top:24px">:</div>
-                            <!-- Minutes -->
-                            <div style="text-align:center">
-                                <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);margin-bottom:8px">MINUTES</div>
-                                <div style="display:flex;align-items:center;gap:10px">
-                                    <button onclick="_obTimeAdj('m',-15)" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:white;font-size:20px;cursor:pointer">−</button>
-                                    <div id="ob-time-m" style="font-size:36px;font-weight:900;color:white;min-width:52px;text-align:center">00</div>
-                                    <button onclick="_obTimeAdj('m',+15)" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:white;font-size:20px;cursor:pointer">+</button>
-                                </div>
+                        </button>
+                        <button onclick="_obOpenTimePicker('dep')" style="background:rgba(255,255,255,0.05);border:1.5px solid ${_ob.depYear?'rgba(167,139,250,0.55)':'rgba(255,255,255,0.09)'};border-radius:14px;padding:12px;cursor:pointer;min-width:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">
+                            <span style="font-size:13px">⏰</span>
+                            <span style="font-size:13px;font-weight:800;color:white">${dH}:${dM}</span>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.32);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">🛬 Retour depuis le Japon</div>
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+                        <button onclick="_obOpenCal('ret')" style="background:rgba(255,255,255,0.05);border:1.5px solid ${_ob.retYear?'rgba(236,72,153,0.55)':'rgba(255,255,255,0.09)'};border-radius:14px;padding:12px 14px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px">
+                            <span style="font-size:17px">📅</span>
+                            <div>
+                                <div style="font-size:14px;font-weight:800;color:${_ob.retYear?'white':'rgba(255,255,255,0.22)'}">${retStr||'Choisir la date'}</div>
+                                ${_ob.retYear?'<div style="font-size:10px;color:rgba(236,72,153,0.65);margin-top:1px">Date de retour</div>':''}
+                            </div>
+                        </button>
+                        <button onclick="_obOpenTimePicker('ret')" style="background:rgba(255,255,255,0.05);border:1.5px solid ${_ob.retYear?'rgba(236,72,153,0.55)':'rgba(255,255,255,0.09)'};border-radius:14px;padding:12px;cursor:pointer;min-width:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">
+                            <span style="font-size:13px">⏰</span>
+                            <span style="font-size:13px;font-weight:800;color:white">${rH}:${rM}</span>
+                        </button>
+                    </div>
+                </div>
+                ${days>0?`<div style="background:linear-gradient(135deg,rgba(124,58,237,0.28),rgba(236,72,153,0.18));border:1.5px solid rgba(167,139,250,0.35);border-radius:16px;padding:13px;display:flex;align-items:center;justify-content:center;gap:12px">
+                    <div style="font-size:38px;font-weight:900;color:white;line-height:1">${days}</div>
+                    <div><div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.8)">jours au Japon 🌸</div><div style="font-size:11px;color:rgba(255,255,255,0.38);margin-top:2px">${depStr} → ${retStr}</div></div>
+                </div>`:`<div style="background:rgba(255,255,255,0.02);border:1.5px dashed rgba(255,255,255,0.07);border-radius:16px;padding:14px;text-align:center"><div style="font-size:11px;color:rgba(255,255,255,0.18)">La durée s'affichera ici</div></div>`}
+            </div>
+
+            <div id="ob-cal-overlay" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.72);backdrop-filter:blur(4px)" onclick="_obCloseCal()">
+                <div onclick="event.stopPropagation()" style="position:absolute;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:#1a1a2e;border-radius:24px 24px 0 0;padding:16px 16px max(env(safe-area-inset-bottom,18px),18px)">
+                    <div style="width:32px;height:4px;border-radius:2px;background:rgba(255,255,255,0.12);margin:0 auto 14px"></div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                        <button onclick="_obCalPrevMonth()" style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:white;font-size:16px;cursor:pointer">‹</button>
+                        <div id="ob-cal-month-label" style="font-size:15px;font-weight:800;color:white"></div>
+                        <button onclick="_obCalNextMonth()" style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:white;font-size:16px;cursor:pointer">›</button>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:4px">${['L','M','M','J','V','S','D'].map(d=>`<div style="text-align:center;font-size:9px;font-weight:700;color:rgba(255,255,255,0.28);padding:4px 0">${d}</div>`).join('')}</div>
+                    <div id="ob-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
+                </div>
+            </div>
+
+            <div id="ob-time-overlay" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.72);backdrop-filter:blur(4px)" onclick="_obCloseTime()">
+                <div onclick="event.stopPropagation()" style="position:absolute;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:#1a1a2e;border-radius:24px 24px 0 0;padding:16px 16px max(env(safe-area-inset-bottom,22px),22px)">
+                    <div style="width:32px;height:4px;border-radius:2px;background:rgba(255,255,255,0.12);margin:0 auto 14px"></div>
+                    <div style="font-size:14px;font-weight:800;color:white;text-align:center;margin-bottom:14px" id="ob-time-title">Heure</div>
+                    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px">
+                        <div style="text-align:center">
+                            <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.28);margin-bottom:5px">HEURES</div>
+                            <div style="display:flex;align-items:center;gap:7px">
+                                <button onclick="_obTimeAdj('h',-1)" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.09);border:none;color:white;font-size:17px;cursor:pointer">−</button>
+                                <div id="ob-time-h" style="font-size:32px;font-weight:900;color:white;min-width:46px;text-align:center">08</div>
+                                <button onclick="_obTimeAdj('h',+1)" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.09);border:none;color:white;font-size:17px;cursor:pointer">+</button>
                             </div>
                         </div>
-                        <!-- Raccourcis -->
-                        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px">
-                            ${[{h:6,m:0,l:'6:00'},{h:8,m:0,l:'8:00'},{h:10,m:0,l:'10:00'},{h:12,m:0,l:'Midi'},{h:14,m:0,l:'14:00'},{h:18,m:0,l:'18:00'},{h:20,m:0,l:'20:00'}].map(t=>`
-                            <button onclick="_obTimeQuick(${t.h},${t.m})" style="padding:5px 10px;border-radius:20px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;cursor:pointer">${t.l}</button>`).join('')}
+                        <div style="font-size:26px;font-weight:900;color:rgba(255,255,255,0.28);padding-top:18px">:</div>
+                        <div style="text-align:center">
+                            <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.28);margin-bottom:5px">MINUTES</div>
+                            <div style="display:flex;align-items:center;gap:7px">
+                                <button onclick="_obTimeAdj('m',-15)" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.09);border:none;color:white;font-size:17px;cursor:pointer">−</button>
+                                <div id="ob-time-m" style="font-size:32px;font-weight:900;color:white;min-width:46px;text-align:center">00</div>
+                                <button onclick="_obTimeAdj('m',+15)" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.09);border:none;color:white;font-size:17px;cursor:pointer">+</button>
+                            </div>
                         </div>
-                        <button onclick="_obCloseTime()" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">Valider</button>
                     </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:14px">
+                        ${[{h:6,l:'6:00'},{h:8,l:'8:00'},{h:10,l:'10:00'},{h:12,l:'Midi'},{h:14,l:'14:00'},{h:18,l:'18:00'},{h:20,l:'20:00'},{h:22,l:'22:00'}].map(t=>`<button onclick="_obTimeQuick(${t.h},0)" style="padding:4px 9px;border-radius:16px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.65);font-size:11px;font-weight:700;cursor:pointer">${t.l}</button>`).join('')}
+                    </div>
+                    <button onclick="_obCloseTime()" style="width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:14px;font-weight:900;cursor:pointer">Valider</button>
                 </div>
-            `;
+            </div>`;
 
-            footer.innerHTML = `
-                <button onclick="_obStep0Next()" style="
-                    width:100%;padding:16px;
-                    background:${(_ob.depYear && _ob.retYear) ? 'linear-gradient(135deg,#7c3aed,#ec4899)' : 'rgba(255,255,255,0.1)'};
-                    color:${(_ob.depYear && _ob.retYear) ? 'white' : 'rgba(255,255,255,0.3)'};
-                    border:none;border-radius:18px;font-size:16px;font-weight:900;cursor:pointer;
-                    transition:all .3s">
-                    Continuer →
-                </button>`;
-
-            // Init cal state
-            const now = new Date();
-            if (!_ob._calYear) { _ob._calYear = now.getFullYear(); _ob._calMonth = now.getMonth(); }
+            footer.innerHTML=`<button onclick="_obStep0Next()" style="width:100%;padding:15px;background:${(_ob.depYear&&_ob.retYear)?'linear-gradient(135deg,#7c3aed,#ec4899)':'rgba(255,255,255,0.07)'};color:${(_ob.depYear&&_ob.retYear)?'white':'rgba(255,255,255,0.2)'};border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer;transition:all .3s">Continuer →</button>`;
             _obRenderCal();
         }
 
-        // ── Calendrier ─────────────────────────────────────────────────────
-        let _obCalState = { year: new Date().getFullYear(), month: new Date().getMonth() };
+        let _obCalState={year:new Date().getFullYear(),month:new Date().getMonth()};
+        window._obOpenCal=function(t){_ob.calTarget=t;const o=document.getElementById('ob-cal-overlay');if(!o)return;o.style.display='block';const r=t==='dep'&&_ob.depYear?new Date(_ob.depYear,_ob.depMonth,1):t==='ret'&&_ob.retYear?new Date(_ob.retYear,_ob.retMonth,1):new Date();_obCalState={year:r.getFullYear(),month:r.getMonth()};_obRenderCal();};
+        window._obCloseCal=function(){const o=document.getElementById('ob-cal-overlay');if(o)o.style.display='none';};
+        window._obCalPrevMonth=function(){_obCalState.month--;if(_obCalState.month<0){_obCalState.month=11;_obCalState.year--;}_obRenderCal();};
+        window._obCalNextMonth=function(){_obCalState.month++;if(_obCalState.month>11){_obCalState.month=0;_obCalState.year++;}_obRenderCal();};
 
-        window._obOpenCal = function(target) {
-            _ob.calTarget = target;
-            const overlay = document.getElementById('ob-cal-overlay');
-            if (!overlay) return;
-            overlay.style.display = 'block';
-            // Init sur mois du départ ou mois courant
-            const ref = target === 'dep' && _ob.depYear ? new Date(_ob.depYear, _ob.depMonth, 1) :
-                        target === 'ret' && _ob.retYear ? new Date(_ob.retYear, _ob.retMonth, 1) :
-                        new Date();
-            _obCalState = { year: ref.getFullYear(), month: ref.getMonth() };
-            _obRenderCal();
-        };
-        window._obCloseCal = function() {
-            const o = document.getElementById('ob-cal-overlay');
-            if (o) o.style.display = 'none';
-        };
-        window._obCalPrevMonth = function() { _obCalState.month--; if (_obCalState.month < 0) { _obCalState.month = 11; _obCalState.year--; } _obRenderCal(); };
-        window._obCalNextMonth = function() { _obCalState.month++; if (_obCalState.month > 11) { _obCalState.month = 0; _obCalState.year++; } _obRenderCal(); };
+        function _obRenderCal(){const lbl=document.getElementById('ob-cal-month-label'),grid=document.getElementById('ob-cal-grid');if(!lbl||!grid)return;lbl.textContent=MONTHS_FR[_obCalState.month]+' '+_obCalState.year;const y=_obCalState.year,m=_obCalState.month,first=new Date(y,m,1),lastDay=new Date(y,m+1,0).getDate();let dow=first.getDay()-1;if(dow<0)dow=6;const now=new Date();let html='';for(let i=0;i<dow;i++)html+='<div></div>';for(let d=1;d<=lastDay;d++){const date=new Date(y,m,d),isPast=date<new Date(now.getFullYear(),now.getMonth(),now.getDate()),isDepSel=_ob.depYear===y&&_ob.depMonth===m&&_ob.depDay===d,isRetSel=_ob.retYear===y&&_ob.retMonth===m&&_ob.retDay===d,isInRange=_ob.depYear&&_ob.retYear&&date>new Date(_ob.depYear,_ob.depMonth,_ob.depDay)&&date<new Date(_ob.retYear,_ob.retMonth,_ob.retDay);let bg='transparent',color=isPast?'rgba(255,255,255,0.15)':'white',fw='500',radius='50%';if(isDepSel){bg='#7c3aed';color='white';fw='900';}else if(isRetSel){bg='#ec4899';color='white';fw='900';}else if(isInRange){bg='rgba(124,58,237,0.18)';radius='4px';}html+=`<button onclick="${isPast?'':` _obCalPick(${y},${m},${d})`}" style="aspect-ratio:1;border-radius:${radius};border:none;cursor:${isPast?'default':'pointer'};background:${bg};color:${color};font-size:12px;font-weight:${fw};display:flex;align-items:center;justify-content:center">${d}</button>`;}grid.innerHTML=html;}
 
-        function _obRenderCal() {
-            const lbl = document.getElementById('ob-cal-month-label');
-            const grid = document.getElementById('ob-cal-grid');
-            if (!lbl || !grid) return;
-            lbl.textContent = MONTHS_FR[_obCalState.month] + ' ' + _obCalState.year;
+        window._obCalPick=function(y,m,d){if(_ob.calTarget==='dep'){_ob.depYear=y;_ob.depMonth=m;_ob.depDay=d;}else{_ob.retYear=y;_ob.retMonth=m;_ob.retDay=d;}_obCloseCal();_obRenderStep0(document.getElementById('ob-content'),document.getElementById('ob-footer'));};
 
-            const y = _obCalState.year, m = _obCalState.month;
-            const first = new Date(y, m, 1);
-            const lastDay = new Date(y, m+1, 0).getDate();
-            // Lundi = 0
-            let dow = first.getDay() - 1; if (dow < 0) dow = 6;
+        let _obTimeTarget='dep';
+        window._obOpenTimePicker=function(t){_obTimeTarget=t;const o=document.getElementById('ob-time-overlay');if(!o)return;o.style.display='block';const h=t==='dep'?_ob.depHour:_ob.retHour,m=t==='dep'?_ob.depMin:_ob.retMin;const ti=document.getElementById('ob-time-title');if(ti)ti.textContent=t==='dep'?'✈️ Heure de départ':'🛬 Heure de retour';const hEl=document.getElementById('ob-time-h'),mEl=document.getElementById('ob-time-m');if(hEl)hEl.textContent=String(h).padStart(2,'0');if(mEl)mEl.textContent=String(m).padStart(2,'0');};
+        window._obCloseTime=function(){const o=document.getElementById('ob-time-overlay');if(o)o.style.display='none';_obRenderStep0(document.getElementById('ob-content'),document.getElementById('ob-footer'));};
+        window._obTimeAdj=function(unit,delta){const hEl=document.getElementById('ob-time-h'),mEl=document.getElementById('ob-time-m');let h=parseInt(hEl.textContent),m=parseInt(mEl.textContent);if(unit==='h')h=(h+delta+24)%24;if(unit==='m')m=((m+delta)%60+60)%60;hEl.textContent=String(h).padStart(2,'0');mEl.textContent=String(m).padStart(2,'0');if(_obTimeTarget==='dep'){_ob.depHour=h;_ob.depMin=m;}else{_ob.retHour=h;_ob.retMin=m;}};
+        window._obTimeQuick=function(h,m){const hEl=document.getElementById('ob-time-h'),mEl=document.getElementById('ob-time-m');if(hEl)hEl.textContent=String(h).padStart(2,'0');if(mEl)mEl.textContent=String(m).padStart(2,'0');if(_obTimeTarget==='dep'){_ob.depHour=h;_ob.depMin=m;}else{_ob.retHour=h;_ob.retMin=m;}};
 
-            let html = '';
-            for (let i = 0; i < dow; i++) html += '<div></div>';
+        function _obCalcDays(){if(!(_ob.depYear&&_ob.retYear))return 0;return Math.max(0,Math.round((new Date(_ob.retYear,_ob.retMonth,_ob.retDay)-new Date(_ob.depYear,_ob.depMonth,_ob.depDay))/86400000)+1);}
 
-            const now = new Date();
-            const depSel = _ob.depYear === y && _ob.depMonth === m;
-            const retSel = _ob.retYear === y && _ob.retMonth === m;
+        window._obStep0Next=function(){if(!_ob.depYear||!_ob.retYear||_obCalcDays()<1)return;_ob.step=1;_obRender();};
 
-            for (let d = 1; d <= lastDay; d++) {
-                const date = new Date(y, m, d);
-                const isPast = date < new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                const isDepSel = _ob.depYear===y && _ob.depMonth===m && _ob.depDay===d;
-                const isRetSel = _ob.retYear===y && _ob.retMonth===m && _ob.retDay===d;
-                const isInRange = _ob.depYear && _ob.retYear && date > new Date(_ob.depYear,_ob.depMonth,_ob.depDay) && date < new Date(_ob.retYear,_ob.retMonth,_ob.retDay);
+        // ── STEPS 1 & 2 : Aéroports (une page par aéroport) ───────────────
+        function _obRenderAirportStep(content, footer, target) {
+            const isArr=target==='arr', cur=isArr?_ob.arrAirport:_ob.depAirport;
+            const groups=[{label:'🗼 Tokyo',items:AIRPORTS.filter(a=>a.city==='Tokyo')},{label:'🏯 Osaka / Kansai',items:AIRPORTS.filter(a=>a.city==='Osaka')},{label:'🌏 Autres villes',items:AIRPORTS.filter(a=>!['Tokyo','Osaka'].includes(a.city))}];
+            const airBtn=a=>{const sel=cur===a.code;return `<button onclick="_obPickAirport('${a.code}','${target}')" style="display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:13px;border:2px solid ${sel?'rgba(167,139,250,0.65)':'rgba(255,255,255,0.07)'};background:${sel?'rgba(124,58,237,0.18)':'rgba(255,255,255,0.03)'};cursor:pointer;text-align:left;width:100%;transition:all .2s"><span style="font-size:20px">${a.emoji}</span><div style="flex:1"><div style="font-size:13px;font-weight:800;color:${sel?'#c4b5fd':'white'}">${a.name} <span style="font-size:10px;color:rgba(255,255,255,0.28);font-weight:600">${a.code}</span></div><div style="font-size:10px;color:rgba(255,255,255,0.33);margin-top:2px">${a.tip}</div></div>${sel?'<div style="width:18px;height:18px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:6px;height:6px;border-radius:50%;background:white"></div></div>':''}</button>`;};
 
-                let bg = 'transparent', color = isPast ? 'rgba(255,255,255,0.2)' : 'white', fw = '500', radius = '50%';
-                if (isDepSel) { bg = '#7c3aed'; color = 'white'; fw = '900'; }
-                else if (isRetSel) { bg = '#ec4899'; color = 'white'; fw = '900'; }
-                else if (isInRange) { bg = 'rgba(124,58,237,0.15)'; radius = '0'; }
+            content.innerHTML=`<div style="padding-top:18px;padding-bottom:8px">
+                <div style="font-size:19px;font-weight:900;color:white;margin-bottom:2px">${isArr?'🛬 Aéroport d\'arrivée':'🛫 Aéroport de départ'}</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.33);margin-bottom:16px">${isArr?'Où atterris-tu au Japon ?':'Depuis quel aéroport repars-tu ?'}</div>
+                ${!isArr&&_ob.arrAirport?`<button onclick="_obSameAirport()" style="display:flex;align-items:center;gap:10px;padding:12px 13px;width:100%;border-radius:13px;border:2px solid ${_ob.depAirport===_ob.arrAirport?'rgba(52,211,153,0.65)':'rgba(52,211,153,0.2)'};background:${_ob.depAirport===_ob.arrAirport?'rgba(52,211,153,0.12)':'rgba(52,211,153,0.04)'};cursor:pointer;text-align:left;margin-bottom:14px;transition:all .2s"><span style="font-size:20px">🔄</span><div style="flex:1"><div style="font-size:13px;font-weight:800;color:${_ob.depAirport===_ob.arrAirport?'#34d399':'rgba(52,211,153,0.75)'}">Même aéroport qu'à l'arrivée</div><div style="font-size:10px;color:rgba(255,255,255,0.33);margin-top:1px">${AIRPORTS.find(a=>a.code===_ob.arrAirport)?.name} · ${_ob.arrAirport}</div></div>${_ob.depAirport===_ob.arrAirport?'<div style="width:18px;height:18px;border-radius:50%;background:#34d399;display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:6px;height:6px;border-radius:50%;background:white"></div></div>':''}</button><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Ou choisir un autre</div>`:''}
+                <div style="display:flex;flex-direction:column;gap:12px">
+                    ${groups.map(g=>`<div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${g.label}</div><div style="display:flex;flex-direction:column;gap:5px">${g.items.map(airBtn).join('')}</div></div>`).join('')}
+                </div>
+            </div>`;
 
-                html += `<button onclick="${isPast ? '' : `_obCalPick(${y},${m},${d})`}" style="
-                    aspect-ratio:1;border-radius:${radius};border:none;cursor:${isPast?'default':'pointer'};
-                    background:${bg};color:${color};font-size:13px;font-weight:${fw};
-                    display:flex;align-items:center;justify-content:center">${d}</button>`;
-            }
-            grid.innerHTML = html;
+            const canNext=isArr?!!_ob.arrAirport:!!_ob.depAirport;
+            footer.innerHTML=`<div style="display:flex;gap:10px"><button onclick="_ob.step=${_ob.step-1};_obRender()" style="padding:15px 17px;background:rgba(255,255,255,0.07);border:none;border-radius:16px;color:white;font-size:19px;cursor:pointer">←</button><button onclick="_obStepAirportNext('${target}')" style="flex:1;padding:15px;background:${canNext?'linear-gradient(135deg,#7c3aed,#ec4899)':'rgba(255,255,255,0.07)'};color:${canNext?'white':'rgba(255,255,255,0.2)'};border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">Continuer →</button></div>`;
         }
 
-        window._obCalPick = function(y, m, d) {
-            const t = _ob.calTarget;
-            if (t === 'dep') { _ob.depYear = y; _ob.depMonth = m; _ob.depDay = d; }
-            else { _ob.retYear = y; _ob.retMonth = m; _ob.retDay = d; }
-            _obCloseCal();
-            _obRenderStep0(document.getElementById('ob-content'), document.getElementById('ob-footer'));
-        };
+        window._obPickAirport=function(code,target){if(target==='arr')_ob.arrAirport=code;else _ob.depAirport=code;_obRenderAirportStep(document.getElementById('ob-content'),document.getElementById('ob-footer'),target);};
+        window._obSameAirport=function(){_ob.depAirport=_ob.arrAirport;_obRenderAirportStep(document.getElementById('ob-content'),document.getElementById('ob-footer'),'dep');};
+        window._obStepAirportNext=function(target){const ok=target==='arr'?!!_ob.arrAirport:!!_ob.depAirport;if(!ok)return;_ob.step++;_obRender();};
 
-        // ── Sélecteur heure ────────────────────────────────────────────────
-        let _obTimeTarget = 'dep';
-        window._obOpenTimePicker = function(target) {
-            _obTimeTarget = target;
-            const overlay = document.getElementById('ob-time-overlay');
-            if (!overlay) return;
-            overlay.style.display = 'block';
-            const h = target === 'dep' ? _ob.depHour : _ob.retHour;
-            const m = target === 'dep' ? _ob.depMin  : _ob.retMin;
-            const title = document.getElementById('ob-time-title');
-            if (title) title.textContent = target === 'dep' ? '✈️ Heure de départ' : '🛬 Heure de retour';
-            document.getElementById('ob-time-h').textContent = String(h).padStart(2,'0');
-            document.getElementById('ob-time-m').textContent = String(m).padStart(2,'0');
-        };
-        window._obCloseTime = function() {
-            const o = document.getElementById('ob-time-overlay');
-            if (o) o.style.display = 'none';
-            _obRenderStep0(document.getElementById('ob-content'), document.getElementById('ob-footer'));
-        };
-        window._obTimeAdj = function(unit, delta) {
-            const hEl = document.getElementById('ob-time-h');
-            const mEl = document.getElementById('ob-time-m');
-            let h = parseInt(hEl.textContent), m = parseInt(mEl.textContent);
-            if (unit === 'h') h = (h + delta + 24) % 24;
-            if (unit === 'm') m = ((m + delta) % 60 + 60) % 60;
-            hEl.textContent = String(h).padStart(2,'0');
-            mEl.textContent = String(m).padStart(2,'0');
-            if (_obTimeTarget==='dep') { _ob.depHour=h; _ob.depMin=m; }
-            else { _ob.retHour=h; _ob.retMin=m; }
-        };
-        window._obTimeQuick = function(h, m) {
-            const hEl = document.getElementById('ob-time-h');
-            const mEl = document.getElementById('ob-time-m');
-            if (hEl) hEl.textContent = String(h).padStart(2,'0');
-            if (mEl) mEl.textContent = String(m).padStart(2,'0');
-            if (_obTimeTarget==='dep') { _ob.depHour=h; _ob.depMin=m; }
-            else { _ob.retHour=h; _ob.retMin=m; }
-        };
-
-        function _obCalcDays() {
-            if (!(_ob.depYear && _ob.retYear)) return 0;
-            const a = new Date(_ob.depYear, _ob.depMonth, _ob.depDay);
-            const b = new Date(_ob.retYear, _ob.retMonth, _ob.retDay);
-            return Math.max(0, Math.round((b - a) / 86400000) + 1);
-        }
-
-        window._obStep0Next = function() {
-            if (!_ob.depYear || !_ob.retYear) return;
-            const days = _obCalcDays();
-            if (days < 1) { return; }
-            _ob.step = 1; _obRender();
-        };
-
-        // ── STEP 1 : Aéroports ────────────────────────────────────────────
-        function _obRenderStep1(content, footer) {
-            const arrGroups = [
-                { label:'🗼 Tokyo', items: AIRPORTS.filter(a=>a.city==='Tokyo') },
-                { label:'🏯 Osaka / Kansai', items: AIRPORTS.filter(a=>a.city==='Osaka') },
-                { label:'🌏 Autres villes', items: AIRPORTS.filter(a=>!['Tokyo','Osaka'].includes(a.city)) },
-            ];
-
-            const airBtn = (a, target) => {
-                const sel = target==='arr' ? _ob.arrAirport===a.code : _ob.depAirport===a.code;
-                return `<button onclick="_obPickAirport('${a.code}','${target}')" style="
-                    display:flex;align-items:center;gap:10px;padding:12px 14px;
-                    border-radius:14px;border:2px solid ${sel?'rgba(167,139,250,0.7)':'rgba(255,255,255,0.08)'};
-                    background:${sel?'rgba(124,58,237,0.2)':'rgba(255,255,255,0.04)'};
-                    cursor:pointer;text-align:left;width:100%;transition:all .2s">
-                    <span style="font-size:22px">${a.emoji}</span>
-                    <div style="flex:1">
-                        <div style="font-size:13px;font-weight:800;color:${sel?'#c4b5fd':'white'}">${a.name} <span style="font-size:11px;color:rgba(255,255,255,0.3)">${a.code}</span></div>
-                        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">${a.tip}</div>
-                    </div>
-                    ${sel?'<span style="font-size:18px">✓</span>':''}
-                </button>`;
-            };
-
-            content.innerHTML = `
-                <div style="padding-top:24px;padding-bottom:100px">
-                    <div style="font-size:22px;font-weight:900;color:white;margin-bottom:4px">Tes aéroports</div>
-                    <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:24px">Entrée et sortie du Japon</div>
-
-                    <!-- Arrivée -->
-                    <div style="margin-bottom:20px">
-                        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">🛬 Aéroport d'arrivée au Japon</div>
-                        ${arrGroups.map(g=>`
-                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;margin-top:10px">${g.label}</div>
-                            <div style="display:flex;flex-direction:column;gap:6px">
-                                ${g.items.map(a=>airBtn(a,'arr')).join('')}
-                            </div>`).join('')}
-                    </div>
-
-                    <!-- Départ -->
-                    <div style="margin-bottom:20px">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-                            <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.8px">🛫 Aéroport de retour</div>
-                            ${_ob.arrAirport ? `<button onclick="_obSameAirport()" style="font-size:11px;color:#a78bfa;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:20px;padding:3px 10px;cursor:pointer">= même aéroport</button>` : ''}
-                        </div>
-                        ${arrGroups.map(g=>`
-                            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;margin-top:10px">${g.label}</div>
-                            <div style="display:flex;flex-direction:column;gap:6px">
-                                ${g.items.map(a=>airBtn(a,'dep')).join('')}
-                            </div>`).join('')}
-                    </div>
-                </div>`;
-
-            footer.innerHTML = `
-                <div style="display:flex;gap:10px">
-                    <button onclick="_ob.step=0;_obRender()" style="padding:16px 20px;background:rgba(255,255,255,0.08);border:none;border-radius:18px;color:white;font-size:20px;cursor:pointer">←</button>
-                    <button onclick="_obStep1Next()" style="flex:1;padding:16px;
-                        background:${(_ob.arrAirport&&_ob.depAirport)?'linear-gradient(135deg,#7c3aed,#ec4899)':'rgba(255,255,255,0.1)'};
-                        color:${(_ob.arrAirport&&_ob.depAirport)?'white':'rgba(255,255,255,0.3)'};
-                        border:none;border-radius:18px;font-size:16px;font-weight:900;cursor:pointer">
-                        Continuer →
-                    </button>
-                </div>`;
-        }
-
-        window._obPickAirport = function(code, target) {
-            if (target==='arr') _ob.arrAirport = code;
-            else _ob.depAirport = code;
-            _obRenderStep1(document.getElementById('ob-content'), document.getElementById('ob-footer'));
-        };
-        window._obSameAirport = function() {
-            _ob.depAirport = _ob.arrAirport;
-            _obRenderStep1(document.getElementById('ob-content'), document.getElementById('ob-footer'));
-        };
-        window._obStep1Next = function() {
-            if (!_ob.arrAirport || !_ob.depAirport) return;
-            _ob.step = 2; _obRender();
-        };
-
-        // ── STEP 2 : Mode de voyage ────────────────────────────────────────
-        function _obRenderStep2(content, footer) {
-            const modes = [
-                {
-                    id: 'solo_builder',
-                    emoji: '🗺️',
-                    label: 'Je construis mon voyage',
-                    tag: 'Explorateur autonome',
-                    tagColor: '#34d399',
-                    desc: 'Tu sais déjà ce que tu veux faire. Tu ajoutes toi-même les activités, les lieux et les séjours. L\'app est ton carnet de voyage intelligent.',
-                    points: ['Contrôle total sur chaque étape', 'Suggestions optionnelles à la demande', 'Idéal si tu as déjà planifié ou replanifié'],
-                    color: 'rgba(52,211,153,0.2)', border: 'rgba(52,211,153,0.5)', text: '#34d399'
-                },
-                {
-                    id: 'guided',
-                    emoji: '🧭',
-                    label: 'Je donne les grandes lignes',
-                    tag: 'Co-pilote IA',
-                    tagColor: '#a78bfa',
-                    desc: 'Tu choisis les villes et les étapes. L\'IA suggère les activités, les horaires et les restaurants pour chaque journée.',
-                    points: ['Tu définis les villes et la durée', 'L\'IA remplit le programme de chaque jour', 'Personnalisable à tout moment'],
-                    color: 'rgba(124,58,237,0.2)', border: 'rgba(167,139,250,0.5)', text: '#a78bfa'
-                },
-                {
-                    id: 'full_ai',
-                    emoji: '🤖',
-                    label: 'L\'IA planifie tout',
-                    tag: 'Voyage clé en main',
-                    tagColor: '#f472b6',
-                    desc: 'Tu n\'as qu\'à indiquer ta durée et tes préférences. L\'IA génère un itinéraire complet optimisé — villes, activités, repas, transits.',
-                    points: ['Itinéraire généré en quelques secondes', 'Adapté à ton profil voyageur', 'Tu valides et ajustes si nécessaire'],
-                    color: 'rgba(236,72,153,0.2)', border: 'rgba(244,114,182,0.5)', text: '#f472b6'
-                }
-            ];
-
-            content.innerHTML = `
-                <div style="padding-top:24px;padding-bottom:100px">
-                    <div style="font-size:22px;font-weight:900;color:white;margin-bottom:4px">Comment veux-tu<br>préparer ton voyage ?</div>
-                    <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:24px">Choisis ton style de planification</div>
-
-                    <div style="display:flex;flex-direction:column;gap:12px">
-                        ${modes.map(m=>`
-                        <button onclick="_obPickMode('${m.id}')" style="
-                            display:block;width:100%;text-align:left;cursor:pointer;
-                            background:${_ob.mode===m.id ? m.color : 'rgba(255,255,255,0.04)'};
-                            border:2px solid ${_ob.mode===m.id ? m.border : 'rgba(255,255,255,0.08)'};
-                            border-radius:20px;padding:18px 18px 16px;
-                            transition:all .2s;position:relative">
-                            <!-- Tag -->
-                            <div style="position:absolute;top:14px;right:14px;background:rgba(0,0,0,0.3);border:1px solid ${m.border};border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;color:${m.tagColor}">${m.tag}</div>
-
-                            <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
-                                <span style="font-size:32px">${m.emoji}</span>
-                                <div>
-                                    <div style="font-size:15px;font-weight:900;color:${_ob.mode===m.id?m.text:'white'};line-height:1.3">${m.label}</div>
-                                    <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:5px;line-height:1.5">${m.desc}</div>
-                                </div>
-                            </div>
-                            <div style="display:flex;flex-direction:column;gap:4px;margin-left:44px">
-                                ${m.points.map(p=>`<div style="font-size:11px;color:${_ob.mode===m.id?m.tagColor:'rgba(255,255,255,0.35)'};display:flex;align-items:center;gap:6px"><span style="font-size:10px">${_ob.mode===m.id?'✓':'○'}</span>${p}</div>`).join('')}
-                            </div>
-                        </button>`).join('')}
-                    </div>
-                </div>`;
-
-            footer.innerHTML = `
-                <div style="display:flex;gap:10px">
-                    <button onclick="_ob.step=1;_obRender()" style="padding:16px 20px;background:rgba(255,255,255,0.08);border:none;border-radius:18px;color:white;font-size:20px;cursor:pointer">←</button>
-                    <button onclick="_obStep2Next()" style="flex:1;padding:16px;
-                        background:${_ob.mode?'linear-gradient(135deg,#7c3aed,#ec4899)':'rgba(255,255,255,0.1)'};
-                        color:${_ob.mode?'white':'rgba(255,255,255,0.3)'};
-                        border:none;border-radius:18px;font-size:16px;font-weight:900;cursor:pointer">
-                        Continuer →
-                    </button>
-                </div>`;
-        }
-
-        window._obPickMode = function(id) {
-            _ob.mode = id;
-            _obRenderStep2(document.getElementById('ob-content'), document.getElementById('ob-footer'));
-        };
-        window._obStep2Next = function() {
-            if (!_ob.mode) return;
-            _ob.step = 3; _obRender();
-        };
-
-        // ── STEP 3 : Profil voyageur (condensé) ───────────────────────────
+        // ── STEP 3 : Mode de voyage ────────────────────────────────────────
         function _obRenderStep3(content, footer) {
-            const travelTypes = [
-                { id:'solo',    emoji:'🧍', label:'Solo' },
-                { id:'couple',  emoji:'💑', label:'Couple' },
-                { id:'famille', emoji:'👨‍👩‍👧', label:'Famille' },
-                { id:'amis',    emoji:'👫', label:'Amis' },
-                { id:'groupe',  emoji:'👥', label:'Groupe' },
+            const modes=[
+                {id:'solo_builder',emoji:'🗺️',label:'Je construis tout moi-même',tag:'Explorateur',tagColor:'#34d399',desc:"Tu planifies chaque activité. L'app est ton carnet intelligent.",points:['Contrôle total sur chaque étape','Suggestions optionnelles','Idéal si tu as déjà planifié'],color:'rgba(52,211,153,0.12)',border:'rgba(52,211,153,0.35)'},
+                {id:'guided',emoji:'🧭',label:'Je donne les grandes lignes',tag:'Co-pilote IA',tagColor:'#a78bfa',desc:"Tu choisis les villes. L'IA suggère activités, horaires et restos.",points:['Tu définis villes et durée',"L'IA remplit chaque journée",'Personnalisable à tout moment'],color:'rgba(124,58,237,0.12)',border:'rgba(167,139,250,0.35)'},
+                {id:'full_ai',emoji:'🤖',label:"L'IA planifie tout pour moi",tag:'Clé en main',tagColor:'#f472b6',desc:"Indique tes préférences. L'IA génère l'itinéraire complet en secondes.",points:['Itinéraire généré automatiquement','Adapté à ton profil voyageur','Tu valides et ajustes'],color:'rgba(236,72,153,0.12)',border:'rgba(244,114,182,0.35)'}
             ];
-            const interests = [
-                { id:'culture',    emoji:'🏛️', label:'Culture' },
-                { id:'gastro',     emoji:'🍜', label:'Gastronomie' },
-                { id:'nature',     emoji:'🌿', label:'Nature' },
-                { id:'shopping',   emoji:'🛍️', label:'Shopping' },
-                { id:'pop',        emoji:'🎮', label:'Pop culture' },
-                { id:'wellness',   emoji:'🧘', label:'Bien-être' },
-                { id:'adventure',  emoji:'🏃', label:'Aventure' },
-                { id:'art',        emoji:'🎨', label:'Art moderne' },
-            ];
-            const budgets = [
-                { id:'econome',     emoji:'💴', label:'Économe',     sub:'<50€/j' },
-                { id:'modere',      emoji:'💵', label:'Modéré',      sub:'50-100€' },
-                { id:'confortable', emoji:'💳', label:'Confortable', sub:'100-200€' },
-                { id:'luxe',        emoji:'💎', label:'Luxe',        sub:'200€+' },
-            ];
-
-            const p = travelerProfile;
-
-            const pillBtn = (item, field, isActive) => `
-                <button onclick="_obToggleProfile('${field}','${item.id}')" style="
-                    padding:8px 12px;border-radius:12px;cursor:pointer;
-                    border:2px solid ${isActive?'rgba(167,139,250,0.7)':'rgba(255,255,255,0.1)'};
-                    background:${isActive?'rgba(124,58,237,0.25)':'rgba(255,255,255,0.04)'};
-                    color:${isActive?'white':'rgba(255,255,255,0.5)'};
-                    font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px">
-                    <span>${item.emoji}</span>${item.label}
-                </button>`;
-
-            const budgetBtn = (b) => {
-                const sel = p.budget === b.id;
-                return `<button onclick="_obSetBudget('${b.id}')" style="
-                    flex:1;padding:10px 6px;border-radius:14px;cursor:pointer;text-align:center;
-                    border:2px solid ${sel?'rgba(167,139,250,0.7)':'rgba(255,255,255,0.1)'};
-                    background:${sel?'rgba(124,58,237,0.25)':'rgba(255,255,255,0.04)'};
-                    color:${sel?'white':'rgba(255,255,255,0.5)'}">
-                    <div style="font-size:18px">${b.emoji}</div>
-                    <div style="font-size:11px;font-weight:800;margin-top:3px">${b.label}</div>
-                    <div style="font-size:9px;opacity:.6;margin-top:1px">${b.sub}</div>
-                </button>`;
-            };
-
-            const modeLabel = { solo_builder:'🗺️ Explorateur', guided:'🧭 Co-pilote', full_ai:'🤖 Clé en main' }[_ob.mode];
-
-            content.innerHTML = `
-                <div style="padding-top:24px;padding-bottom:100px">
-                    <div style="font-size:22px;font-weight:900;color:white;margin-bottom:4px">Ton profil voyageur</div>
-                    <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:6px">Pour des suggestions personnalisées</div>
-
-                    <!-- Récap mode -->
-                    <div style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:14px;padding:10px 14px;margin-bottom:24px;display:flex;align-items:center;gap:10px">
-                        <span style="font-size:16px">✅</span>
-                        <div>
-                            <div style="font-size:12px;font-weight:700;color:#a78bfa">Mode choisi : ${modeLabel}</div>
-                            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:1px">${_obCalcDays()} jours · ${AIRPORTS.find(a=>a.code===_ob.arrAirport)?.name||_ob.arrAirport}</div>
-                        </div>
-                    </div>
-
-                    <!-- Type de voyage -->
-                    <div style="margin-bottom:20px">
-                        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Avec qui tu voyages ?</div>
-                        <div style="display:flex;flex-wrap:wrap;gap:8px">
-                            ${travelTypes.map(t=>pillBtn(t,'travel_type',p.travel_type===t.id)).join('')}
-                        </div>
-                    </div>
-
-                    <!-- Intérêts -->
-                    <div style="margin-bottom:20px">
-                        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Tes centres d'intérêt</div>
-                        <div style="display:flex;flex-wrap:wrap;gap:8px">
-                            ${interests.map(i=>pillBtn(i,'interests',(p.interests||[]).includes(i.id))).join('')}
-                        </div>
-                    </div>
-
-                    <!-- Budget -->
-                    <div style="margin-bottom:20px">
-                        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Budget par jour</div>
-                        <div style="display:flex;gap:8px">
-                            ${budgets.map(b=>budgetBtn(b)).join('')}
-                        </div>
-                    </div>
-
-                    <!-- Note -->
-                    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px;display:flex;align-items:flex-start;gap:8px">
-                        <span style="font-size:16px">💡</span>
-                        <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5">Ces informations personnalisent les suggestions IA. Tu peux les modifier à tout moment depuis ton profil.</div>
-                    </div>
-                </div>`;
-
-            footer.innerHTML = `
-                <div style="display:flex;gap:10px">
-                    <button onclick="_ob.step=2;_obRender()" style="padding:16px 20px;background:rgba(255,255,255,0.08);border:none;border-radius:18px;color:white;font-size:20px;cursor:pointer">←</button>
-                    <button onclick="_obFinish()" style="flex:1;padding:16px;
-                        background:linear-gradient(135deg,#7c3aed,#ec4899);
-                        color:white;border:none;border-radius:18px;font-size:16px;font-weight:900;cursor:pointer">
-                        🌸 Lancer le planning !
-                    </button>
+            content.innerHTML=`<div style="padding-top:18px;padding-bottom:8px">
+                <div style="font-size:19px;font-weight:900;color:white;margin-bottom:2px">Comment veux-tu préparer ton voyage ?</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.33);margin-bottom:16px">Choisis ton style de planification</div>
+                <div style="display:flex;flex-direction:column;gap:9px">
+                    ${modes.map(m=>`<button onclick="_obPickMode('${m.id}')" style="display:block;width:100%;text-align:left;cursor:pointer;background:${_ob.mode===m.id?m.color:'rgba(255,255,255,0.03)'};border:2px solid ${_ob.mode===m.id?m.border:'rgba(255,255,255,0.07)'};border-radius:16px;padding:13px 13px 11px;transition:all .2s;position:relative">
+                        <div style="position:absolute;top:11px;right:11px;background:rgba(0,0,0,0.25);border:1px solid ${m.border};border-radius:18px;padding:2px 7px;font-size:9px;font-weight:700;color:${m.tagColor}">${m.tag}</div>
+                        <div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:7px"><span style="font-size:24px">${m.emoji}</span><div style="padding-right:55px"><div style="font-size:14px;font-weight:900;color:white;line-height:1.2">${m.label}</div><div style="font-size:11px;color:rgba(255,255,255,0.42);margin-top:3px;line-height:1.4">${m.desc}</div></div></div>
+                        <div style="display:flex;flex-direction:column;gap:2px;margin-left:33px">${m.points.map(p=>`<div style="font-size:10px;color:${_ob.mode===m.id?m.tagColor:'rgba(255,255,255,0.28)'};display:flex;gap:4px"><span>${_ob.mode===m.id?'✓':'·'}</span>${p}</div>`).join('')}</div>
+                    </button>`).join('')}
                 </div>
-                <div style="text-align:center;margin-top:10px">
-                    <button onclick="_obFinishSkipProfile()" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:12px;cursor:pointer">Passer cette étape →</button>
-                </div>`;
+            </div>`;
+            footer.innerHTML=`<div style="display:flex;gap:10px"><button onclick="_ob.step=2;_obRender()" style="padding:15px 17px;background:rgba(255,255,255,0.07);border:none;border-radius:16px;color:white;font-size:19px;cursor:pointer">←</button><button onclick="_obStep3Next()" style="flex:1;padding:15px;background:${_ob.mode?'linear-gradient(135deg,#7c3aed,#ec4899)':'rgba(255,255,255,0.07)'};color:${_ob.mode?'white':'rgba(255,255,255,0.2)'};border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">Continuer →</button></div>`;
+        }
+        window._obPickMode=function(id){_ob.mode=id;_obRenderStep3(document.getElementById('ob-content'),document.getElementById('ob-footer'));};
+        window._obStep3Next=function(){if(!_ob.mode)return;_ob.step=4;_obRender();};
+
+        // ── STEP 4 : Profil voyageur ───────────────────────────────────────
+        function _obRenderStep4(content, footer) {
+            const travelTypes=[{id:'solo',emoji:'🧍',label:'Solo'},{id:'couple',emoji:'💑',label:'Couple'},{id:'famille',emoji:'👨‍👩‍👧',label:'Famille'},{id:'amis',emoji:'👫',label:'Amis'},{id:'groupe',emoji:'👥',label:'Groupe'}];
+            const interests=[{id:'culture',emoji:'🏛️',label:'Culture'},{id:'gastro',emoji:'🍜',label:'Gastronomie'},{id:'nature',emoji:'🌿',label:'Nature'},{id:'shopping',emoji:'🛍️',label:'Shopping'},{id:'pop',emoji:'🎮',label:'Pop culture'},{id:'wellness',emoji:'🧘',label:'Bien-être'},{id:'adventure',emoji:'🏃',label:'Aventure'},{id:'art',emoji:'🎨',label:'Art'}];
+            const budgets=[{id:'econome',emoji:'💴',label:'Économe',sub:'<50€/j'},{id:'modere',emoji:'💵',label:'Modéré',sub:'50-100€'},{id:'confortable',emoji:'💳',label:'Confort',sub:'100-200€'},{id:'luxe',emoji:'💎',label:'Luxe',sub:'200€+'}];
+            const p=travelerProfile;
+            const pill=(item,field,active)=>`<button onclick="_obToggleProfile('${field}','${item.id}')" style="padding:6px 10px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:4px;border:1.5px solid ${active?'rgba(167,139,250,0.55)':'rgba(255,255,255,0.07)'};background:${active?'rgba(124,58,237,0.18)':'rgba(255,255,255,0.03)'};color:${active?'white':'rgba(255,255,255,0.4)'};font-size:12px;font-weight:700"><span>${item.emoji}</span>${item.label}</button>`;
+            const bBtn=b=>{const sel=p.budget===b.id;return `<button onclick="_obSetBudget('${b.id}')" style="flex:1;padding:8px 3px;border-radius:10px;cursor:pointer;text-align:center;border:1.5px solid ${sel?'rgba(167,139,250,0.55)':'rgba(255,255,255,0.07)'};background:${sel?'rgba(124,58,237,0.18)':'rgba(255,255,255,0.03)'};color:${sel?'white':'rgba(255,255,255,0.4)'}"><div style="font-size:15px">${b.emoji}</div><div style="font-size:10px;font-weight:800;margin-top:2px">${b.label}</div><div style="font-size:9px;opacity:.5;margin-top:1px">${b.sub}</div></button>`;};
+            const modeLabel={solo_builder:'🗺️ Explorateur',guided:'🧭 Co-pilote',full_ai:'🤖 Clé en main'}[_ob.mode];
+            content.innerHTML=`<div style="padding-top:18px;padding-bottom:8px">
+                <div style="font-size:19px;font-weight:900;color:white;margin-bottom:2px">Ton profil voyageur</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.33);margin-bottom:12px">Pour personnaliser les suggestions IA</div>
+                <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.22);border-radius:12px;padding:9px 12px;margin-bottom:14px;display:flex;gap:8px;align-items:center"><span>✅</span><div><div style="font-size:11px;font-weight:700;color:#a78bfa">${modeLabel}</div><div style="font-size:10px;color:rgba(255,255,255,0.32);margin-top:1px">${_obCalcDays()}j · ${AIRPORTS.find(a=>a.code===_ob.arrAirport)?.name||''} → ${AIRPORTS.find(a=>a.code===_ob.depAirport)?.name||''}</div></div></div>
+                <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">Avec qui ?</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${travelTypes.map(t=>pill(t,'travel_type',p.travel_type===t.id)).join('')}</div>
+                <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">Centres d'intérêt</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${interests.map(i=>pill(i,'interests',(p.interests||[]).includes(i.id))).join('')}</div>
+                <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">Budget par jour</div>
+                <div style="display:flex;gap:6px;margin-bottom:12px">${budgets.map(bBtn).join('')}</div>
+                <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:9px 11px;display:flex;gap:6px;align-items:flex-start"><span style="font-size:13px">💡</span><div style="font-size:10px;color:rgba(255,255,255,0.32);line-height:1.5">Modifiable à tout moment depuis ⚙️.</div></div>
+            </div>`;
+            footer.innerHTML=`<div style="display:flex;gap:10px"><button onclick="_ob.step=3;_obRender()" style="padding:15px 17px;background:rgba(255,255,255,0.07);border:none;border-radius:16px;color:white;font-size:19px;cursor:pointer">←</button><button onclick="_obFinish()" style="flex:1;padding:15px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">🌸 C'est parti !</button></div><div style="text-align:center;margin-top:8px"><button onclick="_obFinishSkipProfile()" style="background:none;border:none;color:rgba(255,255,255,0.22);font-size:11px;cursor:pointer">Passer cette étape →</button></div>`;
         }
 
-        window._obToggleProfile = function(field, value) {
-            if (field === 'travel_type') {
-                travelerProfile.travel_type = travelerProfile.travel_type === value ? '' : value;
-            } else if (field === 'interests') {
-                const arr = travelerProfile.interests || [];
-                const idx = arr.indexOf(value);
-                if (idx >= 0) arr.splice(idx, 1); else arr.push(value);
-                travelerProfile.interests = arr;
-            }
-            _obRenderStep3(document.getElementById('ob-content'), document.getElementById('ob-footer'));
-        };
-        window._obSetBudget = function(id) {
-            travelerProfile.budget = id;
-            _obRenderStep3(document.getElementById('ob-content'), document.getElementById('ob-footer'));
-        };
-
-        window._obFinishSkipProfile = function() {
-            _obFinish();
-        };
-
-        window._obFinish = function() {
-            // Sauvegarder profil
-            localStorage.setItem(PROFILE_KEY, JSON.stringify(travelerProfile));
-
-            // Construire tripData depuis _ob
-            const depDate = `${_ob.depYear}-${String(_ob.depMonth+1).padStart(2,'0')}-${String(_ob.depDay).padStart(2,'0')}`;
-            const retDate = `${_ob.retYear}-${String(_ob.retMonth+1).padStart(2,'0')}-${String(_ob.retDay).padStart(2,'0')}`;
-            const depTime = `${String(_ob.depHour).padStart(2,'0')}:${String(_ob.depMin).padStart(2,'0')}`;
-            const retTime = `${String(_ob.retHour).padStart(2,'0')}:${String(_ob.retMin).padStart(2,'0')}`;
-
-            // Sync les hidden inputs pour compatibilité avec startTrip()
-            document.getElementById('departure-date').value  = depDate;
-            document.getElementById('departure-time').value  = depTime;
-            document.getElementById('return-date').value     = retDate;
-            document.getElementById('return-time').value     = retTime;
-            document.getElementById('arrival-airport-japan').value   = _ob.arrAirport;
-            document.getElementById('departure-airport-japan').value = _ob.depAirport;
-
-            // Sauvegarder le mode
-            localStorage.setItem('japan_trip_mode', _ob.mode || 'guided');
-
+        window._obToggleProfile=function(field,value){if(field==='travel_type')travelerProfile.travel_type=travelerProfile.travel_type===value?'':value;else if(field==='interests'){const arr=travelerProfile.interests||[];const idx=arr.indexOf(value);if(idx>=0)arr.splice(idx,1);else arr.push(value);travelerProfile.interests=arr;}_obRenderStep4(document.getElementById('ob-content'),document.getElementById('ob-footer'));};
+        window._obSetBudget=function(id){travelerProfile.budget=id;_obRenderStep4(document.getElementById('ob-content'),document.getElementById('ob-footer'));};
+        window._obFinishSkipProfile=function(){_obFinish();};
+        window._obFinish=function(){
+            localStorage.setItem(PROFILE_KEY,JSON.stringify(travelerProfile));
+            const depDate=`${_ob.depYear}-${String(_ob.depMonth+1).padStart(2,'0')}-${String(_ob.depDay).padStart(2,'0')}`;
+            const retDate=`${_ob.retYear}-${String(_ob.retMonth+1).padStart(2,'0')}-${String(_ob.retDay).padStart(2,'0')}`;
+            document.getElementById('departure-date').value=depDate;
+            document.getElementById('departure-time').value=`${String(_ob.depHour).padStart(2,'0')}:${String(_ob.depMin).padStart(2,'0')}`;
+            document.getElementById('return-date').value=retDate;
+            document.getElementById('return-time').value=`${String(_ob.retHour).padStart(2,'0')}:${String(_ob.retMin).padStart(2,'0')}`;
+            document.getElementById('arrival-airport-japan').value=_ob.arrAirport;
+            document.getElementById('departure-airport-japan').value=_ob.depAirport;
+            localStorage.setItem('japan_trip_mode',_ob.mode||'guided');
             startTrip();
         };
 
