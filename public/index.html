@@ -2416,8 +2416,8 @@
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;padding:9px 12px;background:#faf5ff;border-radius:12px">
                             <div style="font-size:11px;font-weight:700;color:#7c3aed;flex:1">Nombre de nuits</div>
                             <button onclick="_wizFreeFormAdj(-1)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:15px;cursor:pointer;color:#7c3aed;padding:0;line-height:1">−</button>
-                            <div style="min-width:28px;text-align:center;font-size:17px;font-weight:900;color:#7c3aed" id="free-days-count">${Math.max(1,Math.min(3,daysLeft||1))}</div>
-                            <button onclick="_wizFreeFormAdj(+1)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:15px;cursor:pointer;color:#7c3aed;padding:0;line-height:1">+</button>
+                            <div style="min-width:28px;text-align:center;font-size:17px;font-weight:900;color:${daysLeft<=0?'#ef4444':'#7c3aed'}" id="free-days-count">${Math.max(1,Math.min(3,Math.max(1,daysLeft)))}</div>
+                            <button id="free-days-plus" onclick="_wizFreeFormAdj(+1)" ${daysLeft<=0?'disabled':''} style="width:28px;height:28px;border-radius:50%;border:2px solid ${daysLeft<=0?'#fecaca':'#e9d5ff'};background:${daysLeft<=0?'#fef2f2':'white'};font-size:15px;cursor:${daysLeft<=0?'not-allowed':'pointer'};color:${daysLeft<=0?'#fca5a5':'#7c3aed'};padding:0;line-height:1">+</button>
                         </div>
 
                         <!-- Hôtel -->
@@ -2607,14 +2607,17 @@
 
         window._wizFreeFormAdj = function(delta) {
             const daysUsed = _wiz._freeStays.reduce((s,x)=>s+x.days,0);
-            const daysLeft = Math.max(1, _wiz.totalDays - daysUsed);
-            _wiz._freeFormDays = Math.max(1, Math.min(daysLeft, (_wiz._freeFormDays||1) + delta));
+            const daysLeft = _wiz.totalDays - daysUsed;   // peut être 0 ou négatif
+            const maxAllowed = Math.max(1, daysLeft);      // au moins 1 pour l'affichage
+            _wiz._freeFormDays = Math.max(1, Math.min(maxAllowed, (_wiz._freeFormDays||1) + delta));
             const dc = document.getElementById('free-days-count');
             if (dc) {
                 dc.textContent = _wiz._freeFormDays;
-                // Feedback visuel si on atteint la limite
-                dc.style.color = _wiz._freeFormDays >= daysLeft ? '#ef4444' : '#7c3aed';
+                dc.style.color = daysLeft <= 0 ? '#ef4444' : (_wiz._freeFormDays >= daysLeft ? '#f59e0b' : '#7c3aed');
             }
+            // Griser le bouton + si quota atteint
+            const btnPlus = document.getElementById('free-days-plus');
+            if (btnPlus) btnPlus.disabled = daysLeft <= 0 || _wiz._freeFormDays >= maxAllowed;
             const p = _wiz._pendingPlace;
             if (p?.name) _wizFreeCheckWarning(p.name, _wiz._freeFormDays);
         };
@@ -2640,8 +2643,17 @@
         window._wizFreeAdd = function() {
             const place = _wiz._pendingPlace;
             if (!place) return;
+            const daysUsed = _wiz._freeStays.reduce((s,x)=>s+x.days,0);
+            const daysLeft = _wiz.totalDays - daysUsed;
+            if (daysLeft <= 0) {
+                // Quota 100% utilisé — impossible d'ajouter
+                const btn = document.getElementById('free-add-btn');
+                if (btn) { btn.textContent = '⛔ Quota atteint — retire des nuits ailleurs'; btn.style.background='#ef4444'; }
+                return;
+            }
             const hotel = document.getElementById('free-hotel-input')?.value?.trim()||'';
-            const days  = _wiz._freeFormDays || 1;
+            // Forcer le nb de nuits dans la limite restante
+            const days  = Math.min(_wiz._freeFormDays || 1, daysLeft);
             const lat   = place.geometry?.location?.lat?.() || null;
             const lng   = place.geometry?.location?.lng?.() || null;
             _wiz._freeStays.push({
@@ -2659,8 +2671,9 @@
 
         window._wizFreeAdjDays = function(idx, delta) {
             const otherDays = _wiz._freeStays.reduce((s,x,i)=>i!==idx?s+x.days:s, 0);
-            const maxForThis = Math.max(1, _wiz.totalDays - otherDays);
-            _wiz._freeStays[idx].days = Math.max(1, Math.min(maxForThis, _wiz._freeStays[idx].days + delta));
+            const maxForThis = _wiz.totalDays - otherDays;  // strict, pas de Math.max
+            if (delta > 0 && maxForThis <= 0) return;       // bloc dur si quota épuisé
+            _wiz._freeStays[idx].days = Math.max(1, Math.min(Math.max(1,maxForThis), _wiz._freeStays[idx].days + delta));
             _wizardRenderFreeMode(_wiz._mode);
         };
 
