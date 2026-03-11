@@ -2173,17 +2173,6 @@
         );
 
         // ── État du wizard ─────────────────────────────────────────────────
-        let _wiz = {
-            step: 0,            // 0=choix itinéraire, 1..N=config chaque séjour, N+1=résumé
-            template: null,
-            zones: [],          // zones choisies (copie modifiable du template)
-            staysBuilt: [],     // stays[] construits au fur et à mesure
-            arrivalAirport: '', // depuis tripData
-            totalDays: 0,
-            daysCursor: 0       // pointeur de jour courant (0-based)
-        };
-
-        // ── Ouvrir le wizard ───────────────────────────────────────────────
         // ═══════════════════════════════════════════════════════════════════
         //  WIZARD SÉJOURS — ADAPTÉ AU MODE DE VOYAGE
         //  solo_builder → saisie libre, l'utilisateur commande
