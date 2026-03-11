@@ -2281,18 +2281,23 @@
         }
 
         // ══════════════════════════════════════════════════════════════════
-        //  MODE LIBRE (solo_builder + guided) — Saisie des villes par l'utilisateur
+        //  MODE LIBRE (solo_builder + guided) — Carte Maps + Places autocomplete
         // ══════════════════════════════════════════════════════════════════
-        function _wizardRenderFreeMode(mode) {
-            const daysUsed  = _wiz._freeStays.reduce((s,x)=>s+x.days,0);
-            const daysLeft  = _wiz.totalDays - daysUsed;
-            const isGuided  = mode === 'guided';
 
-            // Progress bar
+        let _wizMap = null;          // instance google.maps.Map
+        let _wizMarkers = [];        // markers des étapes validées
+        let _wizPreviewMarker = null;// marker preview (sélection en cours)
+        let _wizPolyline = null;     // ligne reliant les étapes
+        let _wizAC = null;           // google.maps.places.Autocomplete
+
+        function _wizardRenderFreeMode(mode) {
+            const daysUsed = _wiz._freeStays.reduce((s,x)=>s+x.days,0);
+            const daysLeft = _wiz.totalDays - daysUsed;
+            const isGuided = mode === 'guided';
+
             const pct = Math.round((daysUsed / _wiz.totalDays) * 100);
             document.getElementById('wizard-progress').style.width = pct + '%';
-            document.getElementById('wizard-subtitle').textContent =
-                `${daysUsed}/${_wiz.totalDays} jours planifiés`;
+            document.getElementById('wizard-subtitle').textContent = `${daysUsed}/${_wiz.totalDays} jours planifiés`;
 
             const title = isGuided ? '🧭 Tes étapes au Japon' : '🗺️ Planifie ton voyage';
 
@@ -2300,111 +2305,114 @@
             content.innerHTML = `
                 <div style="padding-bottom:8px">
 
-                    <!-- Titre + barre progression jours -->
-                    <div style="margin-bottom:16px">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-                            <div style="font-size:17px;font-weight:900;color:#111827">${title}</div>
-                            <div style="font-size:12px;font-weight:700;color:${daysLeft===0?'#10b981':daysLeft<0?'#ef4444':'#7c3aed'}">
-                                ${daysLeft===0?'✅ Complet':daysLeft>0?`${daysLeft}j restants`:`⚠️ ${-daysLeft}j de trop`}
-                            </div>
-                        </div>
-                        <!-- Barre jours visuels -->
-                        <div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap">
-                            ${Array.from({length:_wiz.totalDays},(_,i)=>{
-                                let dayColor='rgba(124,58,237,0.12)', label='';
-                                let cursor=0;
-                                for(const s of _wiz._freeStays){
-                                    if(i>=cursor&&i<cursor+s.days){dayColor=s._color||'#7c3aed';label=s.emoji||'📍';break;}
-                                    cursor+=s.days;
-                                }
-                                return `<div style="flex:1;min-width:10px;height:18px;border-radius:4px;background:${dayColor==='rgba(124,58,237,0.12)'?'rgba(124,58,237,0.1)':dayColor};display:flex;align-items:center;justify-content:center;font-size:9px" title="Jour ${i+1}">${label&&dayColor!=='rgba(124,58,237,0.12)'?label:''}</div>`;
-                            }).join('')}
+                    <!-- Titre + compteur -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                        <div style="font-size:17px;font-weight:900;color:#111827">${title}</div>
+                        <div style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;
+                            background:${daysLeft===0?'#d1fae5':daysLeft<0?'#fee2e2':'#ede9fe'};
+                            color:${daysLeft===0?'#065f46':daysLeft<0?'#b91c1c':'#6d28d9'}">
+                            ${daysLeft===0?'✅ Complet':daysLeft>0?`${daysLeft}j restants`:`⚠️ ${-daysLeft}j de trop`}
                         </div>
                     </div>
 
-                    <!-- Liste des étapes déjà ajoutées -->
+                    <!-- Barre jours visuels -->
+                    <div style="display:flex;gap:2px;margin-bottom:14px;border-radius:6px;overflow:hidden;height:8px">
+                        ${Array.from({length:_wiz.totalDays},(_,i)=>{
+                            let color='rgba(124,58,237,0.1)';
+                            let cursor=0;
+                            for(const s of _wiz._freeStays){
+                                if(i>=cursor&&i<cursor+s.days){color=s._color||'#7c3aed';break;}
+                                cursor+=s.days;
+                            }
+                            return `<div style="flex:1;background:${color};transition:background .3s"></div>`;
+                        }).join('')}
+                    </div>
+
+                    <!-- CARTE (toujours visible, remplace le placeholder) -->
+                    <div style="border-radius:16px;overflow:hidden;border:2px solid #e9d5ff;margin-bottom:14px;position:relative">
+                        <div id="wiz-map-container" style="width:100%;height:220px;background:#f1f5f9"></div>
+                        ${_wiz._freeStays.length === 0 ? `
+                        <div id="wiz-map-empty" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;background:rgba(249,246,255,0.5)">
+                            <div style="font-size:28px;margin-bottom:6px">🗾</div>
+                            <div style="font-size:12px;color:#9ca3af;font-weight:600">Ajoute ta première étape</div>
+                            <div style="font-size:10px;color:#c4b5fd;margin-top:2px">Elle apparaîtra ici sur la carte</div>
+                        </div>` : ''}
+                        <!-- Labels des étapes sur la carte -->
+                        <div id="wiz-map-legend" style="position:absolute;top:8px;left:8px;display:flex;flex-direction:column;gap:4px;max-width:160px">
+                            ${_wiz._freeStays.map((s,i)=>`
+                            <div style="background:white;border:2px solid ${s._color};border-radius:20px;padding:3px 8px;display:flex;align-items:center;gap:5px;box-shadow:0 2px 6px rgba(0,0,0,0.1)">
+                                <div style="width:8px;height:8px;border-radius:50%;background:${s._color};flex-shrink:0"></div>
+                                <span style="font-size:10px;font-weight:800;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i+1}. ${s.city}</span>
+                                <span style="font-size:10px;color:#9ca3af;flex-shrink:0">${s.days}n</span>
+                            </div>`).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Liste des étapes -->
                     ${_wiz._freeStays.length > 0 ? `
-                    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px" id="free-stays-list">
+                    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
                         ${_wiz._freeStays.map((s,i)=>{
                             const warn = _cityMaxDaysCheck(s.city, s.days);
-                            return `<div style="border:2px solid ${warn?'#fed7aa':'#e9d5ff'};background:${warn?'#fff7ed':'#faf5ff'};border-radius:14px;padding:12px 13px">
+                            return `<div style="border:2px solid ${warn?'#fed7aa':s._color+'44'};background:${warn?'#fff7ed':'#faf5ff'};border-radius:14px;padding:11px 12px">
                                 <div style="display:flex;align-items:center;gap:10px">
-                                    <span style="font-size:24px">${s.emoji||'📍'}</span>
-                                    <div style="flex:1">
-                                        <div style="font-size:14px;font-weight:800;color:#111827">${s.city}</div>
-                                        ${s.hotel?`<div style="font-size:11px;color:#7c3aed">🏨 ${s.hotel}</div>`:''}
+                                    <div style="width:28px;height:28px;border-radius:50%;background:${s._color};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:white;flex-shrink:0">${i+1}</div>
+                                    <div style="flex:1;min-width:0">
+                                        <div style="font-size:14px;font-weight:800;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.city}</div>
+                                        ${s.hotel?`<div style="font-size:10px;color:#7c3aed">🏨 ${s.hotel}</div>`:''}
                                     </div>
-                                    <div style="display:flex;align-items:center;gap:8px">
-                                        <button onclick="_wizFreeAdjDays(${i},-1)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:15px;cursor:pointer;color:#7c3aed;display:flex;align-items:center;justify-content:center">−</button>
-                                        <div style="min-width:36px;text-align:center">
-                                            <div style="font-size:16px;font-weight:900;color:#7c3aed">${s.days}</div>
-                                            <div style="font-size:9px;color:#a78bfa;font-weight:700">nuit${s.days>1?'s':''}</div>
+                                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+                                        <button onclick="_wizFreeAdjDays(${i},-1)" style="width:26px;height:26px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:14px;cursor:pointer;color:#7c3aed;line-height:1;padding:0">−</button>
+                                        <div style="min-width:32px;text-align:center">
+                                            <div style="font-size:15px;font-weight:900;color:#7c3aed">${s.days}</div>
+                                            <div style="font-size:8px;color:#a78bfa;font-weight:700;line-height:1">nuit${s.days>1?'s':''}</div>
                                         </div>
-                                        <button onclick="_wizFreeAdjDays(${i},+1)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:15px;cursor:pointer;color:#7c3aed;display:flex;align-items:center;justify-content:center">+</button>
-                                        <button onclick="_wizFreeRemove(${i})" style="width:28px;height:28px;border-radius:50%;border:1.5px solid #fecaca;background:#fef2f2;font-size:13px;cursor:pointer;color:#ef4444;display:flex;align-items:center;justify-content:center">✕</button>
+                                        <button onclick="_wizFreeAdjDays(${i},+1)" style="width:26px;height:26px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:14px;cursor:pointer;color:#7c3aed;line-height:1;padding:0">+</button>
+                                        <button onclick="_wizFreeRemove(${i})" style="width:26px;height:26px;border-radius:50%;border:1.5px solid #fecaca;background:#fef2f2;font-size:11px;cursor:pointer;color:#ef4444;line-height:1;padding:0">✕</button>
                                     </div>
                                 </div>
-                                ${warn?`<div style="margin-top:10px;background:#fef3c7;border-radius:10px;padding:8px 10px">
-                                    <div style="font-size:11px;font-weight:800;color:#b45309;margin-bottom:6px">⚠️ ${s.days} jours à ${warn.city}, c'est peut-être beaucoup…</div>
-                                    <div style="display:flex;flex-direction:column;gap:3px">
-                                        ${warn.avis.slice(0,3).map(a=>`<div style="font-size:10px;color:#92400e;line-height:1.4">• ${a}</div>`).join('')}
-                                    </div>
-                                    <div style="font-size:10px;color:#b45309;margin-top:5px;font-weight:600">Max recommandé : ${warn.max} nuits</div>
+                                ${warn?`<div style="margin-top:8px;background:#fef3c7;border-radius:8px;padding:7px 9px">
+                                    <div style="font-size:10px;font-weight:800;color:#b45309;margin-bottom:4px">⚠️ ${s.days}j à ${warn.city}, c'est peut-être beaucoup…</div>
+                                    ${warn.avis.slice(0,3).map(a=>`<div style="font-size:9px;color:#92400e;margin-bottom:1px;line-height:1.4">• ${a}</div>`).join('')}
+                                    <div style="font-size:9px;color:#b45309;margin-top:3px;font-weight:700">Max recommandé : ${warn.max} nuits</div>
                                 </div>`:''}
                             </div>`;
                         }).join('')}
-                    </div>` : `
-                    <div style="background:rgba(124,58,237,0.05);border:2px dashed rgba(124,58,237,0.2);border-radius:14px;padding:20px;text-align:center;margin-bottom:14px">
-                        <div style="font-size:28px;margin-bottom:8px">📍</div>
-                        <div style="font-size:13px;color:#9ca3af">Ajoute ta première étape</div>
-                    </div>`}
+                    </div>` : ''}
 
-                    <!-- Formulaire d'ajout d'étape -->
-                    <div style="background:white;border:2px solid #e9d5ff;border-radius:16px;padding:14px" id="free-add-form">
-                        <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
-                            ➕ Ajouter une étape
-                        </div>
+                    <!-- Formulaire ajout -->
+                    <div style="background:white;border:2px solid #e9d5ff;border-radius:16px;padding:13px" id="free-add-form">
+                        <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px">➕ Ajouter une étape</div>
 
-                        <!-- Ville avec autocomplete -->
-                        <div style="position:relative;margin-bottom:10px">
-                            <input id="free-city-input" type="text" placeholder="Nom de la ville (ex: Kyoto, Tokyo…)"
-                                oninput="_wizFreeAutocomplete(this.value)"
-                                onfocus="_wizFreeAutocomplete(this.value)"
-                                style="width:100%;border:2px solid #e9d5ff;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;outline:none">
-                            <div id="free-autocomplete" style="display:none;position:absolute;top:calc(100%+4px);left:0;right:0;background:white;border:2px solid #e9d5ff;border-radius:12px;z-index:100;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08)"></div>
+                        <!-- Champ ville — Google Places -->
+                        <div style="position:relative;margin-bottom:9px">
+                            <input id="free-city-input" type="text"
+                                placeholder="Nom de la ville au Japon…"
+                                style="width:100%;border:2px solid #e9d5ff;border-radius:12px;padding:10px 14px 10px 36px;font-size:13px;box-sizing:border-box;outline:none;transition:border .2s">
+                            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none">🔍</span>
                         </div>
 
                         <!-- Nombre de nuits -->
-                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;padding:10px 12px;background:#faf5ff;border-radius:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;padding:9px 12px;background:#faf5ff;border-radius:12px">
                             <div style="font-size:11px;font-weight:700;color:#7c3aed;flex:1">Nombre de nuits</div>
-                            <button onclick="_wizFreeFormAdj(-1)" style="width:30px;height:30px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:16px;cursor:pointer;color:#7c3aed">−</button>
-                            <div style="min-width:30px;text-align:center;font-size:18px;font-weight:900;color:#7c3aed" id="free-days-count">${Math.min(3,daysLeft||1)}</div>
-                            <button onclick="_wizFreeFormAdj(+1)" style="width:30px;height:30px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:16px;cursor:pointer;color:#7c3aed">+</button>
+                            <button onclick="_wizFreeFormAdj(-1)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:15px;cursor:pointer;color:#7c3aed;padding:0;line-height:1">−</button>
+                            <div style="min-width:28px;text-align:center;font-size:17px;font-weight:900;color:#7c3aed" id="free-days-count">${Math.max(1,Math.min(3,daysLeft||1))}</div>
+                            <button onclick="_wizFreeFormAdj(+1)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:15px;cursor:pointer;color:#7c3aed;padding:0;line-height:1">+</button>
                         </div>
 
-                        <!-- Hôtel optionnel -->
+                        <!-- Hôtel -->
                         <input id="free-hotel-input" type="text" placeholder="🏨 Hôtel / ryokan (optionnel)"
-                            style="width:100%;border:2px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:12px;box-sizing:border-box;outline:none;margin-bottom:10px;color:#6b7280">
+                            style="width:100%;border:2px solid #e5e7eb;border-radius:12px;padding:9px 14px;font-size:12px;box-sizing:border-box;outline:none;margin-bottom:9px;color:#6b7280">
 
-                        <div id="free-form-warning" style="display:none;margin-bottom:10px"></div>
+                        <div id="free-form-warning" style="display:none;margin-bottom:9px"></div>
 
-                        <button onclick="_wizFreeAdd()" style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:12px;font-size:13px;font-weight:900;cursor:pointer">
-                            Ajouter cette étape →
+                        <button onclick="_wizFreeAdd()" id="free-add-btn"
+                            style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:12px;font-size:13px;font-weight:900;cursor:pointer;opacity:.5">
+                            Sélectionne une ville ci-dessus
                         </button>
                     </div>
-
-                    ${isGuided && _wiz._freeStays.length === 0 ? `
-                    <!-- Suggestions rapides pour guided -->
-                    <div style="margin-top:12px">
-                        <div style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">💡 Destinations populaires</div>
-                        <div style="display:flex;flex-wrap:wrap;gap:6px">
-                            ${JAPAN_CITIES.slice(0,8).map(c=>`<button onclick="_wizFreeQuickAdd('${c.name}','${c.emoji}')" style="padding:6px 11px;border-radius:20px;border:1.5px solid #e9d5ff;background:#faf5ff;font-size:12px;font-weight:700;color:#7c3aed;cursor:pointer">${c.emoji} ${c.name}</button>`).join('')}
-                        </div>
-                    </div>` : ''}
                 </div>
             `;
 
-            // Init compteur de nuits
             _wiz._freeFormDays = Math.max(1, Math.min(3, daysLeft || 1));
             const dc = document.getElementById('free-days-count');
             if (dc) dc.textContent = _wiz._freeFormDays;
@@ -2421,41 +2429,167 @@
                         ${canFinish?`🌸 Valider (${_wiz._freeStays.length} étape${_wiz._freeStays.length>1?'s':''})`:'Ajoute au moins une étape'}
                     </button>
                 </div>`;
+
+            // Init la carte après render
+            _wizInitMap();
         }
 
-        // Autocomplete villes
-        window._wizFreeAutocomplete = function(val) {
-            const box = document.getElementById('free-autocomplete');
-            if (!box) return;
-            if (!val || val.length < 1) { box.style.display='none'; return; }
-            const matches = JAPAN_CITIES.filter(c=>c.name.toLowerCase().startsWith(val.toLowerCase())).slice(0,5);
-            if (!matches.length) { box.style.display='none'; return; }
-            box.style.display = 'block';
-            box.innerHTML = matches.map(c=>`
-                <button onclick="_wizFreeSelectCity('${c.name}','${c.emoji}')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;background:white;cursor:pointer;text-align:left;border-bottom:1px solid #f3f4f6">
-                    <span style="font-size:18px">${c.emoji}</span>
-                    <div>
-                        <div style="font-size:13px;font-weight:800;color:#111827">${c.name}</div>
-                        <div style="font-size:10px;color:#9ca3af">${c.region}</div>
-                    </div>
-                </button>`).join('');
-        };
+        // ── Initialiser / mettre à jour la carte du wizard ─────────────────
+        async function _wizInitMap() {
+            // Charger Maps si pas encore fait
+            const ok = await loadMapsAPI().catch(()=>false);
+            const container = document.getElementById('wiz-map-container');
+            if (!ok || !container || !window.google?.maps) {
+                if (container) container.style.background = '#f3f4f6';
+                return;
+            }
 
-        window._wizFreeSelectCity = function(name, emoji) {
-            const inp = document.getElementById('free-city-input');
-            if (inp) { inp.value = name; inp.dataset.emoji = emoji; }
-            const box = document.getElementById('free-autocomplete');
-            if (box) box.style.display='none';
-            // Vérifier warning en temps réel
-            _wizFreeCheckWarning(name, _wiz._freeFormDays);
-        };
+            // Créer la carte centrée sur le Japon
+            if (!_wizMap || !document.getElementById('wiz-map-container')?.dataset.init) {
+                _wizMap = new google.maps.Map(container, {
+                    center: { lat: 36.5, lng: 137 },
+                    zoom: 5,
+                    mapTypeControl: false,
+                    streetViewControl: false,
+                    fullscreenControl: false,
+                    zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
+                    styles: [
+                        { featureType:'poi', elementType:'labels', stylers:[{visibility:'off'}] },
+                        { featureType:'transit', elementType:'labels', stylers:[{visibility:'off'}] },
+                    ]
+                });
+                container.dataset.init = '1';
+
+                // Init Google Places Autocomplete sur le champ
+                const inp = document.getElementById('free-city-input');
+                if (inp) {
+                    _wizAC = new google.maps.places.Autocomplete(inp, {
+                        types: ['(cities)'],
+                        componentRestrictions: { country: 'jp' },
+                        fields: ['name','geometry','place_id']
+                    });
+                    _wizAC.addListener('place_changed', () => {
+                        const place = _wizAC.getPlace();
+                        if (!place?.geometry) return;
+                        _wiz._pendingPlace = place;
+                        // Preview marker
+                        _wizSetPreviewMarker(place);
+                        // Activer le bouton ajouter
+                        const btn = document.getElementById('free-add-btn');
+                        if (btn) {
+                            btn.textContent = `Ajouter "${place.name}" →`;
+                            btn.style.opacity = '1';
+                        }
+                        // Vérification avertissement
+                        _wizFreeCheckWarning(place.name, _wiz._freeFormDays||1);
+                    });
+                }
+            }
+
+            // Redessiner les markers existants et la ligne
+            _wizRedrawMarkers();
+        }
+
+        function _wizSetPreviewMarker(place) {
+            if (!_wizMap || !window.google?.maps) return;
+            if (_wizPreviewMarker) _wizPreviewMarker.setMap(null);
+            const color = FREE_COLORS[_wiz._freeStays.length % FREE_COLORS.length];
+            _wizPreviewMarker = new google.maps.Marker({
+                position: place.geometry.location,
+                map: _wizMap,
+                title: place.name,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: color,
+                    fillOpacity: 0.6,
+                    strokeColor: color,
+                    strokeWeight: 2,
+                    scale: 10
+                },
+                animation: google.maps.Animation.BOUNCE
+            });
+            // Centrer sur la ville sélectionnée
+            _wizMap.panTo(place.geometry.location);
+            _wizMap.setZoom(10);
+        }
+
+        function _wizRedrawMarkers() {
+            if (!_wizMap || !window.google?.maps) return;
+
+            // Supprimer anciens markers
+            _wizMarkers.forEach(m => m.setMap(null));
+            _wizMarkers = [];
+            if (_wizPolyline) { _wizPolyline.setMap(null); _wizPolyline = null; }
+
+            const positions = [];
+
+            _wiz._freeStays.forEach((s, i) => {
+                if (!s._lat || !s._lng) return;
+                const pos = { lat: s._lat, lng: s._lng };
+                positions.push(pos);
+
+                const marker = new google.maps.Marker({
+                    position: pos,
+                    map: _wizMap,
+                    title: s.city,
+                    label: {
+                        text: String(i + 1),
+                        color: 'white',
+                        fontSize: '11px',
+                        fontWeight: 'bold'
+                    },
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        fillColor: s._color,
+                        fillOpacity: 1,
+                        strokeColor: 'white',
+                        strokeWeight: 2,
+                        scale: 14
+                    }
+                });
+
+                // Info window au clic
+                const iw = new google.maps.InfoWindow({
+                    content: `<div style="font-size:12px;font-weight:700;padding:2px 4px">${s.emoji||'📍'} ${s.city} — ${s.days} nuit${s.days>1?'s':''}</div>`
+                });
+                marker.addListener('click', () => iw.open(_wizMap, marker));
+                _wizMarkers.push(marker);
+            });
+
+            // Tracer la polyline si 2+ étapes
+            if (positions.length >= 2) {
+                _wizPolyline = new google.maps.Polyline({
+                    path: positions,
+                    geodesic: true,
+                    strokeColor: '#7c3aed',
+                    strokeOpacity: 0.7,
+                    strokeWeight: 2.5,
+                    icons: [{
+                        icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#7c3aed' },
+                        offset: '50%'
+                    }]
+                });
+                _wizPolyline.setMap(_wizMap);
+
+                // Ajuster le zoom pour tout voir
+                const bounds = new google.maps.LatLngBounds();
+                positions.forEach(p => bounds.extend(p));
+                _wizMap.fitBounds(bounds, { top:30, bottom:30, left:30, right:30 });
+            } else if (positions.length === 1) {
+                _wizMap.panTo(positions[0]);
+                _wizMap.setZoom(10);
+            } else {
+                _wizMap.setCenter({ lat: 36.5, lng: 137 });
+                _wizMap.setZoom(5);
+            }
+        }
 
         window._wizFreeFormAdj = function(delta) {
             _wiz._freeFormDays = Math.max(1, (_wiz._freeFormDays||1) + delta);
             const dc = document.getElementById('free-days-count');
             if (dc) dc.textContent = _wiz._freeFormDays;
-            const inp = document.getElementById('free-city-input');
-            if (inp?.value) _wizFreeCheckWarning(inp.value, _wiz._freeFormDays);
+            const p = _wiz._pendingPlace;
+            if (p?.name) _wizFreeCheckWarning(p.name, _wiz._freeFormDays);
         };
 
         function _wizFreeCheckWarning(city, days) {
@@ -2464,33 +2598,36 @@
             if (!box) return;
             if (warn) {
                 box.style.display='block';
-                box.innerHTML=`<div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:9px 11px">
-                    <div style="font-size:11px;font-weight:800;color:#b45309;margin-bottom:5px">⚠️ ${days} jours à ${warn.city}, c'est peut-être beaucoup…</div>
+                box.innerHTML=`<div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 10px">
+                    <div style="font-size:11px;font-weight:800;color:#b45309;margin-bottom:4px">⚠️ ${days}j à ${warn.city}, c'est peut-être beaucoup…</div>
                     ${warn.avis.slice(0,3).map(a=>`<div style="font-size:10px;color:#92400e;margin-bottom:2px;line-height:1.4">• ${a}</div>`).join('')}
-                    <div style="font-size:10px;color:#b45309;margin-top:4px;font-weight:600">Max recommandé : ${warn.max} nuits</div>
+                    <div style="font-size:10px;color:#b45309;margin-top:3px;font-weight:700">Max recommandé : ${warn.max} nuits</div>
                 </div>`;
             } else {
-                box.style.display='none';
-                box.innerHTML='';
+                box.style.display='none'; box.innerHTML='';
             }
         }
 
         const FREE_COLORS = ['#7c3aed','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#06b6d4'];
-        window._wizFreeAdd = function() {
-            const inp   = document.getElementById('free-city-input');
-            const hotel = document.getElementById('free-hotel-input')?.value?.trim()||'';
-            const city  = inp?.value?.trim();
-            if (!city) return;
-            const emoji = inp.dataset.emoji || JAPAN_CITIES.find(c=>c.name.toLowerCase()===city.toLowerCase())?.emoji || '📍';
-            const days  = _wiz._freeFormDays || 1;
-            _wiz._freeStays.push({ city, emoji, days, hotel, _color: FREE_COLORS[_wiz._freeStays.length % FREE_COLORS.length] });
-            _wizardRenderFreeMode(_wiz._mode);
-        };
 
-        window._wizFreeQuickAdd = function(name, emoji) {
-            const inp = document.getElementById('free-city-input');
-            if (inp) { inp.value=name; inp.dataset.emoji=emoji; }
-            _wizFreeCheckWarning(name, _wiz._freeFormDays||1);
+        window._wizFreeAdd = function() {
+            const place = _wiz._pendingPlace;
+            if (!place) return;
+            const hotel = document.getElementById('free-hotel-input')?.value?.trim()||'';
+            const days  = _wiz._freeFormDays || 1;
+            const lat   = place.geometry?.location?.lat?.() || null;
+            const lng   = place.geometry?.location?.lng?.() || null;
+            _wiz._freeStays.push({
+                city: place.name,
+                emoji: JAPAN_CITIES.find(c=>c.name.toLowerCase()===place.name.toLowerCase())?.emoji || '📍',
+                days, hotel,
+                _color: FREE_COLORS[_wiz._freeStays.length % FREE_COLORS.length],
+                _lat: lat, _lng: lng,
+                _placeId: place.place_id || null
+            });
+            _wiz._pendingPlace = null;
+            if (_wizPreviewMarker) { _wizPreviewMarker.setMap(null); _wizPreviewMarker = null; }
+            _wizardRenderFreeMode(_wiz._mode);
         };
 
         window._wizFreeAdjDays = function(idx, delta) {
@@ -2504,7 +2641,6 @@
         };
 
         window._wizFreeApply = function() {
-            const daysUsed = _wiz._freeStays.reduce((s,x)=>s+x.days,0);
             let cursor = 0;
             stays = _wiz._freeStays.map(s => {
                 const stay = { city:s.city, hotelName:s.hotel||'', address:'', place:null, price:'', currency:'EUR', startDay:cursor, endDay:cursor+s.days-1 };
@@ -2513,6 +2649,7 @@
             });
             saveStays();
             renderStaysList();
+            _wizMap = null; // reset pour la prochaine ouverture
             _wizardClose();
             showAddConfirmation(`${stays.length} séjour${stays.length>1?'s':''} créés 🎌`, 'Itinéraire configuré', '✅');
         };
