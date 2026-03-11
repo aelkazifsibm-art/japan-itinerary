@@ -28,13 +28,33 @@ function buildProfileContext(profile) {
 
     const parts = [];
     if (profile.travel_type) parts.push('Type: ' + (typeMap[profile.travel_type]||profile.travel_type));
-    if (profile.interests?.length) {
-        parts.push("Centres intérêt: " + profile.interests.map(i => intMap[i]||i).join(' | '));
-        parts.push("→ OBLIGATION: alterner les types d'activités selon ces centres. Max 1 activité du même type par demi-journée.");
+
+    // Utiliser interests_order si disponible (1er intérêt = priorité maximale)
+    const orderedInterests = profile.interests_order?.length ? profile.interests_order : (profile.interests || []);
+    if (orderedInterests.length) {
+        const mapped = orderedInterests.map((i,idx) => `${idx===0?'[PRIORITÉ HAUTE] ':''}${intMap[i]||i}`);
+        parts.push("Centres intérêt (par ordre de préférence): " + mapped.join(' | '));
+        parts.push("→ OBLIGATION: 1er intérêt prioritaire dans 40% des activités. Alterner les autres. Max 1 activité du même type par demi-journée.");
     }
+
     if (profile.budget) parts.push('Budget: ' + (budgetMap[profile.budget]||profile.budget));
     if (profile.constraints?.length) parts.push('Contraintes: ' + profile.constraints.map(c => constMap[c]||c).join(', '));
     if (profile.custom_constraint) parts.push('Contrainte spéciale: ' + profile.custom_constraint);
+
+    // Nouveaux critères de rythme
+    const sc = profile._score;
+    if (sc) {
+        parts.push(`Rythme: ${sc.activitiesPerDay} activités max/jour`);
+        parts.push(`Heure début journée: ${sc.dayStartHour}h00`);
+        if (sc.avoidCrowdedSlots) parts.push('Sensibilité foules forte → privilégier visites tôt matin (avant 9h) ou fin de journée (après 17h) pour sites touristiques');
+    } else {
+        if (profile.pace === 'tranquille') parts.push('Rythme: max 3 activités/jour — journées aérées, temps de pause');
+        if (profile.pace === 'intense')    parts.push('Rythme: 6–7 activités/jour — journées bien remplies');
+        if (profile.wake_time === 'tot')   parts.push('Départ dès 7h — peut accéder aux sites avant la foule');
+        if (profile.wake_time === 'tard')  parts.push('Départ vers 10h — éviter activités matinales obligatoires');
+        if (profile.crowd_sensitivity === 'forte') parts.push('Évite les foules → créneaux tôt matin ou après 17h pour Fushimi Inari, Arashiyama, etc.');
+    }
+
     if (!parts.length) return '';
     return '\n=== PROFIL VOYAGEUR (OBLIGATOIRE À RESPECTER) ===\n' + parts.join('\n') + '\n=== FIN PROFIL ===\n';
 }

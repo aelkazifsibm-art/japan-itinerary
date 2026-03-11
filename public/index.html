@@ -2640,7 +2640,8 @@
             _wizardRenderFreeMode(_wiz._mode);
         };
 
-        window._wizFreeApply = function() {
+        window._wizFreeApply = async function() {
+            // 1. Sauvegarder les séjours
             let cursor = 0;
             stays = _wiz._freeStays.map(s => {
                 const stay = { city:s.city, hotelName:s.hotel||'', address:'', place:null, price:'', currency:'EUR', startDay:cursor, endDay:cursor+s.days-1 };
@@ -2649,9 +2650,167 @@
             });
             saveStays();
             renderStaysList();
-            _wizMap = null; // reset pour la prochaine ouverture
+            _wizMap = null;
             _wizardClose();
-            showAddConfirmation(`${stays.length} séjour${stays.length>1?'s':''} créés 🎌`, 'Itinéraire configuré', '✅');
+
+            // 2. Afficher la page de transition "On prépare tes suggestions"
+            const mode = _wiz._mode || 'guided';
+            if (mode === 'guided' || mode === 'solo_builder') {
+                _showWizPostGenScreen(_wiz._freeStays.slice());
+            } else {
+                showAddConfirmation(`${stays.length} séjour${stays.length>1?'s':''} créés 🎌`, 'Itinéraire configuré', '✅');
+            }
+        };
+
+        // ── Écran post-wizard : génération auto des suggestions par ville ──
+        async function _showWizPostGenScreen(freeStays) {
+            const score = _buildProfileScore(travelerProfile);
+            const hasProfile = travelerProfile.interests?.length > 0 || travelerProfile.budget;
+
+            // Créer la modale overlay
+            let overlay = document.getElementById('wiz-postgen-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'wiz-postgen-overlay';
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:350;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center';
+                document.body.appendChild(overlay);
+            }
+
+            const staysList = freeStays.map((s,i) => `
+                <div id="postgen-row-${i}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#f8fafc;border:1.5px solid #e2e8f0">
+                    <div style="width:26px;height:26px;border-radius:50%;background:${s._color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:white;flex-shrink:0">${i+1}</div>
+                    <div style="flex:1">
+                        <div style="font-size:13px;font-weight:800;color:#111827">${s.city}</div>
+                        <div style="font-size:10px;color:#9ca3af">${s.days} nuit${s.days>1?'s':''}</div>
+                    </div>
+                    <div id="postgen-status-${i}" style="font-size:11px;color:#9ca3af">En attente…</div>
+                </div>`).join('');
+
+            const profileHints = hasProfile ? `
+                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px">
+                    ${score.priorityTypes.slice(0,3).map(t=>`<span style="padding:3px 8px;border-radius:12px;background:#ede9fe;color:#6d28d9;font-size:10px;font-weight:700">${t}</span>`).join('')}
+                    <span style="padding:3px 8px;border-radius:12px;background:#f0fdf4;color:#065f46;font-size:10px;font-weight:700">${score._labels.pace}</span>
+                    <span style="padding:3px 8px;border-radius:12px;background:#fff7ed;color:#c2410c;font-size:10px;font-weight:700">${score._labels.budget}</span>
+                </div>` : `
+                <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:9px 11px;margin-bottom:14px;font-size:11px;color:#92400e">
+                    💡 Complète ton profil pour des suggestions plus personnalisées → <button onclick="document.getElementById('wiz-postgen-overlay').remove();openTravelerProfile(true)" style="background:none;border:none;color:#7c3aed;font-weight:700;cursor:pointer;font-size:11px">Compléter ⚙️</button>
+                </div>`;
+
+            overlay.innerHTML = `
+                <div style="width:100%;max-width:480px;background:white;border-radius:24px 24px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,20px),20px);max-height:90vh;overflow-y:auto">
+                    <div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 16px"></div>
+                    <div style="font-size:18px;font-weight:900;color:#111827;margin-bottom:4px">🌸 Ton itinéraire est prêt !</div>
+                    <div style="font-size:12px;color:#6b7280;margin-bottom:14px">On prépare des suggestions d'activités selon ton profil…</div>
+
+                    ${profileHints}
+
+                    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:18px" id="postgen-rows">
+                        ${staysList}
+                    </div>
+
+                    <div id="postgen-global-status" style="text-align:center;font-size:12px;color:#7c3aed;font-weight:700;margin-bottom:16px;min-height:20px"></div>
+
+                    <div style="display:flex;gap:10px">
+                        <button onclick="document.getElementById('wiz-postgen-overlay').remove()" style="flex:1;padding:13px;background:#f3f4f6;border:none;border-radius:14px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer">
+                            Passer → Planning
+                        </button>
+                        <button id="postgen-go-btn" onclick="_postGenGoToPlanning()" style="flex:2;padding:13px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:14px;font-weight:900;cursor:pointer;opacity:.5" disabled>
+                            Voir le planning →
+                        </button>
+                    </div>
+                </div>`;
+
+            // Lancer la génération séquentiellement pour chaque ville
+            let generatedCount = 0;
+            for (let i = 0; i < freeStays.length; i++) {
+                const s = freeStays[i];
+                const statusEl = document.getElementById(`postgen-status-${i}`);
+                const rowEl    = document.getElementById(`postgen-row-${i}`);
+                const globalEl = document.getElementById('postgen-global-status');
+
+                if (statusEl) { statusEl.textContent = '⏳ Génération…'; statusEl.style.color = '#7c3aed'; }
+                if (rowEl)    rowEl.style.borderColor = s._color;
+                if (globalEl) globalEl.textContent = `Génération de ${s.city} (${i+1}/${freeStays.length})…`;
+
+                try {
+                    const startDay = stays[i]?.startDay || 0;
+                    const resp = await fetch('/api/generate-program', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            zone: s.city,
+                            hotel_name: s.hotel || '',
+                            nb_days: s.days,
+                            start_day_index: startDay,
+                            start_date: tripData?.outbound?.departureDate || null,
+                            intensity: score.activitiesPerDay >= 6 ? 'intense' : score.activitiesPerDay <= 3 ? 'light' : 'modere',
+                            existing_activities: activities.filter(a => a.dayIndex >= startDay && a.dayIndex < startDay + s.days),
+                            traveler_profile: {
+                                ...travelerProfile,
+                                _score: score  // Envoyer le scoring calculé au serveur
+                            }
+                        })
+                    });
+                    const data = await resp.json();
+
+                    if (data.success && data.program) {
+                        // Insérer les activités générées
+                        let addedCount = 0;
+                        for (const day of data.program) {
+                            if (!day.activities) continue;
+                            for (const act of day.activities) {
+                                const newAct = {
+                                    id: Date.now() + Math.random(),
+                                    source: 'ai',
+                                    dayIndex: act.day_index ?? startDay,
+                                    time: act.time || '09:00',
+                                    time_flexible: true,
+                                    title: act.title,
+                                    description: act.description || '',
+                                    duration_minutes: act.duration_minutes || 60,
+                                    block_type: act.block_type || 'activity',
+                                    meal_type: act.meal_type || null,
+                                    place: act.place || null
+                                };
+                                activities.push(newAct);
+                                addedCount++;
+                            }
+                        }
+                        saveActivities();
+                        generatedCount++;
+                        if (statusEl) { statusEl.textContent = `✅ ${addedCount} activités`; statusEl.style.color = '#10b981'; }
+                        if (rowEl) rowEl.style.background = '#f0fdf4';
+                    } else {
+                        if (statusEl) { statusEl.textContent = '⚠️ À compléter'; statusEl.style.color = '#f59e0b'; }
+                    }
+                } catch(e) {
+                    if (statusEl) { statusEl.textContent = '⚠️ Erreur réseau'; statusEl.style.color = '#ef4444'; }
+                }
+
+                // Petit délai pour ne pas saturer l'API
+                if (i < freeStays.length - 1) await new Promise(r => setTimeout(r, 600));
+            }
+
+            // Toutes les villes traitées
+            const globalEl2 = document.getElementById('postgen-global-status');
+            const goBtn = document.getElementById('postgen-go-btn');
+            if (globalEl2) globalEl2.textContent = generatedCount === freeStays.length
+                ? `✅ ${freeStays.length} villes générées — tout est prêt !`
+                : `✅ Génération terminée (${generatedCount}/${freeStays.length} réussies)`;
+            if (goBtn) { goBtn.disabled = false; goBtn.style.opacity = '1'; }
+
+            renderPlanning();
+        }
+
+        window._postGenGoToPlanning = function() {
+            document.getElementById('wiz-postgen-overlay')?.remove();
+            renderPlanning();
+            updateDayNavigation();
+            // Naviguer vers le 1er jour avec des activités
+            if (activities.length > 0) {
+                const firstDay = Math.min(...activities.map(a => a.dayIndex));
+                if (typeof goToDay === 'function') goToDay(firstDay);
+            }
         };
 
         // ═══════════════════════════════════════════════════════════════════
@@ -4820,16 +4979,53 @@
 
         const PROFILE_KEY = 'japan_traveler_profile_v1';
 
-        // Structure par défaut
+        // Structure par défaut — critères complets de personnalisation
         const PROFILE_DEFAULT = {
             travel_type: '',        // solo|couple|famille|amis|groupe
-            interests: [],          // culture|art|nature|gastro|shopping|pop|wellness|adventure|experiences
+            interests: [],          // culture|art|nature|gastro|shopping|pop|wellness|adventure|experiences|musees
+            // Ordre de sélection des intérêts stocké pour pondération (1er = plus fort poids)
+            interests_order: [],    // même valeurs que interests, dans l'ordre de sélection
             budget: '',             // econome|modere|confortable|luxe
             constraints: [],        // mobility|vegetarien|vegan|halal|noalcool|nogluten|enfants
-            custom_constraint: ''   // texte libre
+            custom_constraint: '',  // texte libre
+            // Critères de rythme et confort — influencent l'ordre et l'intensité des journées
+            pace: 'modere',         // tranquille|modere|intense — nb activités/jour
+            wake_time: 'normal',    // tot|normal|tard — heure de début des journées
+            crowd_sensitivity: 'neutre', // faible|neutre|forte — éviter horaires/lieux bondés si forte
+            // Préférences d'hébergement (utiles pour la future sélection hôtel post-activités)
+            accom_style: '',        // hotel|ryokan|auberge|airbnb|mixte
         };
 
         let travelerProfile = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null') || { ...PROFILE_DEFAULT };
+        // Migrations silencieuses si champs manquants
+        if (!travelerProfile.pace) travelerProfile.pace = 'modere';
+        if (!travelerProfile.wake_time) travelerProfile.wake_time = 'normal';
+        if (!travelerProfile.crowd_sensitivity) travelerProfile.crowd_sensitivity = 'neutre';
+        if (!travelerProfile.interests_order) travelerProfile.interests_order = [...(travelerProfile.interests||[])];
+
+        // ── Scoring transparent du profil ────────────────────────────────────
+        // Retourne un objet lisible expliquant comment le profil influence les suggestions
+        function _buildProfileScore(profile) {
+            const p = profile || travelerProfile;
+            const score = {
+                activitiesPerDay: { tranquille:3, modere:5, intense:7 }[p.pace] || 5,
+                dayStartHour:     { tot:7, normal:9, tard:10 }[p.wake_time] || 9,
+                avoidCrowdedSlots: p.crowd_sensitivity === 'forte',
+                priorityTypes: (p.interests_order?.length ? p.interests_order : p.interests || []).slice(0, 3),
+                budgetTier:    { econome:1, modere:2, confortable:3, luxe:4 }[p.budget] || 2,
+                groupType:     p.travel_type || 'solo',
+                constraints:   p.constraints || [],
+                // Labels lisibles pour debug/affichage
+                _labels: {
+                    pace:  { tranquille:'Rythme cool (3 activités/j)', modere:'Rythme modéré (5/j)', intense:'Rythme intense (7/j)' }[p.pace] || 'Rythme modéré',
+                    wake:  { tot:'Lève-tôt (7h)', normal:'Départ 9h', tard:'Grasse matinée (10h+)' }[p.wake_time] || 'Départ 9h',
+                    crowd: { forte:'Évite les foules → visites tôt le matin', neutre:'Standard', faible:'Horaires flexibles' }[p.crowd_sensitivity] || 'Standard',
+                    budget:{ econome:'Gratuit/konbini prioritaires', modere:'Restaurants 1000-3000¥', confortable:'Expériences premium OK', luxe:'Ryokan/gastronomique' }[p.budget] || 'Modéré',
+                }
+            };
+            return score;
+        }
+        window._buildProfileScore = _buildProfileScore;
         window._profileCanDismiss = false;
 
         // ── Ouvrir la modale ──────────────────────────────────────────────────
@@ -4952,6 +5148,74 @@
                     value="${p.custom_constraint||''}"
                     oninput="travelerProfile.custom_constraint=this.value"
                     style="width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:9px 12px;font-size:13px;box-sizing:border-box;outline:none">
+            </div>
+
+            <!-- Rythme de voyage -->
+            <div style="margin-bottom:20px">
+                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+                    Rythme de voyage
+                    <span style="font-size:10px;font-weight:400;color:#9ca3af;margin-left:4px">→ nombre d'activités/jour</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                    ${[{id:'tranquille',emoji:'🌸',label:'Tranquille',sub:'2–3/j'},{id:'modere',emoji:'⚖️',label:'Modéré',sub:'4–5/j'},{id:'intense',emoji:'⚡',label:'Intense',sub:'6–7/j'}].map(r=>`
+                    <button onclick="_profileToggle('pace','${r.id}',true)"
+                        id="ppace-${r.id}"
+                        style="border-radius:14px;border:2px solid;padding:9px 6px;cursor:pointer;text-align:center;${pill((p.pace||'modere')===r.id)}">
+                        <div style="font-size:18px;margin-bottom:2px">${r.emoji}</div>
+                        <div style="font-size:11px;font-weight:800">${r.label}</div>
+                        <div style="font-size:9px;opacity:.65;margin-top:1px">${r.sub}</div>
+                    </button>`).join('')}
+                </div>
+            </div>
+
+            <!-- Heure de départ -->
+            <div style="margin-bottom:20px">
+                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+                    Heure de réveil habituelle
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                    ${[{id:'tot',emoji:'🌅',label:'Lève-tôt',sub:'départ 7h'},{id:'normal',emoji:'☀️',label:'Normal',sub:'départ 9h'},{id:'tard',emoji:'😴',label:'Tardif',sub:'départ 10h+'}].map(w=>`
+                    <button onclick="_profileToggle('wake_time','${w.id}',true)"
+                        id="pwake-${w.id}"
+                        style="border-radius:14px;border:2px solid;padding:9px 6px;cursor:pointer;text-align:center;${pill((p.wake_time||'normal')===w.id)}">
+                        <div style="font-size:18px;margin-bottom:2px">${w.emoji}</div>
+                        <div style="font-size:11px;font-weight:800">${w.label}</div>
+                        <div style="font-size:9px;opacity:.65;margin-top:1px">${w.sub}</div>
+                    </button>`).join('')}
+                </div>
+            </div>
+
+            <!-- Sensibilité aux foules -->
+            <div style="margin-bottom:20px">
+                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+                    Sensibilité aux foules
+                    <span style="font-size:10px;font-weight:400;color:#9ca3af;margin-left:4px">→ horaires suggérés</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                    ${[{id:'faible',emoji:'🎉',label:'J\'adore',sub:'ambiance +'},{id:'neutre',emoji:'😐',label:'Neutre',sub:'standard'},{id:'forte',emoji:'🤫',label:'J\'évite',sub:'tôt/tard'}].map(c=>`
+                    <button onclick="_profileToggle('crowd_sensitivity','${c.id}',true)"
+                        id="pcrowd-${c.id}"
+                        style="border-radius:14px;border:2px solid;padding:9px 6px;cursor:pointer;text-align:center;${pill((p.crowd_sensitivity||'neutre')===c.id)}">
+                        <div style="font-size:18px;margin-bottom:2px">${c.emoji}</div>
+                        <div style="font-size:11px;font-weight:800">${c.label}</div>
+                        <div style="font-size:9px;opacity:.65;margin-top:1px">${c.sub}</div>
+                    </button>`).join('')}
+                </div>
+            </div>
+
+            <!-- Ce que l'IA retient -->
+            <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 14px;margin-bottom:8px">
+                <div style="font-size:11px;font-weight:800;color:#475569;margin-bottom:8px">🧠 Ce que l'IA retient de ton profil</div>
+                ${(()=>{
+                    const sc = _buildProfileScore(p);
+                    return `<div style="display:flex;flex-direction:column;gap:5px">
+                        <div style="font-size:11px;color:#64748b;display:flex;gap:6px"><span>⏱️</span><span>${sc._labels.pace}</span></div>
+                        <div style="font-size:11px;color:#64748b;display:flex;gap:6px"><span>🕐</span><span>${sc._labels.wake}</span></div>
+                        <div style="font-size:11px;color:#64748b;display:flex;gap:6px"><span>👥</span><span>${sc._labels.crowd}</span></div>
+                        <div style="font-size:11px;color:#64748b;display:flex;gap:6px"><span>💰</span><span>${sc._labels.budget}</span></div>
+                        ${sc.priorityTypes.length ? `<div style="font-size:11px;color:#64748b;display:flex;gap:6px"><span>🎯</span><span>Priorité : ${sc.priorityTypes.join(' › ')}</span></div>` : ''}
+                    </div>`;
+                })()}
             </div>`;
 
             const isNew = !localStorage.getItem(PROFILE_KEY);
@@ -4973,28 +5237,45 @@
 
             if (single) {
                 travelerProfile[field] = travelerProfile[field] === value ? '' : value;
-                // Mettre à jour tous les boutons du groupe
-                document.querySelectorAll(`[id^="p${field[0]}"]`).forEach(b => {
-                    const id = b.id.replace(/^p[^-]+-/, '').replace(/^p\w+-/, '');
-                });
-                // Refresh simplifié — reparcourir
-                ['solo','couple','famille','amis','groupe'].forEach(id => {
-                    const b = document.getElementById('ptype-'+id);
-                    if (b) b.setAttribute('style', b.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border-color:[^;]+/, pill(travelerProfile.travel_type===id)));
-                });
-                ['econome','modere','confortable','luxe'].forEach(id => {
-                    const b = document.getElementById('pbudget-'+id);
-                    if (b) b.setAttribute('style', b.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border-color:[^;]+/, pill(travelerProfile.budget===id)));
-                });
+                // Refresh tous les boutons du groupe
+                const prefixMap = { travel_type:'ptype', budget:'pbudget', pace:'ppace', wake_time:'pwake', crowd_sensitivity:'pcrowd' };
+                const prefix = prefixMap[field];
+                if (prefix) {
+                    document.querySelectorAll(`[id^="${prefix}-"]`).forEach(b => {
+                        const id = b.id.replace(prefix+'-','');
+                        b.setAttribute('style', b.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border-color:[^;]+/, pill(travelerProfile[field]===id)));
+                    });
+                }
             } else {
                 const arr = travelerProfile[field] || [];
                 const idx = arr.indexOf(value);
-                if (idx === -1) arr.push(value);
-                else arr.splice(idx, 1);
+                if (idx === -1) {
+                    arr.push(value);
+                    // Tracker l'ordre de sélection des intérêts
+                    if (field === 'interests') {
+                        if (!travelerProfile.interests_order) travelerProfile.interests_order = [];
+                        if (!travelerProfile.interests_order.includes(value)) travelerProfile.interests_order.push(value);
+                    }
+                } else {
+                    arr.splice(idx, 1);
+                    if (field === 'interests') {
+                        const oi = (travelerProfile.interests_order||[]).indexOf(value);
+                        if (oi !== -1) travelerProfile.interests_order.splice(oi, 1);
+                    }
+                }
                 travelerProfile[field] = arr;
                 const b = document.getElementById('pint-'+value) || document.getElementById('pconst-'+value);
                 if (b) b.setAttribute('style', b.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border-color:[^;]+/, pill(arr.includes(value))));
             }
+            // Refresh le résumé IA en bas du formulaire
+            const sc = _buildProfileScore(travelerProfile);
+            const aiBox = document.getElementById('profile-ai-summary');
+            if (aiBox) aiBox.innerHTML = `
+                <div style="font-size:11px;color:#64748b;display:flex;gap:6px"><span>⏱️</span><span>${sc._labels.pace}</span></div>
+                <div style="font-size:11px;color:#64748b;display:flex;gap:6px"><span>🕐</span><span>${sc._labels.wake}</span></div>
+                <div style="font-size:11px;color:#64748b;display:flex;gap:6px"><span>👥</span><span>${sc._labels.crowd}</span></div>
+                <div style="font-size:11px;color:#64748b;display:flex;gap:6px"><span>💰</span><span>${sc._labels.budget}</span></div>
+                ${sc.priorityTypes.length ? `<div style="font-size:11px;color:#64748b;display:flex;gap:6px"><span>🎯</span><span>Priorité : ${sc.priorityTypes.join(' › ')}</span></div>` : ''}`;
         };
 
         // ── Sauvegarder ──────────────────────────────────────────────────────
