@@ -2400,7 +2400,7 @@
                         }).join('')}
                     </div>` : ''}
 
-                    <!-- Formulaire ajout -->
+                    <!-- Formulaire ajout — masqué si quota épuisé -->
                     <div style="background:white;border:2px solid #e9d5ff;border-radius:16px;padding:13px" id="free-add-form">
                         <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px">➕ Ajouter une étape</div>
 
@@ -2416,8 +2416,8 @@
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;padding:9px 12px;background:#faf5ff;border-radius:12px">
                             <div style="font-size:11px;font-weight:700;color:#7c3aed;flex:1">Nombre de nuits</div>
                             <button onclick="_wizFreeFormAdj(-1)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:15px;cursor:pointer;color:#7c3aed;padding:0;line-height:1">−</button>
-                            <div style="min-width:28px;text-align:center;font-size:17px;font-weight:900;color:${daysLeft<=0?'#ef4444':'#7c3aed'}" id="free-days-count">${Math.max(1,Math.min(3,Math.max(1,daysLeft)))}</div>
-                            <button id="free-days-plus" onclick="_wizFreeFormAdj(+1)" ${daysLeft<=0?'disabled':''} style="width:28px;height:28px;border-radius:50%;border:2px solid ${daysLeft<=0?'#fecaca':'#e9d5ff'};background:${daysLeft<=0?'#fef2f2':'white'};font-size:15px;cursor:${daysLeft<=0?'not-allowed':'pointer'};color:${daysLeft<=0?'#fca5a5':'#7c3aed'};padding:0;line-height:1">+</button>
+                            <div style="min-width:28px;text-align:center;font-size:17px;font-weight:900;color:#7c3aed" id="free-days-count">${Math.max(1,Math.min(3,Math.max(1,daysLeft)))}</div>
+                            <button id="free-days-plus" onclick="_wizFreeFormAdj(+1)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:15px;cursor:pointer;color:#7c3aed;padding:0;line-height:1">+</button>
                         </div>
 
                         <!-- Hôtel -->
@@ -2434,9 +2434,24 @@
                 </div>
             `;
 
-            _wiz._freeFormDays = Math.max(1, Math.min(3, daysLeft || 1));
+            _wiz._freeFormDays = Math.max(1, Math.min(3, Math.max(1, daysLeft)));
             const dc = document.getElementById('free-days-count');
             if (dc) dc.textContent = _wiz._freeFormDays;
+            // Masquer le formulaire d'ajout si quota épuisé, sinon styler le + selon reste
+            const addForm = document.getElementById('free-add-form');
+            if (addForm) addForm.style.display = daysLeft <= 0 ? 'none' : 'block';
+            // Styler le compteur + bouton + selon daysLeft
+            const dcEl = document.getElementById('free-days-count');
+            if (dcEl) dcEl.style.color = daysLeft <= 0 ? '#ef4444' : '#7c3aed';
+            const plusBtn = document.getElementById('free-days-plus');
+            if (plusBtn) {
+                const atMax = daysLeft <= 0 || _wiz._freeFormDays >= daysLeft;
+                plusBtn.disabled = atMax;
+                plusBtn.style.borderColor = atMax ? '#fecaca' : '#e9d5ff';
+                plusBtn.style.background  = atMax ? '#fef2f2' : 'white';
+                plusBtn.style.color       = atMax ? '#fca5a5' : '#7c3aed';
+                plusBtn.style.cursor      = atMax ? 'not-allowed' : 'pointer';
+            }
 
             // Footer
             const canFinish = _wiz._freeStays.length > 0;
@@ -2707,45 +2722,38 @@
                 overlay.style.cssText = 'position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center';
                 document.body.appendChild(overlay);
             }
-            let nights = Math.max(1, Math.min(suggestedNights, maxNights));
-            overlay.innerHTML = `
-                <div style="width:100%;max-width:480px;background:white;border-radius:24px 24px 0 0;padding:20px;padding-bottom:max(env(safe-area-inset-bottom,20px),20px)">
-                    <div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 16px"></div>
-                    <div style="font-size:16px;font-weight:900;color:#111827;margin-bottom:4px">🏨 Ajouter un hôtel</div>
-                    <div style="font-size:12px;color:#6b7280;margin-bottom:16px">${s.city} · Nuit${nights>1?'s':''} <span id="hp-from">${fromNight}</span> à <span id="hp-to">${fromNight+nights-1}</span></div>
-
-                    <!-- Nom hôtel -->
-                    <div style="margin-bottom:12px">
-                        <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Nom de l'hôtel / ryokan</label>
-                        <input id="hp-hotel-input" type="text" placeholder="Ex: Kyoto Granvia, Nishiyama Ryokan…"
-                            style="width:100%;border:2px solid #e9d5ff;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;outline:none">
-                    </div>
-
-                    <!-- Nombre de nuits de cet hôtel -->
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 12px;background:#faf5ff;border-radius:12px">
-                        <div style="font-size:11px;font-weight:700;color:#7c3aed;flex:1">Nombre de nuits dans cet hôtel</div>
-                        <button onclick="(()=>{
-                            const el=document.getElementById('hp-nights-val');
-                            const n=Math.max(1,parseInt(el.textContent)-1);
-                            el.textContent=n;
-                            document.getElementById('hp-to').textContent=${fromNight}+n-1;
-                        })()" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;cursor:pointer;color:#7c3aed;font-size:16px;padding:0">−</button>
-                        <div id="hp-nights-val" style="min-width:24px;text-align:center;font-size:17px;font-weight:900;color:#7c3aed">${nights}</div>
-                        <button onclick="(()=>{
-                            const el=document.getElementById('hp-nights-val');
-                            const n=Math.min(${maxNights},parseInt(el.textContent)+1);
-                            el.textContent=n;
-                            document.getElementById('hp-to').textContent=${fromNight}+n-1;
-                        })()" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;cursor:pointer;color:#7c3aed;font-size:16px;padding:0">+</button>
-                    </div>
-
-                    <div style="display:flex;gap:10px">
-                        <button onclick="document.getElementById('wiz-hotel-period-modal').remove()" style="flex:1;padding:12px;background:#f3f4f6;border:none;border-radius:14px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer">Annuler</button>
-                        <button onclick="_wizConfirmHotelPeriod(${stayIdx},${fromNight})" style="flex:2;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:14px;font-weight:900;cursor:pointer">✅ Confirmer</button>
-                    </div>
-                </div>`;
+            const nights = Math.max(1, Math.min(suggestedNights, maxNights));
+            overlay.innerHTML = [
+                '<div style="width:100%;max-width:480px;background:white;border-radius:24px 24px 0 0;padding:20px">',
+                  '<div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 16px"></div>',
+                  '<div style="font-size:16px;font-weight:900;color:#111827;margin-bottom:4px">\u{1F3E8} Ajouter un h\u00F4tel</div>',
+                  '<div style="font-size:12px;color:#6b7280;margin-bottom:16px">' + s.city + ' &middot; Nuit <span id="hp-from">' + fromNight + '</span> \u00E0 <span id="hp-to">' + (fromNight+nights-1) + '</span></div>',
+                  '<div style="margin-bottom:12px">',
+                    '<label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">H\u00F4tel / ryokan</label>',
+                    '<input id="hp-hotel-input" type="text" placeholder="Ex: Kyoto Granvia, Nishiyama Ryokan\u2026" style="width:100%;border:2px solid #e9d5ff;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;outline:none">',
+                  '</div>',
+                  '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 12px;background:#faf5ff;border-radius:12px">',
+                    '<div style="font-size:11px;font-weight:700;color:#7c3aed;flex:1">Nuits dans cet h\u00F4tel</div>',
+                    '<button onclick="_wizHPAdj(-1,' + maxNights + ',' + fromNight + ')" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;cursor:pointer;color:#7c3aed;font-size:16px;padding:0">\u2212</button>',
+                    '<div id="hp-nights-val" style="min-width:24px;text-align:center;font-size:17px;font-weight:900;color:#7c3aed">' + nights + '</div>',
+                    '<button onclick="_wizHPAdj(1,' + maxNights + ',' + fromNight + ')" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;cursor:pointer;color:#7c3aed;font-size:16px;padding:0">+</button>',
+                  '</div>',
+                  '<div style="display:flex;gap:10px">',
+                    '<button onclick="document.getElementById(\'wiz-hotel-period-modal\').remove()" style="flex:1;padding:12px;background:#f3f4f6;border:none;border-radius:14px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer">Annuler</button>',
+                    '<button onclick="_wizConfirmHotelPeriod(' + stayIdx + ',' + fromNight + ')" style="flex:2;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:14px;font-weight:900;cursor:pointer">\u2705 Confirmer</button>',
+                  '</div>',
+                '</div>'
+            ].join('');
         }
 
+        window._wizHPAdj = function(delta, maxNights, fromNight) {
+            const el = document.getElementById('hp-nights-val');
+            if (!el) return;
+            const n = Math.max(1, Math.min(maxNights, parseInt(el.textContent) + delta));
+            el.textContent = n;
+            const toEl = document.getElementById('hp-to');
+            if (toEl) toEl.textContent = fromNight + n - 1;
+        };
         window._wizConfirmHotelPeriod = function(stayIdx, fromNight) {
             const s = _wiz._freeStays[stayIdx];
             const hotelName = document.getElementById('hp-hotel-input')?.value?.trim();
@@ -2855,8 +2863,8 @@
                     <div id="postgen-global-status" style="text-align:center;font-size:12px;color:#7c3aed;font-weight:700;margin-bottom:16px;min-height:20px"></div>
 
                     <div style="display:flex;gap:10px">
-                        <button onclick="document.getElementById('wiz-postgen-overlay').remove()" style="flex:1;padding:13px;background:#f3f4f6;border:none;border-radius:14px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer">
-                            Passer → Planning
+                        <button onclick="_postGenCorrect()" style="flex:1;padding:13px;background:#f3f4f6;border:none;border-radius:14px;font-size:13px;font-weight:700;color:#374151;cursor:pointer">
+                            ✏️ Corriger
                         </button>
                         <button id="postgen-go-btn" onclick="_postGenGoToPlanning()" style="flex:2;padding:13px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:14px;font-weight:900;cursor:pointer;opacity:.5" disabled>
                             Voir le planning →
@@ -2945,6 +2953,31 @@
 
             renderPlanning();
         }
+
+        window._postGenCorrect = function() {
+            // Fermer l'overlay post-gen et rouvrir le wizard avec les étapes actuelles
+            document.getElementById('wiz-postgen-overlay')?.remove();
+            // Réinitialiser le wizard en conservant les _freeStays déjà définis
+            // (stays[] → reconstruire _freeStays depuis les séjours sauvegardés)
+            _wiz._freeStays = stays.map(s => ({
+                city:   s.city,
+                emoji:  JAPAN_CITIES.find(c=>c.name.toLowerCase()===s.city.toLowerCase())?.emoji || '📍',
+                days:   s.endDay - s.startDay + 1,
+                hotel:  s.hotelName || '',
+                hotelPeriods: s.hotelPeriods || null,
+                _color: FREE_COLORS[stays.indexOf(s) % FREE_COLORS.length],
+                _lat: s.place?.lat || null,
+                _lng: s.place?.lng || null,
+            }));
+            _wiz._mode = localStorage.getItem('japan_trip_mode') || 'guided';
+            _wiz._pendingPlace = null;
+            // Vider les activités générées pour repartir propre
+            if (confirm('Corriger l\u2019itin\u00E9raire effacera les activit\u00E9s g\u00E9n\u00E9r\u00E9es. Continuer ?')) {
+                activities = activities.filter(a => a.source !== 'ai');
+                saveActivities();
+                openStaysWizard();
+            }
+        };
 
         window._postGenGoToPlanning = function() {
             document.getElementById('wiz-postgen-overlay')?.remove();
