@@ -884,6 +884,15 @@
 
     <div id="day-navigation" class="fixed bottom-0 left-0 right-0 bg-white shadow-2xl z-50 hidden border-t-2 border-gray-100">
         <div class="max-w-md mx-auto">
+            <!-- Bandeau ville du jour -->
+            <div id="day-city-bar" style="display:none;background:rgba(17,7,40,0.88);backdrop-filter:blur(8px);padding:5px 14px;align-items:center;gap:8px;min-height:30px">
+                <span id="day-city-emoji" style="font-size:13px;flex-shrink:0">📍</span>
+                <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:6px;overflow:hidden">
+                    <span id="day-city-name" style="font-size:12px;font-weight:900;color:white;white-space:nowrap"></span>
+                    <span id="day-hotel-name" style="font-size:10px;color:rgba(255,255,255,0.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px"></span>
+                </div>
+                <span id="day-city-nights" style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.45);flex-shrink:0"></span>
+            </div>
             <div class="flex items-center bg-gradient-to-r from-purple-500 to-pink-500 text-white" style="height:64px">
                 <button onclick="previousDay()" id="prev-day-btn" class="flex-shrink-0 flex items-center justify-center active:scale-95 transition-transform" style="width:52px;height:64px;font-size:22px">←</button>
                 <div class="flex-1 text-center cursor-pointer py-1 min-w-0" onclick="showDayPicker()">
@@ -2353,23 +2362,35 @@
                     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
                         ${_wiz._freeStays.map((s,i)=>{
                             const warn = _cityMaxDaysCheck(s.city, s.days);
-                            return `<div style="border:2px solid ${warn?'#fed7aa':s._color+'44'};background:${warn?'#fff7ed':'#faf5ff'};border-radius:14px;padding:11px 12px">
+                            // Rendu des sous-périodes hôtel
+                            const hotelPeriodsHtml = (s.hotelPeriods && s.hotelPeriods.length > 0) ? `
+                                <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
+                                    ${s.hotelPeriods.map((p,pi)=>`
+                                    <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:rgba(124,58,237,0.06);border-radius:8px">
+                                        <span style="font-size:11px">🏨</span>
+                                        <div style="flex:1;min-width:0">
+                                            <div style="font-size:10px;font-weight:700;color:#7c3aed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.hotelName||'Hôtel non défini'}</div>
+                                            <div style="font-size:9px;color:#9ca3af">Nuit${p.nights>1?'s':''} ${p.fromNight}–${p.fromNight+p.nights-1}</div>
+                                        </div>
+                                        <button onclick="_wizRemoveHotelPeriod(${i},${pi})" style="width:18px;height:18px;border-radius:50%;border:1px solid #fecaca;background:#fef2f2;font-size:9px;cursor:pointer;color:#ef4444;padding:0;line-height:1;flex-shrink:0">✕</button>
+                                    </div>`).join('')}
+                                </div>` : (s.hotel ? `<div style="margin-top:4px;font-size:10px;color:#7c3aed;padding:3px 6px;background:rgba(124,58,237,0.06);border-radius:6px;display:inline-flex;align-items:center;gap:4px"><span>🏨</span>${s.hotel}</div>` : '');
+                            return `<div style="border:2px solid ${warn?'#fed7aa':s._color+'55'};background:${warn?'#fff7ed':'#faf5ff'};border-radius:14px;padding:11px 12px">
                                 <div style="display:flex;align-items:center;gap:10px">
                                     <div style="width:28px;height:28px;border-radius:50%;background:${s._color};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:white;flex-shrink:0">${i+1}</div>
                                     <div style="flex:1;min-width:0">
-                                        <div style="font-size:14px;font-weight:800;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.city}</div>
-                                        ${s.hotel?`<div style="font-size:10px;color:#7c3aed">🏨 ${s.hotel}</div>`:''}
+                                        <div style="font-size:14px;font-weight:800;color:#111827">${s.city}</div>
+                                        <div style="font-size:10px;color:#9ca3af">${s.days} nuit${s.days>1?'s':''}</div>
                                     </div>
-                                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+                                    <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
                                         <button onclick="_wizFreeAdjDays(${i},-1)" style="width:26px;height:26px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:14px;cursor:pointer;color:#7c3aed;line-height:1;padding:0">−</button>
-                                        <div style="min-width:32px;text-align:center">
-                                            <div style="font-size:15px;font-weight:900;color:#7c3aed">${s.days}</div>
-                                            <div style="font-size:8px;color:#a78bfa;font-weight:700;line-height:1">nuit${s.days>1?'s':''}</div>
-                                        </div>
+                                        <div style="min-width:26px;text-align:center;font-size:15px;font-weight:900;color:#7c3aed">${s.days}</div>
                                         <button onclick="_wizFreeAdjDays(${i},+1)" style="width:26px;height:26px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:14px;cursor:pointer;color:#7c3aed;line-height:1;padding:0">+</button>
+                                        <button onclick="_wizAddHotelPeriod(${i})" style="width:26px;height:26px;border-radius:50%;border:2px solid #e9d5ff;background:white;font-size:12px;cursor:pointer;color:#7c3aed;line-height:1;padding:0" title="Ajouter un hôtel">🏨</button>
                                         <button onclick="_wizFreeRemove(${i})" style="width:26px;height:26px;border-radius:50%;border:1.5px solid #fecaca;background:#fef2f2;font-size:11px;cursor:pointer;color:#ef4444;line-height:1;padding:0">✕</button>
                                     </div>
                                 </div>
+                                ${hotelPeriodsHtml}
                                 ${warn?`<div style="margin-top:8px;background:#fef3c7;border-radius:8px;padding:7px 9px">
                                     <div style="font-size:10px;font-weight:800;color:#b45309;margin-bottom:4px">⚠️ ${s.days}j à ${warn.city}, c'est peut-être beaucoup…</div>
                                     ${warn.avis.slice(0,3).map(a=>`<div style="font-size:9px;color:#92400e;margin-bottom:1px;line-height:1.4">• ${a}</div>`).join('')}
@@ -2585,9 +2606,15 @@
         }
 
         window._wizFreeFormAdj = function(delta) {
-            _wiz._freeFormDays = Math.max(1, (_wiz._freeFormDays||1) + delta);
+            const daysUsed = _wiz._freeStays.reduce((s,x)=>s+x.days,0);
+            const daysLeft = Math.max(1, _wiz.totalDays - daysUsed);
+            _wiz._freeFormDays = Math.max(1, Math.min(daysLeft, (_wiz._freeFormDays||1) + delta));
             const dc = document.getElementById('free-days-count');
-            if (dc) dc.textContent = _wiz._freeFormDays;
+            if (dc) {
+                dc.textContent = _wiz._freeFormDays;
+                // Feedback visuel si on atteint la limite
+                dc.style.color = _wiz._freeFormDays >= daysLeft ? '#ef4444' : '#7c3aed';
+            }
             const p = _wiz._pendingPlace;
             if (p?.name) _wizFreeCheckWarning(p.name, _wiz._freeFormDays);
         };
@@ -2631,7 +2658,9 @@
         };
 
         window._wizFreeAdjDays = function(idx, delta) {
-            _wiz._freeStays[idx].days = Math.max(1, _wiz._freeStays[idx].days + delta);
+            const otherDays = _wiz._freeStays.reduce((s,x,i)=>i!==idx?s+x.days:s, 0);
+            const maxForThis = Math.max(1, _wiz.totalDays - otherDays);
+            _wiz._freeStays[idx].days = Math.max(1, Math.min(maxForThis, _wiz._freeStays[idx].days + delta));
             _wizardRenderFreeMode(_wiz._mode);
         };
 
@@ -2640,11 +2669,113 @@
             _wizardRenderFreeMode(_wiz._mode);
         };
 
-        window._wizFreeApply = async function() {
-            // 1. Sauvegarder les séjours
+        // ── Multi-hôtel : modale d'ajout de période ────────────────────
+        window._wizAddHotelPeriod = function(stayIdx) {
+            const s = _wiz._freeStays[stayIdx];
+            if (!s) return;
+            // Calcul des nuits déjà couvertes
+            const covered = (s.hotelPeriods||[]).reduce((t,p)=>t+p.nights,0);
+            const remaining = s.days - covered;
+            if (remaining <= 0) {
+                // Toutes les nuits déjà assignées — proposer de modifier
+                _wizShowHotelPeriodModal(stayIdx, covered + 1, Math.min(1, s.days));
+                return;
+            }
+            _wizShowHotelPeriodModal(stayIdx, covered + 1, remaining);
+        };
+
+        function _wizShowHotelPeriodModal(stayIdx, fromNight, suggestedNights) {
+            const s = _wiz._freeStays[stayIdx];
+            const maxNights = s.days - ((s.hotelPeriods||[]).reduce((t,p)=>t+p.nights,0));
+            let overlay = document.getElementById('wiz-hotel-period-modal');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'wiz-hotel-period-modal';
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center';
+                document.body.appendChild(overlay);
+            }
+            let nights = Math.max(1, Math.min(suggestedNights, maxNights));
+            overlay.innerHTML = `
+                <div style="width:100%;max-width:480px;background:white;border-radius:24px 24px 0 0;padding:20px;padding-bottom:max(env(safe-area-inset-bottom,20px),20px)">
+                    <div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 16px"></div>
+                    <div style="font-size:16px;font-weight:900;color:#111827;margin-bottom:4px">🏨 Ajouter un hôtel</div>
+                    <div style="font-size:12px;color:#6b7280;margin-bottom:16px">${s.city} · Nuit${nights>1?'s':''} <span id="hp-from">${fromNight}</span> à <span id="hp-to">${fromNight+nights-1}</span></div>
+
+                    <!-- Nom hôtel -->
+                    <div style="margin-bottom:12px">
+                        <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Nom de l'hôtel / ryokan</label>
+                        <input id="hp-hotel-input" type="text" placeholder="Ex: Kyoto Granvia, Nishiyama Ryokan…"
+                            style="width:100%;border:2px solid #e9d5ff;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;outline:none">
+                    </div>
+
+                    <!-- Nombre de nuits de cet hôtel -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 12px;background:#faf5ff;border-radius:12px">
+                        <div style="font-size:11px;font-weight:700;color:#7c3aed;flex:1">Nombre de nuits dans cet hôtel</div>
+                        <button onclick="(()=>{
+                            const el=document.getElementById('hp-nights-val');
+                            const n=Math.max(1,parseInt(el.textContent)-1);
+                            el.textContent=n;
+                            document.getElementById('hp-to').textContent=${fromNight}+n-1;
+                        })()" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;cursor:pointer;color:#7c3aed;font-size:16px;padding:0">−</button>
+                        <div id="hp-nights-val" style="min-width:24px;text-align:center;font-size:17px;font-weight:900;color:#7c3aed">${nights}</div>
+                        <button onclick="(()=>{
+                            const el=document.getElementById('hp-nights-val');
+                            const n=Math.min(${maxNights},parseInt(el.textContent)+1);
+                            el.textContent=n;
+                            document.getElementById('hp-to').textContent=${fromNight}+n-1;
+                        })()" style="width:28px;height:28px;border-radius:50%;border:2px solid #e9d5ff;background:white;cursor:pointer;color:#7c3aed;font-size:16px;padding:0">+</button>
+                    </div>
+
+                    <div style="display:flex;gap:10px">
+                        <button onclick="document.getElementById('wiz-hotel-period-modal').remove()" style="flex:1;padding:12px;background:#f3f4f6;border:none;border-radius:14px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer">Annuler</button>
+                        <button onclick="_wizConfirmHotelPeriod(${stayIdx},${fromNight})" style="flex:2;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:14px;font-weight:900;cursor:pointer">✅ Confirmer</button>
+                    </div>
+                </div>`;
+        }
+
+        window._wizConfirmHotelPeriod = function(stayIdx, fromNight) {
+            const s = _wiz._freeStays[stayIdx];
+            const hotelName = document.getElementById('hp-hotel-input')?.value?.trim();
+            const nights = parseInt(document.getElementById('hp-nights-val')?.textContent) || 1;
+            if (!hotelName) {
+                document.getElementById('hp-hotel-input').style.borderColor = '#ef4444';
+                return;
+            }
+            if (!s.hotelPeriods) s.hotelPeriods = [];
+            s.hotelPeriods.push({ hotelName, fromNight, nights, toDay: fromNight + nights - 2 });
+            // Recalcul fromDay/toDay relatifs en absolu
+            const stayStart = _wiz._freeStays.slice(0,stayIdx).reduce((t,x)=>t+x.days,0);
+            s.hotelPeriods = s.hotelPeriods.map(p => ({
+                ...p,
+                fromDay: stayStart + p.fromNight - 1,
+                toDay:   stayStart + p.fromNight + p.nights - 2
+            }));
+            document.getElementById('wiz-hotel-period-modal')?.remove();
+            _wizardRenderFreeMode(_wiz._mode);
+        };
+
+        window._wizRemoveHotelPeriod = function(stayIdx, periodIdx) {
+            const s = _wiz._freeStays[stayIdx];
+            if (s?.hotelPeriods) {
+                s.hotelPeriods.splice(periodIdx, 1);
+                _wizardRenderFreeMode(_wiz._mode);
+            }
+        };
+
+                window._wizFreeApply = async function() {
+            // 1. Sauvegarder les séjours (avec multi-hôtel si défini)
             let cursor = 0;
             stays = _wiz._freeStays.map(s => {
-                const stay = { city:s.city, hotelName:s.hotel||'', address:'', place:null, price:'', currency:'EUR', startDay:cursor, endDay:cursor+s.days-1 };
+                // hôtel principal = 1er défini, ou champ hotel du formulaire
+                const mainHotel = s.hotelPeriods?.length ? s.hotelPeriods[0].hotelName : (s.hotel||'');
+                const stay = {
+                    city: s.city,
+                    hotelName: mainHotel,
+                    address: '', place: null, price: '', currency: 'EUR',
+                    startDay: cursor, endDay: cursor + s.days - 1,
+                    // Conserver les sous-périodes pour _getHotelForDay
+                    hotelPeriods: s.hotelPeriods?.length ? s.hotelPeriods : null
+                };
                 cursor += s.days;
                 return stay;
             });
@@ -3259,19 +3390,46 @@
 
         function updateDayNavigation() {
             if (!tripData) return;
-            
+
             const dayDate = getDayDate(currentDayIndex);
             document.getElementById('day-counter').textContent = `JOUR ${currentDayIndex + 1}/${tripData.totalDays}`;
             document.getElementById('current-day-date').textContent = formatDate(dayDate);
-            
             document.getElementById('prev-day-btn').disabled = currentDayIndex === 0;
             document.getElementById('next-day-btn').disabled = currentDayIndex === tripData.totalDays - 1;
-            
             document.getElementById('prev-day-btn').style.opacity = currentDayIndex === 0 ? '0.3' : '1';
             document.getElementById('next-day-btn').style.opacity = currentDayIndex === tripData.totalDays - 1 ? '0.3' : '1';
-            
-            // Synchroniser les toggles des onglets
+
+            // ── Bandeau ville + hôtel du jour ──────────────────────────────
+            const bar      = document.getElementById('day-city-bar');
+            const cityEl   = document.getElementById('day-city-name');
+            const hotelEl  = document.getElementById('day-hotel-name');
+            const emojiEl  = document.getElementById('day-city-emoji');
+            const nightsEl = document.getElementById('day-city-nights');
+            const stay = getStayForDay(currentDayIndex);
+            if (stay && bar) {
+                const activeHotel = _getHotelForDay(currentDayIndex, stay);
+                const cityEmoji = JAPAN_CITIES.find(c => c.name.toLowerCase() === stay.city.toLowerCase())?.emoji || '\u{1F4CD}';
+                const nightInCity = currentDayIndex - stay.startDay + 1;
+                const totalNights = stay.endDay - stay.startDay + 1;
+                bar.style.display = 'flex';
+                if (emojiEl)  emojiEl.textContent  = cityEmoji;
+                if (cityEl)   cityEl.textContent    = stay.city;
+                if (hotelEl)  hotelEl.textContent   = activeHotel ? '\u{1F3E8} ' + activeHotel : '';
+                if (nightsEl) nightsEl.textContent  = `Nuit ${nightInCity}/${totalNights}`;
+            } else if (bar) {
+                bar.style.display = 'none';
+            }
             syncTabToggles();
+        }
+
+        // Hôtel actif pour un jour précis (supporte multi-hôtel sur même période)
+        function _getHotelForDay(dayIndex, stay) {
+            if (!stay) return null;
+            if (stay.hotelPeriods?.length) {
+                const p = stay.hotelPeriods.find(p => dayIndex >= p.fromDay && dayIndex <= p.toDay);
+                return p?.hotelName || stay.hotelName || null;
+            }
+            return stay.hotelName || null;
         }
 
         function previousDay() {
