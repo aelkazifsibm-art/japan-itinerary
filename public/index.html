@@ -3320,6 +3320,7 @@
 
         // ── Écran post-wizard : génération auto des suggestions par ville ──
         async function _showWizPostGenScreen(freeStays) {
+            console.log('[POSTGEN] freeStays reçus:', JSON.stringify(freeStays.map(s=>({city:s.city,days:s.days}))));
             const score = _buildProfileScore(travelerProfile);
             const hasProfile = travelerProfile.interests?.length > 0 || travelerProfile.budget;
 
@@ -3391,6 +3392,7 @@
                 try {
                     // Calculer startDay depuis le snapshot (pas depuis stays[] qui peut désynchroniser)
                     const startDay = freeStays.slice(0, i).reduce((sum, fs) => sum + fs.days, 0);
+                    console.log(`[POSTGEN] Génération ville ${i}: ${s.city}, startDay=${startDay}, nb_days=${s.days}`);
                     const resp = await fetch('/api/generate-program', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -3410,11 +3412,13 @@
                     });
                     const data = await resp.json();
 
+                    console.log(`[POSTGEN] Réponse ville ${i} (${s.city}): success=${data.success}, program.length=${data.program?.length}, program[0] keys=${data.program?.[0] ? Object.keys(data.program[0]).join(',') : 'N/A'}`);
                     if (data.success && data.program) {
                         // Le serveur retourne day.blocks[] (pas day.activities)
                         // Même logique que _renderGenResult
                         let addedCount = 0;
                         for (const day of data.program) {
+                            console.log(`[POSTGEN]   day.day_index=${day.day_index}, blocks.length=${day.blocks?.length}, activities.length=${day.activities?.length}`);
                             const dayIdx = day.day_index ?? startDay;
                             const blocks = day.blocks || [];
                             for (const blk of blocks) {
