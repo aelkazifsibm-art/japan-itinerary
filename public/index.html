@@ -1662,58 +1662,181 @@
             { code:'OKA', city:'Okinawa', emoji:'🌊', name:'Naha Okinawa',         tip:'Monorail Yui Rail direct' },
         ];
 
-        // Aéroports de départ (pays d'origine) — pour estimation heure d'arrivée
+        // Aéroports de départ — liste complète pour l'autocomplete
         const HOME_AIRPORTS = [
-            { code:'CDG', name:'Paris Charles de Gaulle', country:'🇫🇷' },
-            { code:'ORY', name:'Paris Orly',              country:'🇫🇷' },
-            { code:'LYS', name:'Lyon Saint-Exupéry',      country:'🇫🇷' },
-            { code:'NCE', name:'Nice C\u00F4te d\u2019Azur', country:'\U0001F1EB\U0001F1F7' },
-            { code:'MRS', name:'Marseille Provence',       country:'🇫🇷' },
-            { code:'BOD', name:'Bordeaux Mérignac',        country:'🇫🇷' },
-            { code:'LHR', name:'Londres Heathrow',         country:'🇬🇧' },
-            { code:'LGW', name:'Londres Gatwick',           country:'\U0001F1EC\U0001F1E7' },
-            { code:'MAN', name:'Manchester',               country:'🇬🇧' },
-            { code:'FRA', name:'Francfort',                country:'🇩🇪' },
-            { code:'MUC', name:'Munich',                   country:'🇩🇪' },
-            { code:'AMS', name:'Amsterdam Schiphol',       country:'🇳🇱' },
-            { code:'BRU', name:'Bruxelles Zaventem',       country:'🇧🇪' },
-            { code:'ZRH', name:'Zurich',                   country:'🇨🇭' },
-            { code:'GVA', name:'Genève',                   country:'🇨🇭' },
-            { code:'MAD', name:'Madrid Barajas',           country:'🇪🇸' },
-            { code:'BCN', name:'Barcelone El Prat',        country:'🇪🇸' },
-            { code:'FCO', name:'Rome Fiumicino',           country:'🇮🇹' },
-            { code:'MXP', name:'Milan Malpensa',           country:'🇮🇹' },
-            { code:'VIE', name:'Vienne',                   country:'🇦🇹' },
-            { code:'WAW', name:'Varsovie Chopin',          country:'🇵🇱' },
-            { code:'DXB', name:'Dubaï',                   country:'🇦🇪' },
-            { code:'DOH', name:'Doha Hamad',               country:'🇶🇦' },
-            { code:'AUH', name:'Abu Dhabi',                country:'🇦🇪' },
-            { code:'BKK', name:'Bangkok Suvarnabhumi',     country:'🇹🇭' },
-            { code:'SIN', name:'Singapour Changi',         country:'🇸🇬' },
-            { code:'KUL', name:'Kuala Lumpur KLIA',        country:'🇲🇾' },
-            { code:'JFK', name:'New York JFK',             country:'🇺🇸' },
-            { code:'LAX', name:'Los Angeles',              country:'🇺🇸' },
-            { code:'SFO', name:'San Francisco',            country:'🇺🇸' },
+            // ── France ──────────────────────────────────────────────────────
+            { code:'CDG', name:'Paris Charles de Gaulle',  country:'🇫🇷', region:'France' },
+            { code:'ORY', name:'Paris Orly',               country:'🇫🇷', region:'France' },
+            { code:'LYS', name:'Lyon Saint-Exupéry',       country:'🇫🇷', region:'France' },
+            { code:'NCE', name:'Nice Côte d\u2019Azur',    country:'🇫🇷', region:'France' },
+            { code:'MRS', name:'Marseille Provence',        country:'🇫🇷', region:'France' },
+            { code:'BOD', name:'Bordeaux Mérignac',         country:'🇫🇷', region:'France' },
+            { code:'TLS', name:'Toulouse Blagnac',          country:'🇫🇷', region:'France' },
+            { code:'NTE', name:'Nantes Atlantique',         country:'🇫🇷', region:'France' },
+            { code:'LIL', name:'Lille Lesquin',             country:'🇫🇷', region:'France' },
+            { code:'SXB', name:'Strasbourg Entzheim',       country:'🇫🇷', region:'France' },
+            { code:'BIA', name:'Ajaccio (Corse)',               country:'🇫🇷', region:'France' },
+            { code:'MPL', name:'Montpellier M\u00E9diterran\u00E9e', country:'🇫🇷', region:'France' },
+            { code:'CLY', name:'Calvi (Corse)',                 country:'🇫🇷', region:'France' },
+            { code:'RNS', name:'Rennes Saint-Jacques',          country:'🇫🇷', region:'France' },
+            { code:'GNB', name:'Grenoble-Is\u00E8re',           country:'🇫🇷', region:'France' },
+            { code:'CFE', name:'Clermont-Ferrand Auvergne',     country:'🇫🇷', region:'France' },
+            { code:'LRH', name:'La Rochelle-\u00CEle de R\u00E9',country:'🇫🇷', region:'France' },
+            { code:'TUF', name:'Tours Val de Loire',            country:'🇫🇷', region:'France' },
+            { code:'PGF', name:'Perpignan Rivesaltes',          country:'🇫🇷', region:'France' },
+            { code:'ETZ', name:'Metz-Nancy Lorraine',           country:'🇫🇷', region:'France' },
+            { code:'DNR', name:'Dinard Pleurtuit',              country:'🇫🇷', region:'France' },
+            { code:'BZR', name:'B\u00E9ziers Cap d\u2019Agde',  country:'🇫🇷', region:'France' },
+            { code:'CCF', name:'Carcassonne',                   country:'🇫🇷', region:'France' },
+            { code:'LIG', name:'Limoges Bellegarde',            country:'🇫🇷', region:'France' },
+            { code:'CHR', name:'Ch\u00E2teauroux',              country:'🇫🇷', region:'France' },
+            { code:'PIS', name:'Poitiers Biard',                country:'🇫🇷', region:'France' },
+            { code:'LDE', name:'Lourdes Tarbes Pyr\u00E9n\u00E9es', country:'🇫🇷', region:'France' },
+            { code:'PUF', name:'Pau Pyr\u00E9n\u00E9es',       country:'🇫🇷', region:'France' },
+            { code:'AJA', name:'Figari Sud Corse',              country:'🇫🇷', region:'France' },
+            { code:'FSC', name:'Figari',                        country:'🇫🇷', region:'France' },
+            { code:'CAY', name:'Cayenne (Guyane)',              country:'🇫🇷', region:'DOM-TOM' },
+            { code:'PTP', name:'Pointe-\u00E0-Pitre (Guadeloupe)', country:'🇫🇷', region:'DOM-TOM' },
+            { code:'FDF', name:'Fort-de-France (Martinique)',   country:'🇫🇷', region:'DOM-TOM' },
+            { code:'RUN', name:'Saint-Denis R\u00E9union',      country:'🇫🇷', region:'DOM-TOM' },
+            // ── UK ──────────────────────────────────────────────────────────
+            { code:'LHR', name:'Londres Heathrow',          country:'🇬🇧', region:'UK' },
+            { code:'LGW', name:'Londres Gatwick',           country:'🇬🇧', region:'UK' },
+            { code:'MAN', name:'Manchester',                country:'🇬🇧', region:'UK' },
+            { code:'BHX', name:'Birmingham',                country:'🇬🇧', region:'UK' },
+            { code:'EDI', name:'Édimbourg',                 country:'🇬🇧', region:'UK' },
+            { code:'DUB', name:'Dublin',                    country:'🇮🇪', region:'Irlande' },
+            // ── Allemagne ───────────────────────────────────────────────────
+            { code:'FRA', name:'Francfort',                 country:'🇩🇪', region:'Allemagne' },
+            { code:'MUC', name:'Munich',                    country:'🇩🇪', region:'Allemagne' },
+            { code:'BER', name:'Berlin Brandenburg',        country:'🇩🇪', region:'Allemagne' },
+            { code:'DUS', name:'Düsseldorf',                country:'🇩🇪', region:'Allemagne' },
+            { code:'HAM', name:'Hambourg',                  country:'🇩🇪', region:'Allemagne' },
+            { code:'STR', name:'Stuttgart',                 country:'🇩🇪', region:'Allemagne' },
+            // ── Pays-Bas / Belgique ─────────────────────────────────────────
+            { code:'AMS', name:'Amsterdam Schiphol',        country:'🇳🇱', region:'Pays-Bas' },
+            { code:'BRU', name:'Bruxelles Zaventem',        country:'🇧🇪', region:'Belgique' },
+            // ── Suisse / Autriche ────────────────────────────────────────────
+            { code:'ZRH', name:'Zurich',                    country:'🇨🇭', region:'Suisse' },
+            { code:'GVA', name:'Genève',                    country:'🇨🇭', region:'Suisse' },
+            { code:'BSL', name:'B\u00E2le-Mulhouse / Basel EuroAirport', country:'🇫🇷', region:'France / Suisse', aliases:'bale mulhouse basel euroairport' },
+            { code:'VIE', name:'Vienne',                    country:'🇦🇹', region:'Autriche' },
+            // ── Espagne / Portugal ──────────────────────────────────────────
+            { code:'MAD', name:'Madrid Barajas',            country:'🇪🇸', region:'Espagne' },
+            { code:'BCN', name:'Barcelone El Prat',         country:'🇪🇸', region:'Espagne' },
+            { code:'AGP', name:'Malaga',                    country:'🇪🇸', region:'Espagne' },
+            { code:'VLC', name:'Valence',                   country:'🇪🇸', region:'Espagne' },
+            { code:'PMI', name:'Palma de Majorque',         country:'🇪🇸', region:'Espagne' },
+            { code:'LIS', name:'Lisbonne',                  country:'🇵🇹', region:'Portugal' },
+            { code:'OPO', name:'Porto',                     country:'🇵🇹', region:'Portugal' },
+            // ── Italie ──────────────────────────────────────────────────────
+            { code:'FCO', name:'Rome Fiumicino',            country:'🇮🇹', region:'Italie' },
+            { code:'MXP', name:'Milan Malpensa',            country:'🇮🇹', region:'Italie' },
+            { code:'VCE', name:'Venise Marco Polo',         country:'🇮🇹', region:'Italie' },
+            { code:'NAP', name:'Naples',                    country:'🇮🇹', region:'Italie' },
+            // ── Scandinavie ─────────────────────────────────────────────────
+            { code:'HEL', name:'Helsinki',                  country:'🇫🇮', region:'Finlande' },
+            { code:'CPH', name:'Copenhague',                country:'🇩🇰', region:'Danemark' },
+            { code:'ARN', name:'Stockholm Arlanda',         country:'🇸🇪', region:'Suède' },
+            { code:'OSL', name:'Oslo Gardermoen',           country:'🇳🇴', region:'Norvège' },
+            // ── Europe de l'Est ──────────────────────────────────────────────
+            { code:'WAW', name:'Varsovie Chopin',           country:'🇵🇱', region:'Pologne' },
+            { code:'KRK', name:'Cracovie',                  country:'🇵🇱', region:'Pologne' },
+            { code:'PRG', name:'Prague',                    country:'🇨🇿', region:'Tchéquie' },
+            { code:'BUD', name:'Budapest',                  country:'🇭🇺', region:'Hongrie' },
+            { code:'ATH', name:'Athènes',                   country:'🇬🇷', region:'Grèce' },
+            { code:'IST', name:'Istanbul (Europe)',         country:'🇹🇷', region:'Turquie' },
+            // ── Moyen-Orient ─────────────────────────────────────────────────
+            { code:'DXB', name:'Dubaï',                     country:'🇦🇪', region:'Émirats' },
+            { code:'AUH', name:'Abu Dhabi',                 country:'🇦🇪', region:'Émirats' },
+            { code:'DOH', name:'Doha Hamad',                country:'🇶🇦', region:'Qatar' },
+            { code:'RUH', name:'Riyad',                     country:'🇸🇦', region:'Arabie Saoudite' },
+            { code:'JED', name:'Djeddah',                   country:'🇸🇦', region:'Arabie Saoudite' },
+            { code:'TLV', name:'Tel Aviv Ben Gourion',      country:'🇮🇱', region:'Israël' },
+            { code:'CAI', name:'Le Caire',                  country:'🇪🇬', region:'Égypte' },
+            // ── Asie du Sud ───────────────────────────────────────────────────
+            { code:'DEL', name:'New Delhi',                 country:'🇮🇳', region:'Inde' },
+            { code:'BOM', name:'Mumbai',                    country:'🇮🇳', region:'Inde' },
+            { code:'BLR', name:'Bangalore',                 country:'🇮🇳', region:'Inde' },
+            { code:'MAA', name:'Chennai',                   country:'🇮🇳', region:'Inde' },
+            { code:'CCU', name:'Calcutta',                  country:'🇮🇳', region:'Inde' },
+            // ── Asie du Sud-Est ───────────────────────────────────────────────
+            { code:'BKK', name:'Bangkok Suvarnabhumi',      country:'🇹🇭', region:'Thaïlande' },
+            { code:'DMK', name:'Bangkok Don Mueang',        country:'🇹🇭', region:'Thaïlande' },
+            { code:'SIN', name:'Singapour Changi',          country:'🇸🇬', region:'Singapour' },
+            { code:'KUL', name:'Kuala Lumpur KLIA',         country:'🇲🇾', region:'Malaisie' },
+            { code:'MNL', name:'Manille Ninoy Aquino',      country:'🇵🇭', region:'Philippines' },
+            { code:'SGN', name:'Hô Chi Minh-Ville',         country:'🇻🇳', region:'Vietnam' },
+            { code:'HAN', name:'Hanoï Noi Bai',             country:'🇻🇳', region:'Vietnam' },
+            { code:'CGK', name:'Jakarta Soekarno-Hatta',    country:'🇮🇩', region:'Indonésie' },
+            // ── Asie de l'Est ─────────────────────────────────────────────────
+            { code:'ICN', name:'Séoul Incheon',             country:'🇰🇷', region:'Corée du Sud' },
+            { code:'PVG', name:'Shanghai Pudong',           country:'🇨🇳', region:'Chine' },
+            { code:'PEK', name:'Pékin Capital',             country:'🇨🇳', region:'Chine' },
+            { code:'HKG', name:'Hong Kong',                 country:'🇭🇰', region:'Hong Kong' },
+            { code:'TPE', name:'Taipei Taoyuan',            country:'🇹🇼', region:'Taïwan' },
+            // ── Australie / Océanie ───────────────────────────────────────────
+            { code:'SYD', name:'Sydney Kingsford Smith',    country:'🇦🇺', region:'Australie' },
+            { code:'MEL', name:'Melbourne Tullamarine',     country:'🇦🇺', region:'Australie' },
+            { code:'BNE', name:'Brisbane',                  country:'🇦🇺', region:'Australie' },
+            { code:'PER', name:'Perth',                     country:'🇦🇺', region:'Australie' },
+            { code:'AKL', name:'Auckland',                  country:'🇳🇿', region:'Nouvelle-Zélande' },
+            // ── Afrique ───────────────────────────────────────────────────────
+            { code:'JNB', name:'Johannesburg OR Tambo',     country:'🇿🇦', region:'Afrique du Sud' },
+            { code:'CPT', name:'Le Cap',                    country:'🇿🇦', region:'Afrique du Sud' },
+            { code:'NBO', name:'Nairobi Jomo Kenyatta',     country:'🇰🇪', region:'Kenya' },
+            { code:'CMN', name:'Casablanca Mohammed V',     country:'🇲🇦', region:'Maroc' },
+            // ── Amérique du Nord ──────────────────────────────────────────────
+            { code:'JFK', name:'New York JFK',              country:'🇺🇸', region:'USA' },
+            { code:'EWR', name:'New York Newark',           country:'🇺🇸', region:'USA' },
+            { code:'ORD', name:'Chicago O\u2019Hare',       country:'🇺🇸', region:'USA' },
+            { code:'LAX', name:'Los Angeles',               country:'🇺🇸', region:'USA' },
+            { code:'SFO', name:'San Francisco',             country:'🇺🇸', region:'USA' },
+            { code:'SEA', name:'Seattle-Tacoma',            country:'🇺🇸', region:'USA' },
+            { code:'ATL', name:'Atlanta Hartsfield',        country:'🇺🇸', region:'USA' },
+            { code:'IAH', name:'Houston Intercontinental',  country:'🇺🇸', region:'USA' },
+            { code:'IAD', name:'Washington Dulles',         country:'🇺🇸', region:'USA' },
+            { code:'DFW', name:'Dallas Fort Worth',         country:'🇺🇸', region:'USA' },
+            { code:'HNL', name:'Honolulu',                  country:'🇺🇸', region:'USA' },
+            { code:'YVR', name:'Vancouver',                 country:'🇨🇦', region:'Canada' },
+            { code:'YYZ', name:'Toronto Pearson',           country:'🇨🇦', region:'Canada' },
+            { code:'MEX', name:'Mexico City',               country:'🇲🇽', region:'Mexique' },
+            // ── Amérique du Sud ───────────────────────────────────────────────
+            { code:'GRU', name:'São Paulo Guarulhos',       country:'🇧🇷', region:'Brésil' },
+            { code:'EZE', name:'Buenos Aires Ezeiza',       country:'🇦🇷', region:'Argentine' },
+            { code:'LIM', name:'Lima Jorge Chávez',         country:'🇵🇪', region:'Pérou' },
+            { code:'BOG', name:'Bogotá El Dorado',          country:'🇨🇴', region:'Colombie' },
         ];
+        function _normalizeStr(s) {
+            return (s||'').toLowerCase()
+                .replace(/[éèêë]/g,'e').replace(/[àâä]/g,'a').replace(/[ùûü]/g,'u')
+                .replace(/[îï]/g,'i').replace(/[ôö]/g,'o').replace(/[ç]/g,'c')
+                .replace(/[ñ]/g,'n').replace(/[-_]/g,' ');
+        }
 
         window._obHomeAirportInput = function(val) {
-            _ob.depAirportHome = val;
+            // Ne pas écraser le code si déjà sélectionné (3 lettres majuscules)
+            if (!/^[A-Z]{3}$/.test(_ob.depAirportHome)) _ob.depAirportHome = val;
             const box = document.getElementById('ob-home-ac');
             if (!box) return;
-            if (!val || val.length < 2) { box.style.display='none'; return; }
-            const q = val.toLowerCase();
-            const matches = HOME_AIRPORTS.filter(a =>
-                a.name.toLowerCase().includes(q) || a.code.toLowerCase().includes(q)
-            ).slice(0, 5);
+            if (!val || val.length < 1) { box.style.display='none'; return; }
+            const q = _normalizeStr(val);
+            const matches = HOME_AIRPORTS.filter(a => {
+                const n = _normalizeStr(a.name);
+                const r = _normalizeStr(a.region||'');
+                const al = _normalizeStr(a.aliases||'');
+                return n.includes(q) || a.code.toLowerCase().startsWith(q)
+                    || r.startsWith(q) || al.includes(q);
+            }).slice(0, 8);
             if (!matches.length) { box.style.display='none'; return; }
             box.style.display = 'block';
             box.innerHTML = matches.map(a => [
                 '<button onclick="_obPickHomeAirport(\''+a.code+'\',\''+a.name+'\')" ',
                 'style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border:none;background:transparent;cursor:pointer;text-align:left;border-bottom:1px solid rgba(255,255,255,0.05)">',
-                '<span style="font-size:16px">'+a.country+'</span>',
-                '<div>',
-                  '<div style="font-size:13px;font-weight:800;color:white">'+a.name+'</div>',
-                  '<div style="font-size:10px;color:rgba(255,255,255,0.35)">'+a.code+'</div>',
+                '<span style="font-size:18px">'+a.country+'</span>',
+                '<div style="flex:1;min-width:0">',
+                  '<div style="font-size:13px;font-weight:800;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+a.name+'</div>',
+                  '<div style="font-size:10px;color:rgba(255,255,255,0.35)">'+a.code+' · '+(a.region||'')+'</div>',
                 '</div>',
                 '</button>'
             ].join('')).join('');
@@ -1983,37 +2106,257 @@
         // ── Durées de vol estimées depuis les grandes villes européennes vers le Japon ──
         // Format: { 'aéroport_départ_IATA': { 'aéroport_arrivée_IATA': durée_minutes }, ... }
         // Sources : moyennes réelles des vols directs (Flightradar24, Google Flights)
+        // ═══════════════════════════════════════════════════════════════
+        // FLIGHT_DURATIONS — Durées de vol réelles vers le Japon (minutes)
+        // Sources vérifiées : Directflights.com, FlightConnections, Skyscanner, prokerala
+        // Valeurs = durée réelle du vol aller (Europe→Japon = jet-stream favorable)
+        // Pour les escales : temps porte-à-porte incluant correspondance standard ~2h
+        // ═══════════════════════════════════════════════════════════════
         const FLIGHT_DURATIONS = {
-            // France
-            'CDG':{'NRT':780,'HND':770,'KIX':790,'NGO':760},
-            'ORY':{'NRT':785,'HND':775,'KIX':795},
-            // UK
-            'LHR':{'NRT':725,'HND':720,'KIX':740},
-            'LGW':{'NRT':730,'HND':725},
-            // Allemagne
-            'FRA':{'NRT':720,'HND':715,'KIX':730},
-            'MUC':{'NRT':715,'HND':710},
-            // Pays-Bas
-            'AMS':{'NRT':715,'HND':710,'KIX':725},
-            // Espagne
-            'MAD':{'NRT':810,'HND':805,'KIX':820},
-            // Italie
-            'FCO':{'NRT':760,'HND':755},
-            // Suisse
-            'ZRH':{'NRT':720,'HND':715},
-            // Moyen-Orient (escale)
-            'DXB':{'NRT':540,'HND':535,'KIX':540},
-            'DOH':{'NRT':540,'HND':535},
-            'AUH':{'NRT':545,'HND':540},
-            // Asie du Sud-Est
-            'BKK':{'NRT':360,'HND':355,'KIX':350},
-            'SIN':{'NRT':420,'HND':415,'KIX':410},
-            'KUL':{'NRT':435,'HND':430},
-            // Amérique du Nord
-            'JFK':{'NRT':840,'HND':835,'KIX':855},
-            'LAX':{'NRT':640,'HND':635,'KIX':645},
-            'SFO':{'NRT':630,'HND':625},
-            // Par défaut si aéroport non trouvé: 720min (12h)
+
+            // ── FRANCE ──────────────────────────────────────────────────────
+            // CDG→NRT : Air France AF146 direct = 11h35 (695 min)
+            // CDG→HND : Air France/ANA/JAL direct = 13h20 fastest, ~13h30 avg (810 min)
+            // Note: CDG vole vers HND (pas NRT) pour la plupart des directs
+            'CDG': { 'NRT': 695, 'HND': 810, 'KIX': 880, 'FUK': 900, 'NGO': 830 },
+
+            // ORY : pas de vol direct — escale CDG ou DXB (~15h porte-à-porte)
+            'ORY': { 'NRT': 900, 'HND': 900, 'KIX': 960 },
+
+            // Villes de province françaises — escale CDG ou FRA (~16h total)
+            'LYS': { 'NRT': 960, 'HND': 960, 'KIX': 1020 },
+            'NCE': { 'NRT': 960, 'HND': 960, 'KIX': 1020 },
+            'BOD': { 'NRT': 975, 'HND': 975, 'KIX': 1035 },
+            'MRS': { 'NRT': 960, 'HND': 960, 'KIX': 1020 },
+            'TLS': { 'NRT': 975, 'HND': 975, 'KIX': 1035 },
+            'NTE': { 'NRT': 960, 'HND': 960, 'KIX': 1020 },
+            'LIL': { 'NRT': 945, 'HND': 945, 'KIX': 1005 },
+            'SXB': { 'NRT': 930, 'HND': 930, 'KIX': 990  },
+
+            // ── UK ──────────────────────────────────────────────────────────
+            // LHR→HND : BA/ANA/JAL direct — 13h40 avg (820 min)
+            'LHR': { 'NRT': 810, 'HND': 820, 'KIX': 880, 'FUK': 900 },
+            // LGW, MAN, BHX, EDI : pas de direct — escale LHR ou CDG (~15h)
+            'LGW': { 'NRT': 900, 'HND': 900, 'KIX': 960 },
+            'MAN': { 'NRT': 900, 'HND': 900, 'KIX': 960 },
+            'BHX': { 'NRT': 915, 'HND': 915, 'KIX': 975 },
+            'EDI': { 'NRT': 915, 'HND': 915, 'KIX': 975 },
+            'DUB': { 'NRT': 930, 'HND': 930, 'KIX': 990 },  // Dublin — escale LHR
+
+            // ── ALLEMAGNE ───────────────────────────────────────────────────
+            // FRA→HND : Lufthansa/ANA direct — 12h45 (765 min)
+            'FRA': { 'NRT': 760, 'HND': 765, 'KIX': 820, 'NGO': 790, 'FUK': 840 },
+            // MUC→HND : Lufthansa/ANA direct — ~12h45 (765 min)
+            'MUC': { 'NRT': 760, 'HND': 765, 'KIX': 820, 'FUK': 840 },
+            // BER, DUS, HAM, STR, CGN : escale FRA/MUC (~14h30)
+            'BER': { 'NRT': 870, 'HND': 870, 'KIX': 930 },
+            'DUS': { 'NRT': 870, 'HND': 870, 'KIX': 930 },
+            'HAM': { 'NRT': 870, 'HND': 870, 'KIX': 930 },
+            'STR': { 'NRT': 870, 'HND': 870, 'KIX': 930 },
+            'CGN': { 'NRT': 870, 'HND': 870, 'KIX': 930 },
+
+            // ── PAYS-BAS ────────────────────────────────────────────────────
+            // AMS→NRT : KLM direct — 13h25 (805 min)
+            // AMS→KIX : KLM direct — 12h45 (765 min)
+            'AMS': { 'NRT': 805, 'HND': 810, 'KIX': 765, 'FUK': 830 },
+
+            // ── BELGIQUE ────────────────────────────────────────────────────
+            // BRU→NRT : ANA direct — 13h35 (815 min)
+            'BRU': { 'NRT': 815, 'HND': 820, 'KIX': 875 },
+
+            // ── SUISSE ──────────────────────────────────────────────────────
+            // ZRH/GVA : Swiss + correspondance — pas de direct Suisse→Japon
+            // ZRH→NRT via FRA/MUC : ~14h30 porte-à-porte (870 min)
+            'ZRH': { 'NRT': 870, 'HND': 870, 'KIX': 930 },
+            'GVA': { 'NRT': 885, 'HND': 885, 'KIX': 945 },
+            'BSL': { 'NRT': 885, 'HND': 885, 'KIX': 945 },
+            // Aéroports régionaux France — escale CDG ou FRA obligatoire (~16-17h)
+            'BIA': { 'NRT': 990, 'HND': 990, 'KIX': 1050 },
+            'MPL': { 'NRT': 975, 'HND': 975, 'KIX': 1035 },
+            'RNS': { 'NRT': 975, 'HND': 975, 'KIX': 1035 },
+            'GNB': { 'NRT': 975, 'HND': 975, 'KIX': 1035 },
+            'CFE': { 'NRT': 975, 'HND': 975, 'KIX': 1035 },
+            'LRH': { 'NRT': 990, 'HND': 990, 'KIX': 1050 },
+            'TUF': { 'NRT': 975, 'HND': 975, 'KIX': 1035 },
+            'PGF': { 'NRT': 990, 'HND': 990, 'KIX': 1050 },
+            'ETZ': { 'NRT': 960, 'HND': 960, 'KIX': 1020 },
+            'LIG': { 'NRT': 975, 'HND': 975, 'KIX': 1035 },
+            'PIS': { 'NRT': 975, 'HND': 975, 'KIX': 1035 },
+            'LDE': { 'NRT': 990, 'HND': 990, 'KIX': 1050 },
+            'PUF': { 'NRT': 990, 'HND': 990, 'KIX': 1050 },
+            'AJA': { 'NRT': 990, 'HND': 990, 'KIX': 1050 },
+            'CCF': { 'NRT': 990, 'HND': 990, 'KIX': 1050 },
+            // DOM-TOM France — escale CDG (~24-28h total)
+            'RUN': { 'NRT': 1380, 'HND': 1380, 'KIX': 1440 },  // La Réunion
+            'PTP': { 'NRT': 1440, 'HND': 1440, 'KIX': 1500 },  // Guadeloupe
+            'FDF': { 'NRT': 1440, 'HND': 1440, 'KIX': 1500 },  // Martinique
+            'CAY': { 'NRT': 1440, 'HND': 1440, 'KIX': 1500 },  // Guyane
+
+            // ── AUTRICHE ────────────────────────────────────────────────────
+            // VIE→HND : ANA direct (vol le plus long depuis VIE) — 15h05 (905 min)
+            'VIE': { 'NRT': 895, 'HND': 905, 'KIX': 955 },
+
+            // ── ESPAGNE ─────────────────────────────────────────────────────
+            // MAD/BCN : Iberia→NRT direct — ~14h20 (860 min)
+            'MAD': { 'NRT': 860, 'HND': 870, 'KIX': 930 },
+            'BCN': { 'NRT': 875, 'HND': 880, 'KIX': 940 },
+            'AGP': { 'NRT': 900, 'HND': 905, 'KIX': 960 },  // Malaga, escale MAD
+            'PMI': { 'NRT': 900, 'HND': 905, 'KIX': 960 },  // Palma, escale MAD
+            'VLC': { 'NRT': 885, 'HND': 890, 'KIX': 950 },  // Valence, escale MAD
+
+            // ── PORTUGAL ────────────────────────────────────────────────────
+            // LIS : pas de direct — escale MAD/FRA/CDG (~16h)
+            'LIS': { 'NRT': 960, 'HND': 960, 'KIX': 1020 },
+            'OPO': { 'NRT': 975, 'HND': 975, 'KIX': 1035 },
+
+            // ── ITALIE ──────────────────────────────────────────────────────
+            // FCO→HND : ITA Airways direct (récent) — ~13h (780 min)
+            // MXP→HND : ANA direct — 15h10 (910 min selon FlightsFrom) ⚠️ retour plus court
+            'FCO': { 'NRT': 775, 'HND': 780, 'KIX': 840 },
+            'MXP': { 'NRT': 900, 'HND': 910, 'KIX': 960 },
+            'VCE': { 'NRT': 900, 'HND': 905, 'KIX': 960 },  // Venise, escale MXP/FRA
+            'BLQ': { 'NRT': 900, 'HND': 905, 'KIX': 960 },  // Bologne, escale MXP
+            'NAP': { 'NRT': 900, 'HND': 905, 'KIX': 960 },  // Naples, escale FCO
+
+            // ── SCANDINAVIE ─────────────────────────────────────────────────
+            // HEL→NRT et HEL→HND : Finnair direct — 13h25 (805 min)
+            'HEL': { 'NRT': 805, 'HND': 805, 'KIX': 855, 'NGO': 820 },
+            // CPH→HND : SAS direct — ~13h (780 min)
+            'CPH': { 'NRT': 780, 'HND': 785, 'KIX': 840 },
+            // ARN→HND : ANA direct — ~13h (780 min)
+            'ARN': { 'NRT': 780, 'HND': 785, 'KIX': 840 },
+            // OSL, GOT : escale CPH/ARN (~15h)
+            'OSL': { 'NRT': 870, 'HND': 875, 'KIX': 930 },
+            'GOT': { 'NRT': 870, 'HND': 875, 'KIX': 930 },
+
+            // ── POLOGNE / EUROPE DE L'EST ───────────────────────────────────
+            // WAW→NRT : LOT direct — ~13h20 (800 min)
+            'WAW': { 'NRT': 800, 'HND': 805, 'KIX': 860 },
+            'KRK': { 'NRT': 870, 'HND': 875, 'KIX': 930 },  // Cracovie, escale WAW
+            'PRG': { 'NRT': 870, 'HND': 875, 'KIX': 930 },  // Prague, escale FRA/WAW
+            'BUD': { 'NRT': 870, 'HND': 875, 'KIX': 930 },  // Budapest, escale VIE/FRA
+            'ATH': { 'NRT': 870, 'HND': 875, 'KIX': 930 },  // Athènes, escale FRA/DXB
+            'IST': { 'NRT': 690, 'HND': 695, 'KIX': 750, 'FUK': 760 }, // Istanbul, Turkish direct ~11h30
+
+            // ── MOYEN-ORIENT ─────────────────────────────────────────────────
+            // DXB→NRT : Emirates direct — ~9h05 (545 min)
+            'DXB': { 'NRT': 545, 'HND': 540, 'KIX': 530, 'FUK': 520, 'NGO': 555 },
+            // DOH→NRT : Qatar direct — ~9h30 (570 min)
+            'DOH': { 'NRT': 570, 'HND': 565, 'KIX': 555, 'FUK': 545, 'NGO': 575 },
+            // AUH→NRT : Etihad direct — ~9h05 (545 min)
+            'AUH': { 'NRT': 545, 'HND': 540, 'KIX': 530, 'FUK': 525 },
+            // RUH : Saudi direct — ~9h30
+            'RUH': { 'NRT': 570, 'HND': 565, 'KIX': 555 },
+            // JED : Saudi, escale RUH (~11h)
+            'JED': { 'NRT': 660, 'HND': 655, 'KIX': 645 },
+            // CAI : pas de direct — escale DXB (~13h)
+            'CAI': { 'NRT': 780, 'HND': 775, 'KIX': 765 },
+            // TLV : pas de direct — escale DXB/DOH (~12h)
+            'TLV': { 'NRT': 720, 'HND': 715, 'KIX': 705 },
+
+            // ── ASIE DU SUD ──────────────────────────────────────────────────
+            // DEL→NRT : Air India/ANA direct — ~8h30 (510 min)
+            'DEL': { 'NRT': 510, 'HND': 505, 'KIX': 490, 'FUK': 480 },
+            // BOM→NRT : pas de direct — escale DEL/DXB (~11h30)
+            'BOM': { 'NRT': 690, 'HND': 685, 'KIX': 675 },
+            // BLR, HYD, MAA, CCU : escale DEL/DXB
+            'BLR': { 'NRT': 720, 'HND': 715, 'KIX': 705 },
+            'HYD': { 'NRT': 720, 'HND': 715, 'KIX': 705 },
+            'MAA': { 'NRT': 720, 'HND': 715, 'KIX': 705 },
+            'CCU': { 'NRT': 660, 'HND': 655, 'KIX': 645 },
+
+            // ── ASIE DU SUD-EST ──────────────────────────────────────────────
+            // BKK→NRT : TG/JAL direct — ~6h30 (390 min)
+            'BKK': { 'NRT': 390, 'HND': 385, 'KIX': 370, 'FUK': 350, 'NGO': 400 },
+            'DMK': { 'NRT': 395, 'HND': 390, 'KIX': 375, 'FUK': 355 }, // Bangkok Don Mueang
+            // SIN→NRT : SQ/JAL direct — ~7h (420 min)
+            'SIN': { 'NRT': 420, 'HND': 415, 'KIX': 400, 'FUK': 380, 'NGO': 430 },
+            // KUL→NRT : MH direct — ~7h30 (450 min)
+            'KUL': { 'NRT': 450, 'HND': 445, 'KIX': 430, 'FUK': 415 },
+            // MNL→NRT : PR/JL direct — ~4h15 (255 min)
+            'MNL': { 'NRT': 255, 'HND': 250, 'KIX': 240, 'FUK': 225 },
+            // SGN→NRT : VN/JL direct — ~6h (360 min)
+            'SGN': { 'NRT': 360, 'HND': 355, 'KIX': 340, 'FUK': 325 },
+            'HAN': { 'NRT': 345, 'HND': 340, 'KIX': 325, 'FUK': 310 },
+            // CGK→NRT : GA direct — ~7h30 (450 min)
+            'CGK': { 'NRT': 450, 'HND': 445, 'KIX': 430, 'FUK': 415 },
+            // PNH, RGN : escale BKK
+            'PNH': { 'NRT': 480, 'HND': 475, 'KIX': 460 },
+            'RGN': { 'NRT': 420, 'HND': 415, 'KIX': 400 },
+
+            // ── ASIE DE L'EST ─────────────────────────────────────────────────
+            // ICN→NRT : KE/OZ direct — ~2h30 (150 min)
+            'ICN': { 'NRT': 150, 'HND': 145, 'KIX': 130, 'FUK': 90  },
+            'GMP': { 'NRT': 150, 'HND': 145, 'KIX': 135, 'FUK': 95  }, // Seoul Gimpo
+            // PVG→NRT : MU/JL direct — ~3h (180 min)
+            'PVG': { 'NRT': 180, 'HND': 175, 'KIX': 160, 'FUK': 140 },
+            'SHA': { 'NRT': 185, 'HND': 180, 'KIX': 165, 'FUK': 145 }, // Shanghai Hongqiao
+            // PEK→NRT : CA/JL direct — ~3h30 (210 min)
+            'PEK': { 'NRT': 210, 'HND': 205, 'KIX': 190, 'FUK': 175 },
+            'PKX': { 'NRT': 215, 'HND': 210, 'KIX': 195, 'FUK': 180 }, // Beijing Daxing
+            // HKG→NRT : CX/JL direct — ~4h30 (270 min)
+            'HKG': { 'NRT': 270, 'HND': 265, 'KIX': 250, 'FUK': 225 },
+            // TPE→NRT : BR/CI/JL direct — ~3h (180 min)
+            'TPE': { 'NRT': 180, 'HND': 175, 'KIX': 160, 'FUK': 135 },
+            'RMQ': { 'NRT': 185, 'HND': 180, 'KIX': 165, 'FUK': 140 }, // Taichung
+
+            // ── AUSTRALIE / OCÉANIE ───────────────────────────────────────────
+            // SYD→HND : QF/ANA/JAL direct — 9h35 (575 min)
+            'SYD': { 'NRT': 580, 'HND': 575, 'KIX': 560, 'FUK': 545 },
+            // MEL→NRT : pas de direct — escale SYD ou KUL (~12h)
+            'MEL': { 'NRT': 720, 'HND': 715, 'KIX': 700, 'FUK': 685 },
+            // BNE→NRT : JL direct — ~9h (540 min)
+            'BNE': { 'NRT': 540, 'HND': 535, 'KIX': 520, 'FUK': 505 },
+            // PER : escale SIN/KUL (~12h30)
+            'PER': { 'NRT': 750, 'HND': 745, 'KIX': 730 },
+            // AKL→NRT : NZ/JL direct — ~11h (660 min)
+            'AKL': { 'NRT': 660, 'HND': 655, 'KIX': 645 },
+
+            // ── AFRIQUE ───────────────────────────────────────────────────────
+            // Pas de vols directs Afrique→Japon — escales DXB/DOH/KUL
+            'JNB': { 'NRT': 870, 'HND': 865, 'KIX': 855 },  // Johannesburg, escale DXB
+            'CPT': { 'NRT': 900, 'HND': 895, 'KIX': 885 },  // Le Cap, escale DXB
+            'NBO': { 'NRT': 810, 'HND': 805, 'KIX': 795 },  // Nairobi, escale DXB
+            'ADD': { 'NRT': 810, 'HND': 805, 'KIX': 795 },  // Addis Abeba, escale DXB
+            'CMN': { 'NRT': 960, 'HND': 955, 'KIX': 945 },  // Casablanca, escale CDG/DXB
+            'LOS': { 'NRT': 960, 'HND': 955, 'KIX': 945 },  // Lagos, escale DXB
+
+            // ── AMÉRIQUE DU NORD ──────────────────────────────────────────────
+            // JFK→NRT : JL/ANA direct — ~14h (840 min)
+            'JFK': { 'NRT': 840, 'HND': 855, 'KIX': 875 },
+            // EWR : escale JFK ou direct comparable
+            'EWR': { 'NRT': 850, 'HND': 860, 'KIX': 880 },
+            // ORD→NRT : ANA/JL direct — ~13h10 (790 min)
+            'ORD': { 'NRT': 790, 'HND': 800, 'KIX': 815 },
+            // LAX→NRT : UA/AA/JL direct — ~10h15 (615 min)
+            'LAX': { 'NRT': 615, 'HND': 620, 'KIX': 635, 'FUK': 640 },
+            // SFO→NRT : UA direct — ~10h (600 min)
+            'SFO': { 'NRT': 600, 'HND': 605, 'KIX': 620 },
+            // SEA→NRT : ANA/JL direct — ~10h20 (620 min)
+            'SEA': { 'NRT': 620, 'HND': 625, 'KIX': 640 },
+            // ATL→NRT : DL direct (Haneda uniquement) — ~14h (840 min)
+            'ATL': { 'NRT': 855, 'HND': 840, 'KIX': 870 },
+            // IAH : ANA direct — ~13h20 (800 min)
+            'IAH': { 'NRT': 805, 'HND': 800, 'KIX': 815 },
+            // IAD (Washington) : ANA direct — ~13h30 (810 min)
+            'IAD': { 'NRT': 810, 'HND': 815, 'KIX': 830 },
+            // DFW : AA/JL direct — ~14h15 (855 min)
+            'DFW': { 'NRT': 855, 'HND': 860, 'KIX': 875 },
+            // YVR (Vancouver) : ANA direct — ~10h (600 min)
+            'YVR': { 'NRT': 600, 'HND': 605, 'KIX': 620 },
+            // YYZ (Toronto) : ANA/JL direct — ~13h30 (810 min)
+            'YYZ': { 'NRT': 810, 'HND': 815, 'KIX': 830 },
+            // HNL (Honolulu) : HA/JL direct — ~8h30 (510 min)
+            'HNL': { 'NRT': 510, 'HND': 505, 'KIX': 520 },
+            // MEX : ANA direct (le + long, ~12h15) — 735 min
+            'MEX': { 'NRT': 735, 'HND': 740, 'KIX': 755 },
+
+            // ── AMÉRIQUE DU SUD ───────────────────────────────────────────────
+            // Pas de directs — escale LAX/ORD/DXB/DOH (~18-22h)
+            'GRU': { 'NRT': 1200, 'HND': 1205, 'KIX': 1215 }, // São Paulo
+            'EZE': { 'NRT': 1260, 'HND': 1265, 'KIX': 1275 }, // Buenos Aires
+            'LIM': { 'NRT': 1080, 'HND': 1085, 'KIX': 1095 }, // Lima
+            'BOG': { 'NRT': 1140, 'HND': 1145, 'KIX': 1155 }, // Bogota
         };
 
         function _estimateFlightDuration(depAirportCode, arrJapanCode) {
