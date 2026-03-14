@@ -3529,6 +3529,8 @@
             if (goBtn) { goBtn.disabled = false; goBtn.style.opacity = '1'; }
 
             renderPlanning();
+            // Résoudre les lieux Google Places pour avoir photos + horaires + prix
+            setTimeout(_resolveGeneratedActivities, 800);
         }
 
         window._postGenCorrect = function() {
@@ -3582,6 +3584,8 @@
                 const firstDay = Math.min(...activities.map(a => a.dayIndex));
                 if (typeof goToDay === 'function') goToDay(firstDay);
             }
+            // Résoudre les photos/horaires/prix des activités générées
+            setTimeout(_resolveGeneratedActivities, 1200);
         };
 
         // ═══════════════════════════════════════════════════════════════════
@@ -6960,6 +6964,20 @@
         let _renderToken = 0;
 
         // Résoudre les activités générées sans lieu (lancé au chargement)
+        // Déclenchement automatique au 1er rendu si des activités IA n'ont pas de photo
+        window._autoResolveDone = false;
+        function _autoResolveOnce() {
+            if (window._autoResolveDone) return;
+            const needsResolve = activities.some(a =>
+                (a.source==='ai'||a.source==='generated') &&
+                !a.place?.photo_reference && a.block_type!=='meal' && a.meal_type==null
+            );
+            if (needsResolve) {
+                window._autoResolveDone = true;
+                setTimeout(_resolveGeneratedActivities, 1500);
+            }
+        }
+
         async function _resolveGeneratedActivities() {
             // Inclure source 'ai' (wizard postgen) ET 'generated' (génération manuelle)
             const toResolve = activities.filter(a =>
@@ -7580,13 +7598,8 @@
                             <!-- Ligne 1 : titre -->
                             <div>
                                 <div class="font-black text-${isCompleted ? 'line-through text-green-700 opacity-70' : 'text-gray-900'} leading-tight truncate" style="font-size:clamp(15px,4.5vw,18px);letter-spacing:-0.3px;color:${theme.textPrimary}">${act.title}</div>
-                                <!-- Ligne 2 : note (position fixe) + lieu -->
-                                <div class="flex items-center gap-2 mt-1.5">
-                                    ${act.place?.rating
-                                        ? `<span class="font-black tabular-nums flex-shrink-0 rounded-md px-1.5 py-0.5 text-white leading-none" style="font-size:12px;background:${theme.lineFrom}">${act.place.rating.toFixed(1)}</span>`
-                                        : `<span class="flex-shrink-0 rounded-md px-1.5 py-0.5 bg-gray-100 text-gray-400 leading-none" style="font-size:12px">–</span>`}
-                                    <span class="truncate font-medium" style="font-size:clamp(11px,3vw,13px);color:${theme.textSecondary}">${act.place?.name || '—'}</span>
-                                </div>
+                                <!-- Ligne 2 : lieu (tronqué) -->
+                                ${act.place?.name ? `<div class="truncate mt-1" style="font-size:clamp(11px,3vw,12px);color:${theme.textSecondary}">${act.place.name}</div>` : ''}
                             </div>
                             <!-- Description / conseil local — 2 lignes max, overflow strict -->
                             ${(act.description || act.local_tip) ? `
@@ -7597,9 +7610,10 @@
                             </div>` : ''}
                             <!-- Crowd note -->
                             ${act.crowd_note ? `<div style="margin-top:3px;font-size:10px;color:#d97706;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">👥 ${act.crowd_note}</div>` : ''}
-                            <!-- chips horaires + prix -->
-                            <div class="flex gap-1.5 mt-2">
+                            <!-- Chips : horaires · note Google · prix -->
+                            <div class="flex gap-1.5 mt-2" style="align-items:stretch">
                                 ${buildHoursChip(act.place, act.id, act)}
+                                ${buildRatingChip(act.place, act.place?.place_id)}
                                 ${buildPriceChip(act.place, act)}
                             </div>
                         </div>
@@ -7620,7 +7634,7 @@
                             <!-- Pin Maps -->
                             ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()"
                                 class="flex-1 flex items-center justify-center transition-colors" style="background:${theme.timelineBg}">
-                                <svg style="width:clamp(18px,4.5vw,22px);height:clamp(18px,4.5vw,22px)" viewBox="0 0 24 24" fill="${theme.border}"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                                <svg style="width:clamp(18px,4.5vw,22px);height:clamp(18px,4.5vw,22px)" viewBox="0 0 24 24" fill="${theme.border}"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
                             </a>` : `<div class="flex-1" style="background:${theme.timelineBg}"></div>`}
                         </div>
                     </div>
