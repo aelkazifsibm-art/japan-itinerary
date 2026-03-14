@@ -1662,6 +1662,73 @@
             { code:'OKA', city:'Okinawa', emoji:'🌊', name:'Naha Okinawa',         tip:'Monorail Yui Rail direct' },
         ];
 
+        // Aéroports de départ (pays d'origine) — pour estimation heure d'arrivée
+        const HOME_AIRPORTS = [
+            { code:'CDG', name:'Paris Charles de Gaulle', country:'🇫🇷' },
+            { code:'ORY', name:'Paris Orly',              country:'🇫🇷' },
+            { code:'LYS', name:'Lyon Saint-Exupéry',      country:'🇫🇷' },
+            { code:'NCE', name:'Nice C\u00F4te d\u2019Azur', country:'\U0001F1EB\U0001F1F7' },
+            { code:'MRS', name:'Marseille Provence',       country:'🇫🇷' },
+            { code:'BOD', name:'Bordeaux Mérignac',        country:'🇫🇷' },
+            { code:'LHR', name:'Londres Heathrow',         country:'🇬🇧' },
+            { code:'LGW', name:'Londres Gatwick',           country:'\U0001F1EC\U0001F1E7' },
+            { code:'MAN', name:'Manchester',               country:'🇬🇧' },
+            { code:'FRA', name:'Francfort',                country:'🇩🇪' },
+            { code:'MUC', name:'Munich',                   country:'🇩🇪' },
+            { code:'AMS', name:'Amsterdam Schiphol',       country:'🇳🇱' },
+            { code:'BRU', name:'Bruxelles Zaventem',       country:'🇧🇪' },
+            { code:'ZRH', name:'Zurich',                   country:'🇨🇭' },
+            { code:'GVA', name:'Genève',                   country:'🇨🇭' },
+            { code:'MAD', name:'Madrid Barajas',           country:'🇪🇸' },
+            { code:'BCN', name:'Barcelone El Prat',        country:'🇪🇸' },
+            { code:'FCO', name:'Rome Fiumicino',           country:'🇮🇹' },
+            { code:'MXP', name:'Milan Malpensa',           country:'🇮🇹' },
+            { code:'VIE', name:'Vienne',                   country:'🇦🇹' },
+            { code:'WAW', name:'Varsovie Chopin',          country:'🇵🇱' },
+            { code:'DXB', name:'Dubaï',                   country:'🇦🇪' },
+            { code:'DOH', name:'Doha Hamad',               country:'🇶🇦' },
+            { code:'AUH', name:'Abu Dhabi',                country:'🇦🇪' },
+            { code:'BKK', name:'Bangkok Suvarnabhumi',     country:'🇹🇭' },
+            { code:'SIN', name:'Singapour Changi',         country:'🇸🇬' },
+            { code:'KUL', name:'Kuala Lumpur KLIA',        country:'🇲🇾' },
+            { code:'JFK', name:'New York JFK',             country:'🇺🇸' },
+            { code:'LAX', name:'Los Angeles',              country:'🇺🇸' },
+            { code:'SFO', name:'San Francisco',            country:'🇺🇸' },
+        ];
+
+        window._obHomeAirportInput = function(val) {
+            _ob.depAirportHome = val;
+            const box = document.getElementById('ob-home-ac');
+            if (!box) return;
+            if (!val || val.length < 2) { box.style.display='none'; return; }
+            const q = val.toLowerCase();
+            const matches = HOME_AIRPORTS.filter(a =>
+                a.name.toLowerCase().includes(q) || a.code.toLowerCase().includes(q)
+            ).slice(0, 5);
+            if (!matches.length) { box.style.display='none'; return; }
+            box.style.display = 'block';
+            box.innerHTML = matches.map(a => [
+                '<button onclick="_obPickHomeAirport(\''+a.code+'\',\''+a.name+'\')" ',
+                'style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border:none;background:transparent;cursor:pointer;text-align:left;border-bottom:1px solid rgba(255,255,255,0.05)">',
+                '<span style="font-size:16px">'+a.country+'</span>',
+                '<div>',
+                  '<div style="font-size:13px;font-weight:800;color:white">'+a.name+'</div>',
+                  '<div style="font-size:10px;color:rgba(255,255,255,0.35)">'+a.code+'</div>',
+                '</div>',
+                '</button>'
+            ].join('')).join('');
+        };
+
+        window._obPickHomeAirport = function(code, name) {
+            _ob.depAirportHome = code;
+            const inp = document.getElementById('ob-home-airport');
+            if (inp) inp.value = name;
+            const box = document.getElementById('ob-home-ac');
+            if (box) box.style.display = 'none';
+            // Rafraîchir step 0 pour montrer l'estimation d'arrivée
+            _obRenderStep0(document.getElementById('ob-content'), document.getElementById('ob-footer'));
+        };
+
         const MONTHS_FR = ['Janv','Févr','Mars','Avr','Mai','Juin','Juil','Août','Sept','Oct','Nov','Déc'];
         const DAYS_FR   = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 
@@ -1669,7 +1736,7 @@
             step:0,
             depYear:null,depMonth:null,depDay:null,depHour:8,depMin:0,
             retYear:null,retMonth:null,retDay:null,retHour:18,retMin:0,
-            arrAirport:'',depAirport:'',mode:'',calTarget:null
+            arrAirport:'',depAirport:'',depAirportHome:'',mode:'',calTarget:null
         };
 
         const OB_TOTAL_STEPS = 5;
@@ -1746,6 +1813,27 @@
                         </button>
                     </div>
                 </div>
+                <!-- Aéroport de départ (pour estimer heure d'arrivée) -->
+                <div>
+                    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.32);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">✈️ Depuis quel aéroport pars-tu ?</div>
+                    <div style="position:relative">
+                        <input id="ob-home-airport" type="text"
+                            value="${_ob.depAirportHome||''}"
+                            placeholder="Ex: Paris CDG, Londres LHR, Amsterdam…"
+                            oninput="_obHomeAirportInput(this.value)"
+                            style="width:100%;background:rgba(255,255,255,0.05);border:1.5px solid ${_ob.depAirportHome?'rgba(167,139,250,0.55)':'rgba(255,255,255,0.09)'};border-radius:14px;padding:11px 14px;font-size:13px;color:white;box-sizing:border-box;outline:none"
+                        />
+                        <div id="ob-home-ac" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#1a1a2e;border:1.5px solid rgba(124,58,237,0.4);border-radius:12px;z-index:10;overflow:hidden"></div>
+                    </div>
+                    ${_ob.depAirportHome ? (()=>{
+                        const flightMin = _estimateFlightDuration(_ob.depAirportHome, 'NRT');
+                        const arr = _addMinutes(_ob.depHour, _ob.depMin, flightMin);
+                        const h = String(arr.h).padStart(2,'0'), m = String(arr.m).padStart(2,'0');
+                        const dayNote = arr.days === 1 ? ' (lendemain)' : arr.days === 2 ? ' (J+2)' : '';
+                        return '<div style="margin-top:6px;padding:7px 10px;background:rgba(124,58,237,0.1);border-radius:10px;display:flex;align-items:center;gap:6px"><span style="font-size:12px">🛬</span><span style="font-size:11px;color:rgba(167,139,250,0.9);font-weight:700">Arrivée estimée au Japon : <strong style="color:white">' + h + ':' + m + dayNote + '</strong></span></div>';
+                    })() : ''}
+                </div>
+
                 ${days>0?`<div style="background:linear-gradient(135deg,rgba(124,58,237,0.28),rgba(236,72,153,0.18));border:1.5px solid rgba(167,139,250,0.35);border-radius:16px;padding:13px;display:flex;align-items:center;justify-content:center;gap:12px">
                     <div style="font-size:38px;font-weight:900;color:white;line-height:1">${days}</div>
                     <div><div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.8)">jours au Japon 🌸</div><div style="font-size:11px;color:rgba(255,255,255,0.38);margin-top:2px">${depStr} → ${retStr}</div></div>
@@ -1892,6 +1980,56 @@
         window._obToggleProfile=function(field,value){if(field==='travel_type')travelerProfile.travel_type=travelerProfile.travel_type===value?'':value;else if(field==='interests'){const arr=travelerProfile.interests||[];const idx=arr.indexOf(value);if(idx>=0)arr.splice(idx,1);else arr.push(value);travelerProfile.interests=arr;}_obRenderStep4(document.getElementById('ob-content'),document.getElementById('ob-footer'));};
         window._obSetBudget=function(id){travelerProfile.budget=id;_obRenderStep4(document.getElementById('ob-content'),document.getElementById('ob-footer'));};
         window._obFinishSkipProfile=function(){_obFinish();};
+        // ── Durées de vol estimées depuis les grandes villes européennes vers le Japon ──
+        // Format: { 'aéroport_départ_IATA': { 'aéroport_arrivée_IATA': durée_minutes }, ... }
+        // Sources : moyennes réelles des vols directs (Flightradar24, Google Flights)
+        const FLIGHT_DURATIONS = {
+            // France
+            'CDG':{'NRT':780,'HND':770,'KIX':790,'NGO':760},
+            'ORY':{'NRT':785,'HND':775,'KIX':795},
+            // UK
+            'LHR':{'NRT':725,'HND':720,'KIX':740},
+            'LGW':{'NRT':730,'HND':725},
+            // Allemagne
+            'FRA':{'NRT':720,'HND':715,'KIX':730},
+            'MUC':{'NRT':715,'HND':710},
+            // Pays-Bas
+            'AMS':{'NRT':715,'HND':710,'KIX':725},
+            // Espagne
+            'MAD':{'NRT':810,'HND':805,'KIX':820},
+            // Italie
+            'FCO':{'NRT':760,'HND':755},
+            // Suisse
+            'ZRH':{'NRT':720,'HND':715},
+            // Moyen-Orient (escale)
+            'DXB':{'NRT':540,'HND':535,'KIX':540},
+            'DOH':{'NRT':540,'HND':535},
+            'AUH':{'NRT':545,'HND':540},
+            // Asie du Sud-Est
+            'BKK':{'NRT':360,'HND':355,'KIX':350},
+            'SIN':{'NRT':420,'HND':415,'KIX':410},
+            'KUL':{'NRT':435,'HND':430},
+            // Amérique du Nord
+            'JFK':{'NRT':840,'HND':835,'KIX':855},
+            'LAX':{'NRT':640,'HND':635,'KIX':645},
+            'SFO':{'NRT':630,'HND':625},
+            // Par défaut si aéroport non trouvé: 720min (12h)
+        };
+
+        function _estimateFlightDuration(depAirportCode, arrJapanCode) {
+            if (!depAirportCode || !arrJapanCode) return 720;
+            const dep = depAirportCode.toUpperCase().split('(').pop().replace(')','').trim();
+            const arr = arrJapanCode.toUpperCase().split('(').pop().replace(')','').trim();
+            return FLIGHT_DURATIONS[dep]?.[arr]
+                || FLIGHT_DURATIONS[dep]?.['NRT']  // fallback Tokyo
+                || 720;
+        }
+
+        function _addMinutes(hour, min, addMin) {
+            const total = hour * 60 + min + addMin;
+            return { h: Math.floor(total/60) % 24, m: total % 60, days: Math.floor(total/1440) };
+        }
+
         window._obFinish=function(){
             localStorage.setItem(PROFILE_KEY,JSON.stringify(travelerProfile));
             const depDate=`${_ob.depYear}-${String(_ob.depMonth+1).padStart(2,'0')}-${String(_ob.depDay).padStart(2,'0')}`;
@@ -1903,6 +2041,21 @@
             document.getElementById('arrival-airport-japan').value=_ob.arrAirport;
             document.getElementById('departure-airport-japan').value=_ob.depAirport;
             localStorage.setItem('japan_trip_mode',_ob.mode||'guided');
+
+            // Calculer l'heure d'arrivée estimée au Japon
+            // depAirport = aéroport de départ (ex: "Paris CDG (CDG)")
+            // arrAirport = aéroport japonais (ex: "Tokyo Narita (NRT)")
+            const flightMin = _estimateFlightDuration(_ob.depAirportHome || '', _ob.arrAirport || '');
+            const arr = _addMinutes(_ob.depHour, _ob.depMin, flightMin);
+            // Stocker dans localStorage pour accès depuis tripData
+            localStorage.setItem('japan_flight_arrival', JSON.stringify({
+                hour: arr.h, min: arr.m,
+                daysAfterDep: arr.days,  // 0 = même jour, 1 = lendemain (typique Europe→Japon)
+                flightMinutes: flightMin,
+                depAirport: _ob.depAirportHome || '',
+                arrAirport: _ob.arrAirport || ''
+            }));
+
             startTrip();
         };
 
@@ -2661,19 +2814,20 @@
             const daysUsed = _wiz._freeStays.reduce((s,x)=>s+x.days,0);
             const daysLeft = _wiz.totalDays - daysUsed;
             if (daysLeft <= 0) {
-                // Quota 100% utilisé — impossible d'ajouter
                 const btn = document.getElementById('free-add-btn');
                 if (btn) { btn.textContent = '⛔ Quota atteint — retire des nuits ailleurs'; btn.style.background='#ef4444'; }
                 return;
             }
             const hotel = document.getElementById('free-hotel-input')?.value?.trim()||'';
-            // Forcer le nb de nuits dans la limite restante
             const days  = Math.min(_wiz._freeFormDays || 1, daysLeft);
+            // Normaliser le nom de ville : "Osaka, Préfecture d'Osaka, Japon" → "Osaka"
+            const rawName = place.name || '';
+            const cityName = rawName.split(',')[0].trim();
             const lat   = place.geometry?.location?.lat?.() || null;
             const lng   = place.geometry?.location?.lng?.() || null;
             _wiz._freeStays.push({
-                city: place.name,
-                emoji: JAPAN_CITIES.find(c=>c.name.toLowerCase()===place.name.toLowerCase())?.emoji || '📍',
+                city: cityName,
+                emoji: JAPAN_CITIES.find(c=>c.name.toLowerCase()===cityName.toLowerCase())?.emoji || '📍',
                 days, hotel,
                 _color: FREE_COLORS[_wiz._freeStays.length % FREE_COLORS.length],
                 _lat: lat, _lng: lng,
@@ -2955,28 +3109,35 @@
         }
 
         window._postGenCorrect = function() {
-            // Fermer l'overlay post-gen et rouvrir le wizard avec les étapes actuelles
-            document.getElementById('wiz-postgen-overlay')?.remove();
-            // Réinitialiser le wizard en conservant les _freeStays déjà définis
-            // (stays[] → reconstruire _freeStays depuis les séjours sauvegardés)
-            _wiz._freeStays = stays.map(s => ({
-                city:   s.city,
-                emoji:  JAPAN_CITIES.find(c=>c.name.toLowerCase()===s.city.toLowerCase())?.emoji || '📍',
-                days:   s.endDay - s.startDay + 1,
-                hotel:  s.hotelName || '',
-                hotelPeriods: s.hotelPeriods || null,
-                _color: FREE_COLORS[stays.indexOf(s) % FREE_COLORS.length],
-                _lat: s.place?.lat || null,
-                _lng: s.place?.lng || null,
+            // Pré-remplir _freeStays AVANT d'ouvrir le wizard
+            _wiz._freeStays = stays.map((s, idx) => ({
+                city:        s.city,
+                emoji:       JAPAN_CITIES.find(c=>c.name.toLowerCase()===s.city.toLowerCase())?.emoji || '📍',
+                days:        s.endDay - s.startDay + 1,
+                hotel:       s.hotelName || '',
+                hotelPeriods:s.hotelPeriods || null,
+                _color:      FREE_COLORS[idx % FREE_COLORS.length],
+                _lat:        s.place?.lat || null,
+                _lng:        s.place?.lng || null,
             }));
             _wiz._mode = localStorage.getItem('japan_trip_mode') || 'guided';
             _wiz._pendingPlace = null;
-            // Vider les activités générées pour repartir propre
-            if (confirm('Corriger l\u2019itin\u00E9raire effacera les activit\u00E9s g\u00E9n\u00E9r\u00E9es. Continuer ?')) {
-                activities = activities.filter(a => a.source !== 'ai');
-                saveActivities();
-                openStaysWizard();
-            }
+
+            // Fermer l'overlay post-gen
+            document.getElementById('wiz-postgen-overlay')?.remove();
+
+            // Supprimer silencieusement les activités IA (sans confirm bloquant)
+            activities = activities.filter(a => a.source !== 'ai');
+            saveActivities();
+
+            // Ouvrir le wizard SANS réinitialiser _freeStays (on bypass openStaysWizard)
+            if (!tripData) return;
+            _wiz.totalDays = tripData.totalDays;
+            _wiz.template  = _wizardGetTemplate(_wiz.totalDays);
+            _wiz._editIdx  = null;
+            _wizMap = null; // reset carte wizard
+            document.getElementById('stays-wizard').classList.remove('hidden');
+            _wizardRenderFreeMode(_wiz._mode);
         };
 
         window._postGenGoToPlanning = function() {
@@ -6408,6 +6569,37 @@
                 .sort((a, b) => a.time.localeCompare(b.time));
             const selectedCity = getCityForDay(currentDayIndex);
             const modes = dayModes[currentDayIndex] || { fatigue: false, weather: false };
+
+            // ── Bannière arrivée au Japon (jour 0 uniquement) ──────────────────
+            if (currentDayIndex === 0) {
+                const flightData = JSON.parse(localStorage.getItem('japan_flight_arrival') || 'null');
+                const arrAirport = tripData?.outbound?.arrivalAirport || '';
+                const aptInfo = [{code:'HND',name:'Haneda',tip:'Monorail 30 min · 590¥'},{code:'NRT',name:'Narita',tip:'NEX 60 min · 3 070¥'},{code:'KIX',name:'Kansai',tip:'Haruka vers Kyoto 75 min'},{code:'ITM',name:'Itami',tip:'Limousine bus 30-40 min'},{code:'FUK',name:'Fukuoka',tip:'Métro centre 5 min'},{code:'NGO',name:'Centrair',tip:'Meitetsu Express 28 min'}].find(a=>a.code===arrAirport);
+                if (flightData || arrAirport) {
+                    const banner = document.createElement('div');
+                    const arrH = flightData ? String(flightData.hour).padStart(2,'0') : '?';
+                    const arrM = flightData ? String(flightData.min).padStart(2,'0') : '?';
+                    const dayLabel = flightData?.daysAfterDep === 1 ? ' (lendemain)' : flightData?.daysAfterDep >= 2 ? ' (J+'+flightData.daysAfterDep+')' : '';
+                    const flightH = flightData ? Math.floor(flightData.flightMinutes/60)+'h'+String(flightData.flightMinutes%60).padStart(2,'0') : '';
+                    banner.innerHTML = [
+                        '<div style="background:linear-gradient(135deg,#0f172a,#1e1b4b);border-radius:16px;padding:14px 15px;margin-bottom:14px;border:1px solid rgba(124,58,237,0.3)">',
+                          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">',
+                            '<span style="font-size:22px">✈️</span>',
+                            '<div>',
+                              '<div style="font-size:14px;font-weight:900;color:white">Jour d\u2019arriv\u00E9e</div>',
+                              '<div style="font-size:11px;color:rgba(167,139,250,0.7)">',
+                                flightData ? 'Vol ' + flightData.depAirport + ' → ' + (aptInfo?.name||arrAirport) + ' · ' + flightH : (aptInfo?.name||arrAirport),
+                              '</div>',
+                            '</div>',
+                            flightData ? '<div style="margin-left:auto;text-align:right"><div style="font-size:18px;font-weight:900;color:white">'+arrH+':'+arrM+'</div><div style="font-size:9px;color:rgba(167,139,250,0.6);font-weight:700">ARRIVÉE ESTIMÉE'+dayLabel+'</div></div>' : '',
+                          '</div>',
+                          aptInfo ? '<div style="background:rgba(124,58,237,0.15);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:7px"><span style="font-size:12px">🚆</span><div style="font-size:11px;color:rgba(167,139,250,0.85)"><strong style="color:white">Transport aéroport :</strong> '+aptInfo.tip+'</div></div>' : '',
+                          '<div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,0.25);text-align:center">Les activit\u00E9s du jour sont disponibles apr\u00E8s ton arriv\u00E9e</div>',
+                        '</div>'
+                    ].join('');
+                    list.appendChild(banner);
+                }
+            }
 
             // Indicateur modes actifs — compact, sous le header
             if (modes.fatigue || modes.weather) {

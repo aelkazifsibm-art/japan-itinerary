@@ -862,7 +862,10 @@ Format exact: {"why_visit":"...","best_time":"...","duration_minutes":90,"crowd_
 // ── GÉNÉRATION DE PROGRAMME COMPLET ─────────────────────────────────────────
 app.post("/api/generate-program", async (req, res) => {
     try {
-        const { zone, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities, traveler_profile } = req.body;
+        const { zone: zoneRaw, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities, traveler_profile } = req.body;
+        // Normaliser la zone : "Osaka, Préfecture d'Osaka, Japon" → "Osaka"
+        // "Yao, Préfecture d'Osaka" → "Yao" (ville réelle, pas la métropole)
+        const zone = zoneRaw ? zoneRaw.split(',')[0].trim() : '';
         const profileCtx = buildProfileContext(traveler_profile);
         if (!zone || !nb_days) return res.status(400).json({ success: false, error: 'Zone et nb_days requis' });
 
