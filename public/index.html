@@ -3411,25 +3411,28 @@
                     const data = await resp.json();
 
                     if (data.success && data.program) {
-                        // Insérer les activités générées
+                        // Le serveur retourne day.blocks[] (pas day.activities)
+                        // Même logique que _renderGenResult
                         let addedCount = 0;
                         for (const day of data.program) {
-                            if (!day.activities) continue;
-                            for (const act of day.activities) {
-                                const newAct = {
-                                    id: Date.now() + Math.random(),
-                                    source: 'ai',
-                                    dayIndex: act.day_index ?? startDay,
-                                    time: act.time || '09:00',
-                                    time_flexible: true,
-                                    title: act.title,
-                                    description: act.description || '',
-                                    duration_minutes: act.duration_minutes || 60,
-                                    block_type: act.block_type || 'activity',
-                                    meal_type: act.meal_type || null,
-                                    place: act.place || null
-                                };
-                                activities.push(newAct);
+                            const dayIdx = day.day_index ?? startDay;
+                            const blocks = day.blocks || [];
+                            for (const blk of blocks) {
+                                // On garde activity + meal, on ignore hotel_start/hotel_end/transit
+                                if (blk.type !== 'activity' && blk.type !== 'meal') continue;
+                                activities.push({
+                                    id:               Date.now() + Math.random(),
+                                    source:           'ai',
+                                    dayIndex:         dayIdx,
+                                    time:             blk.time || '09:00',
+                                    time_flexible:    true,
+                                    title:            blk.title || '',
+                                    description:      blk.suggestion || blk.local_tip || '',
+                                    duration_minutes: blk.duration_minutes || 60,
+                                    block_type:       blk.type === 'meal' ? 'meal' : 'activity',
+                                    meal_type:        blk.meal_type || null,
+                                    place:            null   // résolution Places faite séparément
+                                });
                                 addedCount++;
                             }
                         }
