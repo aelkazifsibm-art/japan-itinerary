@@ -28,17 +28,59 @@ function buildProfileContext(profile) {
 
     const parts = [];
     if (profile.travel_type) parts.push('Type: ' + (typeMap[profile.travel_type]||profile.travel_type));
-    if (profile.interests?.length) {
-        parts.push("Centres intérêt: " + profile.interests.map(i => intMap[i]||i).join(' | '));
-        parts.push("→ OBLIGATION: alterner les types d'activités selon ces centres. Max 1 activité du même type par demi-journée.");
+
+    // Utiliser interests_order si disponible (1er intérêt = priorité maximale)
+    const orderedInterests = profile.interests_order?.length ? profile.interests_order : (profile.interests || []);
+    if (orderedInterests.length) {
+        const mapped = orderedInterests.map((i,idx) => `${idx===0?'[PRIORITÉ HAUTE] ':''}${intMap[i]||i}`);
+        parts.push("Centres intérêt (par ordre de préférence): " + mapped.join(' | '));
+        parts.push("→ OBLIGATION: 1er intérêt prioritaire dans 40% des activités. Alterner les autres. Max 1 activité du même type par demi-journée.");
     }
+
     if (profile.budget) parts.push('Budget: ' + (budgetMap[profile.budget]||profile.budget));
     if (profile.constraints?.length) parts.push('Contraintes: ' + profile.constraints.map(c => constMap[c]||c).join(', '));
     if (profile.custom_constraint) parts.push('Contrainte spéciale: ' + profile.custom_constraint);
+
+    // Nouveaux critères de rythme
+    const sc = profile._score;
+    if (sc) {
+        parts.push(`Rythme: ${sc.activitiesPerDay} activités max/jour`);
+        parts.push(`Heure début journée: ${sc.dayStartHour}h00`);
+        if (sc.avoidCrowdedSlots) parts.push('Sensibilité foules forte → privilégier visites tôt matin (avant 9h) ou fin de journée (après 17h) pour sites touristiques');
+    } else {
+        if (profile.pace === 'tranquille') parts.push('Rythme: max 3 activités/jour — journées aérées, temps de pause');
+        if (profile.pace === 'intense')    parts.push('Rythme: 6–7 activités/jour — journées bien remplies');
+        if (profile.wake_time === 'tot')   parts.push('Départ dès 7h — peut accéder aux sites avant la foule');
+        if (profile.wake_time === 'tard')  parts.push('Départ vers 10h — éviter activités matinales obligatoires');
+        if (profile.crowd_sensitivity === 'forte') parts.push('Évite les foules → créneaux tôt matin ou après 17h pour Fushimi Inari, Arashiyama, etc.');
+    }
+
     if (!parts.length) return '';
     return '\n=== PROFIL VOYAGEUR (OBLIGATOIRE À RESPECTER) ===\n' + parts.join('\n') + '\n=== FIN PROFIL ===\n';
 }
 
+
+// ── Nettoyage robuste du JSON IA ─────────────────────────────────────────────
+function sanitizeJson(text) {
+    let j = text.trim();
+    j = j.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+    j = j.replace(/[""]/g, '"').replace(/['']/g, "'");
+    j = j.replace(/,\s*([}\]])/g, '$1');
+    const m = j.match(/\{[\s\S]*\}/);
+    if (m) j = m[0];
+    try { JSON.parse(j); } catch(e) {
+        const lastComma = j.lastIndexOf(',');
+        const trimmed = j.slice(0, lastComma > 0 ? lastComma : j.length);
+        let work = trimmed;
+        const openB = (work.match(/\[/g)||[]).length - (work.match(/\]/g)||[]).length;
+        const openC = (work.match(/\{/g)||[]).length - (work.match(/\}/g)||[]).length;
+        for (let i=0; i<openB; i++) work += ']';
+        for (let i=0; i<openC; i++) work += '}';
+        work = work.replace(/,\s*([}\]])/g, '$1');
+        try { JSON.parse(work); j = work; } catch(e2) { /* garder j original */ }
+    }
+    return j;
+}
 
 async function anthropicChat(systemPrompt, userMessage, maxTokens = 400) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -493,29 +535,41 @@ app.post('/api/ai-planner', async (req, res) => {
         const apiKey = process.env.ANTHROPIC_API_KEY;
         if (!apiKey) return res.status(500).json({ success: false, error: 'Clé ANTHROPIC_API_KEY manquante dans .env' });
 
+        const dayActsSummary = (context.dayActivities || []).map(a =>
+            `- id:${a.id} "${a.title}" à ${a.time} (${a.duration_minutes||90}min) — ${a.place?.name || 'lieu ?'}`
+        ).join('\n') || '(aucune activité)';
+
+        const allDaysSummary = (context.allDays || []).map((d, i) =>
+            `Jour ${i+1} [dayIndex:${i}]: ${d.label || ''} — ${d.count||0} activité(s)`
+        ).join('\n') || '';
+
         const systemPrompt = `Tu es un assistant de voyage expert au Japon, intégré dans une app de planification.
-Tu as accès au programme complet du voyage.
+Tu peux VRAIMENT modifier le planning : ajouter, déplacer, supprimer des activités.
 
-Programme actuel (Jour ${context.dayIndex + 1}/${context.totalDays}) :
-${JSON.stringify(context.dayActivities?.map(a => ({
-    time: a.time,
-    title: a.title,
-    duration: a.duration_minutes,
-    place: a.place?.name
-})) || [], null, 2)}
+PROGRAMME COMPLET :
+${allDaysSummary}
 
-Informations voyage :
-- Destination(s) : ${context.cities?.join(', ') || 'Japon'}
-- Durée totale : ${context.totalDays} jours
-- Activités ce jour : ${context.dayActivities?.length || 0}
-- Temps de trajet estimé aujourd'hui : ${context.totalTravelMin || 0} min
+JOUR ACTUEL (Jour ${(context.dayIndex||0)+1}, dayIndex:${context.dayIndex||0}) :
+${dayActsSummary}
 
-Réponds en français, de façon concise et directe (max 3-4 phrases).
-Si tu proposes d'ajouter/déplacer des activités, sois précis sur l'heure et le nom.
-Tu peux suggérer des lieux japonais spécifiques avec leur nom en japonais.`;
+Ville(s) visitée(s) : ${context.cities?.join(', ') || context.city || 'Japon'}
+Durée totale : ${context.totalDays||1} jour(s)
 
-        // Construire l'historique (hors message système)
-        const history = (context.history || []).slice(-6).map(m => ({
+INSTRUCTIONS :
+- Réponds TOUJOURS avec un JSON valide, SANS backticks.
+- Format : {"reply":"message en français max 4 phrases","actions":[...]}
+- Actions possibles :
+  * Ajouter : {"type":"add","dayIndex":N,"title":"Nom lieu","search_query":"Nom lieu Ville Japan","time":"HH:MM","duration_minutes":N,"note":"conseil court"}
+  * Déplacer : {"type":"move","activity_id":N,"new_time":"HH:MM"}
+  * Supprimer : {"type":"remove","activity_id":N}
+  * Rien : actions:[]
+- Si l'utilisateur dit "oui" ou confirme, EXECUTE les actions proposées dans le message précédent.
+- Si l'utilisateur demande d'ajouter des activités sur un autre jour, utilise le bon dayIndex.
+- Propose max 3 activités à la fois.
+- Utilise des lieux japonais réels avec leur nom en japonais entre parenthèses.
+- Ne promets JAMAIS d'ajouter si tu ne mets pas l'action correspondante dans "actions".`;
+
+        const history = (context.history || []).slice(-8).map(m => ({
             role: m.role === 'assistant' ? 'assistant' : 'user',
             content: m.content
         }));
@@ -529,7 +583,7 @@ Tu peux suggérer des lieux japonais spécifiques avec leur nom en japonais.`;
             },
             body: JSON.stringify({
                 model: 'claude-haiku-4-5-20251001',
-                max_tokens: 400,
+                max_tokens: 800,
                 system: systemPrompt,
                 messages: [...history, { role: 'user', content: message }]
             })
@@ -538,8 +592,50 @@ Tu peux suggérer des lieux japonais spécifiques avec leur nom en japonais.`;
         const data = await r.json();
         if (!r.ok) return res.status(500).json({ success: false, error: data.error?.message || 'Erreur Anthropic' });
 
-        const reply = data.content?.[0]?.text || '';
-        res.json({ success: true, reply });
+        const raw = data.content?.[0]?.text || '{}';
+        let parsed;
+        try {
+            parsed = JSON.parse(sanitizeJson(raw));
+        } catch(e) {
+            // Fallback : texte pur sans actions
+            parsed = { reply: raw.replace(/\{[\s\S]*\}/g, '').trim() || raw, actions: [] };
+        }
+
+        // ── Résoudre les lieux via Google Places pour chaque action "add" ──
+        const serverKey = process.env.GOOGLE_MAPS_SERVER_KEY;
+        const resolvedActions = [];
+        for (const action of (parsed.actions || [])) {
+            if (action.type === 'add' && serverKey) {
+                try {
+                    const query = action.search_query || action.title;
+                    const searchUrl = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
+                    searchUrl.searchParams.set('query', query);
+                    searchUrl.searchParams.set('language', 'fr');
+                    searchUrl.searchParams.set('key', serverKey);
+                    const placesRes = await fetchJson(searchUrl.toString(), {}, 6000);
+                    const first = placesRes.json?.results?.[0];
+                    if (first) {
+                        action.place = {
+                            place_id: first.place_id,
+                            name: first.name,
+                            formatted_address: first.formatted_address,
+                            lat: first.geometry?.location?.lat,
+                            lng: first.geometry?.location?.lng,
+                            types: first.types || [],
+                            rating: first.rating || null,
+                            user_ratings_total: first.user_ratings_total || 0,
+                            photo_reference: first.photos?.[0]?.photo_reference || null,
+                            rating_source: 'google'
+                        };
+                    }
+                } catch(e) {
+                    console.warn('[ai-planner] place resolve failed:', e.message);
+                }
+            }
+            resolvedActions.push(action);
+        }
+
+        res.json({ success: true, reply: parsed.reply || '', actions: resolvedActions });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
@@ -766,7 +862,10 @@ Format exact: {"why_visit":"...","best_time":"...","duration_minutes":90,"crowd_
 // ── GÉNÉRATION DE PROGRAMME COMPLET ─────────────────────────────────────────
 app.post("/api/generate-program", async (req, res) => {
     try {
-        const { zone, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities, traveler_profile } = req.body;
+        const { zone: zoneRaw, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities, traveler_profile } = req.body;
+        // Normaliser la zone : "Osaka, Préfecture d'Osaka, Japon" → "Osaka"
+        // "Yao, Préfecture d'Osaka" → "Yao" (ville réelle, pas la métropole)
+        const zone = zoneRaw ? zoneRaw.split(',')[0].trim() : '';
         const profileCtx = buildProfileContext(traveler_profile);
         if (!zone || !nb_days) return res.status(400).json({ success: false, error: 'Zone et nb_days requis' });
 
@@ -790,7 +889,10 @@ app.post("/api/generate-program", async (req, res) => {
         const getDayInfo = (i) => {
             const dayIdx = (start_day_index||0) + i;
             if (!start_date) return { index: dayIdx, name: 'Jour '+(i+1), isWeekend:false, isMonday:false, isFriday:false };
-            const d = new Date(start_date); d.setDate(d.getDate() + dayIdx);
+            // Parse en local (évite le décalage UTC)
+            const [y,mo,dd] = start_date.split('T')[0].split('-').map(Number);
+            const d = new Date(y, mo-1, dd);
+            d.setDate(d.getDate() + dayIdx);
             const dow = d.getDay();
             return { index: dayIdx, name: dayNames[dow], isWeekend: dow===0||dow===6,
                      isMonday: dow===1, isFriday: dow===5, isSaturday: dow===6, isSunday: dow===0,
@@ -861,44 +963,6 @@ JSON BRUT UNIQUEMENT (pas de markdown):
                 "Expert voyages Japon. Reponds UNIQUEMENT avec le JSON demande, SANS backticks, SANS texte avant ou apres. Utilise uniquement des guillemets doubles. Titres et notes en francais.",
                 prompt, 3000
             );
-
-            // Nettoyage robuste du JSON
-            function sanitizeJson(text) {
-                let j = text.trim();
-                // Retirer les backticks markdown
-                j = j.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-                // Guillemets typographiques → droits
-                j = j.replace(/[""]/g, '"').replace(/['']/g, "'");
-                // Trailing commas
-                j = j.replace(/,\s*([}\]])/g, '$1');
-                // Extraire l'objet JSON principal
-                const m = j.match(/\{[\s\S]*\}/);
-                if (m) j = m[0];
-                // ── Réparer JSON tronqué ──────────────────────────────────────
-                // Si le JSON ne parse pas, tenter de fermer les structures ouvertes
-                try { JSON.parse(j); } catch(e) {
-                    // 1. Fermer une string non terminée : trouver la dernière " sans fermeture
-                    //    Couper à la dernière virgule ou clé complète propre
-                    const lastComma = j.lastIndexOf(',');
-                    const lastColon = j.lastIndexOf(':');
-                    const lastComplete = Math.min(
-                        lastComma > 0 ? lastComma : j.length,
-                        j.length
-                    );
-                    // Si le dernier caractère utile n'est pas } ou ], tronquer avant la dernière virgule
-                    const trimmed = j.slice(0, lastComma > 0 ? lastComma : j.length);
-                    // Recompter et fermer les accolades/crochets ouverts
-                    let work = trimmed;
-                    const openB = (work.match(/\[/g)||[]).length - (work.match(/\]/g)||[]).length;
-                    const openC = (work.match(/\{/g)||[]).length - (work.match(/\}/g)||[]).length;
-                    for (let i=0; i<openB; i++) work += ']';
-                    for (let i=0; i<openC; i++) work += '}';
-                    // Retirer trailing commas apparus
-                    work = work.replace(/,\s*([}\]])/g, '$1');
-                    try { JSON.parse(work); j = work; } catch(e2) { /* garder j original */ }
-                }
-                return j;
-            }
 
             let dayParsed;
             try { dayParsed = JSON.parse(raw); }
@@ -1127,6 +1191,32 @@ app.post("/api/optimize-day", async (req, res) => {
 
     } catch (e) {
         console.error("optimize-day error:", e);
+        // ── Fallback : retourner les activités non-modifiées plutôt que d'échouer ──
+        // Permet au client d'afficher un mode édition pour que l'utilisateur reprenne
+        const { activities } = req.body || {};
+        const validFallback = (activities || []).filter(a => a.place && a.place.name);
+        if (validFallback.length > 0) {
+            console.warn('[optimize-day] Fallback: retour activités originales non optimisées');
+            return res.json({
+                success: false,
+                partial: true,
+                error: e.message,
+                optimized_activities: validFallback.map(a => ({
+                    id: a.id,
+                    time: a.time,
+                    title: a.title,
+                    description: a.description || '',
+                    place: a.place,
+                    reason: '',
+                    breathing_after_minutes: 0,
+                    breathing_reason: '',
+                    duration_minutes: a.duration_minutes || 60,
+                    time_changed: false
+                })),
+                day_summary: '',
+                energy_level: ''
+            });
+        }
         res.status(500).json({ success: false, error: e.message });
     }
 });
