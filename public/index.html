@@ -2904,6 +2904,7 @@
                         <div style="position:relative;margin-bottom:9px">
                             <input id="free-city-input" type="text"
                                 placeholder="Nom de la ville au Japon…"
+                                oninput="(()=>{const b=document.getElementById('free-add-btn');if(b)b.style.opacity=this.value.trim()?'1':'0.5';})()"
                                 style="width:100%;border:2px solid #e9d5ff;border-radius:12px;padding:10px 14px 10px 36px;font-size:13px;box-sizing:border-box;outline:none;transition:border .2s">
                             <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none">🔍</span>
                         </div>
@@ -2924,7 +2925,7 @@
 
                         <button onclick="_wizFreeAdd()" id="free-add-btn"
                             style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:12px;font-size:13px;font-weight:900;cursor:pointer;opacity:.5">
-                            Sélectionne une ville ci-dessus
+                            ➕ Ajouter cette étape
                         </button>
                     </div>
                 </div>
@@ -2936,6 +2937,13 @@
             // Masquer le formulaire d'ajout si quota épuisé, sinon styler le + selon reste
             const addForm = document.getElementById('free-add-form');
             if (addForm) addForm.style.display = daysLeft <= 0 ? 'none' : 'block';
+            // Activer le bouton Ajouter si texte présent dans le champ (mobile sans Places)
+            const addBtn = document.getElementById('free-add-btn');
+            const cityInp = document.getElementById('free-city-input');
+            if (addBtn && cityInp) {
+                const hasText = (cityInp.value || '').trim().length > 0;
+                addBtn.style.opacity = hasText ? '1' : '0.5';
+            }
             // Styler le compteur + bouton + selon daysLeft
             const dcEl = document.getElementById('free-days-count');
             if (dcEl) dcEl.style.color = daysLeft <= 0 ? '#ef4444' : '#7c3aed';
@@ -2950,6 +2958,7 @@
             }
 
             // Footer
+            console.log('[WIZARD RENDER] _freeStays:', JSON.stringify(_wiz._freeStays.map(s=>({city:s.city,days:s.days}))), 'totalDays:', _wiz.totalDays, 'daysLeft:', daysLeft);
             const canFinish = _wiz._freeStays.length > 0;
             document.getElementById('wizard-footer').innerHTML = `
                 <div style="display:flex;gap:10px">
@@ -2976,8 +2985,8 @@
                 return;
             }
 
-            // Créer la carte centrée sur le Japon
-            if (!_wizMap || !document.getElementById('wiz-map-container')?.dataset.init) {
+            // Créer la carte une seule fois (persistante)
+            if (!_wizMap) {
                 _wizMap = new google.maps.Map(container, {
                     center: { lat: 36.5, lng: 137 },
                     zoom: 5,
@@ -2990,32 +2999,29 @@
                         { featureType:'transit', elementType:'labels', stylers:[{visibility:'off'}] },
                     ]
                 });
-                container.dataset.init = '1';
+            }
 
-                // Init Google Places Autocomplete sur le champ
-                const inp = document.getElementById('free-city-input');
-                if (inp) {
-                    _wizAC = new google.maps.places.Autocomplete(inp, {
-                        types: ['(cities)'],
-                        componentRestrictions: { country: 'jp' },
-                        fields: ['name','geometry','place_id']
-                    });
-                    _wizAC.addListener('place_changed', () => {
-                        const place = _wizAC.getPlace();
-                        if (!place?.geometry) return;
-                        _wiz._pendingPlace = place;
-                        // Preview marker
-                        _wizSetPreviewMarker(place);
-                        // Activer le bouton ajouter
-                        const btn = document.getElementById('free-add-btn');
-                        if (btn) {
-                            btn.textContent = `Ajouter "${place.name}" →`;
-                            btn.style.opacity = '1';
-                        }
-                        // Vérification avertissement
-                        _wizFreeCheckWarning(place.name, _wiz._freeFormDays||1);
-                    });
-                }
+            // Reconnecter l'autocomplete au nouveau input DOM (recréé à chaque render)
+            // On recrée _wizAC à chaque fois car le #free-city-input est un nouvel élément
+            const inp = document.getElementById('free-city-input');
+            if (inp) {
+                _wizAC = new google.maps.places.Autocomplete(inp, {
+                    types: ['(cities)'],
+                    componentRestrictions: { country: 'jp' },
+                    fields: ['name','geometry','place_id']
+                });
+                _wizAC.addListener('place_changed', () => {
+                    const place = _wizAC.getPlace();
+                    if (!place?.geometry) return;
+                    _wiz._pendingPlace = place;
+                    _wizSetPreviewMarker(place);
+                    const btn = document.getElementById('free-add-btn');
+                    if (btn) {
+                        btn.textContent = `Ajouter "${place.name}" →`;
+                        btn.style.opacity = '1';
+                    }
+                    _wizFreeCheckWarning(place.name, _wiz._freeFormDays||1);
+                });
             }
 
             // Redessiner les markers existants et la ligne
@@ -3152,8 +3158,6 @@
         const FREE_COLORS = ['#7c3aed','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#06b6d4'];
 
         window._wizFreeAdd = function() {
-            const place = _wiz._pendingPlace;
-            if (!place) return;
             const daysUsed = _wiz._freeStays.reduce((s,x)=>s+x.days,0);
             const daysLeft = _wiz.totalDays - daysUsed;
             if (daysLeft <= 0) {
@@ -3161,22 +3165,32 @@
                 if (btn) { btn.textContent = '⛔ Quota atteint — retire des nuits ailleurs'; btn.style.background='#ef4444'; }
                 return;
             }
+            // Récupérer la ville — depuis Google Places ou depuis le champ texte (mobile)
+            const inp = document.getElementById('free-city-input');
+            const place = _wiz._pendingPlace;
+            const rawName = place?.name || inp?.value?.trim() || '';
+            const cityName = rawName.split(',')[0].trim();
+            if (!cityName) {
+                if (inp) inp.style.borderColor = '#ef4444';
+                return;
+            }
+            if (inp) inp.style.borderColor = '';
             const hotel = document.getElementById('free-hotel-input')?.value?.trim()||'';
             const days  = Math.min(_wiz._freeFormDays || 1, daysLeft);
-            // Normaliser le nom de ville : "Osaka, Préfecture d'Osaka, Japon" → "Osaka"
-            const rawName = place.name || '';
-            const cityName = rawName.split(',')[0].trim();
-            const lat   = place.geometry?.location?.lat?.() || null;
-            const lng   = place.geometry?.location?.lng?.() || null;
+            const lat   = place?.geometry?.location?.lat?.() || null;
+            const lng   = place?.geometry?.location?.lng?.() || null;
+            console.log('[WIZARD ADD] city:', cityName, 'days:', days, 'freeStays before:', _wiz._freeStays.length);
             _wiz._freeStays.push({
-                city: cityName,
-                emoji: JAPAN_CITIES.find(c=>c.name.toLowerCase()===cityName.toLowerCase())?.emoji || '📍',
+                city:   cityName,
+                emoji:  JAPAN_CITIES.find(c=>c.name.toLowerCase()===cityName.toLowerCase())?.emoji || '📍',
                 days, hotel,
                 _color: FREE_COLORS[_wiz._freeStays.length % FREE_COLORS.length],
                 _lat: lat, _lng: lng,
-                _placeId: place.place_id || null
+                _placeId: place?.place_id || null
             });
+            console.log('[WIZARD ADD] freeStays after:', JSON.stringify(_wiz._freeStays.map(s=>({city:s.city,days:s.days}))));
             _wiz._pendingPlace = null;
+            if (inp) inp.value = '';
             if (_wizPreviewMarker) { _wizPreviewMarker.setMap(null); _wizPreviewMarker = null; }
             _wizardRenderFreeMode(_wiz._mode);
         };
@@ -3320,7 +3334,6 @@
 
         // ── Écran post-wizard : génération auto des suggestions par ville ──
         async function _showWizPostGenScreen(freeStays) {
-            console.log('[POSTGEN] freeStays reçus:', JSON.stringify(freeStays.map(s=>({city:s.city,days:s.days}))));
             const score = _buildProfileScore(travelerProfile);
             const hasProfile = travelerProfile.interests?.length > 0 || travelerProfile.budget;
 
@@ -3392,7 +3405,6 @@
                 try {
                     // Calculer startDay depuis le snapshot (pas depuis stays[] qui peut désynchroniser)
                     const startDay = freeStays.slice(0, i).reduce((sum, fs) => sum + fs.days, 0);
-                    console.log(`[POSTGEN] Génération ville ${i}: ${s.city}, startDay=${startDay}, nb_days=${s.days}`);
                     const resp = await fetch('/api/generate-program', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -3412,14 +3424,12 @@
                     });
                     const data = await resp.json();
 
-                    console.log(`[POSTGEN] Réponse ville ${i} (${s.city}): success=${data.success}, program.length=${data.program?.length}, program[0] keys=${data.program?.[0] ? Object.keys(data.program[0]).join(',') : 'N/A'}`);
                     if (data.success && data.program) {
                         // Le serveur retourne day.blocks[] (pas day.activities)
                         // Même logique que _renderGenResult
                         let addedCount = 0;
                         for (const day of data.program) {
-                            console.log(`[POSTGEN]   day.day_index=${day.day_index}, blocks.length=${day.blocks?.length}, activities.length=${day.activities?.length}`);
-                            const dayIdx = day.day_index ?? startDay;
+                                    const dayIdx = day.day_index ?? startDay;
                             const blocks = day.blocks || [];
                             for (const blk of blocks) {
                                 // On garde activity + meal, on ignore hotel_start/hotel_end/transit
@@ -3440,7 +3450,7 @@
                                 addedCount++;
                             }
                         }
-                        saveActivities();
+                        localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
                         generatedCount++;
                         if (statusEl) { statusEl.textContent = `✅ ${addedCount} activités`; statusEl.style.color = '#10b981'; }
                         if (rowEl) rowEl.style.background = '#f0fdf4';
@@ -3473,7 +3483,7 @@
 
             // Supprimer les activités IA silencieusement
             activities = activities.filter(a => a.source !== 'ai');
-            saveActivities();
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
 
             if (!tripData) return;
 
@@ -4045,6 +4055,10 @@
 
         function saveStays() {
             localStorage.setItem('japan_stays_v1', JSON.stringify(stays));
+        }
+
+        function saveActivities() {
+            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
         }
 
         // ========== GESTION DES HÔTELS ==========
