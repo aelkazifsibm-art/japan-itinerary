@@ -811,19 +811,31 @@
                                 </button>
                             </div>
                         </div>
-                        <!-- Bouton wizard itinéraire -->
-                        <button onclick="closeSidebar();setTimeout(openStaysWizard,200)" style="
-                            width:100%;display:flex;align-items:center;gap:12px;
-                            padding:12px 16px;border-radius:16px;border:2px dashed #c4b5fd;
-                            background:linear-gradient(135deg,#faf5ff,#fdf2f8);cursor:pointer;
-                            text-align:left">
-                            <span style="font-size:24px">🗾</span>
-                            <div>
-                                <div style="font-size:13px;font-weight:800;color:#7c3aed">Reconstruire l'itinéraire</div>
-                                <div style="font-size:11px;color:#a78bfa;margin-top:2px">Laisse l'assistant suggérer les villes selon ta durée</div>
-                            </div>
-                            <span style="margin-left:auto;font-size:16px;color:#c4b5fd">→</span>
-                        </button>
+                        <!-- Boutons wizard itinéraire -->
+                        <div style="display:flex;gap:8px">
+                            <button onclick="closeSidebar();setTimeout(_openWizardWithStays,200)" style="
+                                flex:1;display:flex;align-items:center;gap:10px;
+                                padding:12px 14px;border-radius:16px;border:2px solid #c4b5fd;
+                                background:linear-gradient(135deg,#faf5ff,#fdf2f8);cursor:pointer;
+                                text-align:left">
+                                <span style="font-size:20px">✏️</span>
+                                <div>
+                                    <div style="font-size:12px;font-weight:800;color:#7c3aed">Modifier l'itinéraire</div>
+                                    <div style="font-size:10px;color:#a78bfa;margin-top:1px">Villes et nuits actuelles</div>
+                                </div>
+                            </button>
+                            <button onclick="closeSidebar();setTimeout(openStaysWizard,200)" style="
+                                flex:1;display:flex;align-items:center;gap:10px;
+                                padding:12px 14px;border-radius:16px;border:2px dashed #c4b5fd;
+                                background:white;cursor:pointer;
+                                text-align:left">
+                                <span style="font-size:20px">🗾</span>
+                                <div>
+                                    <div style="font-size:12px;font-weight:800;color:#7c3aed">Nouvel itinéraire</div>
+                                    <div style="font-size:10px;color:#a78bfa;margin-top:1px">Repartir de zéro</div>
+                                </div>
+                            </button>
+                        </div>
                         <div id="stays-list" class="space-y-3">
                             <!-- Rempli dynamiquement -->
                         </div>
@@ -2761,6 +2773,37 @@
             document.getElementById('stays-wizard').classList.remove('hidden');
             _wizardRender();
         }
+
+        // Ouvrir le wizard pré-rempli avec les séjours actuels (pour modification)
+        window._openWizardWithStays = function() {
+            if (!tripData) return;
+            const mode = localStorage.getItem('japan_trip_mode') || 'guided';
+            _wiz.totalDays    = tripData.totalDays;
+            _wiz.template     = _wizardGetTemplate(_wiz.totalDays);
+            _wiz._editIdx     = null;
+            _wiz._pendingPlace = null;
+            _wiz._mode        = (mode === 'full_ai') ? 'guided' : mode;
+            _wizMap           = null;
+
+            // Reconstruire _freeStays depuis les séjours sauvegardés
+            _wiz._freeStays = stays.map((s, idx) => ({
+                city:         s.city,
+                emoji:        JAPAN_CITIES.find(c => c.name.toLowerCase() === s.city.toLowerCase())?.emoji || '📍',
+                days:         s.endDay - s.startDay + 1,
+                hotel:        s.hotelName || '',
+                hotelPeriods: s.hotelPeriods || null,
+                _color:       FREE_COLORS[idx % FREE_COLORS.length],
+                _lat:         s.place?.lat || null,
+                _lng:         s.place?.lng || null,
+            }));
+
+            const wiz = document.getElementById('stays-wizard');
+            if (!wiz) return;
+            wiz.classList.remove('hidden');
+            wiz.style.zIndex = '300';
+            _wizardRenderFreeMode(_wiz._mode);
+            setTimeout(() => _wizInitMap(), 100);
+        };
 
         window._wizardClose = function() {
             document.getElementById('stays-wizard').classList.add('hidden');
@@ -6975,20 +7018,78 @@
                     const arrM = flightData ? String(flightData.min).padStart(2,'0') : '?';
                     const dayLabel = flightData?.daysAfterDep === 1 ? ' (lendemain)' : flightData?.daysAfterDep >= 2 ? ' (J+'+flightData.daysAfterDep+')' : '';
                     const flightH = flightData ? Math.floor(flightData.flightMinutes/60)+'h'+String(flightData.flightMinutes%60).padStart(2,'0') : '';
+                    // Scénario selon l'heure d'arrivée
+                    const arrHour = flightData?.hour ?? null;
+                    let scenario, scenarioColor, scenarioIcon, scenarioTips;
+                    if (arrHour === null) {
+                        scenario = 'Heure d\'arrivée inconnue';
+                        scenarioColor = '#6b7280'; scenarioIcon = '❓';
+                        scenarioTips = ['Prévois de la flexibilité pour ce premier jour'];
+                    } else if (arrHour >= 22 || arrHour < 3) {
+                        scenario = 'Arrivée nocturne — direction l\'hôtel';
+                        scenarioColor = '#1d4ed8'; scenarioIcon = '🌙';
+                        scenarioTips = [
+                            'Vérifier les horaires de check-in tardif (après 22h) — appeler l\'hôtel si > 23h',
+                            'Prévoir un repas rapide à l\'aéroport ou un konbini sur la route',
+                            'Réserver un taxi si les transports sont terminés (dernier NEX ~23h30)'
+                        ];
+                    } else if (arrHour >= 18) {
+                        scenario = 'Arrivée en soirée — soirée libre';
+                        scenarioColor = '#7c3aed'; scenarioIcon = '🌆';
+                        scenarioTips = [
+                            'Check-in hôtel, puis balade légère dans le quartier',
+                            'Idéal pour une première izakaya sans pression de planning',
+                            'Éviter les grandes visites — garder l\'énergie pour demain'
+                        ];
+                    } else if (arrHour >= 14) {
+                        scenario = 'Arrivée après-midi — quelques activités possibles';
+                        scenarioColor = '#d97706'; scenarioIcon = '🌤️';
+                        scenarioTips = [
+                            'Temps pour 1-2 activités légères après le check-in',
+                            'Prioriser les lieux proches de l\'hôtel — éviter les transports longs',
+                            'Dîner dans le quartier pour une première découverte'
+                        ];
+                    } else if (arrHour >= 10) {
+                        scenario = 'Arrivée en matinée — journée bien entamée';
+                        scenarioColor = '#16a34a'; scenarioIcon = '🌅';
+                        scenarioTips = [
+                            'Déposer les bagages à l\'hôtel (bagages disponibles même avant check-in)',
+                            'Pleine journée d\'exploration possible dès 12h',
+                            'Rester vigilant au jet-lag — ne pas trop charger ce premier jour'
+                        ];
+                    } else {
+                        scenario = 'Arrivée tôt le matin — journée complète';
+                        scenarioColor = '#0284c7'; scenarioIcon = '🌄';
+                        scenarioTips = [
+                            'Bagage consigne à l\'aéroport (500¥) pour explorer avant check-in',
+                            'Profiter des temples tôt le matin — quasi déserts avant 9h',
+                            'Premier café dans un kissaten (café traditionnel japonais)'
+                        ];
+                    }
+
                     banner.innerHTML = [
                         '<div style="background:linear-gradient(135deg,#0f172a,#1e1b4b);border-radius:16px;padding:14px 15px;margin-bottom:14px;border:1px solid rgba(124,58,237,0.3)">',
-                          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">',
-                            '<span style="font-size:22px">✈️</span>',
-                            '<div>',
+                          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">',
+                            '<span style="font-size:24px">✈️</span>',
+                            '<div style="flex:1">',
                               '<div style="font-size:14px;font-weight:900;color:white">Jour d\u2019arriv\u00E9e</div>',
                               '<div style="font-size:11px;color:rgba(167,139,250,0.7)">',
-                                flightData ? 'Vol ' + flightData.depAirport + ' → ' + (aptInfo?.name||arrAirport) + ' · ' + flightH : (aptInfo?.name||arrAirport),
+                                (flightData ? 'Vol ' + flightData.depAirport + ' → ' + (aptInfo?.name||arrAirport) + ' · ' + flightH : (aptInfo?.name||arrAirport||'Japon')),
                               '</div>',
                             '</div>',
-                            flightData ? '<div style="margin-left:auto;text-align:right"><div style="font-size:18px;font-weight:900;color:white">'+arrH+':'+arrM+'</div><div style="font-size:9px;color:rgba(167,139,250,0.6);font-weight:700">ARRIVÉE ESTIMÉE'+dayLabel+'</div></div>' : '',
+                            (flightData ? '<div style="text-align:right"><div style="font-size:20px;font-weight:900;color:white">'+arrH+':'+arrM+'</div><div style="font-size:9px;color:rgba(167,139,250,0.6);font-weight:700">ARRIVÉE EST.'+dayLabel.toUpperCase()+'</div></div>' : ''),
                           '</div>',
-                          aptInfo ? '<div style="background:rgba(124,58,237,0.15);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:7px"><span style="font-size:12px">🚆</span><div style="font-size:11px;color:rgba(167,139,250,0.85)"><strong style="color:white">Transport aéroport :</strong> '+aptInfo.tip+'</div></div>' : '',
-                          '<div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,0.25);text-align:center">Les activit\u00E9s du jour sont disponibles apr\u00E8s ton arriv\u00E9e</div>',
+                          // Scenario band
+                          '<div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:9px 11px;margin-bottom:10px;display:flex;align-items:center;gap:8px">',
+                            '<span style="font-size:18px">' + scenarioIcon + '</span>',
+                            '<div style="font-size:12px;font-weight:800;color:white">' + scenario + '</div>',
+                          '</div>',
+                          // Tips
+                          '<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px">',
+                            scenarioTips.map(t => '<div style="display:flex;gap:6px;align-items:flex-start"><span style="font-size:10px;margin-top:2px;flex-shrink:0">▸</span><span style="font-size:11px;color:rgba(255,255,255,0.75);line-height:1.4">' + t + '</span></div>').join(''),
+                          '</div>',
+                          // Transport
+                          (aptInfo ? '<div style="background:rgba(124,58,237,0.2);border-radius:8px;padding:7px 10px;display:flex;align-items:center;gap:7px"><span style="font-size:12px">🚆</span><span style="font-size:11px;color:rgba(167,139,250,0.9)"><strong style="color:white">Transport :</strong> ' + aptInfo.tip + '</span></div>' : ''),
                         '</div>'
                     ].join('');
                     list.appendChild(banner);
@@ -7382,7 +7483,17 @@
                 const dur = visitDur;
                 const mapsUrl = act.place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.place.name)}&query_place_id=${act.place.place_id}` : '';
 
-                const theme = getActivityTheme(act.place);
+                // Thème : depuis Google Place si disponible, sinon depuis le titre
+                const _rawTheme = act.place
+                    ? getActivityTheme(act.place)
+                    : null;
+                const theme = _rawTheme || (()=>{
+                    const dark = document.documentElement.classList.contains('dark');
+                    const themeName = _getThemeFromTitle(act.title || '', act.description || '');
+                    const THEMES_LT = { contempler:{border:'#fb923c',timelineBg:'#fff7ed',lineFrom:'#ea580c',lineTo:'#dc2626',infoBtn:'#fff7ed',textPrimary:'#1f2937',textSecondary:'#4b5563',timeBg:'white'}, restaurer:{border:'#f472b6',timelineBg:'#fdf2f8',lineFrom:'#db2777',lineTo:'#be185d',infoBtn:'#fdf2f8',textPrimary:'#1f2937',textSecondary:'#4b5563',timeBg:'white'}, promener:{border:'#4ade80',timelineBg:'#f0fdf4',lineFrom:'#16a34a',lineTo:'#166534',infoBtn:'#f0fdf4',textPrimary:'#1f2937',textSecondary:'#4b5563',timeBg:'white'}, explorer:{border:'#38bdf8',timelineBg:'#f0f9ff',lineFrom:'#0284c7',lineTo:'#075985',infoBtn:'#f0f9ff',textPrimary:'#1f2937',textSecondary:'#4b5563',timeBg:'white'}, detendre:{border:'#c084fc',timelineBg:'#faf5ff',lineFrom:'#9333ea',lineTo:'#6b21a8',infoBtn:'#faf5ff',textPrimary:'#1f2937',textSecondary:'#4b5563',timeBg:'white'} };
+                    const THEMES_DK = { contempler:{border:'#fb923c',timelineBg:'#1c1209',lineFrom:'#fb923c',lineTo:'#ea580c',infoBtn:'#1c1209',textPrimary:'#f1f5f9',textSecondary:'#94a3b8',timeBg:'#0f172a'}, restaurer:{border:'#f472b6',timelineBg:'#1c0f18',lineFrom:'#f472b6',lineTo:'#db2777',infoBtn:'#1c0f18',textPrimary:'#f1f5f9',textSecondary:'#94a3b8',timeBg:'#0f172a'}, promener:{border:'#4ade80',timelineBg:'#0d1f15',lineFrom:'#4ade80',lineTo:'#16a34a',infoBtn:'#0d1f15',textPrimary:'#f1f5f9',textSecondary:'#94a3b8',timeBg:'#0f172a'}, explorer:{border:'#38bdf8',timelineBg:'#0a1929',lineFrom:'#38bdf8',lineTo:'#0284c7',infoBtn:'#0a1929',textPrimary:'#f1f5f9',textSecondary:'#94a3b8',timeBg:'#0f172a'}, detendre:{border:'#c084fc',timelineBg:'#150d22',lineFrom:'#c084fc',lineTo:'#9333ea',infoBtn:'#150d22',textPrimary:'#f1f5f9',textSecondary:'#94a3b8',timeBg:'#0f172a'} };
+                    return (dark ? THEMES_DK : THEMES_LT)[themeName];
+                })();
                 // ── Analyse modes actifs ──────────────────────────────────
                 const fatigueLevel   = getActivityFatigueLevel(act);
                 const isOutdoor      = isOutdoorActivity(act);
@@ -7458,8 +7569,15 @@
                                     <span class="truncate font-medium" style="font-size:clamp(11px,3vw,13px);color:${theme.textSecondary}">${act.place?.name || '—'}</span>
                                 </div>
                             </div>
+                            <!-- Description / conseil local -->
+                            ${(act.description || act.local_tip) ? `
+                            <div class="mt-2 leading-snug" style="font-size:11px;color:${theme.textSecondary};display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">
+                                ${act.local_tip ? '<span style="color:' + theme.lineFrom + ';font-weight:700">🤫 ' + act.local_tip + '</span>' : (act.description || '')}
+                            </div>` : ''}
+                            <!-- Crowd note si présente -->
+                            ${act.crowd_note ? `<div class="mt-1" style="font-size:10px;color:#d97706;font-weight:600">👥 ${act.crowd_note}</div>` : ''}
                             <!-- chips horaires + prix -->
-                            <div class="flex gap-1.5 mt-2.5">
+                            <div class="flex gap-1.5 mt-2">
                                 ${buildHoursChip(act.place, act.id, act)}
                                 ${buildPriceChip(act.place, act)}
                             </div>
@@ -7528,6 +7646,38 @@
                                 this.closest('.card-photo-banner')?.classList.add('img-cached');
                             };
                         }
+                    }
+                }
+
+                // ── Suggestion repas si pause naturelle entre activités ─────────
+                // On propose un repas si : pas de meal déjà planifié dans le voisinage, 
+                // et heure de départ de l'activité actuelle est dans un créneau repas
+                if (i < dayActivities.length - 1) {
+                    const leaveMins = parseInt(leaveTime.split(':')[0])*60 + parseInt(leaveTime.split(':')[1]);
+                    const nextTime = realTimes[i+1];
+                    const nextMins = parseInt(nextTime.split(':')[0])*60 + parseInt(nextTime.split(':')[1]);
+                    const gapMins = nextMins - leaveMins;
+                    const isMealSlot = (leaveMins >= 690 && leaveMins <= 810) || (leaveMins >= 1050 && leaveMins <= 1200); // 11h30-13h30 ou 17h30-20h
+                    const hasMealNearby = dayActivities.slice(Math.max(0,i-1), i+3).some(a => a.block_type === 'meal' || a.meal_type);
+                    if (isMealSlot && !hasMealNearby && gapMins >= 20) {
+                        const isLunch = leaveMins < 900;
+                        const mealSuggest = document.createElement('div');
+                        const _dk = document.documentElement.classList.contains('dark');
+                        mealSuggest.style.cssText = `margin:4px 0;padding:10px 14px;border-radius:14px;display:flex;align-items:center;gap:10px;border:1.5px dashed #f472b680;` +
+                            (_dk ? 'background:#1c0f18' : 'background:#fdf2f8');
+                        mealSuggest.innerHTML = [
+                            '<span style="font-size:18px">' + (isLunch ? '🍱' : '🍜') + '</span>',
+                            '<div style="flex:1">',
+                              '<div style="font-size:12px;font-weight:800;color:#db2777">' + (isLunch ? 'Pause déjeuner' : 'Pause dîner') + '</div>',
+                              '<div style="font-size:10px;color:#9ca3af;margin-top:1px">',
+                                isLunch
+                                    ? 'Teishoku local · bento · ramen · gyudon — ~700-1 200¥'
+                                    : 'Izakaya · yakitori · ramen · tempura — ~1 500-2 500¥',
+                              '</div>',
+                            '</div>',
+                            '<div style="font-size:10px;color:#f472b6;font-weight:700">~' + (isLunch ? '45' : '60') + 'min</div>',
+                        ].join('');
+                        list.appendChild(mealSuggest);
                     }
                 }
 
@@ -7728,6 +7878,17 @@
 
         // ── Thème couleur par famille d'activité ────────────────────────
         // 5 familles : contempler(orange) · restaurer(rose) · promener(vert) · explorer(bleu) · détendre(violet)
+        // Détecter le thème depuis le titre quand pas de place Google
+        function _getThemeFromTitle(title, description) {
+            const t = (title + ' ' + (description||'')).toLowerCase();
+            if (/onsen|bain|spa|ryokan|zen|calme|repos|relax|massage|détend/i.test(t)) return 'detendre';
+            if (/repas|déjeuner|dîner|breakfast|café|restaurant|sushi|ramen|izakaya|manger|gastronomie|spécialité|cuisine|konbini|street food|snack|bento|tempura|udon|soba|yakitori|takoyaki/i.test(t)) return 'restaurer';
+            if (/parc|jardin|balade|promenade|nature|bambou|montagne|plage|forêt|randonnée|rivière|cascade/i.test(t)) return 'promener';
+            if (/marché|shopping|quartier|boutique|arcade|akihabara|harajuku|shibuya|dotonbori|découverte|exploration/i.test(t)) return 'explorer';
+            // contempler par défaut : temple, musée, monument, château, vue...
+            return 'contempler';
+        }
+
         function getActivityTheme(place) {
             const dark = document.documentElement.classList.contains('dark');
             const THEMES = dark ? {
@@ -7744,8 +7905,12 @@
                 explorer:   { border:'#38bdf8', timelineBg:'#f0f9ff', lineFrom:'#0284c7', lineTo:'#075985', infoBtn:'#f0f9ff', textPrimary:'#1f2937', textSecondary:'#4b5563', timeBg:'white' },
                 detendre:   { border:'#c084fc', timelineBg:'#faf5ff', lineFrom:'#9333ea', lineTo:'#6b21a8', infoBtn:'#faf5ff', textPrimary:'#1f2937', textSecondary:'#4b5563', timeBg:'white' },
             };
-            // Fallback : contempler (orange) par défaut plutôt que gris
-            if (!place) return THEMES.contempler;
+            // Si pas de place, détecter via titre/description de l'activité
+            if (!place) {
+                // Cette fonction est appelée avec act.place — on peut aussi recevoir l'act complet
+                // Pour les activités IA sans place, on détecte via le titre
+                return THEMES.contempler; // géré en amont via _getThemeFromTitle
+            }
             const types = place.types || [];
             const name = (place.name || '').toLowerCase();
             const addr = (place.formatted_address || '').toLowerCase();
