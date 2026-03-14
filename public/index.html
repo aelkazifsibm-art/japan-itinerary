@@ -4433,7 +4433,6 @@
 
         function renderStaysList() {
             const containers = ['stays-list', 'stays-list-config'];
-            const cityEmojis = { tokyo:'🗼', kyoto:'⛩️', osaka:'🏯', nara:'🦌', hiroshima:'☮️', hakone:'🗻', nikko:'🏔️', kamakura:'🌊', takayama:'🏘️', kanazawa:'🎨' };
 
             containers.forEach(id => {
                 const el = document.getElementById(id);
@@ -4441,50 +4440,60 @@
                 el.innerHTML = '';
 
                 if (stays.length === 0) {
-                    el.innerHTML = `<div class="text-center py-6 text-gray-400">
-                        <div class="text-4xl mb-2">🏨</div>
-                        <div class="text-sm">Aucun séjour configuré</div>
-                        <div class="text-xs mt-1">Ajoutez votre premier séjour</div>
-                    </div>`;
+                    el.innerHTML = '<div style="text-align:center;padding:24px;color:#9ca3af"><div style="font-size:36px;margin-bottom:8px">🏨</div><div style="font-size:13px;font-weight:700">Aucun séjour configuré</div><div style="font-size:11px;margin-top:4px">Utilise le wizard pour planifier tes étapes</div></div>';
                     return;
                 }
 
                 stays.forEach((stay, i) => {
-                    const emoji = cityEmojis[stay.city] || '📍';
+                    const color = FREE_COLORS[i % FREE_COLORS.length];
                     const cityName = stay.city ? stay.city.charAt(0).toUpperCase() + stay.city.slice(1) : '?';
                     const nights = stay.endDay - stay.startDay + 1;
-                    const priceStr = stay.price ? `${stay.price.toLocaleString()} ${stay.currency}/nuit` : '';
-                    const totalStr = stay.price ? ` · ${(stay.price * nights).toLocaleString()} ${stay.currency} total` : '';
+                    const emoji = JAPAN_CITIES.find(c => c.name.toLowerCase() === stay.city?.toLowerCase())?.emoji || '📍';
+                    const priceStr = stay.price ? stay.price.toLocaleString() + ' ' + (stay.currency||'€') + '/nuit' : '';
+                    const warn = _cityMaxDaysCheck(stay.city, nights);
+                    const _dk = document.documentElement.classList.contains('dark');
 
                     const div = document.createElement('div');
-                    const _dkS = document.documentElement.classList.contains('dark');
-                    div.className = 'rounded-2xl p-4 border-2 shadow-sm';
-                    div.style.cssText = _dkS
-                        ? 'background:#1a1333;border-color:#581c8780'
-                        : 'background:white;border-color:#ede9fe';
-                    div.innerHTML = `
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span class="text-xl">${emoji}</span>
-                                    <span class="font-bold" style="color:${_dkS?'#c4b5fd':'#6d28d9'}">${cityName}</span>
-                                    <span class="text-xs px-2 py-0.5 rounded-full font-bold" style="background:${_dkS?'#2e1065':'#ede9fe'};color:${_dkS?'#c4b5fd':'#7c3aed'}">J${stay.startDay+1}→J${stay.endDay+1}</span>
-                                    <span class="text-xs" style="color:${_dkS?'#64748b':'#9ca3af'}">${nights} nuit${nights>1?'s':''}</span>
-                                </div>
-                                ${stay.hotelName ? `<div class="text-sm font-semibold truncate" style="color:${_dkS?'#e2e8f0':'#374151'}">🏨 ${stay.hotelName}</div>` : ''}
-                                ${stay.address ? `<div class="text-xs truncate mt-0.5" style="color:${_dkS?'#64748b':'#9ca3af'}">📍 ${stay.address}</div>` : ''}
-                                ${priceStr ? `<div class="text-xs font-bold mt-1" style="color:${_dkS?'#fb923c':'#ea580c'}">💰 ${priceStr}${totalStr}</div>` : ''}
-                            </div>
-                            <div class="flex flex-col gap-1 flex-shrink-0">
-                                <button onclick="editStay(${i})" class="text-blue-500 hover:text-blue-700 text-sm px-2 py-1 rounded hover:bg-blue-50">✏️</button>
-                                <button onclick="deleteStay(${i})" class="text-red-400 hover:text-red-600 text-sm px-2 py-1 rounded hover:bg-red-50">🗑️</button>
-                            </div>
-                        </div>
-                    `;
+                    div.style.cssText = 'border:2px solid ' + color + '55;background:' + (_dk ? '#1a1333' : '#faf5ff') + ';border-radius:14px;padding:11px 12px;margin-bottom:6px';
+
+                    // Sous-périodes hôtel
+                    let hotelHtml = '';
+                    if (stay.hotelPeriods?.length) {
+                        hotelHtml = '<div style="margin-top:7px;display:flex;flex-direction:column;gap:3px">' +
+                            stay.hotelPeriods.map(p =>
+                                '<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:rgba(124,58,237,0.07);border-radius:7px">' +
+                                '<span style="font-size:11px">🏨</span>' +
+                                '<div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:700;color:#7c3aed;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.hotelName||'Hôtel') + '</div>' +
+                                '<div style="font-size:9px;color:#9ca3af">Nuit' + (p.nights>1?'s':'') + ' ' + p.fromNight + '–' + (p.fromNight+p.nights-1) + '</div></div>' +
+                                '</div>'
+                            ).join('') + '</div>';
+                    } else if (stay.hotelName) {
+                        hotelHtml = '<div style="margin-top:5px;font-size:10px;color:#7c3aed;display:flex;align-items:center;gap:4px"><span>🏨</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + stay.hotelName + '</span></div>';
+                    }
+
+                    div.innerHTML =
+                        '<div style="display:flex;align-items:center;gap:10px">' +
+                            '<div style="width:30px;height:30px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:white;flex-shrink:0">' + (i+1) + '</div>' +
+                            '<div style="flex:1;min-width:0">' +
+                                '<div style="display:flex;align-items:center;gap:6px">' +
+                                    '<span style="font-size:15px">' + emoji + '</span>' +
+                                    '<span style="font-size:14px;font-weight:800;color:' + (_dk?'#f1f5f9':'#111827') + '">' + cityName + '</span>' +
+                                    '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:12px;background:' + color + '18;color:' + color + '">J' + (stay.startDay+1) + '→J' + (stay.endDay+1) + '</span>' +
+                                '</div>' +
+                                '<div style="font-size:10px;color:#9ca3af;margin-top:1px">' + nights + ' nuit' + (nights>1?'s':'') + (priceStr ? ' · ' + priceStr : '') + '</div>' +
+                            '</div>' +
+                            '<div style="display:flex;gap:5px;flex-shrink:0">' +
+                                '<button onclick="editStay(' + i + ')" style="width:28px;height:28px;border-radius:8px;border:1.5px solid #e9d5ff;background:white;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">✏️</button>' +
+                                '<button onclick="deleteStay(' + i + ')" style="width:28px;height:28px;border-radius:8px;border:1.5px solid #fecaca;background:#fef2f2;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑️</button>' +
+                            '</div>' +
+                        '</div>' +
+                        hotelHtml +
+                        (warn ? '<div style="margin-top:7px;background:#fef3c7;border-radius:8px;padding:6px 8px;font-size:10px;font-weight:700;color:#b45309">⚠️ ' + nights + 'j à ' + warn.city + ' — max recommandé : ' + warn.max + ' nuits</div>' : '');
+
                     el.appendChild(div);
                 });
 
-                // Vérifier les jours sans séjour
+                // Jours non couverts
                 if (tripData) {
                     const uncovered = [];
                     for (let d = 0; d < tripData.totalDays; d++) {
@@ -4492,8 +4501,8 @@
                     }
                     if (uncovered.length > 0) {
                         const warn = document.createElement('div');
-                        warn.className = 'bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-700';
-                        warn.innerHTML = `⚠️ Jours sans séjour : J${uncovered.join(', J')}`;
+                        warn.style.cssText = 'background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 11px;font-size:11px;color:#92400e;margin-top:4px';
+                        warn.innerHTML = '⚠️ Jours sans séjour : J' + uncovered.join(', J');
                         el.appendChild(warn);
                     }
                 }
@@ -6952,29 +6961,39 @@
 
         // Résoudre les activités générées sans lieu (lancé au chargement)
         async function _resolveGeneratedActivities() {
+            // Inclure source 'ai' (wizard postgen) ET 'generated' (génération manuelle)
             const toResolve = activities.filter(a =>
-                a.source === 'generated' && !a.place && a.title &&
+                (a.source === 'generated' || a.source === 'ai') &&
+                !a.place?.photo_reference &&  // pas encore de photo
+                a.title &&
                 a.block_type !== 'meal' && a.meal_type == null
             );
             if (!toResolve.length) return;
 
             for (const act of toResolve) {
+                // Trouver la ville de l'activité depuis les séjours
+                const cityStay = getStayForDay(act.dayIndex);
+                const cityHint = cityStay?.city || '';
+                const searchQ = act.title + (cityHint ? ' ' + cityHint + ' Japan' : ' Japan');
                 try {
                     const r = await fetch('/api/resolve-place', {
                         method: 'POST',
                         headers: {'Content-Type':'application/json'},
-                        body: JSON.stringify({ search_query: act.title + ' Tokyo Japan', title: act.title })
+                        body: JSON.stringify({ search_query: searchQ, title: act.title })
                     });
                     const d = await r.json();
                     if (d.success && d.place) {
                         const idx = activities.findIndex(a => a.id === act.id);
                         if (idx >= 0) {
                             activities[idx].place = d.place;
-                            activities[idx].title = d.place.name || act.title;
+                            // Ne pas écraser le titre si c'est un nom générique
+                            if (d.place.name && d.place.name.length < 60) {
+                                activities[idx].title = d.place.name;
+                            }
                         }
                     }
                 } catch(e) { /* continuer */ }
-                await new Promise(r => setTimeout(r, 400));
+                await new Promise(r => setTimeout(r, 350));
             }
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
             renderPlanning();
@@ -7541,7 +7560,7 @@
                               : '📍 Lieu'}
                         </div>
                     </div>` : ''}
-                    <div class="flex" style="min-height:112px">
+                    <div class="flex" style="min-height:112px;overflow:hidden">
 
                         <!-- ── Col gauche : timeline ── -->
                         <div class="flex-shrink-0 flex flex-col items-center py-3 border-r" style="width:clamp(56px,15vw,68px);background:${theme.timelineBg};border-color:${theme.border}30">
@@ -7569,13 +7588,15 @@
                                     <span class="truncate font-medium" style="font-size:clamp(11px,3vw,13px);color:${theme.textSecondary}">${act.place?.name || '—'}</span>
                                 </div>
                             </div>
-                            <!-- Description / conseil local -->
+                            <!-- Description / conseil local — 2 lignes max, overflow strict -->
                             ${(act.description || act.local_tip) ? `
-                            <div class="mt-2 leading-snug" style="font-size:11px;color:${theme.textSecondary};display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">
-                                ${act.local_tip ? '<span style="color:' + theme.lineFrom + ';font-weight:700">🤫 ' + act.local_tip + '</span>' : (act.description || '')}
+                            <div style="margin-top:6px;font-size:10px;line-height:1.4;color:${theme.textSecondary};overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-width:100%;word-break:break-word">
+                                ${act.local_tip
+                                    ? '<span style="color:' + theme.lineFrom + ';font-weight:700">🤫 </span><span>' + act.local_tip.slice(0,120) + '</span>'
+                                    : (act.description || '').slice(0,120)}
                             </div>` : ''}
-                            <!-- Crowd note si présente -->
-                            ${act.crowd_note ? `<div class="mt-1" style="font-size:10px;color:#d97706;font-weight:600">👥 ${act.crowd_note}</div>` : ''}
+                            <!-- Crowd note -->
+                            ${act.crowd_note ? `<div style="margin-top:3px;font-size:10px;color:#d97706;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">👥 ${act.crowd_note}</div>` : ''}
                             <!-- chips horaires + prix -->
                             <div class="flex gap-1.5 mt-2">
                                 ${buildHoursChip(act.place, act.id, act)}
