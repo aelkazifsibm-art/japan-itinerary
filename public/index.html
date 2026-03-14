@@ -379,21 +379,21 @@
     <!-- ══ WIZARD SÉJOURS ══════════════════════════════════════════════ -->
     <div id="stays-wizard" class="fixed inset-0 z-[210] hidden" style="background:rgba(0,0,0,0.7);backdrop-filter:blur(6px)">
         <div style="
-            position:absolute;bottom:0;left:0;right:0;
+            position:absolute;inset:0;
             background:white;
-            border-radius:28px 28px 0 0;
+            border-radius:0;
             display:flex;flex-direction:column;
-            max-height:92vh">
+            height:100%">
 
             <!-- Handle + Header -->
             <div style="flex-shrink:0;padding:14px 20px 0">
-                <div style="width:44px;height:4px;border-radius:2px;background:#e5e7eb;margin:0 auto 18px"></div>
+                <div style="height:max(env(safe-area-inset-top,0px),12px)"></div><!-- safe area top -->
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
                     <div>
                         <div style="font-size:20px;font-weight:900;color:#111827" id="wizard-title">🗾 Construis ton itinéraire</div>
                         <div id="wizard-subtitle" style="font-size:12px;color:#9ca3af;margin-top:2px">Étape 1 — Point d'arrivée</div>
                     </div>
-                    <button onclick="_wizardClose()" style="width:32px;height:32px;border-radius:50%;background:#f3f4f6;border:none;font-size:17px;cursor:pointer;color:#6b7280">✕</button>
+                    <!-- pas de croix en mode libre — "Plus tard" est dans le footer -->
                 </div>
                 <!-- Progress bar -->
                 <div style="height:3px;background:#f3f4f6;border-radius:2px;margin:12px 0 0;overflow:hidden">
@@ -3334,6 +3334,10 @@
 
         // ── Écran post-wizard : génération auto des suggestions par ville ──
         async function _showWizPostGenScreen(freeStays) {
+            console.log('[POSTGEN] freeStays:', JSON.stringify(freeStays.map(s=>({city:s.city,days:s.days}))));
+            const totalPlanned = freeStays.reduce((s,x)=>s+x.days, 0);
+            const totalTrip = _wiz.totalDays || tripData?.totalDays || 0;
+            const missingDays = Math.max(0, totalTrip - totalPlanned);
             const score = _buildProfileScore(travelerProfile);
             const hasProfile = travelerProfile.interests?.length > 0 || travelerProfile.budget;
 
@@ -3378,6 +3382,14 @@
                         ${staysList}
                     </div>
 
+                    ${missingDays > 0 ? `
+                    <div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+                        <span style="font-size:16px">⚠️</span>
+                        <div>
+                            <div style="font-size:12px;font-weight:800;color:#92400e">${missingDays} jour${missingDays>1?'s':''} non planifié${missingDays>1?'s':''}</div>
+                            <div style="font-size:10px;color:#b45309">Total planifié : ${totalPlanned}j sur ${totalTrip}j. Clique sur Corriger pour compléter.</div>
+                        </div>
+                    </div>` : ''}
                     <div id="postgen-global-status" style="text-align:center;font-size:12px;color:#7c3aed;font-weight:700;margin-bottom:16px;min-height:20px"></div>
 
                     <div style="display:flex;gap:10px">
@@ -3414,7 +3426,7 @@
                             nb_days: s.days,
                             start_day_index: startDay,
                             start_date: tripData?.outbound?.departureDate || null,
-                            intensity: score.activitiesPerDay >= 6 ? 'intense' : score.activitiesPerDay <= 3 ? 'light' : 'modere',
+                            intensity: score.activitiesPerDay >= 6 ? 'intense' : score.activitiesPerDay <= 3 ? 'relax' : 'normal',
                             existing_activities: activities.filter(a => a.dayIndex >= startDay && a.dayIndex < startDay + s.days),
                             traveler_profile: {
                                 ...travelerProfile,
