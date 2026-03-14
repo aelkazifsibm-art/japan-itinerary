@@ -3281,17 +3281,22 @@
         };
 
                 window._wizFreeApply = async function() {
-            // 1. Sauvegarder les séjours (avec multi-hôtel si défini)
+            // 1. Deep-copy des freeStays pour éviter toute mutation ultérieure
+            const snapshot = _wiz._freeStays.map(s => JSON.parse(JSON.stringify(s)));
+
+            // 2. Construire stays[] depuis le snapshot
             let cursor = 0;
-            stays = _wiz._freeStays.map(s => {
-                // hôtel principal = 1er défini, ou champ hotel du formulaire
+            stays = snapshot.map(s => {
                 const mainHotel = s.hotelPeriods?.length ? s.hotelPeriods[0].hotelName : (s.hotel||'');
                 const stay = {
-                    city: s.city,
-                    hotelName: mainHotel,
-                    address: '', place: null, price: '', currency: 'EUR',
-                    startDay: cursor, endDay: cursor + s.days - 1,
-                    // Conserver les sous-périodes pour _getHotelForDay
+                    city:         s.city,
+                    hotelName:    mainHotel,
+                    address:      '',
+                    place:        null,
+                    price:        '',
+                    currency:     'EUR',
+                    startDay:     cursor,
+                    endDay:       cursor + s.days - 1,
                     hotelPeriods: s.hotelPeriods?.length ? s.hotelPeriods : null
                 };
                 cursor += s.days;
@@ -3299,13 +3304,15 @@
             });
             saveStays();
             renderStaysList();
+
+            // 3. Fermer le wizard + reset carte
             _wizMap = null;
             _wizardClose();
 
-            // 2. Afficher la page de transition "On prépare tes suggestions"
+            // 4. Ecran post-gen avec le snapshot (pas _wiz._freeStays qui peut être muté)
             const mode = _wiz._mode || 'guided';
             if (mode === 'guided' || mode === 'solo_builder') {
-                _showWizPostGenScreen(_wiz._freeStays.slice());
+                _showWizPostGenScreen(snapshot);
             } else {
                 showAddConfirmation(`${stays.length} séjour${stays.length>1?'s':''} créés 🎌`, 'Itinéraire configuré', '✅');
             }
@@ -3382,7 +3389,8 @@
                 if (globalEl) globalEl.textContent = `Génération de ${s.city} (${i+1}/${freeStays.length})…`;
 
                 try {
-                    const startDay = stays[i]?.startDay || 0;
+                    // Calculer startDay depuis le snapshot (pas depuis stays[] qui peut désynchroniser)
+                    const startDay = freeStays.slice(0, i).reduce((sum, fs) => sum + fs.days, 0);
                     const resp = await fetch('/api/generate-program', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -3452,35 +3460,45 @@
         }
 
         window._postGenCorrect = function() {
-            // Pré-remplir _freeStays AVANT d'ouvrir le wizard
-            _wiz._freeStays = stays.map((s, idx) => ({
-                city:        s.city,
-                emoji:       JAPAN_CITIES.find(c=>c.name.toLowerCase()===s.city.toLowerCase())?.emoji || '📍',
-                days:        s.endDay - s.startDay + 1,
-                hotel:       s.hotelName || '',
-                hotelPeriods:s.hotelPeriods || null,
-                _color:      FREE_COLORS[idx % FREE_COLORS.length],
-                _lat:        s.place?.lat || null,
-                _lng:        s.place?.lng || null,
-            }));
-            _wiz._mode = localStorage.getItem('japan_trip_mode') || 'guided';
-            _wiz._pendingPlace = null;
+            // Fermer l'overlay post-gen EN PREMIER
+            const overlay = document.getElementById('wiz-postgen-overlay');
+            if (overlay) overlay.remove();
 
-            // Fermer l'overlay post-gen
-            document.getElementById('wiz-postgen-overlay')?.remove();
-
-            // Supprimer silencieusement les activités IA (sans confirm bloquant)
+            // Supprimer les activités IA silencieusement
             activities = activities.filter(a => a.source !== 'ai');
             saveActivities();
 
-            // Ouvrir le wizard SANS réinitialiser _freeStays (on bypass openStaysWizard)
             if (!tripData) return;
-            _wiz.totalDays = tripData.totalDays;
-            _wiz.template  = _wizardGetTemplate(_wiz.totalDays);
-            _wiz._editIdx  = null;
-            _wizMap = null; // reset carte wizard
-            document.getElementById('stays-wizard').classList.remove('hidden');
+
+            // Reconstruire _freeStays depuis stays[] (déjà sauvegardés)
+            _wiz._freeStays = stays.map((s, idx) => ({
+                city:         s.city,
+                emoji:        JAPAN_CITIES.find(c => c.name.toLowerCase() === s.city.toLowerCase())?.emoji || '📍',
+                days:         s.endDay - s.startDay + 1,
+                hotel:        s.hotelName || '',
+                hotelPeriods: s.hotelPeriods || null,
+                _color:       FREE_COLORS[idx % FREE_COLORS.length],
+                _lat:         s.place?.lat || null,
+                _lng:         s.place?.lng || null,
+            }));
+            _wiz._mode        = localStorage.getItem('japan_trip_mode') || 'guided';
+            _wiz._pendingPlace = null;
+            _wiz.totalDays    = tripData.totalDays;
+            _wiz.template     = _wizardGetTemplate(_wiz.totalDays);
+            _wiz._editIdx     = null;
+            _wizMap           = null;
+
+            // Afficher le wizard (s'assurer qu'il est visible et au-dessus)
+            const wiz = document.getElementById('stays-wizard');
+            if (!wiz) return;
+            wiz.classList.remove('hidden');
+            wiz.style.zIndex = '300'; // au-dessus de tout
+
+            // Rendre en mode libre
             _wizardRenderFreeMode(_wiz._mode);
+
+            // Initialiser la carte après render
+            setTimeout(() => _wizInitMap(), 100);
         };
 
         window._postGenGoToPlanning = function() {
