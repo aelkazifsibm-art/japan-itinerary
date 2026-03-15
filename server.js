@@ -1251,4 +1251,50 @@ app.get('/api/maps-key', (req, res) => {
     res.json({ key });
 });
 
+
+// ── Recherche restos proches pour slot machine repas ─────────────────────────
+app.post('/api/nearby-food', async (req, res) => {
+    try {
+        const key = process.env.GOOGLE_MAPS_SERVER_KEY || process.env.GOOGLE_PLACES_API_KEY || '';
+        if (!key) return res.json({ success:false, error:'No API key', results:[] });
+
+        const { lat, lng, food_query, meal_type } = req.body || {};
+        if (!lat || !lng) return res.json({ success:false, error:'Missing coords', results:[] });
+
+        // Type de recherche selon le repas
+        const placeType = (meal_type==='breakfast') ? 'cafe|bakery|restaurant' : 'restaurant|izakaya|food';
+        const keyword   = food_query || (meal_type==='breakfast' ? 'breakfast cafe morning' : 'restaurant');
+        const radius    = 800; // ~10 min à pied
+
+        const url = new URL('https://maps.googleapis.com/maps/api/place/nearbysearch/json');
+        url.searchParams.set('location', `${lat},${lng}`);
+        url.searchParams.set('radius', String(radius));
+        url.searchParams.set('keyword', keyword);
+        url.searchParams.set('language', 'ja');
+        url.searchParams.set('key', key);
+
+        const resp = await fetchJson(url.toString());
+        if (resp.json?.status !== 'OK' && resp.json?.status !== 'ZERO_RESULTS') {
+            return res.json({ success:false, error: resp.json?.status, results:[] });
+        }
+
+        const raw = (resp.json?.results || []).slice(0, 5);
+        const results = raw.map(r => ({
+            name:        r.name,
+            address:     r.vicinity,
+            rating:      r.rating || null,
+            review_count: r.user_ratings_total || 0,
+            photo_reference: r.photos?.[0]?.photo_reference || null,
+            place_id:    r.place_id,
+            lat:         r.geometry?.location?.lat,
+            lng:         r.geometry?.location?.lng,
+            open_now:    r.opening_hours?.open_now ?? null,
+        }));
+
+        res.json({ success:true, results });
+    } catch(e) {
+        res.status(500).json({ success:false, error:e.message, results:[] });
+    }
+});
+
 app.listen(port, () => console.log(`✅ Serveur prêt sur http://localhost:${port}`));

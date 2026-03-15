@@ -2194,6 +2194,108 @@
 
         // ── Ouvrir le wizard ───────────────────────────────────────────────
 
+
+        // ═══════════════════════════════════════════════════════════════════
+        // JAPAN_CITIES — autocomplete villes
+        // ═══════════════════════════════════════════════════════════════════
+        const JAPAN_CITIES = [
+            { name:'Tokyo',      emoji:'🗼', region:'Kantō' },
+            { name:'Kyoto',      emoji:'⛩️', region:'Kansai' },
+            { name:'Osaka',      emoji:'🏯', region:'Kansai' },
+            { name:'Nara',       emoji:'🦌', region:'Kansai' },
+            { name:'Hiroshima',  emoji:'☮️', region:'Chugoku' },
+            { name:'Hakone',     emoji:'🗻', region:'Kantō' },
+            { name:'Nikko',      emoji:'🏔️', region:'Kantō' },
+            { name:'Kamakura',   emoji:'🌊', region:'Kantō' },
+            { name:'Takayama',   emoji:'🏘️', region:'Chubu' },
+            { name:'Kanazawa',   emoji:'🎨', region:'Chubu' },
+            { name:'Sapporo',    emoji:'❄️', region:'Hokkaido' },
+            { name:'Fukuoka',    emoji:'🍜', region:'Kyushu' },
+            { name:'Nagasaki',   emoji:'⛵', region:'Kyushu' },
+            { name:'Kumamoto',   emoji:'🏯', region:'Kyushu' },
+            { name:'Nagoya',     emoji:'🏙️', region:'Chubu' },
+            { name:'Kobe',       emoji:'🌉', region:'Kansai' },
+            { name:'Yokohama',   emoji:'🚢', region:'Kantō' },
+            { name:'Sendai',     emoji:'🌿', region:'Tōhoku' },
+            { name:'Matsumoto',  emoji:'🏯', region:'Chubu' },
+            { name:'Miyajima',   emoji:'⛩️', region:'Chugoku' },
+            { name:'Beppu',      emoji:'♨️', region:'Kyushu' },
+            { name:'Yao',        emoji:'📍', region:'Kansai' },
+            { name:'Namba',      emoji:'🏮', region:'Kansai' },
+            { name:'Asakusa',    emoji:'🏮', region:'Kantō' },
+            { name:'Shibuya',    emoji:'🚶', region:'Kantō' },
+            { name:'Shinjuku',   emoji:'🌆', region:'Kantō' },
+            { name:'Akihabara',  emoji:'🎮', region:'Kantō' },
+            { name:'Harajuku',   emoji:'🎀', region:'Kantō' },
+            { name:'Ginza',      emoji:'🛍️', region:'Kantō' },
+            { name:'Roppongi',   emoji:'🎭', region:'Kantō' },
+        ];
+
+        // ═══════════════════════════════════════════════════════════════════
+        // FLIGHT_DURATIONS — durées vol depuis aéroports européens (minutes)
+        // ═══════════════════════════════════════════════════════════════════
+        const FLIGHT_DURATIONS = {
+            // France
+            'CDG-NRT':810,'CDG-HND':810,'CDG-KIX':810,'CDG-FUK':840,
+            // Belgique
+            'BRU-NRT':815,'BRU-HND':815,
+            // Pays-Bas
+            'AMS-NRT':805,'AMS-HND':805,'AMS-KIX':780,
+            // Allemagne
+            'FRA-HND':765,'FRA-NRT':790,'MUC-HND':765,'MUC-NRT':780,
+            // UK
+            'LHR-HND':820,'LHR-NRT':840,'LGW-NRT':840,
+            // Finlande (Finnair = souvent + court)
+            'HEL-NRT':805,'HEL-HND':800,'HEL-KIX':790,
+            // Espagne
+            'MAD-NRT':870,'MAD-HND':870,
+            // Italie
+            'FCO-NRT':870,'MXP-NRT':870,
+            // Suisse
+            'ZRH-HND':790,'ZRH-NRT':790,
+            // Autriche
+            'VIE-NRT':780,'VIE-HND':770,
+            // Scandinavie
+            'CPH-NRT':810,'OSL-NRT':820,'ARN-NRT':820,
+            // Bâle (proche Montbéliard)
+            'BSL-NRT':800,'BSL-HND':800,'EAP-NRT':800,
+        };
+
+        // ═══════════════════════════════════════════════════════════════════
+        // HOME_AIRPORTS — aéroports de départ Europe
+        // ═══════════════════════════════════════════════════════════════════
+        const HOME_AIRPORTS = [
+            {code:'CDG',name:'Paris Charles-de-Gaulle',country:'🇫🇷',region:'Île-de-France',aliases:['paris','cdg','roissy']},
+            {code:'ORY',name:'Paris Orly',country:'🇫🇷',region:'Île-de-France',aliases:['orly','paris orly']},
+            {code:'LYS',name:'Lyon Saint-Exupéry',country:'🇫🇷',region:'Rhône-Alpes',aliases:['lyon','lys']},
+            {code:'NCE',name:'Nice Côte d\'Azur',country:'🇫🇷',region:'PACA',aliases:['nice','nce']},
+            {code:'MRS',name:'Marseille Provence',country:'🇫🇷',region:'PACA',aliases:['marseille','mrs']},
+            {code:'BSL',name:'Bâle-Mulhouse Basel EuroAirport',country:'🇫🇷🇨🇭',region:'Grand Est / Alsace',aliases:['bâle','basel','bale','mulhouse','euroairport','eap','bsl','montbeliard','montbéliard','belfort','alsace']},
+            {code:'STR',name:'Stuttgart',country:'🇩🇪',region:'Baden-Württemberg',aliases:['stuttgart','str']},
+            {code:'FRA',name:'Frankfurt',country:'🇩🇪',region:'Hesse',aliases:['frankfurt','fra','francfort']},
+            {code:'MUC',name:'Munich',country:'🇩🇪',region:'Bavaria',aliases:['munich','muc','münchen']},
+            {code:'DUS',name:'Düsseldorf',country:'🇩🇪',region:'NRW',aliases:['dusseldorf','düsseldorf','dus']},
+            {code:'BER',name:'Berlin Brandenburg',country:'🇩🇪',region:'Berlin',aliases:['berlin','ber']},
+            {code:'LHR',name:'London Heathrow',country:'🇬🇧',region:'London',aliases:['heathrow','lhr','london']},
+            {code:'LGW',name:'London Gatwick',country:'🇬🇧',region:'London',aliases:['gatwick','lgw']},
+            {code:'AMS',name:'Amsterdam Schiphol',country:'🇳🇱',region:'Noord-Holland',aliases:['amsterdam','ams','schiphol']},
+            {code:'BRU',name:'Bruxelles',country:'🇧🇪',region:'Bruxelles',aliases:['brussels','bruxelles','bru']},
+            {code:'ZRH',name:'Zurich',country:'🇨🇭',region:'Zürich',aliases:['zurich','zrh','zürich']},
+            {code:'GVA',name:'Genève',country:'🇨🇭',region:'Genève',aliases:['geneva','geneve','genève','gva']},
+            {code:'VIE',name:'Vienne',country:'🇦🇹',region:'Vienne',aliases:['vienna','vienne','vie','wien']},
+            {code:'HEL',name:'Helsinki Vantaa',country:'🇫🇮',region:'Uusimaa',aliases:['helsinki','hel','finnair']},
+            {code:'CPH',name:'Copenhague',country:'🇩🇰',region:'Copenhague',aliases:['copenhagen','copenhague','cph']},
+            {code:'MAD',name:'Madrid Barajas',country:'🇪🇸',region:'Madrid',aliases:['madrid','mad']},
+            {code:'BCN',name:'Barcelone',country:'🇪🇸',region:'Catalogne',aliases:['barcelona','barcelone','bcn']},
+            {code:'FCO',name:'Rome Fiumicino',country:'🇮🇹',region:'Lazio',aliases:['rome','roma','fco','fiumicino']},
+            {code:'MXP',name:'Milan Malpensa',country:'🇮🇹',region:'Lombardie',aliases:['milan','milano','mxp','malpensa']},
+        ];
+
+        function _normalizeStr(s) {
+            return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,' ').trim();
+        }
+
+
         // ═══════════════════════════════════════════════════════════════════
         // MODE LIBRE — Couleurs + carte + wizard free
         // ═══════════════════════════════════════════════════════════════════
@@ -4160,6 +4262,10 @@
         // ========== OPTIMISATION DU PLANNING ==========
         // ═══ OPTIMISATION IA ════════════════════════════════
 
+        // Aliases
+        function optimizeDay() { optimizeDaySchedule(); }
+        function openCascadePanel() { optimizeDaySchedule(); }
+
         async function optimizeDaySchedule() {
             dayActivities = activities
                 .filter(a => a.dayIndex === currentDayIndex)
@@ -5905,6 +6011,21 @@
         // ═══════════════════════════════════════════════════════════════════
         // SPÉCIALITÉS LOCALES PAR VILLE + SLOT MACHINE
         // ═══════════════════════════════════════════════════════════════════
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SPÉCIALITÉS PAR TYPE DE REPAS
+        // ═══════════════════════════════════════════════════════════════════
+        const BREAKFAST_SPECIALTIES = [
+            {n:"Kissaten Morning",  e:"☕", d:"Toast épais + œuf dur + café noir — set typique des cafés vintage japonais", q:"Chercher un ancien café local, souvent dès 7h"},
+            {n:"Onigiri Konbini",   e:"🍙", d:"Triangle de riz farci au thon, saumon ou prune — l'icône du matin japonais", q:"7-Eleven, FamilyMart ou Lawson, disponible 24h"},
+            {n:"Tamagoyaki Teishoku",e:"🥚",d:"Set complet : omelette roulée + riz + soupe miso + tsukemono", q:"Petit restaurant de quartier ouvert dès 7h-8h"},
+            {n:"Shokupan Grillé",   e:"🍞", d:"Pain de mie épais grillé, beurre fondu, parfois confiture maison", q:"Boulangeries japonaises modernes, cafés trendy"},
+            {n:"Matcha Latte + Wagashi",e:"🍵",d:"Latte au thé vert + confiserie traditionnelle pour commencer doucement", q:"Salon de thé ou Cha·ba·na, souvent dès 8h"},
+            {n:"Natto Gohan",       e:"🫘", d:"Soja fermenté sur riz chaud — expérience authentique pour aventuriers matinaux", q:"Teishoku-ya de quartier, petits restos familiaux"},
+            {n:"Yakizakana Teishoku",e:"🐟",d:"Poisson grillé + riz blanc + soupe miso — le vrai petit-déj japonais complet", q:"Izakaya morning service ou restaurant teishoku"},
+            {n:"Melon Pan Frais",   e:"🍞", d:"Brioche croustillante-moelleuse sortie du four, à croquer chaud", q:"Boulangeries locales, souvent dès 8h — queue possible"},
+        ];
+
         const FOOD_SPECIALTIES = {
             tokyo:[{n:"Tsukemen",e:"🍜",d:"Ramen trempé, bouillon concentré",q:"Shimokitazawa ou Ikebukuro"},{n:"Monjayaki",e:"🥘",d:"Crêpe liquide de Tsukishima",q:"Tsukishima, Moon Island Kitchen"},{n:"Katsudon",e:"🍛",d:"Bol riz + porc pané + oeuf",q:"Ueno, Tonkatsu Maisen"},{n:"Yakitori",e:"🍢",d:"Brochettes sous les voies ferrées",q:"Yurakucho, sous le métro"},{n:"Sushi Tsukiji",e:"🍣",d:"Sushi frais au marché extérieur",q:"Tsukiji Outer Market, 6h-10h"},{n:"Tempura Tendon",e:"🍤",d:"Bol de tempura croustillante sur riz",q:"Asakusa, Daikokuya"},{n:"Ramen Shoyu",e:"🍜",d:"Bouillon soja, chashu et menma",q:"Shinjuku, Fuunji ou Ichiran"},{n:"Melon Pan",e:"🍞",d:"Brioche croustillante sucrée",q:"Harajuku ou konbini"}],
             osaka:[{n:"Takoyaki",e:"🐙",d:"Boulettes de pieuvre sauce bonito",q:"Dotonbori, Aizuya"},{n:"Okonomiyaki",e:"🥞",d:"Crêpe épaisse garnie à volonté",q:"Fukushima, Mizuno"},{n:"Kushikatsu",e:"🍡",d:"Brochettes panées — no double dip!",q:"Shinsekai, Daruma"},{n:"Kitsune Udon",e:"🍜",d:"Udon avec tofu frit sucré",q:"Namba, Imai Honten"},{n:"Yakiniku",e:"🥩",d:"Barbecue coréen-japonais",q:"Tsuruhashi"},{n:"Negiyaki",e:"🧅",d:"Okonomiyaki version ciboule",q:"Fukushima"},{n:"Fugu Sashimi",e:"🐡",d:"Poisson-globe sécurisé",q:"Dotonbori, Zuboraya"},{n:"Horumon Yaki",e:"🔥",d:"Abats grillés marinés",q:"Tsuruhashi, izakaya locaux"}],
@@ -5929,60 +6050,304 @@
             return FOOD_SPECIALTIES.default;
         }
 
+        // ── Slot machine principale ──────────────────────────────────────────
         window._spinSlot = function(slotId, city, mealType) {
             const reel  = document.getElementById(slotId+'-reel');
             const info  = document.getElementById(slotId+'-info');
             const wrap  = document.getElementById(slotId+'-wrap');
             if (!reel) return;
-            const foods  = _getFoodForCity(city);
+
+            const isBreakfast = (mealType==='breakfast' || mealType==='lunch' && false);
+            // breakfast = repas du matin, sinon spécialités de la ville
+            const foods = isBreakfast ? BREAKFAST_SPECIALTIES : _getFoodForCity(city);
             const ITEM_H = 52;
-            const pool   = [...foods,...foods,...foods];
-            const winIdx = Math.floor(Math.random()*foods.length);
-            const winner = foods[winIdx];
-            reel.innerHTML = pool.map(f =>
+            const pool = [...foods,...foods,...foods];
+
+            // Reel immobile au départ — juste un message d'invite
+            reel.innerHTML =
+                '<div style="height:'+ITEM_H+'px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px">'+
+                '<span style="font-size:22px">&#127869;</span>'+
+                '<span style="font-size:13px;font-weight:700;color:#b45309;font-style:italic">Glisse pour découvrir...</span>'+
+                '</div>';
+            reel.style.transition = 'none';
+            reel.style.transform  = 'translateY(0)';
+            if (info) info.style.display = 'none';
+
+            // Supprimer ancienne tirette si elle existe
+            const oldSlider = document.getElementById(slotId+'-slider');
+            if (oldSlider) oldSlider.remove();
+
+            // Créer la tirette
+            const slider = document.createElement('div');
+            slider.id = slotId+'-slider';
+            slider.style.cssText = 'padding:6px 10px 10px;';
+            slider.innerHTML =
+                '<div style="position:relative;height:38px;background:linear-gradient(90deg,#fde68a,#fcd34d);border-radius:19px;overflow:hidden;cursor:grab;box-shadow:inset 0 1px 3px rgba(0,0,0,.1)" id="'+slotId+'-track">'+
+                  '<div style="position:absolute;inset:0;display:flex;align-items:center;padding:0 20px 0 50px;pointer-events:none">'+
+                    '<span style="font-size:10px;color:#92400e;font-weight:700;white-space:nowrap">&#8614; Tire pour tirer au sort &#8614;</span>'+
+                  '</div>'+
+                  '<div id="'+slotId+'-thumb" style="position:absolute;left:4px;top:4px;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:grab;touch-action:pan-y;user-select:none;z-index:2;transition:box-shadow .2s">&#127869;</div>'+
+                '</div>';
+
+            wrap.parentNode.insertBefore(slider, wrap.nextSibling);
+
+            // Drag logic
+            const track = document.getElementById(slotId+'-track');
+            const thumb = document.getElementById(slotId+'-thumb');
+            if (!track || !thumb) return;
+
+            let dragging=false, startX=0, thumbX=0;
+            const maxX = () => track.offsetWidth - 38;
+
+            const getX = e => e.touches ? e.touches[0].clientX : e.clientX;
+
+            function onStart(e) {
+                dragging=true; startX=getX(e)-thumbX;
+                thumb.style.cursor='grabbing';
+                thumb.style.boxShadow='0 4px 12px rgba(0,0,0,.4)';
+            }
+            function onMove(e) {
+                if(!dragging) return;
+                e.preventDefault();
+                const x=Math.max(0,Math.min(maxX(),getX(e)-startX));
+                thumbX=x;
+                thumb.style.left=(4+x)+'px';
+                // Feedback : reel glisse légèrement
+                const pct=x/maxX();
+                reel.innerHTML =
+                    '<div style="height:'+ITEM_H+'px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px">'+
+                    '<span style="font-size:22px">&#127869;</span>'+
+                    '<span style="font-size:13px;font-weight:700;color:#b45309;font-style:italic">'+(pct>0.5?'Lâche !':'Encore...')+'</span>'+
+                    '</div>';
+            }
+            function onEnd() {
+                if(!dragging) return; dragging=false;
+                thumb.style.cursor='grab'; thumb.style.boxShadow='0 2px 8px rgba(0,0,0,.3)';
+                const pct=thumbX/maxX();
+                if(pct>0.75) {
+                    slider.remove();
+                    _runSpin(slotId, city, mealType, foods, pool, reel, info, wrap);
+                } else {
+                    thumb.style.transition='left .3s ease';
+                    thumb.style.left='4px'; thumbX=0;
+                    setTimeout(()=>{thumb.style.transition='';},300);
+                    reel.innerHTML=
+                        '<div style="height:'+ITEM_H+'px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px">'+
+                        '<span style="font-size:22px">&#127869;</span>'+
+                        '<span style="font-size:13px;font-weight:700;color:#b45309;font-style:italic">Glisse pour découvrir...</span>'+
+                        '</div>';
+                }
+            }
+            thumb.addEventListener('mousedown',onStart);
+            thumb.addEventListener('touchstart',onStart,{passive:true});
+            document.addEventListener('mousemove',onMove);
+            document.addEventListener('touchmove',onMove,{passive:false});
+            document.addEventListener('mouseup',onEnd);
+            document.addEventListener('touchend',onEnd);
+        };
+
+        // ── Animation spin 3 secondes ─────────────────────────────────────
+        window._runSpin = function(slotId, city, mealType, foods, pool, reel, info, wrap) {
+            const ITEM_H=52;
+            const winIdx=Math.floor(Math.random()*foods.length);
+            const winner=foods[winIdx];
+
+            // Remplir le reel avec tous les items
+            reel.innerHTML=pool.map(f=>
                 '<div style="height:'+ITEM_H+'px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;pointer-events:none">'+
                 '<span style="font-size:26px;flex-shrink:0">'+f.e+'</span>'+
-                '<span style="font-size:14px;font-weight:900;color:#92400e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">'+f.n+'</span>'+
+                '<span style="font-size:14px;font-weight:900;color:#92400e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">'+f.n+'</span>'+
                 '</div>'
             ).join('');
-            if (info) info.innerHTML = '<span style="color:#b45309;opacity:.5;font-size:10px">Tirage en cours...</span>';
-            const totalFrames = 60+Math.floor(Math.random()*20);
-            const speed0 = 16;
-            let speed=speed0, frames=0, currentY=0;
-            const targetY = (Math.floor(pool.length/2)+winIdx)*ITEM_H;
-            reel.style.transition='none'; reel.style.transform='translateY(0px)';
-            function animate() {
-                frames++;
-                const rem = totalFrames-frames;
-                if (rem<=25) speed=Math.max(1.2,speed0*(rem/25));
-                currentY+=speed;
-                if (currentY>=pool.length*ITEM_H) currentY%=pool.length*ITEM_H;
-                reel.style.transform='translateY(-'+currentY.toFixed(1)+'px)';
-                if (frames<totalFrames) { requestAnimationFrame(animate); return; }
+            reel.style.transition='none';
+            reel.style.transform='translateY(0)';
+
+            const targetY=(Math.floor(pool.length/2)+winIdx)*ITEM_H;
+            const DURATION=3000;
+            const startTime=performance.now();
+
+            function easeInOut(t) {
+                if(t<0.35) return t*t*8;
+                if(t>0.75) return 1-Math.pow(1-t,3)*4;
+                return 0.98;
+            }
+
+            function animate(now) {
+                const t=Math.min(1,(now-startTime)/DURATION);
+                const ease=easeInOut(t);
+                const totalScroll=pool.length*ITEM_H*2+(targetY);
+                const cur=(ease*totalScroll)%(pool.length*ITEM_H);
+                reel.style.transform='translateY(-'+cur.toFixed(1)+'px)';
+                if(t<1){requestAnimationFrame(animate);return;}
                 const snapY=targetY%(pool.length*ITEM_H);
-                reel.style.transition='transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94)';
+                reel.style.transition='transform .4s cubic-bezier(.25,.46,.45,.94)';
                 reel.style.transform='translateY(-'+snapY+'px)';
-                setTimeout(()=>{
-                    if (info) {
-                        const mapsUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(winner.n+' '+city+' Japan');
-                        info.innerHTML='<div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:3px">'+winner.n+'</div>'+
-                            '<div style="font-size:11px;color:#b45309;line-height:1.4;margin-bottom:5px">'+winner.d+'</div>'+
-                            '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
-                            '<span style="font-size:10px;background:#fde68a;color:#78350f;padding:2px 7px;border-radius:8px;font-weight:700">&#128205; '+winner.q+'</span>'+
-                            '<a href="'+mapsUrl+'" target="_blank" onclick="event.stopPropagation()" style="font-size:10px;color:#7c3aed;font-weight:700;text-decoration:none">Chercher Maps &#8594;</a>'+
-                            '</div>';
-                    }
-                    if (wrap) {
-                        let _t=null;
-                        wrap.ontouchstart=function(){_t=setTimeout(()=>{_t=null;window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(winner.n+' '+city+' Japan'),'_blank');},500);};
-                        wrap.ontouchend=function(){if(_t){clearTimeout(_t);_t=null;_spinSlot(slotId,city,mealType);}};
-                        wrap.onclick=function(){_spinSlot(slotId,city,mealType);};
-                        wrap.oncontextmenu=function(e){e.preventDefault();window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(winner.n+' '+city+' Japan'),'_blank');};
-                    }
-                },380);
+                setTimeout(()=>_showFoodResult(slotId,city,mealType,winner,info,wrap),450);
             }
             requestAnimationFrame(animate);
         };
+
+        // ── Affichage résultat + bouton recherche ─────────────────────────
+        function _showFoodResult(slotId, city, mealType, winner, info, wrap) {
+            if(!info) return;
+            const isBreakfast=(mealType==='breakfast');
+            const mapsSearch='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(winner.n+' '+city+' Japan');
+            info.style.display='';
+            info.innerHTML=
+                '<div style="font-size:13px;font-weight:900;color:#92400e;margin-bottom:3px">'+winner.e+' '+winner.n+'</div>'+
+                '<div style="font-size:11px;color:#b45309;line-height:1.45;margin-bottom:8px">'+winner.d+'</div>'+
+                '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+
+                '<span style="font-size:10px;background:#fde68a;color:#78350f;padding:3px 8px;border-radius:8px;font-weight:700">&#128205; '+winner.q+'</span>'+
+                '</div>'+
+                '<div style="display:flex;gap:8px">'+
+                '<button data-sid="'+slotId+'" data-city="'+city+'" data-mt="'+mealType+'" onclick="_spinSlot(this.dataset.sid,this.dataset.city,this.dataset.mt)" style="flex:1;padding:8px;border:1.5px solid #fde68a;background:white;border-radius:10px;font-size:11px;font-weight:700;color:#b45309;cursor:pointer">&#8635; Autre</button>'+
+                '<button onclick="_findNearbyResto(\''+winner.n.replace(/'/g,'\\\'')+'\',\''+city+'\',\''+mealType+'\')" style="flex:2;padding:8px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:10px;font-size:11px;font-weight:700;color:white;cursor:pointer">&#128269; Trouver un resto nearby</button>'+
+                '</div>';
+        }
+
+        // ── Trouver un resto à proximité ──────────────────────────────────
+        window._findNearbyResto = async function(foodName, city, mealType) {
+            // Récupérer les coordonnées : hôtel (matin) ou dernière activité
+            const stay = getStayForDay(currentDayIndex);
+            const isBreakfast = (mealType==='breakfast');
+
+            let coords = null;
+            let locationLabel = '';
+
+            // Tenter 1 : adresse hôtel si matin
+            if (isBreakfast && stay?.place?.lat && stay?.place?.lng) {
+                coords = {lat:stay.place.lat, lng:stay.place.lng};
+                locationLabel = stay.hotelName || stay.city;
+            }
+            // Tenter 2 : dernière activité résolue du jour
+            if (!coords) {
+                const todayActs = activities.filter(a=>a.dayIndex===currentDayIndex&&a.place?.lat&&a.place?.lng);
+                if(todayActs.length>0) {
+                    const last=todayActs[todayActs.length-1];
+                    coords={lat:last.place.lat,lng:last.place.lng};
+                    locationLabel=last.place.name||city;
+                }
+            }
+
+            // Si pas de coordonnées → proposer saisie ou géoloc
+            if(!coords) {
+                _showLocationPrompt(foodName, city, mealType);
+                return;
+            }
+            _showNearbyPopup(foodName, city, mealType, coords, locationLabel);
+        };
+
+        // ── Prompt pour obtenir localisation ─────────────────────────────
+        function _showLocationPrompt(foodName, city, mealType) {
+            let overlay=document.getElementById('nearby-location-overlay');
+            if(!overlay){overlay=document.createElement('div');overlay.id='nearby-location-overlay';overlay.style.cssText='position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center';document.body.appendChild(overlay);}
+            overlay.innerHTML=
+                '<div style="width:100%;max-width:480px;background:white;border-radius:24px 24px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,20px),20px)">'+
+                '<div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 16px"></div>'+
+                '<div style="font-size:16px;font-weight:900;color:#111827;margin-bottom:6px">&#128205; Où êtes-vous ?</div>'+
+                '<div style="font-size:12px;color:#6b7280;margin-bottom:16px">Pour trouver un resto de <strong>'+foodName+'</strong> à 10 min à pied, on a besoin de votre position.</div>'+
+                '<div style="display:flex;flex-direction:column;gap:10px">'+
+                '<button onclick="_useGeoloc(\''+foodName.replace(/'/g,'\\\'')+'\',\''+city+'\',\''+mealType+'\')" style="padding:13px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:14px;font-weight:800;cursor:pointer">&#127757; Utiliser ma position GPS</button>'+
+                '<div style="position:relative">'+
+                '<input id="nearby-addr-input" type="text" placeholder="Ou saisissez une adresse / nom hôtel..." style="width:100%;padding:12px 14px;border:2px solid #e9d5ff;border-radius:14px;font-size:13px;box-sizing:border-box;outline:none">'+
+                '</div>'+
+                '<button onclick="_useManualAddr(\''+foodName.replace(/'/g,'\\\'')+'\',\''+city+'\',\''+mealType+'\')" style="padding:12px;background:#f3f4f6;border:none;border-radius:14px;font-size:13px;font-weight:700;color:#374151;cursor:pointer">&#128269; Chercher cette adresse</button>'+
+                '<button onclick="document.getElementById(\'nearby-location-overlay\')?.remove()" style="padding:10px;background:none;border:none;font-size:12px;color:#9ca3af;cursor:pointer">Juste la spécialité — sans adresse précise</button>'+
+                '</div></div>';
+        }
+
+        window._useGeoloc = function(foodName, city, mealType) {
+            document.getElementById('nearby-location-overlay')?.remove();
+            if(!navigator.geolocation){alert('Géolocalisation non disponible');return;}
+            const btn=event.target;
+            if(btn){btn.textContent='Localisation en cours...';btn.disabled=true;}
+            navigator.geolocation.getCurrentPosition(
+                pos=>{
+                    const coords={lat:pos.coords.latitude,lng:pos.coords.longitude};
+                    _showNearbyPopup(foodName,city,mealType,coords,'Ma position');
+                },
+                ()=>{ document.getElementById('nearby-location-overlay')?.remove(); _showLocationPrompt(foodName,city,mealType); },
+                {timeout:8000}
+            );
+        };
+
+        window._useManualAddr = async function(foodName, city, mealType) {
+            const inp=document.getElementById('nearby-addr-input');
+            const addr=(inp?.value||'').trim();
+            if(!addr){if(inp)inp.style.borderColor='#ef4444';return;}
+            inp.style.borderColor='#e9d5ff';
+            // Resolve via API
+            try{
+                const r=await fetch('/api/resolve-place',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({search_query:addr+' '+city,title:addr})});
+                const d=await r.json();
+                if(d.success&&d.place?.lat){
+                    document.getElementById('nearby-location-overlay')?.remove();
+                    _showNearbyPopup(foodName,city,mealType,{lat:d.place.lat,lng:d.place.lng},addr);
+                    return;
+                }
+            }catch(e){}
+            inp.style.borderColor='#ef4444';
+            inp.placeholder='Adresse non trouvée — réessayez';
+        };
+
+        // ── Popup restos à proximité ──────────────────────────────────────
+        async function _showNearbyPopup(foodName, city, mealType, coords, locationLabel) {
+            let overlay=document.getElementById('nearby-resto-overlay');
+            if(!overlay){overlay=document.createElement('div');overlay.id='nearby-resto-overlay';overlay.style.cssText='position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center';document.body.appendChild(overlay);}
+
+            overlay.innerHTML=
+                '<div style="width:100%;max-width:480px;background:white;border-radius:24px 24px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,20px),20px)">'+
+                '<div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 12px"></div>'+
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+
+                '<span style="font-size:20px">&#128269;</span>'+
+                '<div><div style="font-size:15px;font-weight:900;color:#111827">'+foodName+' près de vous</div>'+
+                '<div style="font-size:11px;color:#9ca3af">&#128205; '+locationLabel+' · 10 min à pied</div></div>'+
+                '<button onclick="document.getElementById(\'nearby-resto-overlay\')?.remove()" style="margin-left:auto;width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;font-size:14px;cursor:pointer;color:#6b7280">&#10005;</button>'+
+                '</div>'+
+                '<div id="nearby-results" style="margin-top:12px"><div style="text-align:center;padding:24px;color:#9ca3af"><div style="font-size:24px;margin-bottom:8px;animation:spin .8s linear infinite">&#9899;</div><div style="font-size:12px">Recherche en cours...</div></div></div>'+
+                '</div>';
+
+            // Appel API
+            try{
+                const r=await fetch('/api/nearby-food',{method:'POST',headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({lat:coords.lat,lng:coords.lng,food_query:foodName,meal_type:mealType})});
+                const data=await r.json();
+                const resultsEl=document.getElementById('nearby-results');
+                if(!resultsEl)return;
+
+                if(!data.success||!data.results?.length){
+                    resultsEl.innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af">'+
+                        '<div style="font-size:24px;margin-bottom:8px">&#128533;</div>'+
+                        '<div style="font-size:12px">Aucun resto trouvé à proximité</div>'+
+                        '<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(foodName+' '+city)+'" target="_blank" style="display:block;margin-top:10px;font-size:12px;color:#7c3aed;font-weight:700">Chercher sur Maps &#8594;</a>'+
+                        '</div>';
+                    return;
+                }
+
+                resultsEl.innerHTML=data.results.map((r,i)=>{
+                    const mapsDir='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(r.name+' '+r.address)+'&destination_place_id='+(r.place_id||'')+'&travelmode=walking';
+                    const openBadge=r.open_now===true?'<span style="font-size:9px;background:#dcfce7;color:#16a34a;padding:1px 6px;border-radius:6px;font-weight:700">Ouvert</span>':r.open_now===false?'<span style="font-size:9px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:6px;font-weight:700">Fermé</span>':'';
+                    const stars=r.rating?'&#11088; '+r.rating.toFixed(1)+(r.review_count?' ('+r.review_count+')':""):'';
+                    return '<div style="padding:12px 0;border-bottom:1px solid #f3f4f6;display:flex;gap:12px;align-items:center">'+
+                        '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#fde68a,#fbbf24);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#92400e;flex-shrink:0">'+(i+1)+'</div>'+
+                        '<div style="flex:1;min-width:0">'+
+                        '<div style="font-size:13px;font-weight:800;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.name+'</div>'+
+                        '<div style="font-size:10px;color:#9ca3af;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.address+'</div>'+
+                        '<div style="display:flex;align-items:center;gap:6px;margin-top:3px">'+
+                        (stars?'<span style="font-size:10px;color:#92400e;font-weight:600">'+stars+'</span>':'')+
+                        openBadge+
+                        '</div></div>'+
+                        '<a href="'+mapsDir+'" target="_blank" onclick="event.stopPropagation()" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 10px;background:linear-gradient(135deg,#4ade80,#22c55e);border-radius:12px;text-decoration:none">'+
+                        '<span style="font-size:16px">&#128694;</span>'+
+                        '<span style="font-size:8px;color:white;font-weight:800">Y aller</span>'+
+                        '</a></div>';
+                }).join('');
+            }catch(e){
+                const el=document.getElementById('nearby-results');
+                if(el) el.innerHTML='<div style="text-align:center;padding:20px;color:#dc2626;font-size:12px">Erreur réseau</div>';
+            }
+        }
+
 
         function renderPlanning() {
             const myToken = ++_renderToken;
@@ -6405,17 +6770,17 @@
                                 '<div style="display:flex;align-items:center;gap:10px;padding:9px 14px 6px">'+
                                 '<span style="font-size:16px">&#127920;</span>'+
                                 '<div style="font-size:11px;font-weight:800;color:#92400e">'+(isLunch?'DÉJEUNER':'DÎNER')+' &middot; Spécialité de '+(_cityName0||'la région')+'</div>'+
-                                '<span style="font-size:9px;color:#b45309;margin-left:auto;font-weight:600">Tap &#8635; &middot; Hold &#128506;</span>'+
                                 '</div>'+
                                 '<div style="padding:0 10px 10px">'+
-                                  '<div id="'+slotId+'-wrap" style="border-radius:12px;overflow:hidden;cursor:pointer;border:2px solid #fde68a;background:white;user-select:none">'+
+                                  '<div id="'+slotId+'-wrap" style="border-radius:12px;overflow:hidden;border:2px solid #fde68a;background:white">'+
                                     '<div style="height:52px;overflow:hidden;position:relative">'+
                                       '<div id="'+slotId+'-reel" style="position:absolute;width:100%;will-change:transform"></div>'+
                                     '</div>'+
                                   '</div>'+
-                                  '<div id="'+slotId+'-info" style="margin-top:8px;padding:8px 10px;background:white;border-radius:10px;border:1px solid #fde68a;min-height:32px"></div>'+
+                                  '<div id="'+slotId+'-info" style="display:none;margin-top:8px;padding:8px 10px;background:white;border-radius:10px;border:1px solid #fde68a"></div>'+
                                 '</div>';
                             list.appendChild(el);
+                            // Init sans auto-spin — la tirette déclenche
                             requestAnimationFrame(()=>_spinSlot(slotId,_cityName0,isLunch?'lunch':'dinner'));
                         } else {
                             const el=document.createElement('div');
