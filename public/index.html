@@ -6092,59 +6092,86 @@
 
             wrap.parentNode.insertBefore(slider, wrap.nextSibling);
 
-            // Drag logic
+            // ── Drag logic robuste — listeners sur le track, pas document ──
             const track = document.getElementById(slotId+'-track');
             const thumb = document.getElementById(slotId+'-thumb');
             if (!track || !thumb) return;
 
-            let dragging=false, startX=0, thumbX=0;
-            const maxX = () => track.offsetWidth - 38;
+            let dragging=false, startX=0, thumbX=0, trackW=0;
+
+            // Mesurer trackW après layout (requestAnimationFrame garantit le rendu)
+            requestAnimationFrame(() => { trackW = track.offsetWidth - 38; });
 
             const getX = e => e.touches ? e.touches[0].clientX : e.clientX;
 
             function onStart(e) {
-                dragging=true; startX=getX(e)-thumbX;
-                thumb.style.cursor='grabbing';
-                thumb.style.boxShadow='0 4px 12px rgba(0,0,0,.4)';
+                trackW = track.offsetWidth - 38; // re-mesurer au moment du drag
+                dragging = true;
+                startX = getX(e) - thumbX;
+                thumb.style.cursor = 'grabbing';
+                thumb.style.boxShadow = '0 4px 12px rgba(0,0,0,.4)';
+                e.stopPropagation();
             }
             function onMove(e) {
-                if(!dragging) return;
+                if (!dragging) return;
                 e.preventDefault();
-                const x=Math.max(0,Math.min(maxX(),getX(e)-startX));
-                thumbX=x;
-                thumb.style.left=(4+x)+'px';
-                // Feedback : reel glisse légèrement
-                const pct=x/maxX();
+                e.stopPropagation();
+                const tw = trackW > 0 ? trackW : (track.offsetWidth - 38);
+                const x = Math.max(0, Math.min(tw, getX(e) - startX));
+                thumbX = x;
+                thumb.style.left = (4 + x) + 'px';
+                const pct = x / tw;
                 reel.innerHTML =
                     '<div style="height:'+ITEM_H+'px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px">'+
                     '<span style="font-size:22px">&#127869;</span>'+
-                    '<span style="font-size:13px;font-weight:700;color:#b45309;font-style:italic">'+(pct>0.5?'Lâche !':'Encore...')+'</span>'+
+                    '<span style="font-size:13px;font-weight:700;color:#b45309;font-style:italic">'+(pct>0.55?'&#128293; Lâche !':'Encore...')+'</span>'+
                     '</div>';
             }
-            function onEnd() {
-                if(!dragging) return; dragging=false;
-                thumb.style.cursor='grab'; thumb.style.boxShadow='0 2px 8px rgba(0,0,0,.3)';
-                const pct=thumbX/maxX();
-                if(pct>0.75) {
+            function onEnd(e) {
+                if (!dragging) return;
+                dragging = false;
+                e.stopPropagation();
+                thumb.style.cursor = 'grab';
+                thumb.style.boxShadow = '0 2px 8px rgba(0,0,0,.3)';
+                const tw = trackW > 0 ? trackW : (track.offsetWidth - 38);
+                const pct = thumbX / tw;
+                if (pct > 0.60) {
+                    // Succès — lancer le spin
+                    cleanListeners();
                     slider.remove();
                     _runSpin(slotId, city, mealType, foods, pool, reel, info, wrap);
                 } else {
-                    thumb.style.transition='left .3s ease';
-                    thumb.style.left='4px'; thumbX=0;
-                    setTimeout(()=>{thumb.style.transition='';},300);
-                    reel.innerHTML=
+                    // Retour arrière
+                    thumb.style.transition = 'left .25s ease';
+                    thumb.style.left = '4px'; thumbX = 0;
+                    setTimeout(()=>{ thumb.style.transition=''; }, 250);
+                    reel.innerHTML =
                         '<div style="height:'+ITEM_H+'px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px">'+
                         '<span style="font-size:22px">&#127869;</span>'+
                         '<span style="font-size:13px;font-weight:700;color:#b45309;font-style:italic">Glisse pour découvrir...</span>'+
                         '</div>';
                 }
             }
-            thumb.addEventListener('mousedown',onStart);
-            thumb.addEventListener('touchstart',onStart,{passive:true});
-            document.addEventListener('mousemove',onMove);
-            document.addEventListener('touchmove',onMove,{passive:false});
-            document.addEventListener('mouseup',onEnd);
-            document.addEventListener('touchend',onEnd);
+
+            function cleanListeners() {
+                thumb.removeEventListener('mousedown', onStart);
+                thumb.removeEventListener('touchstart', onStart);
+                track.removeEventListener('mousemove', onMove);
+                track.removeEventListener('touchmove', onMove);
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchend', onEnd);
+            }
+
+            // Listeners sur le thumb pour start, sur document pour move/end
+            // (move sur document pour gérer sortie du thumb)
+            thumb.addEventListener('mousedown', onStart);
+            thumb.addEventListener('touchstart', onStart, {passive:false});
+            document.addEventListener('mousemove', onMove, {passive:false});
+            document.addEventListener('touchmove', onMove, {passive:false});
+            document.addEventListener('mouseup', onEnd);
+            document.addEventListener('touchend', onEnd);
         };
 
         // ── Animation spin 2 secondes ─────────────────────────────────────
@@ -6324,38 +6351,282 @@
                 if(!resultsEl)return;
 
                 if(!data.success||!data.results?.length){
-                    resultsEl.innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af">'+
-                        '<div style="font-size:24px;margin-bottom:8px">&#128533;</div>'+
-                        '<div style="font-size:12px">Aucun resto trouvé à proximité</div>'+
-                        '<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(foodName+' '+city)+'" target="_blank" style="display:block;margin-top:10px;font-size:12px;color:#7c3aed;font-weight:700">Chercher sur Maps &#8594;</a>'+
+                    // Aucun résultat — bouton Maps direct
+                    const mapsSearch='https://maps.google.com/?q='+encodeURIComponent(foodName+' '+city);
+                    resultsEl.innerHTML=
+                        '<div style="text-align:center;padding:16px">'+
+                        '<div style="font-size:13px;color:#9ca3af;margin-bottom:12px">Aucun établissement trouvé à proximité</div>'+
+                        '<a href="'+mapsSearch+'" target="_blank" style="display:inline-block;padding:10px 18px;background:linear-gradient(135deg,#4ade80,#22c55e);color:white;border-radius:12px;font-size:12px;font-weight:800;text-decoration:none">&#128694; Chercher sur Maps</a>'+
                         '</div>';
                     return;
                 }
 
-                resultsEl.innerHTML=data.results.map((r,i)=>{
-                    const mapsDir='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(r.name+' '+r.address)+'&destination_place_id='+(r.place_id||'')+'&travelmode=walking';
-                    const openBadge=r.open_now===true?'<span style="font-size:9px;background:#dcfce7;color:#16a34a;padding:1px 6px;border-radius:6px;font-weight:700">Ouvert</span>':r.open_now===false?'<span style="font-size:9px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:6px;font-weight:700">Fermé</span>':'';
-                    const stars=r.rating?'&#11088; '+r.rating.toFixed(1)+(r.review_count?' ('+r.review_count+')':""):'';
-                    return '<div style="padding:12px 0;border-bottom:1px solid #f3f4f6;display:flex;gap:12px;align-items:center">'+
-                        '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#fde68a,#fbbf24);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#92400e;flex-shrink:0">'+(i+1)+'</div>'+
-                        '<div style="flex:1;min-width:0">'+
-                        '<div style="font-size:13px;font-weight:800;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.name+'</div>'+
-                        '<div style="font-size:10px;color:#9ca3af;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.address+'</div>'+
-                        '<div style="display:flex;align-items:center;gap:6px;margin-top:3px">'+
-                        (stars?'<span style="font-size:10px;color:#92400e;font-weight:600">'+stars+'</span>':'')+
-                        openBadge+
-                        '</div></div>'+
-                        '<a href="'+mapsDir+'" target="_blank" onclick="event.stopPropagation()" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 10px;background:linear-gradient(135deg,#4ade80,#22c55e);border-radius:12px;text-decoration:none">'+
-                        '<span style="font-size:16px">&#128694;</span>'+
-                        '<span style="font-size:8px;color:white;font-weight:800">Y aller</span>'+
-                        '</a></div>';
-                }).join('');
+                // Prendre le meilleur résultat
+                const best = data.results[0];
+                const mapsUrl = 'https://maps.google.com/?q='+encodeURIComponent(best.name+' '+best.address)+'&near='+best.lat+','+best.lng;
+                const stars = best.rating ? '&#11088; '+best.rating.toFixed(1)+(best.review_count?' · '+best.review_count+' avis':'') : '';
+
+                // Vérifier si ouvert à l'heure estimée du repas
+                // Heure estimée = heure de la dernière activité du jour + sa durée
+                const todayActs = activities.filter(a=>a.dayIndex===currentDayIndex).sort((a,b)=>a.time.localeCompare(b.time));
+                const mealActIdx = todayActs.findIndex(a=>a.block_type==='meal'||a.meal_type===mealType);
+                let estimatedMealTime = null;
+                if (mealActIdx >= 0) {
+                    estimatedMealTime = todayActs[mealActIdx].time;
+                } else if (todayActs.length > 0) {
+                    const prev = todayActs[todayActs.length-1];
+                    estimatedMealTime = addMinutesToTime(prev.time, prev.duration_minutes||90);
+                }
+                estimatedMealTime = estimatedMealTime || (mealType==='breakfast'?'08:30':mealType==='dinner'?'19:00':'12:30');
+
+                // Vérifier ouverture resto à l'heure estimée
+                // best.opening_hours vient du nearby search — parfois absent
+                let openStatus = { ok: true, badge: '', warning: '' };
+                if (best.open_now === false) {
+                    openStatus = { ok:false, badge:'<span style="font-size:10px;background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:8px;font-weight:700">&#9888; Fermé en ce moment</span>', warning:'Ce restaurant semble fermé actuellement.' };
+                } else if (best.open_now === true) {
+                    openStatus = { ok:true, badge:'<span style="font-size:10px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:8px;font-weight:700">Ouvert maintenant</span>', warning:'' };
+                } else {
+                    openStatus = { ok:true, badge:'', warning:'' };
+                }
+
+                // Place object pour "Ajouter au planning"
+                const restoPlace = {
+                    place_id: best.place_id, name: best.name,
+                    formatted_address: best.address, lat: best.lat, lng: best.lng,
+                    rating: best.rating, review_count: best.review_count,
+                    photo_reference: best.photo_reference || null
+                };
+                const restoPlaceJSON = encodeURIComponent(JSON.stringify(restoPlace));
+
+                resultsEl.innerHTML=
+                    '<div style="padding:12px;background:#fffbeb;border-radius:14px;border:1.5px solid #fde68a">'+
+                    '<div style="font-size:15px;font-weight:900;color:#111827;margin-bottom:3px">'+best.name+'</div>'+
+                    '<div style="font-size:11px;color:#6b7280;margin-bottom:6px">&#128205; '+best.address+'</div>'+
+                    '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'+
+                    (stars?'<span style="font-size:11px;color:#92400e;font-weight:700">'+stars+'</span>':'')+
+                    openStatus.badge+
+                    '<span style="font-size:10px;color:#9ca3af;font-weight:600">Heure estimée : '+estimatedMealTime+'</span>'+
+                    '</div>'+
+                    (openStatus.warning?'<div style="font-size:11px;color:#dc2626;font-weight:600;margin-bottom:8px;padding:6px 8px;background:#fef2f2;border-radius:8px">'+openStatus.warning+'</div>':'')+
+                    '<div style="display:flex;flex-direction:column;gap:8px">'+
+                    '<a href="'+mapsUrl+'" target="_blank" onclick="event.stopPropagation()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:14px;text-decoration:none">'+
+                    '<span style="font-size:20px">&#128694;</span>'+
+                    '<span style="font-size:14px;font-weight:900;color:white">M&#39;y rendre à pied</span>'+
+                    '</a>'+
+                    '<button id="add-meal-btn-'+currentDayIndex+'" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:13px;font-weight:800;cursor:pointer">'+
+                    '<span>&#128203;</span><span>Ajouter à mon planning</span>'+
+                    '</button>'+
+                    '</div>'+
+                    '</div>';
+                // Wire up "Ajouter au planning" button after DOM insert
+                setTimeout(() => {
+                    const addBtn = document.getElementById('add-meal-btn-'+currentDayIndex);
+                    if (addBtn) {
+                        addBtn._placeJSON = JSON.stringify(restoPlace);
+                        addBtn._mealType  = mealType;
+                        addBtn._mealTime  = estimatedMealTime;
+                        addBtn.onclick = function() {
+                            _addMealToPlanning(this._placeJSON, this._mealType, this._mealTime);
+                        };
+                    }
+                }, 50);
             }catch(e){
                 const el=document.getElementById('nearby-results');
                 if(el) el.innerHTML='<div style="text-align:center;padding:20px;color:#dc2626;font-size:12px">Erreur réseau</div>';
             }
         }
 
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        // VÉRIFICATION HORAIRES À L'HEURE PRÉVUE (pas open_now)
+        // ═══════════════════════════════════════════════════════════════════
+
+        // Parse "Lundi: 09:00 – 22:00" ou "Lundi: Fermé" → {open, close} en minutes
+        function _parseHoursForDay(opening_hours, dayIndex) {
+            if (!opening_hours?.length) return null;
+            const dayNames = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+            const d = getDayDate ? getDayDate(dayIndex) : new Date();
+            if (!d) return null;
+            const dayName = dayNames[d.getDay()];
+            const line = opening_hours.find(h => h.startsWith(dayName));
+            if (!line) return null;
+            if (/ferm/i.test(line)) return { closed: true };
+            const m = line.match(/(\d{1,2}):(\d{2})\s*[–\-]\s*(\d{1,2}):(\d{2})/);
+            if (!m) {
+                // H24
+                if (/24h|24 h|toujours ouvert|open 24/i.test(line)) return { open: 0, close: 1440, h24: true };
+                return null;
+            }
+            const open  = parseInt(m[1])*60 + parseInt(m[2]);
+            let   close = parseInt(m[3])*60 + parseInt(m[4]);
+            if (close <= open) close += 1440; // ferme après minuit
+            return { open, close, openStr: m[1]+':'+m[2], closeStr: m[3]+':'+m[4] };
+        }
+
+        // Vérifie si une activité est ouverte à arriveTime
+        // Retourne null si OK, ou { level:'error'|'warning', msg, closeStr } si problème
+        function _checkActivityOpenAt(act, arriveTimeStr) {
+            if (!act.place?.opening_hours?.length) return null;
+            if (act.block_type === 'meal' || act.meal_type) return null; // repas gérés séparément
+            const slot = _parseHoursForDay(act.place.opening_hours, act.dayIndex);
+            if (!slot) return null;
+            if (slot.closed) return { level:'error', msg:'Fermé ce jour', closeStr:null };
+            if (slot.h24) return null;
+            const arrMin  = _timeStrToMin(arriveTimeStr);
+            const durMin  = Math.min(480, Math.max(15, act.duration_minutes || 90));
+            const endMin  = arrMin + durMin;
+            if (arrMin < slot.open)  return { level:'error',   msg:'Pas encore ouvert à '+arriveTimeStr+' — ouvre à '+slot.openStr, closeStr: slot.openStr, suggestTime: slot.openStr };
+            if (arrMin >= slot.close) return { level:'error',   msg:'Fermé à '+arriveTimeStr+' — ferme à '+slot.closeStr, closeStr: slot.closeStr };
+            if (endMin > slot.close)  return { level:'warning', msg:'Ferme à '+slot.closeStr+' — visite tronquée ('+Math.max(0,slot.close-arrMin)+'min dispo)', closeStr: slot.closeStr };
+            return null;
+        }
+
+        // ── Trouver un lieu similaire ouvert à une heure donnée ──────────────
+        window._findSimilarOpenPlace = async function(act, arriveTimeStr) {
+            const stay    = getStayForDay(act.dayIndex);
+            const city    = stay?.city || '';
+            const types   = act.place?.types || [];
+            // Construire une query de remplacement
+            const typeHint = types.includes('museum') ? 'musée'
+                : types.includes('temple') || types.includes('shrine') ? 'temple sanctuaire'
+                : types.includes('park') ? 'parc jardin'
+                : types.includes('zoo') || types.includes('aquarium') ? 'zoo aquarium'
+                : act.title;
+            const query = typeHint + ' ' + city + ' Japan ouvert ' + arriveTimeStr;
+
+            showAddConfirmation('Recherche d\'un lieu similaire ouvert...', '', '🔍');
+            try {
+                const r = await fetch('/api/resolve-place', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ search_query: query, title: typeHint })
+                });
+                const d = await r.json();
+                if (d.success && d.place) {
+                    _showSimilarPlaceModal(act, d.place, arriveTimeStr, city);
+                } else {
+                    _showPostponeModal(act, arriveTimeStr);
+                }
+            } catch(e) {
+                _showPostponeModal(act, arriveTimeStr);
+            }
+        };
+
+        // ── Modal lieu similaire ──────────────────────────────────────────────
+        function _showSimilarPlaceModal(act, place, arriveTimeStr, city) {
+            const slot = _parseHoursForDay(place.opening_hours, act.dayIndex);
+            const isOpen = slot && !slot.closed && _timeStrToMin(arriveTimeStr) >= slot.open;
+            const mapsUrl = 'https://maps.google.com/?q='+encodeURIComponent(place.name+' '+city);
+
+            let overlay = document.getElementById('similar-place-overlay');
+            if (!overlay) { overlay=document.createElement('div'); overlay.id='similar-place-overlay'; overlay.style.cssText='position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center'; document.body.appendChild(overlay); }
+
+            overlay.innerHTML =
+                '<div style="width:100%;max-width:480px;background:white;border-radius:24px 24px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,20px),20px)">'+
+                '<div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 14px"></div>'+
+                '<div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Lieu similaire ouvert</div>'+
+                '<div style="font-size:16px;font-weight:900;color:#111827;margin-bottom:3px">'+place.name+'</div>'+
+                (place.formatted_address?'<div style="font-size:11px;color:#9ca3af;margin-bottom:8px">&#128205; '+place.formatted_address+'</div>':'')+
+                '<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">'+
+                (place.rating?'<span style="font-size:12px;background:#fffbeb;color:#92400e;padding:2px 8px;border-radius:8px;font-weight:700">&#11088; '+place.rating.toFixed(1)+'</span>':'')+
+                (isOpen?'<span style="font-size:11px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:8px;font-weight:700">Ouvert à '+arriveTimeStr+'</span>':'')+
+                (slot&&slot.openStr?'<span style="font-size:11px;color:#6b7280">'+slot.openStr+' – '+slot.closeStr+'</span>':'')+
+                '</div>'+
+                '<div style="display:flex;flex-direction:column;gap:8px">'+
+                '<button onclick="_replaceActivity(\''+act.id+'\','+JSON.stringify(place).replace(/'/g,"&#39;")+')" style="padding:13px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:14px;font-weight:800;cursor:pointer">&#10003; Remplacer dans mon planning</button>'+
+                '<a href="'+mapsUrl+'" target="_blank" style="display:block;padding:11px;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:14px;font-size:13px;font-weight:700;color:#0284c7;text-decoration:none;text-align:center">&#128694; Voir sur Maps</a>'+
+                '<button onclick="_showPostponeModal(activities.find(a=>a.id==\''+act.id+'\'), \''+arriveTimeStr+'\')" style="padding:10px;background:none;border:none;font-size:12px;color:#9ca3af;cursor:pointer">Pas de chance — passer l\'activité plus tard</button>'+
+                '<button onclick="document.getElementById(\'similar-place-overlay\')?.remove()" style="padding:8px;background:none;border:none;font-size:11px;color:#d1d5db;cursor:pointer">Ignorer</button>'+
+                '</div></div>';
+        }
+
+        // ── Modal reporter une activité ───────────────────────────────────────
+        window._showPostponeModal = function(act, originalTime) {
+            if (!act) return;
+            document.getElementById('similar-place-overlay')?.remove();
+            const stay = getStayForDay(act.dayIndex);
+            const city = stay?.city || '';
+            // Trouver un créneau libre plus tard dans la journée
+            const dayActs = activities.filter(a=>a.dayIndex===act.dayIndex).sort((a,b)=>a.time.localeCompare(b.time));
+            const lastAct = dayActs[dayActs.length-1];
+            const laterTime = lastAct ? addMinutesToTime(lastAct.time, (lastAct.duration_minutes||90)+15) : addMinutesToTime(originalTime, 120);
+            // Vérifier si le lieu est ouvert au créneau plus tardif
+            const slotLater = _parseHoursForDay(act.place?.opening_hours, act.dayIndex);
+            const laterMin = _timeStrToMin(laterTime);
+            const canGoLater = slotLater && !slotLater.closed && laterMin >= slotLater.open && laterMin < slotLater.close;
+
+            let overlay = document.getElementById('postpone-overlay');
+            if (!overlay) { overlay=document.createElement('div'); overlay.id='postpone-overlay'; overlay.style.cssText='position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center'; document.body.appendChild(overlay); }
+
+            overlay.innerHTML =
+                '<div style="width:100%;max-width:480px;background:white;border-radius:24px 24px 0 0;padding:20px 20px max(env(safe-area-inset-bottom,20px),20px)">'+
+                '<div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 14px"></div>'+
+                '<div style="font-size:15px;font-weight:900;color:#111827;margin-bottom:6px">&#128337; Reporter l\'activité</div>'+
+                '<div style="font-size:13px;color:#6b7280;margin-bottom:16px"><strong>'+act.title+'</strong> est fermé à '+originalTime+'.</div>'+
+                (canGoLater ?
+                    '<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px 14px;margin-bottom:14px">'+
+                    '<div style="font-size:12px;font-weight:800;color:#16a34a;margin-bottom:3px">&#10003; Ouvert plus tard ce jour</div>'+
+                    '<div style="font-size:11px;color:#15803d">Créneau disponible à <strong>'+laterTime+'</strong> (après vos autres activités)</div>'+
+                    '</div>'+
+                    '<button onclick="_postponeActivity(\''+act.id+'\',\''+laterTime+'\')" style="width:100%;padding:13px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:14px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:8px">Déplacer à '+laterTime+'</button>'
+                    :
+                    '<div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:12px;padding:12px 14px;margin-bottom:14px">'+
+                    '<div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:3px">&#9888; Fermé toute la journée ou trop tard</div>'+
+                    '<div style="font-size:11px;color:#b45309">Pas de créneau disponible ce jour</div>'+
+                    '</div>'
+                )+
+                '<button onclick="document.getElementById(\'postpone-overlay\')?.remove()" style="width:100%;padding:11px;background:#f3f4f6;border:none;border-radius:14px;font-size:13px;font-weight:700;color:#374151;cursor:pointer">Garder tel quel</button>'+
+                '</div>';
+        };
+
+        window._postponeActivity = function(actId, newTime) {
+            document.getElementById('postpone-overlay')?.remove();
+            const idx = activities.findIndex(a=>a.id==actId);
+            if (idx>=0) { activities[idx].time=newTime; saveActivities(); renderPlanning(); }
+            showAddConfirmation('Activité déplacée à '+newTime, '', '&#128337;');
+        };
+
+        window._replaceActivity = function(actId, newPlace) {
+            document.getElementById('similar-place-overlay')?.remove();
+            const idx = activities.findIndex(a=>a.id==actId);
+            if (idx>=0) {
+                activities[idx].place = newPlace;
+                activities[idx].title = newPlace.name || activities[idx].title;
+                saveActivities(); renderPlanning();
+            }
+            showAddConfirmation('Lieu mis à jour', newPlace.name, '&#10003;');
+        };
+
+
+
+        // ── Ajouter un repas au planning ──────────────────────────────────────
+        window._addMealToPlanning = function(placeJSON, mealType, mealTime) {
+            document.getElementById('nearby-resto-overlay')?.remove();
+            let place;
+            try { place = JSON.parse(placeJSON); } catch(e) { return; }
+
+            const mealLabels = { breakfast:'Petit-déjeuner', lunch:'Déjeuner', dinner:'Dîner' };
+            const newAct = {
+                id: Date.now() + Math.random(),
+                source: 'manual',
+                dayIndex: currentDayIndex,
+                time: mealTime,
+                time_flexible: true,
+                title: mealLabels[mealType] || 'Repas',
+                description: place.name,
+                duration_minutes: mealType==='breakfast'?30:mealType==='dinner'?60:45,
+                block_type: 'meal',
+                meal_type: mealType,
+                local_tip: '',
+                crowd_note: '',
+                place: place,
+            };
+            activities.push(newAct);
+            saveActivities();
+            renderPlanning();
+            showAddConfirmation(place.name+' ajouté au planning', mealLabels[mealType]+' à '+mealTime, '&#128203;');
+        };
 
         function renderPlanning() {
             const myToken = ++_renderToken;
@@ -6833,6 +7104,10 @@
                 const weatherBanner  = (modeWeather && isOutdoor && window._weatherAlert)
                     ? { bg: '#eff6ff', color: '#1d4ed8', icon: '🌧️', label: 'Extérieur · ' + window._weatherAlert }
                     : null;
+                // Alerte horaires : activité fermée à l'heure prévue
+                const hoursAlert = act.place?.opening_hours?.length
+                    ? _checkActivityOpenAt(act, arriveTime)
+                    : null;
                 const card = document.createElement('div');
                 const isCompleted = completedActivities.includes(act.id);
                 card.className = "rounded-2xl overflow-hidden activity-card" + (isCompleted ? " activity-completed" : "");
@@ -6926,8 +7201,18 @@
                             </a>` : `<div class="flex-1" style="background:${theme.timelineBg}"></div>`}
                         </div>
                     </div>
-                    ${(fatigueBanner || weatherBanner) ? `
-                    <div style="border-top:1px solid ${(fatigueBanner||weatherBanner).bg}">
+                    ${(fatigueBanner || weatherBanner || hoursAlert) ? `
+                    <div style="border-top:1px solid ${hoursAlert ? (hoursAlert.level==='error'?'#fee2e2':'#fef3c7') : (fatigueBanner||weatherBanner).bg}">
+                        ${hoursAlert ? `<div class="flex items-center justify-between gap-2 px-3 py-2" style="background:${hoursAlert.level==='error'?'#fef2f2':'#fffbeb'}">
+                            <div class="flex items-center gap-2">
+                                <span style="font-size:13px">${hoursAlert.level==='error'?'🔴':'🟡'}</span>
+                                <span style="font-size:11px;font-weight:700;color:${hoursAlert.level==='error'?'#dc2626':'#92400e'}">${hoursAlert.msg}</span>
+                            </div>
+                            <button onclick="event.stopPropagation();_findSimilarOpenPlace(activities.find(a=>a.id=='${act.id}'),'${arriveTime}')"
+                                style="flex-shrink:0;font-size:10px;font-weight:700;color:white;background:${hoursAlert.level==='error'?'#dc2626':'#d97706'};border:none;border-radius:8px;padding:4px 8px;cursor:pointer">
+                                ${hoursAlert.level==='error'?'Trouver un lieu ouvert':'Voir options'}
+                            </button>
+                        </div>` : ''}
                         ${fatigueBanner ? `<div class="flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold" style="background:${fatigueBanner.bg};color:${fatigueBanner.color}">
                             <span>${fatigueBanner.icon}</span><span>${fatigueBanner.label}</span>
                         </div>` : ''}
