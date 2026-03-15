@@ -6147,43 +6147,50 @@
             document.addEventListener('touchend',onEnd);
         };
 
-        // ── Animation spin 3 secondes ─────────────────────────────────────
+        // ── Animation spin 2 secondes ─────────────────────────────────────
         window._runSpin = function(slotId, city, mealType, foods, pool, reel, info, wrap) {
-            const ITEM_H=52;
-            const winIdx=Math.floor(Math.random()*foods.length);
-            const winner=foods[winIdx];
+            const ITEM_H = 52;
+            // Choisir le gagnant dans foods[]
+            const winIdx = Math.floor(Math.random() * foods.length);
+            const winner = foods[winIdx];
 
-            // Remplir le reel avec tous les items
-            reel.innerHTML=pool.map(f=>
+            // Construire le pool : 5 copies pour avoir assez de scroll
+            // Le winner se trouve à exactement foods.length*2 + winIdx dans le pool
+            // → on contrôle précisément où on atterrit
+            const bigPool = [...foods,...foods,...foods,...foods,...foods];
+            const landingIdx = foods.length * 2 + winIdx; // index dans bigPool où on s'arrête
+            const landingY   = landingIdx * ITEM_H;       // px exact de l'item gagnant
+
+            reel.innerHTML = bigPool.map(f =>
                 '<div style="height:'+ITEM_H+'px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;pointer-events:none">'+
                 '<span style="font-size:26px;flex-shrink:0">'+f.e+'</span>'+
                 '<span style="font-size:14px;font-weight:900;color:#92400e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">'+f.n+'</span>'+
                 '</div>'
             ).join('');
-            reel.style.transition='none';
-            reel.style.transform='translateY(0)';
 
-            const targetY=(Math.floor(pool.length/2)+winIdx)*ITEM_H;
-            const DURATION=3000;
-            const startTime=performance.now();
+            // Départ depuis 0
+            reel.style.transition = 'none';
+            reel.style.transform  = 'translateY(0)';
 
-            function easeInOut(t) {
-                if(t<0.35) return t*t*8;
-                if(t>0.75) return 1-Math.pow(1-t,3)*4;
-                return 0.98;
+            const DURATION   = 2000; // 2 secondes
+            const startTime  = performance.now();
+            // On scrolle au total landingY px, avec courbe ease-in-out lisse (cubicBezier)
+            // Pas de modulo → pas de saut. L'item gagnant est physiquement à landingY.
+
+            function easeInOutCubic(t) {
+                return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
             }
 
             function animate(now) {
-                const t=Math.min(1,(now-startTime)/DURATION);
-                const ease=easeInOut(t);
-                const totalScroll=pool.length*ITEM_H*2+(targetY);
-                const cur=(ease*totalScroll)%(pool.length*ITEM_H);
-                reel.style.transform='translateY(-'+cur.toFixed(1)+'px)';
-                if(t<1){requestAnimationFrame(animate);return;}
-                const snapY=targetY%(pool.length*ITEM_H);
-                reel.style.transition='transform .4s cubic-bezier(.25,.46,.45,.94)';
-                reel.style.transform='translateY(-'+snapY+'px)';
-                setTimeout(()=>_showFoodResult(slotId,city,mealType,winner,info,wrap),450);
+                const t    = Math.min(1, (now - startTime) / DURATION);
+                const ease = easeInOutCubic(t);
+                const cur  = ease * landingY;
+                reel.style.transform = 'translateY(-' + cur.toFixed(1) + 'px)';
+                if (t < 1) { requestAnimationFrame(animate); return; }
+                // Fin — snap précis sur l'item gagnant
+                reel.style.transition = 'transform .25s ease-out';
+                reel.style.transform  = 'translateY(-' + landingY + 'px)';
+                setTimeout(() => _showFoodResult(slotId, city, mealType, winner, info, wrap), 300);
             }
             requestAnimationFrame(animate);
         };
