@@ -6018,6 +6018,29 @@
                 </div>
             </div>
 
+            <!-- Repas dans le planning -->
+            <div style="margin-bottom:20px">
+                <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+                    🍜 Repas dans le planning
+                </div>
+                <div style="display:flex;flex-direction:column;gap:7px">
+                    ${[
+                        {id:'complet',   emoji:'📋', label:'Complet',         sub:'Carte repas avec horaire calculé'},
+                        {id:'discret',   emoji:'🎰', label:'Surprise locale',  sub:'Slot machine — spécialité à découvrir'},
+                        {id:'masque',    emoji:'🚫', label:'Masqué',           sub:'Rappel discret sans carte'},
+                    ].map(m=>`
+                    <button onclick="_profileToggle('meal_display','${m.id}',true)"
+                        id="pmeal-${m.id}"
+                        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;border:2px solid;cursor:pointer;text-align:left;${pill((p.meal_display||'complet')===m.id)}">
+                        <span style="font-size:20px;flex-shrink:0">${m.emoji}</span>
+                        <div>
+                            <div style="font-size:12px;font-weight:800">${m.label}</div>
+                            <div style="font-size:10px;opacity:.7;margin-top:1px">${m.sub}</div>
+                        </div>
+                    </button>`).join('')}
+                </div>
+            </div>
+
             <!-- Ce que l'IA retient -->
             <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 14px;margin-bottom:8px">
                 <div style="font-size:11px;font-weight:800;color:#475569;margin-bottom:8px">🧠 Ce que l'IA retient de ton profil</div>
@@ -7020,6 +7043,125 @@
         // Map persistant : actId → {imgEl, photoRef} — survit aux re-renders
         if (!window._cardImgCache) window._cardImgCache = new Map();
 
+        // ════════════════════════════════════════════════════════════════
+        // BASE SPÉCIALITÉS LOCALES PAR VILLE
+        // ════════════════════════════════════════════════════════════════
+        const FOOD_SPECIALTIES = {
+            tokyo: [{n:"Tsukemen",e:"🍜",d:"Ramen trempé — bouillon concentré à tremper",q:"Shimokitazawa ou Ikebukuro"},{n:"Monjayaki",e:"🥘",d:"Crêpe liquide de Tsukishima — cuire soi-même",q:"Tsukishima, Moon Island Kitchen"},{n:"Katsudon",e:"🍛",d:"Bol riz + porc pané + œuf — comfort food",q:"Ueno, Tonkatsu Maisen Aoyama"},{n:"Yakitori",e:"🍢",d:"Brochettes grillées sous les voies ferrées",q:"Yurakucho, sous le métro aérien"},{n:"Sushi Matinal",e:"🍣",d:"Sushi ultra-frais au marché extérieur Tsukiji",q:"Tsukiji Outer Market, 6h-10h"},{n:"Tempura Tendon",e:"🍤",d:"Bol de tempura croustillante sur riz",q:"Asakusa, Daikokuya"},{n:"Ramen Shoyu",e:"🍜",d:"Bouillon soja clair, chashu et menma",q:"Shinjuku, Fuunji ou Ichiran"},{n:"Melon Pan",e:"🍞",d:"Brioche croustillante sucrée — boulangeries partout",q:"Harajuku ou n'importe quel konbini"}],
+            osaka: [{n:"Takoyaki",e:"🐙",d:"Boulettes de pieuvre sauce bonito et mayo",q:"Dotonbori, Aizuya (fondateur)"},{n:"Okonomiyaki",e:"🥞",d:"Crêpe épaisse garnie à volonté — version Osaka",q:"Fukushima, Mizuno"},{n:"Kushikatsu",e:"🍡",d:"Brochettes panées frites — no double dip!",q:"Shinsekai, Daruma"},{n:"Kitsune Udon",e:"🍜",d:"Udon avec tofu frit sucré — né à Osaka",q:"Namba, Imai Honten"},{n:"Yakiniku",e:"🥩",d:"Barbecue coréen-japonais viande de qualité",q:"Tsuruhashi, quartier coréen"},{n:"Negiyaki",e:"🧅",d:"Okonomiyaki version ciboule verte abondante",q:"Fukushima, Yaki-yaki"},{n:"Fugu Sashimi",e:"🐡",d:"Poisson-globe — expérience unique et sécurisée",q:"Dotonbori, Zuboraya"},{n:"Horumon Yaki",e:"🔥",d:"Abats grillés marinés — spécialité populaire",q:"Tsuruhashi, izakaya locaux"}],
+            kyoto: [{n:"Kaiseki",e:"🎋",d:"Haute gastronomie multi-services de saison",q:"Gion, Kikunoi ou Mizai"},{n:"Yudofu",e:"🫕",d:"Tofu chaud dans bouillon dashi — zen et délicat",q:"Nanzenji, Okutan (350 ans)"},{n:"Obanzai",e:"🥢",d:"Petits plats végétariens du quotidien kyotoïte",q:"Nishiki Market ou izakaya Gion"},{n:"Matcha Parfait",e:"🍵",d:"Dessert multicouche matcha — file d'attente OK",q:"Gion, Nakamura Tokichi"},{n:"Nishin Soba",e:"🐟",d:"Soba avec hareng mijoté sucré-salé — tradition",q:"Gion, Misoka-an Kawamichiya"},{n:"Kyo-wagashi",e:"🍡",d:"Confiseries traditionnelles servies au thé",q:"Nishiki Market, Kagizen Yoshifusa"},{n:"Tofu Ryori",e:"🫘",d:"Cuisine entière autour du tofu artisanal",q:"Arashiyama, Shoraian"}],
+            nara: [{n:"Kakinoha-zushi",e:"🍃",d:"Sushi enveloppé feuille de kaki — préservation naturelle",q:"Gare de Nara, Hiraso"},{n:"Miwa Somen",e:"🍝",d:"Vermicelles fins — tradition 700 ans région Miwa",q:"Centre ville, Miwa Yamamoto"},{n:"Kuzu Mochi",e:"🍮",d:"Gâteau translucide à la kudzu — texture unique",q:"Naramachi, Yoshinoya"},{n:"Narazuke",e:"🥒",d:"Légumes marinés au saké — souvenir typique Nara",q:"Tous les marchés et souvenir shops"},{n:"Shika Senbei",e:"🦌",d:"Cracker au riz pour les daims — mais goûtez-en un!",q:"Parc de Nara, vendeurs ambulants"}],
+            hiroshima: [{n:"Okonomiyaki Hiro",e:"🥞",d:"Version avec nouilles soba — très différent d'Osaka",q:"Okonomi-mura (immeuble dédié)"},{n:"Anago Meshi",e:"🐍",d:"Anguille de mer sur riz — spécialité Miyajima",q:"Miyajima, Ueno (depuis 1901)"},{n:"Kakifurai",e:"🦪",d:"Huîtres panées frites — saison octobre-mars",q:"Oyster Road, Kanawa"}],
+            hakone: [{n:"Kuro Tamago",e:"🥚",d:"Œuf noir cuit 9 min dans sources sulfureuses",q:"Owakudani, kiosques du volcan"},{n:"Yuba Soba",e:"🍜",d:"Soba avec peau de tofu séchée — légère et parfumée",q:"Gora, Hakone Yuba Soba"},{n:"Kaiseki Onsen",e:"♨️",d:"Repas gastronomique servi dans votre ryokan",q:"Votre ryokan — dîner inclus"}],
+            kamakura: [{n:"Shirasu Don",e:"🐟",d:"Bol de petits poissons blancs ultra-frais",q:"Yuigahama Beach, Shirasu-ya"},{n:"Kuzukiri",e:"🍮",d:"Nouilles de kudzu translucides, sirop kuromitsu",q:"Hase, Hachinoki"},{n:"Monaka",e:"🍡",d:"Gaufrette fourrée pâte de haricot rouge",q:"Près de Tsurugaoka, Kamakura-ya"}],
+            takayama: [{n:"Hida Beef",e:"🥩",d:"Wagyu de la région classé A4-A5 — fondant",q:"Jinya-mae, Masakichi"},{n:"Mitarashi Dango",e:"🍡",d:"Boulettes riz grillées, sauce soja sucré-salée",q:"Sanmachi Suji, échoppes historiques"},{n:"Sansai Ryori",e:"🌿",d:"Cuisine légumes sauvages de montagne — printanier",q:"Ryokan ou Komeyo"},{n:"Hoba Miso",e:"🍂",d:"Miso grillé sur feuille de magnolia — rustique",q:"Ryokan, spécialité chambre"}],
+            kanazawa: [{n:"Kaisen Don",e:"🦀",d:"Bol sashimi — fruits de mer du Noto premium",q:"Omicho Market, matin uniquement"},{n:"Jibuni",e:"🍲",d:"Ragoût canard + légumes sauce dashi épaissie",q:"Higashi Chaya, Zeniya"},{n:"Notoguro",e:"🐟",d:"Poisson Nodoguro gras — richesse de Kanazawa",q:"Katamachi, Ippozushi"}],
+            fukuoka: [{n:"Hakata Ramen",e:"🍜",d:"Tonkotsu blanc crémeux — le meilleur du Japon?",q:"Nakasu, Shin-Shin ou Ichiran Naka"},{n:"Mentaiko",e:"🐟",d:"Œufs de cabillaud épicés — sur onigiri ou soba",q:"Tenjin, Yamaya"},{n:"Motsunabe",e:"🫕",d:"Tripes en bouillon miso — chaud réconfortant",q:"Nakasu, Motsunabe Rakutenchi"},{n:"Yatai Street",e:"🏮",d:"Stands de nuit au bord du canal — atmosphère",q:"Nakasu ou Tenjin, après 19h"}],
+            sapporo: [{n:"Sapporo Ramen",e:"🍜",d:"Miso ramen épais avec beurre et maïs",q:"Ramen Alley Susukino, Sumire"},{n:"Jingisukan",e:"🐑",d:"Agneau grillé sur casque Gengis Khan",q:"Susukino, Daruma (file d'attente)"},{n:"Soup Curry",e:"🍲",d:"Curry liquide épicé avec légumes entiers",q:"Odori, Lavi"},{n:"Snow Crab",e:"🦀",d:"Crabe des neiges — meilleur nov-mars",q:"Nijo Market, matin"}],
+            default: [{n:"Onigiri",e:"🍙",d:"Triangle riz farci — icône konbini japonais",q:"7-Eleven ou Family Mart local"},{n:"Soba Artisanaux",e:"🍜",d:"Nouilles sarrasin fraîches — simples et parfaites",q:"Restaurant soba local du quartier"},{n:"Izakaya",e:"🏮",d:"Bar à petits plats — pointer le menu et sourire",q:"Chercher une lanterne rouge dehors"},{n:"Bento Marché",e:"🍱",d:"Bento préparé du marché local du matin",q:"Marché municipal ou konbini 11h"},{n:"Yakitori",e:"🍢",d:"Brochettes de poulet grillé — inratable",q:"Izakaya sous les voies ferrées"},{n:"Tempura",e:"🍤",d:"Beignets légers — poisson et légumes de saison",q:"Tendon-ya du quartier"},{n:"Udon Maison",e:"🍜",d:"Épais, doux, bouillon umami — réchauffant",q:"Udon-ya local, cherchez la file"},{n:"Matcha Soft",e:"🍵",d:"Glace matcha en cornet — à chaque carrefour",q:"Toute boutique de souvenirs"}],
+        };
+        function _getFoodForCity(city) {
+            if (!city) return FOOD_SPECIALTIES.default;
+            const c = city.toLowerCase().replace(/[^a-z]/g,'');
+            for (const [key, arr] of Object.entries(FOOD_SPECIALTIES)) {
+                if (key !== 'default' && c.includes(key)) return arr;
+            }
+            return FOOD_SPECIALTIES.default;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // SLOT MACHINE SPÉCIALITÉS LOCALES
+        // ════════════════════════════════════════════════════════════════
+        window._spinSlot = function(slotId, city, mealType) {
+            const reel   = document.getElementById(slotId + '-reel');
+            const info   = document.getElementById(slotId + '-info');
+            const wrap   = document.getElementById(slotId + '-wrap');
+            if (!reel) return;
+
+            const foods  = _getFoodForCity(city);
+            const ITEM_H = 52;
+            // Triple pool pour scroll fluide
+            const pool   = [...foods, ...foods, ...foods];
+            const winIdx = Math.floor(Math.random() * foods.length);
+            const winner = foods[winIdx];
+
+            // Build reel items
+            reel.innerHTML = pool.map(f =>
+                '<div style="height:' + ITEM_H + 'px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;pointer-events:none">'
+                + '<span style="font-size:26px;flex-shrink:0">' + f.e + '</span>'
+                + '<span style="font-size:14px;font-weight:900;color:#92400e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">' + f.n + '</span>'
+                + '</div>'
+            ).join('');
+
+            // Reset info
+            if (info) info.innerHTML = '<span style="color:#b45309;opacity:.5;font-size:10px">Tirage en cours\u2026</span>';
+
+            // Animation
+            const totalFrames = 60 + Math.floor(Math.random() * 20);
+            const speed0 = 16;
+            let speed = speed0, frames = 0, currentY = 0;
+            const targetY = (Math.floor(pool.length / 2) + winIdx) * ITEM_H;
+
+            reel.style.transition = 'none';
+            reel.style.transform  = 'translateY(0px)';
+
+            function animate() {
+                frames++;
+                const remaining = totalFrames - frames;
+                if (remaining <= 25) speed = Math.max(1.2, speed0 * (remaining / 25));
+                currentY += speed;
+                if (currentY >= pool.length * ITEM_H) currentY %= pool.length * ITEM_H;
+                reel.style.transform = 'translateY(-' + currentY.toFixed(1) + 'px)';
+                if (frames < totalFrames) {
+                    requestAnimationFrame(animate);
+                } else {
+                    // Snap final
+                    const snapY = targetY % (pool.length * ITEM_H);
+                    reel.style.transition = 'transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94)';
+                    reel.style.transform  = 'translateY(-' + snapY + 'px)';
+                    // Afficher info après snap
+                    setTimeout(() => {
+                        if (info) {
+                            const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(winner.n + ' ' + city + ' Japan');
+                            info.innerHTML =
+                                '<div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:3px">' + winner.n + '</div>'
+                                + '<div style="font-size:11px;color:#b45309;line-height:1.4;margin-bottom:5px">' + winner.d + '</div>'
+                                + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+                                + '<span style="font-size:10px;background:#fde68a;color:#78350f;padding:2px 7px;border-radius:8px;font-weight:700">📍 ' + winner.q + '</span>'
+                                + '<a href="' + mapsUrl + '" target="_blank" onclick="event.stopPropagation()" style="font-size:10px;color:#7c3aed;font-weight:700;text-decoration:none">Chercher sur Maps \u2192</a>'
+                                + '</div>';
+                        }
+                        // Attach tap/hold on wrap
+                        if (wrap) {
+                            let _tapTimer = null;
+                            wrap.ontouchstart = function(e) {
+                                _tapTimer = setTimeout(() => {
+                                    _tapTimer = null;
+                                    window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(winner.n + ' ' + city + ' Japan'), '_blank');
+                                }, 500);
+                            };
+                            wrap.ontouchend = function(e) {
+                                if (_tapTimer !== null) {
+                                    clearTimeout(_tapTimer);
+                                    _tapTimer = null;
+                                    // Tap court = relancer
+                                    window._spinSlot(slotId, city, mealType);
+                                }
+                            };
+                            wrap.onclick = function(e) {
+                                window._spinSlot(slotId, city, mealType);
+                            };
+                            wrap.oncontextmenu = function(e) {
+                                e.preventDefault();
+                                window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(winner.n + ' ' + city + ' Japan'), '_blank');
+                            };
+                        }
+                    }, 380);
+                }
+            }
+            requestAnimationFrame(animate);
+        };
+
         function renderPlanning() {
             const myToken = ++_renderToken;
             const list = document.getElementById('planning-list');
@@ -7686,35 +7828,62 @@
                     }
                 }
 
-                // ── Suggestion repas si pause naturelle entre activités ─────────
-                // On propose un repas si : pas de meal déjà planifié dans le voisinage, 
-                // et heure de départ de l'activité actuelle est dans un créneau repas
+                // ── Suggestion repas selon meal_display du profil ────────────
                 if (i < dayActivities.length - 1) {
                     const leaveMins = parseInt(leaveTime.split(':')[0])*60 + parseInt(leaveTime.split(':')[1]);
-                    const nextTime = realTimes[i+1];
-                    const nextMins = parseInt(nextTime.split(':')[0])*60 + parseInt(nextTime.split(':')[1]);
-                    const gapMins = nextMins - leaveMins;
-                    const isMealSlot = (leaveMins >= 690 && leaveMins <= 810) || (leaveMins >= 1050 && leaveMins <= 1200); // 11h30-13h30 ou 17h30-20h
+                    const nextMins  = parseInt(realTimes[i+1].split(':')[0])*60 + parseInt(realTimes[i+1].split(':')[1]);
+                    const gapMins   = nextMins - leaveMins;
+                    const isMealSlot = (leaveMins >= 690 && leaveMins <= 810) || (leaveMins >= 1050 && leaveMins <= 1200);
                     const hasMealNearby = dayActivities.slice(Math.max(0,i-1), i+3).some(a => a.block_type === 'meal' || a.meal_type);
+                    const mealMode  = travelerProfile.meal_display || 'complet';
+                    const _dk       = document.documentElement.classList.contains('dark');
+                    const cityStay  = getStayForDay(currentDayIndex);
+                    const cityName  = cityStay?.city || '';
+
                     if (isMealSlot && !hasMealNearby && gapMins >= 20) {
                         const isLunch = leaveMins < 900;
-                        const mealSuggest = document.createElement('div');
-                        const _dk = document.documentElement.classList.contains('dark');
-                        mealSuggest.style.cssText = `margin:4px 0;padding:10px 14px;border-radius:14px;display:flex;align-items:center;gap:10px;border:1.5px dashed #f472b680;` +
-                            (_dk ? 'background:#1c0f18' : 'background:#fdf2f8');
-                        mealSuggest.innerHTML = [
-                            '<span style="font-size:18px">' + (isLunch ? '🍱' : '🍜') + '</span>',
-                            '<div style="flex:1">',
-                              '<div style="font-size:12px;font-weight:800;color:#db2777">' + (isLunch ? 'Pause déjeuner' : 'Pause dîner') + '</div>',
-                              '<div style="font-size:10px;color:#9ca3af;margin-top:1px">',
-                                isLunch
-                                    ? 'Teishoku local · bento · ramen · gyudon — ~700-1 200¥'
-                                    : 'Izakaya · yakitori · ramen · tempura — ~1 500-2 500¥',
-                              '</div>',
-                            '</div>',
-                            '<div style="font-size:10px;color:#f472b6;font-weight:700">~' + (isLunch ? '45' : '60') + 'min</div>',
-                        ].join('');
-                        list.appendChild(mealSuggest);
+
+                        if (mealMode === 'complet') {
+                            // Mode complet : carte rose avec horaire calculé
+                            const el = document.createElement('div');
+                            el.style.cssText = 'margin:4px 0;padding:10px 14px;border-radius:14px;display:flex;align-items:center;gap:10px;border:1.5px dashed #f472b680;' + (_dk?'background:#1c0f18':'background:#fdf2f8');
+                            el.innerHTML = '<span style="font-size:18px">' + (isLunch?'🍱':'🍜') + '</span>'
+                                + '<div style="flex:1"><div style="font-size:12px;font-weight:800;color:#db2777">' + (isLunch?'Pause déjeuner':'Pause dîner') + '</div>'
+                                + '<div style="font-size:10px;color:#9ca3af;margin-top:1px">' + (isLunch?'Teishoku · bento · ramen — ~700-1 200¥':'Izakaya · yakitori · tempura — ~1 500-2 500¥') + '</div></div>'
+                                + '<div style="font-size:10px;color:#f472b6;font-weight:700">~' + (isLunch?'45':'60') + 'min</div>';
+                            list.appendChild(el);
+
+                        } else if (mealMode === 'discret') {
+                            // Mode surprise : slot machine spécialité locale
+                            const slotId = 'slot-' + Date.now() + '-' + i;
+                            const mT = isLunch ? 'lunch' : 'dinner';
+                            const el = document.createElement('div');
+                            el.style.cssText = 'margin:4px 0;border-radius:16px;overflow:hidden;border:2px solid #fcd34d;' + (_dk?'background:#1c1500':'background:#fffbeb');
+                            el.innerHTML =
+                                '<div style="display:flex;align-items:center;gap:10px;padding:9px 14px 6px">'
+                                + '<span style="font-size:16px">\uD83C\uDFB0</span>'
+                                + '<div style="font-size:11px;font-weight:800;color:#92400e">' + (isLunch?'D\u00c9JEUNER':'D\u00caNER') + ' \u00b7 Sp\u00e9cialit\u00e9 de ' + (cityName||'la r\u00e9gion') + '</div>'
+                                + '<span style="font-size:9px;color:#b45309;margin-left:auto;font-weight:600">Tap \u21ba \u00b7 Hold \uD83D\uDDFA</span>'
+                                + '</div>'
+                                + '<div style="padding:0 10px 10px">'
+                                +   '<div id="' + slotId + '-wrap" style="border-radius:12px;overflow:hidden;cursor:pointer;border:2px solid #fde68a;background:white;user-select:none">'
+                                +     '<div style="height:52px;overflow:hidden;position:relative">'
+                                +       '<div id="' + slotId + '-reel" style="position:absolute;width:100%;will-change:transform"></div>'
+                                +     '</div>'
+                                +   '</div>'
+                                +   '<div id="' + slotId + '-info" style="margin-top:8px;padding:8px 10px;background:white;border-radius:10px;border:1px solid #fde68a;min-height:32px"></div>'
+                                + '</div>';
+                            list.appendChild(el);
+                            requestAnimationFrame(() => _spinSlot(slotId, cityName, mT));
+
+                        } else {
+                            // Mode masqué : bandeau discret
+                            const el = document.createElement('div');
+                            el.style.cssText = 'margin:4px 8px;padding:6px 12px;border-radius:10px;display:flex;align-items:center;gap:7px;' + (_dk?'background:#1e293b':'background:#f9fafb');
+                            el.innerHTML = '<span style="font-size:13px">🍴</span>'
+                                + '<span style="font-size:10px;color:#9ca3af;font-style:italic">Accordez-vous une pause — goûtez les spécialités locales</span>';
+                            list.appendChild(el);
+                        }
                     }
                 }
 
