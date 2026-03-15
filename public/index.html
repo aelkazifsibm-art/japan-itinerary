@@ -1694,6 +1694,7 @@
             if(_ob.step===0) _obRenderStep0(c,f);
             else if(_ob.step===1) _obRenderAirportStep(c,f,'arr');
             else if(_ob.step===2) _obRenderAirportStep(c,f,'dep');
+            else if(_ob.step===2.5) _obRenderHomeAirportStep(c,f);
             else if(_ob.step===3) _obRenderStep3(c,f);
             else if(_ob.step===4) _obRenderStep4(c,f);
         }
@@ -1840,9 +1841,98 @@
 
         window._obPickAirport=function(code,target){if(target==='arr')_ob.arrAirport=code;else _ob.depAirport=code;_obRenderAirportStep(document.getElementById('ob-content'),document.getElementById('ob-footer'),target);};
         window._obSameAirport=function(){_ob.depAirport=_ob.arrAirport;_obRenderAirportStep(document.getElementById('ob-content'),document.getElementById('ob-footer'),'dep');};
-        window._obStepAirportNext=function(target){const ok=target==='arr'?!!_ob.arrAirport:!!_ob.depAirport;if(!ok)return;_ob.step++;_obRender();};
+        window._obStepAirportNext=function(target){const ok=target==='arr'?!!_ob.arrAirport:!!_ob.depAirport;if(!ok)return;if(target==='dep'){_ob.step=2.5;}else{_ob.step++;}  _obRender();};
 
         // ── STEP 3 : Mode de voyage ────────────────────────────────────────
+
+        // ── STEP 2.5 : Aéroport de départ Europe + estimation arrivée ──────────
+        function _obRenderHomeAirportStep(content, footer) {
+            const selected = _ob.homeAirport || '';
+            const search   = _ob.homeAirportSearch || '';
+
+            // Filtrer les aéroports
+            const filtered = search.trim().length > 0
+                ? HOME_AIRPORTS.filter(a => {
+                    const q = _normalizeStr(search);
+                    return _normalizeStr(a.name).includes(q) || _normalizeStr(a.code).includes(q)
+                        || (a.aliases||[]).some(al=>_normalizeStr(al).includes(q));
+                  })
+                : HOME_AIRPORTS.slice(0, 12);
+
+            // Estimation arrivée si aéroport sélectionné
+            let estimHtml = '';
+            if (selected && _ob.arrAirport) {
+                const durKey1 = selected+'-'+_ob.arrAirport;
+                const durKey2 = selected+'-NRT'; // fallback
+                const dur = FLIGHT_DURATIONS[durKey1] || FLIGHT_DURATIONS[durKey2] || FLIGHT_DURATIONS[selected+'-HND'] || 780;
+                const depDate = _ob.depDate;
+                if (depDate) {
+                    const [y,mo,dd] = depDate.split('-').map(Number);
+                    const dep = new Date(y, mo-1, dd, 10, 0); // heure départ estimée
+                    const arr = new Date(dep.getTime() + (dur + 540)*60000); // +9h décalage Japan
+                    const arrH = String(arr.getUTCHours()).padStart(2,'0');
+                    const arrM = String(arr.getUTCMinutes()).padStart(2,'0');
+                    const nextDay = arr.getUTCDate() !== dep.getUTCDate();
+                    estimHtml = '<div style="background:rgba(124,58,237,0.15);border:1px solid rgba(167,139,250,0.3);border-radius:12px;padding:10px 12px;margin-top:12px;display:flex;align-items:center;gap:10px">'+
+                        '<span style="font-size:20px">✈️</span>'+
+                        '<div><div style="font-size:12px;font-weight:800;color:white">Arrivée estimée : '+arrH+'h'+arrM+(nextDay?' (J+1)':'')+'</div>'+
+                        '<div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:1px">Vol ~'+Math.floor(dur/60)+'h'+String(dur%60).padStart(2,'0')+' depuis '+selected+'</div></div></div>';
+                    // Sauvegarder pour la bannière jour d'arrivée
+                    _ob.estimatedArrival = { hour: arr.getUTCHours(), min: arr.getUTCMinutes(), depAirport: selected };
+                }
+            }
+
+            content.innerHTML =
+                '<div style="padding-top:18px;padding-bottom:8px">'+
+                '<div style="font-size:19px;font-weight:900;color:white;margin-bottom:2px">D\'où partez-vous ?</div>'+
+                '<div style="font-size:12px;color:rgba(255,255,255,.33);margin-bottom:14px">Votre aéroport de départ en Europe — pour estimer l\'heure d\'arrivée</div>'+
+                '<input id="ob-home-search" type="text" value="'+search+'"'+
+                ' placeholder="Paris, Bâle, Francfort..." '+
+                ' oninput="_ob.homeAirportSearch=this.value;_obRenderHomeAirportStep(document.getElementById(\'ob-content\'),document.getElementById(\'ob-footer\'))"'+
+                ' style="width:100%;padding:11px 14px;border-radius:14px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:white;font-size:14px;box-sizing:border-box;outline:none;margin-bottom:10px">'+
+                '<div style="display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto">'+
+                filtered.map(a =>
+                    '<button onclick="_obPickHomeAirport(\''+a.code+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:2px solid '+(selected===a.code?'rgba(167,139,250,.6)':'rgba(255,255,255,.07)')+';background:'+(selected===a.code?'rgba(124,58,237,.2)':'rgba(255,255,255,.04)')+';cursor:pointer;text-align:left">'+
+                    '<span style="font-size:16px">'+a.country+'</span>'+
+                    '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.name+'</div>'+
+                    '<div style="font-size:10px;color:rgba(255,255,255,.35)">'+a.code+' · '+a.region+'</div></div>'+
+                    (selected===a.code?'<span style="color:#a78bfa;font-size:16px">✓</span>':'')+
+                    '</button>'
+                ).join('')+
+                '</div>'+
+                estimHtml+
+                '</div>';
+
+            footer.innerHTML =
+                '<div style="display:flex;gap:10px">'+
+                '<button onclick="_ob.step=2;_obRender()" style="padding:15px 17px;background:rgba(255,255,255,.07);border:none;border-radius:16px;color:white;font-size:19px;cursor:pointer">←</button>'+
+                '<button onclick="_obHomeAirportNext()" style="flex:1;padding:15px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">Continuer →</button>'+
+                '</div>'+
+                '<button onclick="_obHomeAirportSkip()" style="width:100%;margin-top:8px;padding:10px;background:none;border:none;color:rgba(255,255,255,.3);font-size:12px;cursor:pointer">Passer cette étape</button>';
+
+            // Focus auto sur le champ recherche
+            setTimeout(()=>{ const el=document.getElementById('ob-home-search'); if(el&&!selected)el.focus(); },100);
+        }
+
+        window._obPickHomeAirport = function(code) {
+            _ob.homeAirport = code;
+            _ob.homeAirportSearch = '';
+            _obRenderHomeAirportStep(document.getElementById('ob-content'), document.getElementById('ob-footer'));
+        };
+        window._obHomeAirportNext = function() {
+            if (_ob.homeAirport && _ob.estimatedArrival) {
+                localStorage.setItem('japan_flight_arrival', JSON.stringify({
+                    depAirport: _ob.homeAirport,
+                    hour: _ob.estimatedArrival.hour,
+                    min:  _ob.estimatedArrival.min,
+                    flightH: Math.floor((FLIGHT_DURATIONS[_ob.homeAirport+'-NRT']||780)/60)+'h'
+                }));
+            }
+            _ob.step = 3; _obRender();
+        };
+        window._obHomeAirportSkip = function() { _ob.step=3; _obRender(); };
+
+
         function _obRenderStep3(content, footer) {
             const modes=[
                 {id:'solo_builder',emoji:'🗺️',label:'Je construis tout moi-même',tag:'Explorateur',tagColor:'#34d399',desc:"Tu planifies chaque activité. L'app est ton carnet intelligent.",points:['Contrôle total sur chaque étape','Suggestions optionnelles','Idéal si tu as déjà planifié'],color:'rgba(52,211,153,0.12)',border:'rgba(52,211,153,0.35)'},
@@ -6012,42 +6102,427 @@
         // SPÉCIALITÉS LOCALES PAR VILLE + SLOT MACHINE
         // ═══════════════════════════════════════════════════════════════════
 
-        // ═══════════════════════════════════════════════════════════════════
-        // SPÉCIALITÉS PAR TYPE DE REPAS
-        // ═══════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
+        // BASE DE DONNÉES REPAS COMPLÈTE — Petit-déj · Déjeuner · Dîner · 47 préfectures
+        // ══════════════════════════════════════════════════════════════════════
+
         const BREAKFAST_SPECIALTIES = [
-            {n:"Kissaten Morning",  e:"☕", d:"Toast épais + œuf dur + café noir — set typique des cafés vintage japonais", q:"Chercher un ancien café local, souvent dès 7h"},
-            {n:"Onigiri Konbini",   e:"🍙", d:"Triangle de riz farci au thon, saumon ou prune — l'icône du matin japonais", q:"7-Eleven, FamilyMart ou Lawson, disponible 24h"},
-            {n:"Tamagoyaki Teishoku",e:"🥚",d:"Set complet : omelette roulée + riz + soupe miso + tsukemono", q:"Petit restaurant de quartier ouvert dès 7h-8h"},
-            {n:"Shokupan Grillé",   e:"🍞", d:"Pain de mie épais grillé, beurre fondu, parfois confiture maison", q:"Boulangeries japonaises modernes, cafés trendy"},
-            {n:"Matcha Latte + Wagashi",e:"🍵",d:"Latte au thé vert + confiserie traditionnelle pour commencer doucement", q:"Salon de thé ou Cha·ba·na, souvent dès 8h"},
-            {n:"Natto Gohan",       e:"🫘", d:"Soja fermenté sur riz chaud — expérience authentique pour aventuriers matinaux", q:"Teishoku-ya de quartier, petits restos familiaux"},
-            {n:"Yakizakana Teishoku",e:"🐟",d:"Poisson grillé + riz blanc + soupe miso — le vrai petit-déj japonais complet", q:"Izakaya morning service ou restaurant teishoku"},
-            {n:"Melon Pan Frais",   e:"🍞", d:"Brioche croustillante-moelleuse sortie du four, à croquer chaud", q:"Boulangeries locales, souvent dès 8h — queue possible"},
+            {'n':'Kissaten Morning Set','e':'☕','d':'Toast épais beurré + œuf dur + café noir — set vintage typique dès 7h','q':'Vieux café local avec rideau de perles'},
+            {'n':'Onigiri Konbini','e':'🍙','d':'Triangle riz farci thon/saumon/prune — icône du matin japonais 24h/24','q':'7-Eleven, FamilyMart, Lawson'},
+            {'n':'Tamagoyaki Teishoku','e':'🥚','d':'Omelette roulée sucrée + riz blanc + soupe miso + tsukemono','q':'Restaurant de quartier dès 7h'},
+            {'n':'Shokupan Grillé','e':'🍞','d':'Pain de mie épais grillé beurre fondu — boulangeries japonaises exceptionnelles','q':'Boulangeries modernes, cafés trendy'},
+            {'n':'Matcha Latte + Wagashi','e':'🍵','d':'Latte thé vert + confiserie traditionnelle — démarrage doux et raffiné','q':'Salon de thé dès 8h'},
+            {'n':'Natto Gohan','e':'🫘','d':'Soja fermenté sur riz chaud — authentique, goût fort acquis','q':'Teishoku-ya de quartier'},
+            {'n':'Yakizakana Teishoku','e':'🐟','d':'Poisson grillé + riz blanc + soupe miso — vrai petit-déj japonais complet','q':'Izakaya morning service, restaurant teishoku'},
+            {'n':'Melon Pan Chaud','e':'🍞','d':'Brioche croustillante-moelleuse sortie du four — à manger en marchant','q':'Boulangeries locales dès 8h'},
+            {'n':'Ochazuke Matin','e':'🍵','d':'Riz dans bouillon thé vert ou dashi — léger, digeste, tradition Kyoto','q':'Ryokan, restaurants traditionnels'},
+            {'n':'Tamago Kake Gohan','e':'🥚','d':'Œuf cru sur riz chaud + sauce soja — simple et absolument délicieux','q':'Teishoku-ya, ryokan'},
+            {'n':'Miso Soup + Riz','e':'🍚','d':'Le duo fondamental — soupe miso maison tofu + wakame','q':'N\'importe quel restaurant teishoku'},
+            {'n':'Morning Nagoya Style','e':'☕','d':'À Nagoya : café + toast + œuf + salade tout compris pour le prix du café','q':'N\'importe quel kissaten de Nagoya avant 11h'},
+            {'n':'Yaki Onigiri','e':'🍙','d':'Onigiri grillé sauce soja — croustillant dehors, chaud dedans','q':'Stands de rue, marchés matinaux'},
+            {'n':'Pancake Japonais','e':'🥞','d':'Pancake soufflé ultra-épais et moelleux — fait maison ou café tendance','q':'Cafés brunch trendy dans grandes villes'},
+            {'n':'Oden Matin','e':'🫕','d':'Oden chaud de konbini — daikon + œuf + konjac dans bouillon dashi','q':'7-Eleven ou FamilyMart, rayon chaud'},
         ];
 
-        const FOOD_SPECIALTIES = {
-            tokyo:[{n:"Tsukemen",e:"🍜",d:"Ramen trempé, bouillon concentré",q:"Shimokitazawa ou Ikebukuro"},{n:"Monjayaki",e:"🥘",d:"Crêpe liquide de Tsukishima",q:"Tsukishima, Moon Island Kitchen"},{n:"Katsudon",e:"🍛",d:"Bol riz + porc pané + oeuf",q:"Ueno, Tonkatsu Maisen"},{n:"Yakitori",e:"🍢",d:"Brochettes sous les voies ferrées",q:"Yurakucho, sous le métro"},{n:"Sushi Tsukiji",e:"🍣",d:"Sushi frais au marché extérieur",q:"Tsukiji Outer Market, 6h-10h"},{n:"Tempura Tendon",e:"🍤",d:"Bol de tempura croustillante sur riz",q:"Asakusa, Daikokuya"},{n:"Ramen Shoyu",e:"🍜",d:"Bouillon soja, chashu et menma",q:"Shinjuku, Fuunji ou Ichiran"},{n:"Melon Pan",e:"🍞",d:"Brioche croustillante sucrée",q:"Harajuku ou konbini"}],
-            osaka:[{n:"Takoyaki",e:"🐙",d:"Boulettes de pieuvre sauce bonito",q:"Dotonbori, Aizuya"},{n:"Okonomiyaki",e:"🥞",d:"Crêpe épaisse garnie à volonté",q:"Fukushima, Mizuno"},{n:"Kushikatsu",e:"🍡",d:"Brochettes panées — no double dip!",q:"Shinsekai, Daruma"},{n:"Kitsune Udon",e:"🍜",d:"Udon avec tofu frit sucré",q:"Namba, Imai Honten"},{n:"Yakiniku",e:"🥩",d:"Barbecue coréen-japonais",q:"Tsuruhashi"},{n:"Negiyaki",e:"🧅",d:"Okonomiyaki version ciboule",q:"Fukushima"},{n:"Fugu Sashimi",e:"🐡",d:"Poisson-globe sécurisé",q:"Dotonbori, Zuboraya"},{n:"Horumon Yaki",e:"🔥",d:"Abats grillés marinés",q:"Tsuruhashi, izakaya locaux"}],
-            kyoto:[{n:"Kaiseki",e:"🎋",d:"Haute gastronomie multi-services",q:"Gion, Kikunoi"},{n:"Yudofu",e:"🫕",d:"Tofu chaud dans bouillon dashi",q:"Nanzenji, Okutan"},{n:"Obanzai",e:"🥢",d:"Petits plats végétariens de saison",q:"Nishiki Market"},{n:"Matcha Parfait",e:"🍵",d:"Dessert matcha multicouche",q:"Gion, Nakamura Tokichi"},{n:"Nishin Soba",e:"🐟",d:"Soba avec hareng sucré-salé",q:"Gion, Kawamichiya"},{n:"Kyo-wagashi",e:"🍡",d:"Confiseries au thé",q:"Nishiki, Kagizen Yoshifusa"},{n:"Tofu Ryori",e:"🫘",d:"Cuisine autour du tofu artisanal",q:"Arashiyama, Shoraian"}],
-            nara:[{n:"Kakinoha-zushi",e:"🍃",d:"Sushi enveloppé feuille de kaki",q:"Gare de Nara, Hiraso"},{n:"Miwa Somen",e:"🍝",d:"Vermicelles fins, tradition 700 ans",q:"Centre ville, Miwa Yamamoto"},{n:"Kuzu Mochi",e:"🍮",d:"Gâteau translucide à la kudzu",q:"Naramachi, Yoshinoya"},{n:"Narazuke",e:"🥒",d:"Légumes marinés au saké",q:"Marchés et souvenir shops"},{n:"Shika Senbei",e:"🦌",d:"Cracker riz pour les daims",q:"Parc de Nara, vendeurs"}],
-            hiroshima:[{n:"Okonomiyaki Hiro",e:"🥞",d:"Version avec nouilles soba",q:"Okonomi-mura (immeuble dédié)"},{n:"Anago Meshi",e:"🐍",d:"Anguille de mer sur riz",q:"Miyajima, Ueno"},{n:"Kakifurai",e:"🦪",d:"Huîtres panées frites",q:"Oyster Road, Kanawa"}],
-            hakone:[{n:"Kuro Tamago",e:"🥚",d:"Oeuf noir cuit sources sulfureuses",q:"Owakudani, kiosques"},{n:"Yuba Soba",e:"🍜",d:"Soba avec peau de tofu séchée",q:"Gora, Hakone Yuba Soba"},{n:"Kaiseki Onsen",e:"♨️",d:"Repas gastronomique au ryokan",q:"Votre ryokan, dîner inclus"}],
-            kamakura:[{n:"Shirasu Don",e:"🐟",d:"Bol de petits poissons blancs frais",q:"Yuigahama Beach, Shirasu-ya"},{n:"Kuzukiri",e:"🍮",d:"Nouilles de kudzu, sirop kuromitsu",q:"Hase, Hachinoki"}],
-            takayama:[{n:"Hida Beef",e:"🥩",d:"Wagyu A4-A5 fondant",q:"Jinya-mae, Masakichi"},{n:"Mitarashi Dango",e:"🍡",d:"Boulettes riz sauce soja grillée",q:"Sanmachi Suji, échoppes"},{n:"Hoba Miso",e:"🍂",d:"Miso grillé sur feuille magnolia",q:"Ryokan, spécialité chambre"}],
-            kanazawa:[{n:"Kaisen Don",e:"🦀",d:"Bol sashimi fruits de mer Noto",q:"Omicho Market, matin"},{n:"Jibuni",e:"🍲",d:"Ragoût canard + légumes dashi",q:"Higashi Chaya, Zeniya"},{n:"Notoguro",e:"🐟",d:"Poisson Nodoguro gras",q:"Katamachi, Ippozushi"}],
-            fukuoka:[{n:"Hakata Ramen",e:"🍜",d:"Tonkotsu blanc crémeux",q:"Nakasu, Shin-Shin"},{n:"Mentaiko",e:"🐟",d:"Oeufs de cabillaud épicés",q:"Tenjin, Yamaya"},{n:"Motsunabe",e:"🫕",d:"Tripes en bouillon miso",q:"Nakasu, Rakutenchi"},{n:"Yatai Street",e:"🏮",d:"Stands de nuit au bord du canal",q:"Nakasu, après 19h"}],
-            sapporo:[{n:"Sapporo Ramen",e:"🍜",d:"Miso ramen, beurre et maïs",q:"Ramen Alley Susukino, Sumire"},{n:"Jingisukan",e:"🐑",d:"Agneau grillé casque Gengis Khan",q:"Susukino, Daruma"},{n:"Soup Curry",e:"🍲",d:"Curry liquide avec légumes entiers",q:"Odori, Lavi"}],
-            default:[{n:"Onigiri",e:"🍙",d:"Triangle riz farci — icône konbini",q:"7-Eleven ou Family Mart"},{n:"Soba Artisanaux",e:"🍜",d:"Nouilles sarrasin fraîches",q:"Restaurant soba local"},{n:"Izakaya",e:"🏮",d:"Bar à petits plats — pointer et sourire",q:"Chercher une lanterne rouge"},{n:"Bento Marché",e:"🍱",d:"Bento préparé du matin",q:"Marché municipal, 11h"},{n:"Yakitori",e:"🍢",d:"Brochettes de poulet grillé",q:"Izakaya sous les voies ferrées"},{n:"Tempura",e:"🍤",d:"Beignets légers de saison",q:"Tendon-ya du quartier"},{n:"Udon Maison",e:"🍜",d:"Épais, doux, bouillon umami",q:"Udon-ya local"},{n:"Matcha Soft",e:"🍵",d:"Glace matcha en cornet",q:"Boutiques de souvenirs"}]
+        const LUNCH_SPECIALTIES = {
+            tokyo: [
+                {'n':'Tsukemen','e':'🍜','d':'Ramen trempé bouillon concentré — plonger avant chaque bouchée','q':'Fuunji Shinjuku, Rokurinsha Tokyo Station'},
+                {'n':'Tempura Tendon','e':'🍤','d':'Bol tempura croustillante sauce dashi sucrée','q':'Asakusa Daikokuya, Tendon Tenya'},
+                {'n':'Katsudon','e':'🍛','d':'Porc pané + œuf brouillé sucré-salé sur riz','q':'Tonkatsu Maisen Aoyama, Saboten'},
+                {'n':'Kaisendon Toyosu','e':'🦐','d':'Bol sashimi ultra-frais du marché Toyosu','q':'Marché Toyosu, Tsukiji Outer Market'},
+                {'n':'Gyudon','e':'🥩','d':'Bol bœuf mijoté sucré-salé — rapide 500¥, emblématique','q':'Yoshinoya, Sukiya, Matsuya partout'},
+                {'n':'Ramen Shoyu','e':'🍜','d':'Bouillon soja clair, chashu et menma — le ramen Tokyo','q':'Ichiran Shibuya, Afuri Ebisu, Fuunji'},
+                {'n':'Bento Depachika','e':'🍱','d':'Bento luxueux sous-sols grands magasins — qualité exceptionnelle','q':'Isetan Shinjuku B2, Mitsukoshi Ginza'},
+                {'n':'Chanko Nabe','e':'🫕','d':'Pot-au-feu des sumos — immense, riche, convivial','q':'Ryogoku, restaurants anciens sumos'},
+                {'n':'Monjayaki','e':'🥘','d':'Crêpe liquide de Tsukishima — cuire soi-même sur la plaque','q':'Tsukishima Monja Street'},
+                {'n':'Yakitori Set Midi','e':'🍢','d':'Brochettes grillées en set déjeuner — économique et savoureux','q':'Yurakucho sous les voies ferrées'},
+            ],
+            osaka: [
+                {'n':'Takoyaki','e':'🐙','d':'Boulettes pieuvre sauce bonito et mayo — à manger debout','q':'Aizuya fondateur, Osaka Jou Hall, Kuromon'},
+                {'n':'Okonomiyaki Osaka','e':'🥞','d':'Crêpe épaisse garnie — tout mélangé, sauce + mayo + bonito','q':'Fukushima Mizuno, Chibo Dotombori'},
+                {'n':'Kitsune Udon','e':'🍜','d':'Udon avec tofu frit sucré — né à Osaka, plat identitaire','q':'Imai Honten Namba (1947), Matsuba'},
+                {'n':'Ikayaki','e':'🦑','d':'Calamar entier grillé — street food typique des marchés Osaka','q':'Kuromon Market, Tenjinbashi-suji'},
+                {'n':'Battera','e':'🍣','d':'Sushi pressé maquereau mariné — style Kansai unique','q':'Kuromon Market, sushiya Namba'},
+                {'n':'Kushikatsu','e':'🍡','d':'Brochettes panées frites — no double dip dans la sauce!','q':'Shinsekai Daruma, Tsuruhashi'},
+                {'n':'Negiyaki','e':'🧅','d':'Okonomiyaki version ciboule verte — moins touristique','q':'Fukushima, Yaki-yaki'},
+                {'n':'Niku Sushi','e':'🥩','d':'Sushi au bœuf wagyu grillé — fusion emblématique Osaka','q':'Namba, restaurants de wagyu'},
+            ],
+            kyoto: [
+                {'n':'Obanzai Set','e':'🥢','d':'Petits plats végétariens de saison — l\'âme culinaire de Kyoto','q':'Nishiki Market, izakaya Gion'},
+                {'n':'Nishin Soba','e':'🐟','d':'Soba avec hareng mijoté sucré-salé — tradition Kyoto depuis Edo','q':'Kawamichiya (1716), Misoka-an'},
+                {'n':'Tofu Ryori','e':'🫘','d':'Cuisine tofu artisanal dans jardin zen','q':'Arashiyama Shoraian, Nanzenji Junsei'},
+                {'n':'Matcha Soba','e':'🍵','d':'Soba au thé matcha — couleur verte, goût légèrement amer','q':'Restaurants Arashiyama'},
+                {'n':'Hamo Ryori','e':'🐍','d':'Anguille japonaise hamo — spécialité estivale très technique','q':'Nishiki Market, restaurants Gion'},
+                {'n':'Yudofu','e':'🫕','d':'Tofu chaud dans bouillon dashi pur — zen, 350 ans de tradition','q':'Nanzenji Okutan (1635), Junsei'},
+            ],
+            nara: [
+                {'n':'Kakinoha-zushi','e':'🍃','d':'Sushi enveloppé feuille de kaki — conservation naturelle','q':'Gare Nara Hiraso, Izasa'},
+                {'n':'Miwa Somen','e':'🍝','d':'Vermicelles fins — tradition 700 ans, délicats et frais','q':'Miwa Yamamoto, Kanouya'},
+                {'n':'Kaki Ryori','e':'🌰','d':'Cuisine autour du kaki — cru, cuit, séché selon saison','q':'Restaurants locaux Naramachi'},
+                {'n':'Yamato Yasai','e':'🥬','d':'Légumes anciens de Nara — teishoku aux légumes patrimoniaux','q':'Restaurants Naramachi'},
+            ],
+            hiroshima: [
+                {'n':'Okonomiyaki Hiro','e':'🥞','d':'Couches distinctes soba + légumes + œuf — très différent d\'Osaka','q':'Okonomi-mura (3 étages), Micchan'},
+                {'n':'Anago Meshi','e':'🐍','d':'Anguille de mer sur riz — spécialité Miyajima depuis XIXe','q':'Miyajima Ueno (1901), Tachibana'},
+                {'n':'Kakifurai','e':'🦪','d':'Huîtres panées frites — meilleures octobre-mars','q':'Oyster Road, Kanawa restaurant bateau'},
+                {'n':'Momiji Udon','e':'🍁','d':'Udon local avec toppings de saison','q':'Miyajima, restaurants autour du temple'},
+            ],
+            hokkaido: [
+                {'n':'Soup Curry','e':'🍲','d':'Curry liquide épicé avec légumes entiers et poulet — né à Sapporo','q':'Odori Lavi, Soup Curry Sapporo King'},
+                {'n':'Jingisukan','e':'🐑','d':'Agneau grillé casque Gengis Khan — déjeuner emblématique','q':'Daruma Susukino, Sapporo Beer Garden'},
+                {'n':'Kaisen Don','e':'🦀','d':'Bol sashimi crabe + uni + saumon — Hokkaido au sommet','q':'Nijo Market Sapporo, Otaru Market'},
+                {'n':'Corn Butter Ramen','e':'🌽','d':'Ramen maïs + beurre + miso épais — icône Sapporo','q':'Ramen Alley Susukino, Sumire'},
+                {'n':'Zangi','e':'🍗','d':'Karaage Hokkaido — marinade forte au gingembre','q':'Izakaya Susukino'},
+                {'n':'Hokkai Soba','e':'🍜','d':'Soba de sarrasin Hokkaido avec crevettes de mer froide','q':'Restaurants côtiers Otaru, Hakodate'},
+            ],
+            aichi: [
+                {'n':'Miso Katsu','e':'🍛','d':'Porc pané sauce miso rouge Hatcho — épais et fort','q':'Yabaton Honten, Tonkatsu Misokatsu'},
+                {'n':'Kishimen','e':'🍜','d':'Nouilles plates larges — spécialité Nagoya depuis Edo','q':'Atsuta Jingu restaurants, Yoshida'},
+                {'n':'Tenmusu','e':'🍙','d':'Onigiri garni crevette tempura — né à Nagoya','q':'Tenmusu Senju, marchés locaux'},
+                {'n':'Misonikomi Udon','e':'🍜','d':'Udon cuit dans miso rouge épais — emblème de l\'hiver local','q':'Yamamotoya Honten, Kakuozan'},
+                {'n':'Hitsumabushi','e':'🥣','d':'Anguille sur riz à manger en 3 façons — expérience unique','q':'Atsuta Horaiken fondateur, Ibasho'},
+            ],
+            kanagawa: [
+                {'n':'Ie-kei Ramen','e':'🍜','d':'Ramen épais gras shoyu + tonkotsu — né à Yokohama','q':'Yoshimuraya fondateur, Shin-Yokohama Ramen Museum'},
+                {'n':'Shirasu Don','e':'🐟','d':'Bol petits poissons blancs frais — crus ou cuits selon saison','q':'Kamakura Shirasu-ya, Enoshima'},
+                {'n':'Chinatown Dim Sum','e':'🥟','d':'Dim sum quartier chinois Yokohama — parmi les meilleurs hors Chine','q':'Yokohama Chinatown, Heichinrou'},
+                {'n':'Shiumai Kiyoken','e':'🥟','d':'Shiumai froid de la gare — icône souvenir Yokohama depuis 1928','q':'Gares Yokohama, Kiyoken'},
+                {'n':'Kuzukiri','e':'🍮','d':'Nouilles kudzu translucides avec sirop kuromitsu — Kamakura','q':'Hase Hachinoki'},
+            ],
+            fukuoka: [
+                {'n':'Hakata Ramen','e':'🍜','d':'Tonkotsu blanc crémeux — le meilleur du Japon selon beaucoup','q':'Nakasu Shin-Shin, Ichiran original, Ippudo'},
+                {'n':'Mentaiko Onigiri','e':'🐟','d':'Œufs cabillaud épicés sur riz — souvenir à ramener','q':'Tenjin Yamaya, konbini locaux'},
+                {'n':'Hakata Udon','e':'🍜','d':'Udon mollet bouillon léger — style Hakata local','q':'Shin-Shin Hakata, Udon Daiichi'},
+                {'n':'Gomasaba','e':'🐟','d':'Maquereau en marinade sésame — spécialité izakaya Fukuoka','q':'Izakaya Tenjin, Nakasu'},
+            ],
+            okinawa: [
+                {'n':'Okinawa Soba','e':'🍜','d':'Soba blé (pas sarrasin) bouillon porc — plat identitaire','q':'Hamaya Soba, Okinawa Soba Dokoro'},
+                {'n':'Champuru','e':'🥬','d':'Sauté tofu + légumes + spam — l\'âme d\'Okinawa','q':'Naha Makishi Market, Kokusai-dori'},
+                {'n':'Taco Rice','e':'🌮','d':'Fusion américaine — riz + garniture tacos, héritage bases US','q':'King Tacos Kin, restaurants Naha'},
+                {'n':'Goya Champuru','e':'🥬','d':'Bitter melon + tofu + spam sauté — spécialité santé','q':'Makishi Public Market 2F'},
+                {'n':'Rafute','e':'🐷','d':'Poitrne porc braisée sauce soja sucrée — fondante et riche','q':'Restaurants locaux Naha'},
+            ],
+            iwate: [
+                {'n':'Wanko Soba','e':'🍜','d':'Soba en bols successifs — défi : le serveur remplit sans cesse','q':'Morioka Azumaya, Chokurian'},
+                {'n':'Reimen Morioka','e':'🍜','d':'Nouilles froides translucides bouillon bœuf — origine coréenne','q':'Morioka Pyongyang Reimen'},
+                {'n':'Jajamen','e':'🍜','d':'Nouilles larges sauce miso aux légumes — troisième de Morioka','q':'Morioka Paipan'},
+            ],
+            akita: [
+                {'n':'Kiritanpo Nabe','e':'🍢','d':'Riz pilé sur brochette de cèdre dans bouillon poulet','q':'Akita restaurants locaux en automne'},
+                {'n':'Inaniwa Udon','e':'🍜','d':'Udon ultra fin et soyeux — artisanat Akita depuis 1665','q':'Akita Sato Yosuke'},
+                {'n':'Hinai Jidori','e':'🍗','d':'Poulet Hinai certifié — un des 3 grands poulets du Japon','q':'Akita izakaya spécialisés'},
+            ],
+            yamagata: [
+                {'n':'Dashi Yamagata','e':'🥗','d':'Condiment légumes coupés fin + sauce soja — sur riz ou tofu','q':'Partout en été à Yamagata'},
+                {'n':'Imoni','e':'🫕','d':'Pot-au-feu taro + bœuf — rituel automnal au bord des rivières','q':'Yamagata, Mamigasaki River'},
+                {'n':'Yonezawa Beef','e':'🥩','d':'Wagyu de Yonezawa — rival du Matsusaka, fondant et savoureux','q':'Yonezawa, Suehiro'},
+            ],
+            miyagi: [
+                {'n':'Gyutan Sendai','e':'🐄','d':'Langue de bœuf grillée + mugigohan + soupe queue — emblème Sendai','q':'Tasuke, Kisuke, Rikyu'},
+                {'n':'Zunda Mochi','e':'🟢','d':'Mochi sauce edamame écrasé — vert vif, doux, unique Miyagi','q':'Sendai Zunda Saryo'},
+                {'n':'Hoya','e':'🦔','d':'Ascidie de mer crue — goût iodé intense, délice côtier local','q':'Côte Miyagi, izakaya marins'},
+            ],
+            fukushima: [
+                {'n':'Kitakata Ramen','e':'🍜','d':'Ramen gras shoyu épais — capitale du ramen au petit-déj','q':'Kitakata Bannai Shokudo'},
+                {'n':'Sauce Katsu Don','e':'🍛','d':'Katsudon sauce Worcester — spécialité Aizu Wakamatsu','q':'Aizu Wakamatsu restaurants locaux'},
+                {'n':'Mishirazu Persimmon','e':'🌰','d':'Plat à base de kaki local Fukushima — automne uniquement','q':'Restaurants saisonniers'},
+            ],
+            niigata: [
+                {'n':'Hegisoba','e':'🍜','d':'Soba algues funori dans plat en bois — texture unique','q':'Niigata Tocoro'},
+                {'n':'Tare Katsu Don','e':'🍛','d':'Katsu trempé sauce soja sucrée — Niigata style','q':'Niigata Tonteki'},
+                {'n':'Koshihikari Teishoku','e':'🍚','d':'Set riz Koshihikari premium — le meilleur riz du Japon','q':'Niigata restaurants de riz'},
+            ],
+            ishikawa: [
+                {'n':'Kaisen Don Kanazawa','e':'🦀','d':'Bol sashimi Noto premium — crabe, crevettes, poisson blanc','q':'Omicho Market matin, Kaitensushi'},
+                {'n':'Jibuni','e':'🍲','d':'Canard + légumes + fu dans sauce dashi épaissie','q':'Higashi Chaya Zeniya, Kinjohro'},
+                {'n':'Kaga Ryori','e':'🎋','d':'Cuisine traditionnelle région Kaga — raffinée et colorée','q':'Restaurants Higashi Chaya'},
+            ],
+            toyama: [
+                {'n':'Masuzushi','e':'🍣','d':'Sushi truite dans boîte ronde bois — souvenir gare incontournable','q':'Toyama gare Hana no Mai'},
+                {'n':'Shiro Ebi Don','e':'🦐','d':'Bol crevettes blanches translucides — délicatesse unique Toyama','q':'Toyama Toyama Ichiba'},
+                {'n':'Shio Ramen Toyama','e':'🍜','d':'Ramen sel cristallin ultra clair — épuré et raffiné','q':'Toyama Mentatsu'},
+            ],
+            fukui: [
+                {'n':'Echizen Oroshi Soba','e':'🍜','d':'Soba daikon râpé et bonite — frais et légèrement piquant','q':'Fukui Oroshi Soba'},
+                {'n':'Sauce Katsu Fukui','e':'🍛','d':'Sauce Worcester épaisse sur katsu — style Fukui unique','q':'Fukui Yoroduya'},
+                {'n':'Crab Echizen','e':'🦀','d':'Crabe Echizen (zuwaigani) — décembre à mars uniquement','q':'Côte Fukui restaurants de crabe'},
+            ],
+            shizuoka: [
+                {'n':'Sakura Ebi Don','e':'🦐','d':'Bol crevettes sakura — quasi unique à Shizuoka, saisonnier','q':'Yui Port, restaurants côtiers'},
+                {'n':'Unaju Hamamatsu','e':'🐍','d':'Anguille grillée laquée sur riz — Hamamatsu capitale anguille','q':'Hamamatsu Unagi Hayashiya'},
+                {'n':'Fujinomiya Yakisoba','e':'🍜','d':'Yakisoba avec shortening local — style très différent','q':'Fujinomiya stands locaux'},
+            ],
+            mie: [
+                {'n':'Teconé Sushi','e':'🍣','d':'Sushi riz vinaigré avec bonite — tradition pêcheurs d\'Ise','q':'Ise Akafuku, restaurants du port'},
+                {'n':'Ise Udon','e':'🍜','d':'Udon épais mous dans sauce soja noire sucrée — unique au Japon','q':'Ise Okageya'},
+                {'n':'Matsusaka Beef','e':'🥩','d':'Wagyu Matsusaka — certains disent meilleur que Kobe','q':'Matsusaka Wagyuya'},
+            ],
+            hyogo: [
+                {'n':'Kobe Beef Lunch','e':'🥩','d':'Wagyu A5 en set midi — moins cher qu\'au dîner, même qualité','q':'Steak Land Kobe, Wakkoqu'},
+                {'n':'Akashiyaki','e':'🐙','d':'Précurseur takoyaki — boulette pieuvre trempée dans dashi','q':'Akashi Takao'},
+                {'n':'Kobe Ramen','e':'🍜','d':'Ramen léger bouillon poulet — doux, style local','q':'Restaurants Sannomiya'},
+            ],
+            okayama: [
+                {'n':'Barazushi','e':'🍣','d':'Sushi riz assortiment poissons et légumes — fête locale','q':'Okayama Tsuruno'},
+                {'n':'Mamakari Sushi','e':'🐟','d':'Sushi sardine marinée vinaigrée — très populaire localement','q':'Marché Okayama restaurants'},
+                {'n':'Demi Katsu','e':'🍛','d':'Porc pané avec sauce demi-glace — Okayama style fusion','q':'Restaurants de Kurashiki'},
+            ],
+            tottori: [
+                {'n':'Matsuba Crab','e':'🦀','d':'Crabe des neiges Matsuba — le meilleur du Japon selon les experts','q':'Tottori restaurants côtiers nov-mars'},
+                {'n':'Kaki Tottori','e':'🦪','d':'Huîtres de la mer du Japon — charnues et iodées','q':'Côte Tottori'},
+            ],
+            shimane: [
+                {'n':'Izumo Soba','e':'🍜','d':'Soba en 3 couches empilées — style unique à Shimane','q':'Izumo Taisha Kaneyasu'},
+                {'n':'Shijimi Miso','e':'🫕','d':'Soupe palourdes lac Shinji — riche en minéraux, spécialité Matsue','q':'Matsue Yakumo-an'},
+            ],
+            yamaguchi: [
+                {'n':'Fugu Shimonoseki','e':'🐡','d':'Capitale du poisson-globe — le moins cher pour en manger au Japon','q':'Karato Market, Shusse Fugu'},
+                {'n':'Kawara Soba','e':'🍜','d':'Soba servi sur tuile chaude — spectaculaire et savoureux','q':'Yanagawa restaurants'},
+            ],
+            saga: [
+                {'n':'Yobuko Ika','e':'🦑','d':'Calamar ultra-frais de Yobuko — presque transparent sur place','q':'Yobuko Morning Market'},
+                {'n':'Saga Beef','e':'🥩','d':'Wagyu de Saga — concurrent sérieux du bœuf de Kobe','q':'Saga restaurants wagyu'},
+            ],
+            nagasaki: [
+                {'n':'Champon','e':'🍜','d':'Nouilles épaisses avec fruits de mer et légumes sautés','q':'Shikairou fondateur, nombreux restaurants'},
+                {'n':'Sara Udon','e':'🍜','d':'Nouilles frites croustillantes avec garniture épaisse','q':'Nagasaki Shikairou'},
+                {'n':'Kakuni Manju','e':'🥟','d':'Brioche vapeur fourré porc braisé — influence chinoise','q':'Nagasaki Chinatown'},
+            ],
+            kumamoto: [
+                {'n':'Kumamoto Ramen','e':'🍜','d':'Tonkotsu avec ail frit et maïs — épais et très parfumé','q':'Kumamoto Komurasaki'},
+                {'n':'Karashi Renkon','e':'🌿','d':'Racine lotus farcie moutarde japonaise — croustillant unique','q':'Restaurants locaux Kumamoto'},
+                {'n':'Basashi','e':'🐴','d':'Sashimi de cheval — délicat légèrement sucré, spécialité Kumamoto','q':'Kumamoto izakaya spécialisés'},
+            ],
+            miyazaki: [
+                {'n':'Chicken Nanban','e':'🍗','d':'Poulet frit sauce aigre-douce et tartare — né à Nobeoka','q':'Miyazaki Ogura'},
+                {'n':'Miyazaki Beef','e':'🥩','d':'Wagyu primé nationale — souvent champion du Japan','q':'Miyazaki restaurants wagyu'},
+                {'n':'Takachiho Soba','e':'🍜','d':'Soba de montagne dans creux de bambou — Gorges de Takachiho','q':'Takachiho restaurants de la gorge'},
+            ],
+            kagoshima: [
+                {'n':'Kurobuta Pork','e':'🐷','d':'Porc noir de Kagoshima — saveur intense incomparable','q':'Kagoshima restaurants spécialisés'},
+                {'n':'Kibinago','e':'🐟','d':'Petit poisson argenté en sashimi ou grillé — spécialité locale','q':'Marchés et restaurants côtiers'},
+                {'n':'Tonkotsu Kagoshima','e':'🍜','d':'Tonkotsu style Kagoshima — différent et plus sombre que Hakata','q':'Restaurants locaux Kagoshima'},
+            ],
+            oita: [
+                {'n':'Toriten','e':'🍗','d':'Tempura de poulet — spécialité locale adorée d\'Oita','q':'Oita Toyoken'},
+                {'n':'Karaage Nakatsu','e':'🍗','d':'Karaage de Nakatsu — capitale nationale officielle du karaage','q':'Nakatsu, nombreuses enseignes locales'},
+                {'n':'Seki Saba','e':'🐟','d':'Maquereau de Seki ultra-frais — pêche unique à la ligne','q':'Saki-machi restaurants côtiers'},
+            ],
+            ehime: [
+                {'n':'Jakoten','e':'🐟','d':'Galette poisson frite locale — Ehime Uwajima','q':'Uwajima marchés côtiers'},
+                {'n':'Taimeshi','e':'🐟','d':'Riz cuit avec dorade entière — festif et symbolique','q':'Matsuyama restaurants traditionnels'},
+            ],
+            kochi: [
+                {'n':'Katsuo Tataki','e':'🐟','d':'Bonite légèrement fumée au feu de paille — incomparable','q':'Kochi Hirome Market'},
+                {'n':'Sawachi Ryori','e':'🐟','d':'Grande assiette poissons locaux et légumes — festif','q':'Kochi restaurants traditionnels'},
+            ],
+            kagawa: [
+                {'n':'Sanuki Udon','e':'🍜','d':'L\'udon de référence japonais — Kagawa Shikoku','q':'Yamakoshi, Tsurumaru Udon'},
+                {'n':'Shoyu Mame','e':'🫘','d':'Haricots sauce soja — snack local omniprésent','q':'Partout en Kagawa'},
+            ],
+            tokushima: [
+                {'n':'Tokushima Ramen','e':'🍜','d':'Ramen soja + tonkotsu avec œuf cru — style unique','q':'Tokushima Inotani, Kinryu'},
+                {'n':'Sudachi Cuisine','e':'🍋','d':'Cuisine au sudachi (agrume local) — poisson, soba, assaisonnements','q':'Restaurants locaux Tokushima'},
+            ],
+            yamanashi: [
+                {'n':'Hoto Noodles','e':'🍜','d':'Larges pâtes de blé avec légumes et kabocha dans miso — unique','q':'Yamanashi Kosaku, Hohto Fudo'},
+                {'n':'Yoshida Udon','e':'🍜','d':'Udon épais et ferme avec chou + sauce viande — Fujiyoshida','q':'Fujiyoshida nombreux restaurants'},
+            ],
+            nagano: [
+                {'n':'Soba Shinshu','e':'🍜','d':'Soba de montagne — Nagano produit le meilleur sarrasin du Japon','q':'Matsumoto, Ina, Togakushi'},
+                {'n':'Oyaki','e':'🥟','d':'Beignet vapeur farci légumes ou haricots — snack de montagne','q':'Nagano marchés, boutiques Zenkoji'},
+                {'n':'Basho-maki','e':'🍱','d':'Cèpes sauvages matsutake de la région — automne uniquement','q':'Restaurants saisonniers Nagano'},
+            ],
+            gifu: [
+                {'n':'Hida Beef','e':'🥩','d':'Wagyu de la région Hida — persillé fondant exceptionnel','q':'Takayama Masakichi, Le Midi'},
+                {'n':'Mitarashi Dango','e':'🍡','d':'Boulettes riz grillées sauce soja — dans les rues de Takayama','q':'Sanmachi Suji Takayama'},
+                {'n':'Keichan','e':'🍗','d':'Poulet mariné sauce miso sauté avec légumes — Hida','q':'Restaurants locaux Takayama'},
+            ],
+            gunma: [
+                {'n':'Mizusawa Udon','e':'🍜','d':'Udon transparents et lisses — parmi les meilleurs du Japon','q':'Ikaho Onsen restaurants Mizusawa'},
+                {'n':'Yaki Manju','e':'🍡','d':'Manju laqué sauce miso sucré grillé — street food local','q':'Ikaho Maebashi festivals'},
+            ],
+            tochigi: [
+                {'n':'Utsunomiya Gyoza','e':'🥟','d':'Capitale nationale des gyoza — crispy juteux incontournables','q':'Utsunomiya Masashige, Minmin'},
+                {'n':'Nikko Yuba','e':'🫕','d':'Peau de tofu séchée en cuisine zen — légère et délicate','q':'Nikko Yuba Honpo'},
+            ],
+            ibaraki: [
+                {'n':'Anko Nabe','e':'🐟','d':'Pot-au-feu lotte — poisson gélatineux très riche en hiver','q':'Mito côte Ibaraki'},
+                {'n':'Natto Mito','e':'🫘','d':'Natto de Mito — la capitale mondiale du soja fermenté','q':'Mito Tengu Natto'},
+            ],
+            chiba: [
+                {'n':'Katsuura Tantanmen','e':'🍜','d':'Ramen épicé style tantanmen — Chiba côtier','q':'Katsuura restaurants locaux'},
+                {'n':'Soy Sauce Chiba','e':'🍜','d':'Chiba est 1er producteur sauce soja — cuisine locale en bénéficie','q':'Restaurants locaux Chiba'},
+            ],
+            saitama: [
+                {'n':'Musashino Udon','e':'🍜','d':'Udon épais et ferme sauce bouillon fort — région Musashino','q':'Kawagoe restaurants locaux'},
+                {'n':'Kawagoe Imo','e':'🍠','d':'Patate douce Kawagoe sous toutes formes — la Petite Edo','q':'Kawagoe Ichiban-gai'},
+            ],
+            kyushu_general: [
+                {'n':'Tonkotsu Original','e':'🍜','d':'Bouillon tonkotsu de Kurume — plus épais et originel que Hakata','q':'Kurume Taiho Ramen'},
+                {'n':'Chicken Karaage Oita','e':'🍗','d':'La région la plus fière de son karaage au Japon','q':'Oita Nakamura Karaage'},
+            ],
+            default: [
+                {'n':'Ramen Local','e':'🍜','d':'Chaque région a son ramen — demandez le style local','q':'Restaurant ramen du quartier'},
+                {'n':'Teishoku Set','e':'🍱','d':'Set riz + soupe + plat + tsukemono — économique et copieux','q':'Teishoku-ya partout au Japon'},
+                {'n':'Soba Maison','e':'🍜','d':'Nouilles sarrasin fraîches artisanales','q':'Restaurant soba local'},
+                {'n':'Donburi','e':'🥣','d':'Bol riz garni — katsu/gyuu/ten/oyako selon envie','q':'Restaurants locaux partout'},
+                {'n':'Karaage Set','e':'🍗','d':'Karaage croustillant mariné soja-gingembre + riz + miso','q':'Izakaya, teishoku-ya partout'},
+            ],
         };
 
-        function _getFoodForCity(city) {
-            if (!city) return FOOD_SPECIALTIES.default;
-            const c = city.toLowerCase().replace(/[^a-z]/g,'');
-            for (const [key, arr] of Object.entries(FOOD_SPECIALTIES)) {
-                if (key !== 'default' && c.includes(key)) return arr;
+        const DINNER_SPECIALTIES = {
+            tokyo: [
+                {'n':'Yakitori Izakaya','e':'🍢','d':'Soirée brochettes sous les voies ferrées — commandez tout le menu','q':'Yurakucho, Shinjuku Golden Gai'},
+                {'n':'Sushi Omakase','e':'🍣','d':'Menu confiance chez le chef — se laisser guider entièrement','q':'Ginza, Tsukiji — réservation indispensable'},
+                {'n':'Izakaya Découverte','e':'🏮','d':'Bar à petits plats — pointer le menu plastique et commander avec le sourire','q':'Shinjuku Omoide Yokocho, Ebisu'},
+                {'n':'Shabu-shabu Wagyu','e':'🥩','d':'Bœuf wagyu tranché dans bouillon dashi — tremper 3 secondes exactement','q':'Seryna Roppongi, Nabezo Shinjuku'},
+                {'n':'Tonkatsu Premium','e':'🥩','d':'Porc pané épais + chou râpé + sauce maison — confort japonais','q':'Maisen Aoyama, Tonki Meguro'},
+                {'n':'Chanko Nabe Soir','e':'🫕','d':'Pot-au-feu des sumos — immense riche convivial','q':'Ryogoku restaurants anciens sumos'},
+            ],
+            osaka: [
+                {'n':'Kushiage Complet','e':'🍡','d':'Menu complet brochettes panées en plusieurs services','q':'Shinsekai Daruma, Namba'},
+                {'n':'Yakiniku BBQ','e':'🥩','d':'Barbecue coréen-japonais qualité Osaka — viandes + abats','q':'Tsuruhashi quartier coréen'},
+                {'n':'Fugu Kaiseki','e':'🐡','d':'Repas complet autour du poisson-globe — automne-hiver','q':'Dotonbori Zuboraya, Azuma'},
+                {'n':'Horumon Yaki','e':'🔥','d':'Abats grillés marinés avec bière — authentique et populaire','q':'Tsuruhashi izakaya locaux'},
+                {'n':'Oden Osaka Soirée','e':'🫕','d':'Oden bouillon soja dashi — stand de nuit ou restaurant','q':'Konbini chaud ou Oden-ya traditionnel'},
+            ],
+            kyoto: [
+                {'n':'Kaiseki Gion','e':'🎋','d':'Haute gastronomie 10-15 services — l\'expérience ultime Kyoto','q':'Kikunoi, Mizai, Nakamura — réserver'},
+                {'n':'Sake + Obanzai','e':'🍶','d':'Bar à sake + petits plats de saison — soirée parfaite Gion','q':'Izakaya Gion, bars Pontocho'},
+                {'n':'Yudofu Nocturne','e':'🫕','d':'Tofu chaud dans bouillon pur — dîner zen à Nanzenji','q':'Nanzenji Okutan, Junsei'},
+                {'n':'Pontocho Kaiseki','e':'🏮','d':'Dîner kaiseki dans les ruelles de Pontocho illuminées','q':'Pontocho alley, nombreux restaurants'},
+            ],
+            nara: [
+                {'n':'Sake Nara','e':'🍶','d':'Sake artisanal — Nara est la région où le sake fut inventé','q':'Sake bars Naramachi'},
+                {'n':'Yamato Beef','e':'🥩','d':'Bœuf de la préfecture de Nara — peu connu, excellente qualité','q':'Restaurants locaux Nara'},
+                {'n':'Kakinoha Bento Soir','e':'🍃','d':'Plateau sushi kakinoha avec sake local — soirée traditionnelle','q':'Naramachi restaurants en soirée'},
+            ],
+            hiroshima: [
+                {'n':'Okonomiyaki Soirée','e':'🥞','d':'L\'okonomiyaki le soir avec une bière — convivial et délicieux','q':'Okonomi-mura, izakaya locaux'},
+                {'n':'Kaki BBQ','e':'🦪','d':'Huîtres grillées sur braise — Hiroshima au sommet','q':'Miyajima, restaurants d\'huîtres'},
+                {'n':'Sake Hiroshima','e':'🍶','d':'Sake de la région — eau douce donne un sake plus doux','q':'Saijo — capitale du sake de l\'Ouest'},
+            ],
+            hokkaido: [
+                {'n':'Genghis Khan BBQ','e':'🐑','d':'Mouton grillé beer garden — rituel estival Hokkaido','q':'Sapporo Beer Garden mai-octobre'},
+                {'n':'Crab Full Course','e':'🦀','d':'Crabe des neiges en plusieurs façons — novembre à mars','q':'Nijo Market, Kani Honke Susukino'},
+                {'n':'Uni + Sake Hokkaido','e':'🦔','d':'Oursins d\'Hokkaido avec sake local — combo de luxe','q':'Bars à oursins Susukino'},
+            ],
+            aichi: [
+                {'n':'Hitsumabushi Dîner','e':'🥣','d':'Anguille 3 façons — le dîner signature de Nagoya','q':'Atsuta Horaiken, Ibasho, Katoken'},
+                {'n':'Tebasaki Soirée','e':'🍗','d':'Ailes poulet sauce spéciale + bière locale — l\'apéro de Nagoya','q':'Yamachan partout à Nagoya'},
+                {'n':'Doteni','e':'🫕','d':'Tripes et daikon dans sauce miso rouge Hatcho — robuste','q':'Nagoya izakaya Doteni'},
+            ],
+            kanagawa: [
+                {'n':'Yakiniku Yokohama','e':'🥩','d':'BBQ coréen-japonais qualité — grande communauté coréenne','q':'Tsurumi, Kotobuki-cho'},
+                {'n':'Sushi Bar Mer','e':'🍣','d':'Sushi frais Pacifique — poissons locaux de saison','q':'Kamakura, Yokohama restaurants côtiers'},
+                {'n':'Chinatown Dîner','e':'🥟','d':'Dîner complet quartier chinois — nombreuses tables rondes','q':'Yokohama Chinatown, restaurants familiaux'},
+            ],
+            fukuoka: [
+                {'n':'Yatai Nocturne','e':'🏮','d':'Stands de nuit au bord du canal — l\'âme de Fukuoka','q':'Nakasu ou Tenjin dès 18h, Yatai Hoyano'},
+                {'n':'Motsunabe Soirée','e':'🫕','d':'Tripes en bouillon miso + bière — soirée chaude typique Fukuoka','q':'Nakasu Rakutenchi, Motsu-nabe Oyama'},
+                {'n':'Hakata Mizutaki','e':'🫕','d':'Pot-au-feu poulet bouillon dashi clair — délicat et chaud','q':'Mizutaki Hakata Hamadaya'},
+                {'n':'Tori Sashimi','e':'🐔','d':'Sashimi poulet cru — tradition Kyushu uniquement spécialistes','q':'Izakaya spécialisés Tenjin'},
+            ],
+            okinawa: [
+                {'n':'Awamori + Rafute','e':'🍶','d':'Alcool distillé local + porc braisé — soirée Okinawa authentique','q':'Izakaya Naha, Kokusai-dori'},
+                {'n':'Umi Budou Izakaya','e':'🌿','d':'Raisins de mer + sake + conversation — soirée côtière','q':'Restaurants côtiers Okinawa'},
+                {'n':'Tebichi Simmered','e':'🐷','d':'Pied de porc braisé sauce soja — fondant et riche en collagène','q':'Makishi Market restaurants locaux'},
+            ],
+            iwate: [
+                {'n':'Jingisukan Iwate','e':'🐑','d':'Agneau grillé — Iwate est grand producteur de mouton','q':'Morioka izakaya spécialisés'},
+                {'n':'Reimen Soirée','e':'🍜','d':'Nouilles froides coréennes après une journée temples','q':'Morioka Pyongyang'},
+            ],
+            miyagi: [
+                {'n':'Gyutan + Bière','e':'🐄','d':'Langue grillée avec bière locale — le dîner parfait de Sendai','q':'Sendai Rikyu, Kisuke'},
+                {'n':'Sanriku Kaisendon','e':'🦞','d':'Plateau fruits de mer côte Sanriku — homard + oursin + abalone','q':'Miyako, Kamaishi, côte Iwate'},
+            ],
+            ishikawa: [
+                {'n':'Notoguro Grillé','e':'🐟','d':'Poisson Nodoguro gras grillé — la richesse de Kanazawa','q':'Katamachi Ippozushi, Sushi Miori'},
+                {'n':'Sake + Sashimi Noto','e':'🍶','d':'Sake de Noto avec sashimi locaux — soirée raffinée','q':'Bars à sake Higashi Chaya'},
+            ],
+            nagasaki: [
+                {'n':'Shippoku Ryori','e':'🍽️','d':'Cuisine fusion japonaise-chinoise-hollandaise — unique au monde','q':'Hamakatsu, Ichiriki'},
+                {'n':'Champon Soirée','e':'🍜','d':'Grand bol champon le soir — réconfortant et généreux','q':'Shikairou restaurants Nagasaki'},
+            ],
+            kumamoto: [
+                {'n':'Basashi Dîner','e':'🐴','d':'Sashimi de cheval avec sake — expérience unique Kumamoto','q':'Izakaya spécialisés Kumamoto'},
+                {'n':'Kuro Buta Soirée','e':'🐷','d':'Porc noir grillé en soirée — richesse et saveur incomparables','q':'Restaurants Kumamoto'},
+            ],
+            kagoshima: [
+                {'n':'Kurobuta Shabu','e':'🐷','d':'Shabu-shabu porc noir de Kagoshima — fondant et savoureux','q':'Kagoshima restaurants spécialisés'},
+                {'n':'Shochu Kagoshima','e':'🍶','d':'Shochu d\'imo (patate douce) avec izakaya local — rituel local','q':'Izakaya locaux Kagoshima'},
+            ],
+            shikoku: [
+                {'n':'Katsuo Tataki Soir','e':'🐟','d':'Bonite fumée au feu de paille + sake Tosa — soirée Kochi','q':'Kochi Hirome Market soirée'},
+                {'n':'Sanuki Udon Soirée','e':'🍜','d':'Udon chaud de Kagawa en soirée — simple et parfait','q':'Kagawa restaurants'},
+            ],
+            tohoku: [
+                {'n':'Gyutan + Sake','e':'🐄','d':'Langue grillée avec sake local de la région','q':'Sendai restaurants de gyutan'},
+                {'n':'Imoni Party','e':'🫕','d':'Pot-au-feu taro bœuf Yamagata — autour d\'un feu','q':'Yamagata automne uniquement'},
+            ],
+            default: [
+                {'n':'Izakaya Local','e':'🏮','d':'Bar à petits plats — commander au hasard, rarement déçu','q':'Chercher une lanterne rouge loin des zones touristiques'},
+                {'n':'Yakitori Soir','e':'🍢','d':'Brochettes grillées + bière — le dîner japonais universel','q':'Izakaya sous les voies ferrées'},
+                {'n':'Ramen de Nuit','e':'🍜','d':'Bol de ramen après 21h — tradition des nuits japonaises','q':'Ramen-ya ouvert tard'},
+                {'n':'Yakiniku BBQ','e':'🥩','d':'Barbecue japonais en groupe — commandez tout le menu','q':'Yakiniku-ya partout au Japon'},
+                {'n':'Nabe Partagé','e':'🫕','d':'Pot-au-feu autour de la table — convivialité ultime','q':'Izakaya avec nabe, automne-hiver'},
+            ],
+        };
+
+        function _getFoodForMeal(city, mealType) {
+            if (mealType === 'breakfast') return BREAKFAST_SPECIALTIES;
+            const db = (mealType === 'dinner') ? DINNER_SPECIALTIES : LUNCH_SPECIALTIES;
+            if (!city) return db.default;
+            const c = city.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z]/g,'');
+            const MAP = {
+                tokyo:'tokyo', osaka:'osaka', kyoto:'kyoto', nara:'nara',
+                hiroshima:'hiroshima', miyajima:'hiroshima',
+                hokkaido:'hokkaido', sapporo:'hokkaido', otaru:'hokkaido', hakodate:'hokkaido',
+                aichi:'aichi', nagoya:'aichi',
+                kanagawa:'kanagawa', yokohama:'kanagawa', kamakura:'kanagawa', hakone:'kanagawa',
+                fukuoka:'fukuoka', hakata:'fukuoka',
+                okinawa:'okinawa', naha:'okinawa',
+                iwate:'iwate', morioka:'iwate',
+                akita:'akita',
+                yamagata:'yamagata', yonezawa:'yamagata',
+                miyagi:'miyagi', sendai:'miyagi',
+                fukushima:'fukushima', aizu:'fukushima',
+                niigata:'niigata',
+                ishikawa:'ishikawa', kanazawa:'ishikawa',
+                toyama:'toyama',
+                fukui:'fukui',
+                shizuoka:'shizuoka', hamamatsu:'shizuoka',
+                mie:'mie', ise:'mie', matsusaka:'mie',
+                hyogo:'hyogo', kobe:'hyogo',
+                okayama:'okayama',
+                tottori:'tottori',
+                shimane:'shimane', izumo:'shimane', matsue:'shimane',
+                yamaguchi:'yamaguchi', shimonoseki:'yamaguchi',
+                saga:'saga', yobuko:'saga',
+                nagasaki:'nagasaki',
+                kumamoto:'kumamoto',
+                miyazaki:'miyazaki', takachiho:'miyazaki',
+                kagoshima:'kagoshima',
+                oita:'oita', nakatsu:'oita', beppu:'oita',
+                ehime:'ehime', matsuyama:'ehime',
+                kochi:'kochi',
+                kagawa:'kagawa', takamatsu:'kagawa',
+                tokushima:'tokushima',
+                yamanashi:'yamanashi', fujiyoshida:'yamanashi',
+                nagano:'nagano', matsumoto:'nagano',
+                gifu:'gifu', takayama:'gifu',
+                gunma:'gunma', maebashi:'gunma',
+                tochigi:'tochigi', utsunomiya:'tochigi', nikko:'tochigi',
+                ibaraki:'ibaraki', mito:'ibaraki',
+                chiba:'chiba',
+                saitama:'saitama', kawagoe:'saitama',
+                kyushu:'kyushu_general', kumamoto2:'kyushu_general',
+            };
+            for (const [key, region] of Object.entries(MAP)) {
+                if (c.includes(key) && db[region]) return db[region];
             }
-            return FOOD_SPECIALTIES.default;
+            return db.default;
         }
 
         // ── Slot machine principale ──────────────────────────────────────────
@@ -6057,9 +6532,8 @@
             const wrap  = document.getElementById(slotId+'-wrap');
             if (!reel) return;
 
-            const isBreakfast = (mealType==='breakfast' || mealType==='lunch' && false);
-            // breakfast = repas du matin, sinon spécialités de la ville
-            const foods = isBreakfast ? BREAKFAST_SPECIALTIES : _getFoodForCity(city);
+            // Choisir la bonne base selon le type de repas
+            const foods = _getFoodForMeal(city, mealType);
             const ITEM_H = 52;
             const pool = [...foods,...foods,...foods];
 
@@ -6414,23 +6888,18 @@
                     '<span style="font-size:20px">&#128694;</span>'+
                     '<span style="font-size:14px;font-weight:900;color:white">M&#39;y rendre à pied</span>'+
                     '</a>'+
-                    '<button id="add-meal-btn-'+currentDayIndex+'" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:13px;font-weight:800;cursor:pointer">'+
+                    '<button onclick="_addMealFromPending()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:14px;font-size:13px;font-weight:800;cursor:pointer">'+
                     '<span>&#128203;</span><span>Ajouter à mon planning</span>'+
                     '</button>'+
                     '</div>'+
                     '</div>';
-                // Wire up "Ajouter au planning" button after DOM insert
-                setTimeout(() => {
-                    const addBtn = document.getElementById('add-meal-btn-'+currentDayIndex);
-                    if (addBtn) {
-                        addBtn._placeJSON = JSON.stringify(restoPlace);
-                        addBtn._mealType  = mealType;
-                        addBtn._mealTime  = estimatedMealTime;
-                        addBtn.onclick = function() {
-                            _addMealToPlanning(this._placeJSON, this._mealType, this._mealTime);
-                        };
-                    }
-                }, 50);
+                // Wire up "Ajouter au planning" — stocker sur resultsEl pour accès direct
+                window._pendingMealAdd = {
+                    place: restoPlace,
+                    mealType: mealType,
+                    mealTime: estimatedMealTime,
+                    dayIndex: currentDayIndex
+                };
             }catch(e){
                 const el=document.getElementById('nearby-results');
                 if(el) el.innerHTML='<div style="text-align:center;padding:20px;color:#dc2626;font-size:12px">Erreur réseau</div>';
@@ -6600,17 +7069,25 @@
 
 
 
+        // ── Wrapper depuis pending global ────────────────────────────────────
+        window._addMealFromPending = function() {
+            const p = window._pendingMealAdd;
+            if (!p) return;
+            _addMealToPlanning(JSON.stringify(p.place), p.mealType, p.mealTime, p.dayIndex);
+        };
+
         // ── Ajouter un repas au planning ──────────────────────────────────────
-        window._addMealToPlanning = function(placeJSON, mealType, mealTime) {
+        window._addMealToPlanning = function(placeJSON, mealType, mealTime, dayIdx) {
             document.getElementById('nearby-resto-overlay')?.remove();
+            window._pendingMealAdd = null;
             let place;
-            try { place = JSON.parse(placeJSON); } catch(e) { return; }
+            try { place = typeof placeJSON==='string' ? JSON.parse(placeJSON) : placeJSON; } catch(e) { return; }
 
             const mealLabels = { breakfast:'Petit-déjeuner', lunch:'Déjeuner', dinner:'Dîner' };
             const newAct = {
                 id: Date.now() + Math.random(),
                 source: 'manual',
-                dayIndex: currentDayIndex,
+                dayIndex: dayIdx !== undefined ? dayIdx : currentDayIndex,
                 time: mealTime,
                 time_flexible: true,
                 title: mealLabels[mealType] || 'Repas',
@@ -11843,3 +12320,9 @@ async function toggleMapView() {
     </div>
 
 
+
+
+
+
+</body>
+</html>
