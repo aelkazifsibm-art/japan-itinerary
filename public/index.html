@@ -6076,7 +6076,7 @@
             if (single) {
                 travelerProfile[field] = travelerProfile[field] === value ? '' : value;
                 // Refresh tous les boutons du groupe
-                const prefixMap = { travel_type:'ptype', budget:'pbudget', pace:'ppace', wake_time:'pwake', crowd_sensitivity:'pcrowd' };
+                const prefixMap = { travel_type:'ptype', budget:'pbudget', pace:'ppace', wake_time:'pwake', crowd_sensitivity:'pcrowd', meal_display:'pmeal' };
                 const prefix = prefixMap[field];
                 if (prefix) {
                     document.querySelectorAll(`[id^="${prefix}-"]`).forEach(b => {
