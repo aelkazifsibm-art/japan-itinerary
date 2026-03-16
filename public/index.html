@@ -1717,7 +1717,8 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.32);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">🛫 Départ vers le Japon</div>
-                    <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+                    <!-- Date + heure -->
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px">
                         <button onclick="_obOpenCal('dep')" style="background:rgba(255,255,255,0.05);border:1.5px solid ${_ob.depYear?'rgba(167,139,250,0.55)':'rgba(255,255,255,0.09)'};border-radius:14px;padding:12px 14px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px">
                             <span style="font-size:17px">📅</span>
                             <div>
@@ -1730,6 +1731,42 @@
                             <span style="font-size:13px;font-weight:800;color:white">${dH}:${dM}</span>
                         </button>
                     </div>
+                    <!-- Aéroport de départ -->
+                    <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.22);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">✈️ Aéroport de départ</div>
+                    ${(()=>{
+                        const sel = _ob.homeAirport || '';
+                        const selAirport = sel ? MAIN_AIRPORTS.find(a=>a.code===sel) || HOME_AIRPORTS.find(a=>a.code===sel) : null;
+                        // Si aéroport sélectionné → afficher badge compact + lien "changer"
+                        if (selAirport) {
+                            const flag = selAirport.flag || selAirport.country || '✈️';
+                            const name = selAirport.city || selAirport.name || sel;
+                            const sub  = selAirport.sub || selAirport.region || '';
+                            return '<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:rgba(124,58,237,.22);border:1.5px solid rgba(167,139,250,.55);border-radius:12px">' +
+                                '<span style="font-size:18px">' + flag + '</span>' +
+                                '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</div>' +
+                                '<div style="font-size:9px;color:rgba(255,255,255,.4)">' + sel + (sub?' · '+sub:'') + '</div></div>' +
+                                '<button onclick="_ob.homeAirport=\'\';_obRenderStep0(document.getElementById(\'ob-content\'),document.getElementById(\'ob-footer\'))" ' +
+                                'style="font-size:10px;color:rgba(255,255,255,.45);background:rgba(255,255,255,.08);border:none;border-radius:7px;padding:4px 8px;cursor:pointer;flex-shrink:0">Changer</button>' +
+                                '</div>';
+                        }
+                        // Sinon → grille de tuiles compacte
+                        return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">' +
+                            MAIN_AIRPORTS.map(a =>
+                                '<button data-code="' + a.code + '" onclick="_ob.homeAirport=this.dataset.code;_obRenderStep0(document.getElementById(\'ob-content\'),document.getElementById(\'ob-footer\'))" ' +
+                                'style="display:flex;align-items:center;gap:6px;padding:7px 9px;border-radius:10px;cursor:pointer;text-align:left;' +
+                                'border:1.5px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04)">' +
+                                '<span style="font-size:16px;flex-shrink:0">' + a.flag + '</span>' +
+                                '<div style="min-width:0">' +
+                                    '<div style="font-size:11px;font-weight:800;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.city + '</div>' +
+                                    '<div style="font-size:9px;color:rgba(255,255,255,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.code + '</div>' +
+                                '</div></button>'
+                            ).join('') +
+                            '</div>' +
+                            '<input id="ob-dep-airport-input" type="text" autocomplete="off" placeholder="Autre aéroport (code IATA)..." ' +
+                            'oninput="_obDepAirportSearch(this.value)" ' +
+                            'style="width:100%;margin-top:6px;padding:8px 12px;border-radius:10px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:white;font-size:12px;box-sizing:border-box;outline:none;-webkit-appearance:none">' +
+                            '<div id="ob-dep-airport-sugg" style="margin-top:4px;display:flex;flex-direction:column;gap:4px"></div>';
+                    })()}
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.32);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">🛬 Retour depuis le Japon</div>
@@ -1816,7 +1853,34 @@
         window._obTimeAdj=function(unit,delta){const hEl=document.getElementById('ob-time-h'),mEl=document.getElementById('ob-time-m');let h=parseInt(hEl.textContent),m=parseInt(mEl.textContent);if(unit==='h')h=(h+delta+24)%24;if(unit==='m')m=((m+delta)%60+60)%60;hEl.textContent=String(h).padStart(2,'0');mEl.textContent=String(m).padStart(2,'0');if(_obTimeTarget==='dep'){_ob.depHour=h;_ob.depMin=m;}else{_ob.retHour=h;_ob.retMin=m;}};
         window._obTimeQuick=function(h,m){const hEl=document.getElementById('ob-time-h'),mEl=document.getElementById('ob-time-m');if(hEl)hEl.textContent=String(h).padStart(2,'0');if(mEl)mEl.textContent=String(m).padStart(2,'0');if(_obTimeTarget==='dep'){_ob.depHour=h;_ob.depMin=m;}else{_ob.retHour=h;_ob.retMin=m;}};
 
-        function _obCalcDays(){if(!(_ob.depYear&&_ob.retYear))return 0;return Math.max(0,Math.round((new Date(_ob.retYear,_ob.retMonth,_ob.retDay)-new Date(_ob.depYear,_ob.depMonth,_ob.depDay))/86400000)+1);}
+        // Recherche aéroport libre dans step 0
+        window._obDepAirportSearch = function(val) {
+            const suggEl = document.getElementById('ob-dep-airport-sugg');
+            if (!suggEl) return;
+            const q = _normalizeStr(val || '');
+            if (!q) { suggEl.innerHTML = ''; return; }
+            const results = HOME_AIRPORTS.filter(a =>
+                !MAIN_AIRPORTS.find(m => m.code === a.code) &&
+                (_normalizeStr(a.name).includes(q) || _normalizeStr(a.code).includes(q) ||
+                 (a.aliases||[]).some(al => _normalizeStr(al).includes(q)))
+            ).slice(0, 4);
+            if (!results.length) {
+                suggEl.innerHTML = '<div style="font-size:10px;color:rgba(255,255,255,.3);padding:4px">Aucun résultat — essayez le code IATA</div>';
+                return;
+            }
+            suggEl.innerHTML = results.map(a =>
+                '<button data-code="' + a.code + '" onclick="_ob.homeAirport=this.dataset.code;_obRenderStep0(document.getElementById(\'ob-content\'),document.getElementById(\'ob-footer\'))" '+
+                'style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:9px;'+
+                'border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);cursor:pointer;text-align:left;width:100%">'+
+                '<span style="font-size:14px">' + a.country + '</span>'+
+                '<div style="flex:1;min-width:0">'+
+                    '<div style="font-size:11px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.name + '</div>'+
+                    '<div style="font-size:9px;color:rgba(255,255,255,.35)">' + a.code + '</div>'+
+                '</div></button>'
+            ).join('');
+        };
+
+                function _obCalcDays(){if(!(_ob.depYear&&_ob.retYear))return 0;return Math.max(0,Math.round((new Date(_ob.retYear,_ob.retMonth,_ob.retDay)-new Date(_ob.depYear,_ob.depMonth,_ob.depDay))/86400000)+1);}
 
         window._obStep0Next=function(){if(!_ob.depYear||!_ob.retYear||_obCalcDays()<1)return;_ob.step=1;_obRender();};
 
@@ -1841,7 +1905,7 @@
 
         window._obPickAirport=function(code,target){if(target==='arr')_ob.arrAirport=code;else _ob.depAirport=code;_obRenderAirportStep(document.getElementById('ob-content'),document.getElementById('ob-footer'),target);};
         window._obSameAirport=function(){_ob.depAirport=_ob.arrAirport;_obRenderAirportStep(document.getElementById('ob-content'),document.getElementById('ob-footer'),'dep');};
-        window._obStepAirportNext=function(target){const ok=target==='arr'?!!_ob.arrAirport:!!_ob.depAirport;if(!ok)return;if(target==='dep'){_ob.step=2.5;}else{_ob.step++;}  _obRender();};
+        window._obStepAirportNext=function(target){const ok=target==='arr'?!!_ob.arrAirport:!!_ob.depAirport;if(!ok)return;if(target==='dep'){_ob.step=_ob.homeAirport?3:2.5;}else{_ob.step++;}  _obRender();};
 
         // ── STEP 3 : Mode de voyage ────────────────────────────────────────
 
