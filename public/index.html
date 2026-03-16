@@ -2953,7 +2953,11 @@
                             const dayIdx = day.day_index ?? startDay;
                             for (const blk of (day.blocks||[])) {
                                 if (blk.type!=='activity' && blk.type!=='meal') continue;
-                                activities.push({id:Date.now()+Math.random(),source:'ai',dayIndex:dayIdx,time:blk.time||'09:00',time_flexible:true,title:blk.title||'',description:blk.suggestion||blk.local_tip||'',duration_minutes:blk.duration_minutes||60,block_type:blk.type==='meal'?'meal':'activity',meal_type:blk.meal_type||null,local_tip:blk.local_tip||'',crowd_note:blk.crowd_note||'',place:null});
+                                // Validation : ignorer les blocs après 22h ou avec horaires invalides
+                                const _blkTimeMin = _timeStrToMin(blk.time||'09:00');
+                                if (_blkTimeMin >= 22*60) continue; // skip après 22h
+                                if (_blkTimeMin < 6*60)  continue; // skip avant 6h (aberrant)
+                                activities.push({id:Date.now()+Math.random(),source:'ai',dayIndex:dayIdx,time:blk.time||'09:00',time_flexible:true,title:blk.title||'',description:blk.suggestion||blk.local_tip||'',duration_minutes:Math.min(240, blk.duration_minutes||60),block_type:blk.type==='meal'?'meal':'activity',meal_type:blk.meal_type||null,local_tip:blk.local_tip||'',crowd_note:blk.crowd_note||'',place:null});
                                 addedCount++;
                             }
                         }
@@ -7620,20 +7624,27 @@
             const realTimes = new Array(dayActivities.length);
             realTimes[0] = dayActivities[0].time; // ancrage
 
+            const DAY_END_MIN  = 22 * 60; // 22h00 = limite absolue affichage
+            const DAY_WARN_MIN = 21 * 60; // 21h00 = seuil avertissement
+
             for (let k = 1; k < dayActivities.length; k++) {
                 const prev    = dayActivities[k - 1];
                 const curr    = dayActivities[k];
-                // Durée cohérente : visit_duration prioritaire, puis duration_minutes, puis 90
-                const _pd = prev.place?.visit_duration || prev.duration_minutes || 90;
-                const prevDur = Math.min(480, Math.max(15, parseInt(_pd) || 90));
+                const _pd     = prev.place?.visit_duration || prev.duration_minutes || 90;
+                const prevDur = Math.min(360, Math.max(15, parseInt(_pd) || 90));
                 const prevEnd = addMinutesToTime(realTimes[k - 1], prevDur);
                 let   travel  = 0;
                 if (prev.place?.place_id && curr.place?.place_id) {
-                    const ck = `${prev.place.place_id}-${curr.place.place_id}`;
+                    const ck = prev.place.place_id + '-' + curr.place.place_id;
                     const rawTravel = routeCache[ck]?.total_minutes || 0;
-                    travel = Math.min(180, Math.max(0, parseInt(rawTravel) || 0));
+                    travel = Math.min(120, Math.max(0, parseInt(rawTravel) || 0));
                 }
-                realTimes[k] = addMinutesToTime(prevEnd, travel);
+                // Cap : si l'activité commencerait après 22h, on arrête le calcul à 22h
+                const computed = addMinutesToTime(prevEnd, travel);
+                const computedMin = _timeStrToMin(computed);
+                realTimes[k] = computedMin >= DAY_END_MIN
+                    ? _minToTimeStr(Math.min(computedMin, DAY_END_MIN))
+                    : computed;
             }
 
             // ── 2. Heure de départ hôtel = realTimes[0] - durée trajet hôtel ─
@@ -7873,6 +7884,12 @@
                 const hoursAlert = act.place?.opening_hours?.length
                     ? _checkActivityOpenAt(act, arriveTime)
                     : null;
+                // Alerte journée surchargée : activité après 22h
+                const lateAlert = _timeStrToMin(arriveTime) >= 22*60
+                    ? { level:'error', msg:'Après 22h — journée surchargée, simplifie le programme' }
+                    : _timeStrToMin(arriveTime) >= 21*60
+                    ? { level:'warning', msg:'Après 21h — journée très chargée' }
+                    : null;
                 const card = document.createElement('div');
                 const isCompleted = completedActivities.includes(act.id);
                 card.className = "rounded-2xl overflow-hidden activity-card" + (isCompleted ? " activity-completed" : "");
@@ -7966,17 +7983,17 @@
                             </a>` : `<div class="flex-1" style="background:${theme.timelineBg}"></div>`}
                         </div>
                     </div>
-                    ${(fatigueBanner || weatherBanner || hoursAlert) ? `
+                    ${(fatigueBanner || weatherBanner || hoursAlert || lateAlert) ? `
                     <div style="border-top:1px solid ${hoursAlert ? (hoursAlert.level==='error'?'#fee2e2':'#fef3c7') : (fatigueBanner||weatherBanner).bg}">
-                        ${hoursAlert ? `<div class="flex items-center justify-between gap-2 px-3 py-2" style="background:${hoursAlert.level==='error'?'#fef2f2':'#fffbeb'}">
+                        ${(hoursAlert||lateAlert) ? `<div class="flex items-center justify-between gap-2 px-3 py-2" style="background:${(hoursAlert||lateAlert).level==='error'?'#fef2f2':'#fffbeb'}">
                             <div class="flex items-center gap-2">
-                                <span style="font-size:13px">${hoursAlert.level==='error'?'🔴':'🟡'}</span>
-                                <span style="font-size:11px;font-weight:700;color:${hoursAlert.level==='error'?'#dc2626':'#92400e'}">${hoursAlert.msg}</span>
+                                <span style="font-size:13px">${(hoursAlert||lateAlert).level==='error'?'🔴':'🟡'}</span>
+                                <span style="font-size:11px;font-weight:700;color:${(hoursAlert||lateAlert).level==='error'?'#dc2626':'#92400e'}">${(hoursAlert||lateAlert).msg}</span>
                             </div>
-                            <button onclick="event.stopPropagation();_findSimilarOpenPlace(activities.find(a=>a.id=='${act.id}'),'${arriveTime}')"
+                            ${hoursAlert ? `<button onclick="event.stopPropagation();_findSimilarOpenPlace(activities.find(a=>a.id=='${act.id}'),'${arriveTime}')"
                                 style="flex-shrink:0;font-size:10px;font-weight:700;color:white;background:${hoursAlert.level==='error'?'#dc2626':'#d97706'};border:none;border-radius:8px;padding:4px 8px;cursor:pointer">
                                 ${hoursAlert.level==='error'?'Trouver un lieu ouvert':'Voir options'}
-                            </button>
+                            </button>` : ''}
                         </div>` : ''}
                         ${fatigueBanner ? `<div class="flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold" style="background:${fatigueBanner.bg};color:${fatigueBanner.color}">
                             <span>${fatigueBanner.icon}</span><span>${fatigueBanner.label}</span>

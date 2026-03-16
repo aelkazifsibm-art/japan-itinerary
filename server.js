@@ -870,10 +870,12 @@ app.post("/api/generate-program", async (req, res) => {
         if (!zone || !nb_days) return res.status(400).json({ success: false, error: 'Zone et nb_days requis' });
 
         const dayNames = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+        // ── Profils journée : activités réelles, horaires humains ──────────
+        // Règle absolue : hotel_end <= 21:30, dîner <= 20:00, petit-déj >= 08:00
         const intensityProfiles = {
-            relax:   { n: 2, mealDur: {breakfast:25,lunch:55,dinner:70}, startHour:'08:30' },
-            normal:  { n: 3, mealDur: {breakfast:20,lunch:45,dinner:60}, startHour:'08:00' },
-            intense: { n: 4, mealDur: {breakfast:15,lunch:35,dinner:55}, startHour:'07:30' }
+            relax:   { n: 2, mealDur: {breakfast:30,lunch:60,dinner:75}, startHour:'09:00', dinnerHour:'18:30', endHour:'20:30' },
+            normal:  { n: 3, mealDur: {breakfast:25,lunch:50,dinner:65}, startHour:'08:30', dinnerHour:'19:00', endHour:'21:00' },
+            intense: { n: 4, mealDur: {breakfast:20,lunch:40,dinner:60}, startHour:'08:00', dinnerHour:'19:30', endHour:'21:30' }
         };
         const profile = intensityProfiles[intensity||'normal'];
         const existingTitles = (existing_activities||[]).map(a=>(a.title||'').toLowerCase()).slice(0,10);
@@ -918,14 +920,23 @@ Note jour: ${dayNote}
 Transits: ${getTransitRules(zone)}
 Deja planifie (a eviter): ${existingTitles.join(', ')||'aucun'}
 
-STRUCTURE OBLIGATOIRE:
+STRUCTURE OBLIGATOIRE (respecter EXACTEMENT ces horaires):
 - hotel_start a ${profile.startHour}
-- breakfast konbini/kissaten (${profile.mealDur.breakfast}min)
-- transit + activity x${profile.n} avec transit entre chaque
-- lunch teishoku local (${profile.mealDur.lunch}min)
-- transit + activity suite
-- transit + dinner izakaya (${profile.mealDur.dinner}min)
-- hotel_end avant 22h
+- breakfast ${profile.startHour} (${profile.mealDur.breakfast}min) — konbini/kissaten
+- MAX ${profile.n} activites culturelles dans la journee (pas plus)
+- lunch autour de 12h30 (${profile.mealDur.lunch}min) — restaurant local
+- dinner a ${profile.dinnerHour} (${profile.mealDur.dinner}min) — izakaya
+- hotel_end a ${profile.endHour} MAX — LA JOURNEE FINIT ICI
+
+REGLES HORAIRES STRICTES:
+- Premiere activite entre 09:00 et 10:00
+- Dejeuner entre 12:00 et 13:30 MAX
+- Derniere activite culturelle terminee avant 18:00
+- Diner entre ${profile.dinnerHour} et 20:00 MAX
+- Retour hotel avant ${profile.endHour}
+- Durees realistes: temple 60-90min, musee 90-120min, parc 60min, quartier 90min
+- Transits realistes: meme quartier 10-15min, adjacent 20-30min
+- NE PAS depasser minuit, NE PAS placer activites apres 21h
 
 ${profileCtx}
 REGLES:
@@ -952,10 +963,10 @@ JSON BRUT UNIQUEMENT (pas de markdown):
     {"type":"meal","meal_type":"lunch","time":"12:10","title":"Dejeuner teishoku","duration_minutes":${profile.mealDur.lunch},"quartier":"Q2","suggestion":"Teishoku poisson+riz ~900Y","local_tip":"Eviter les rues principales"},
     {"type":"transit","time":"13:00","title":"Vers Q3","duration_minutes":15,"from":"Q2","to":"Q3","mode":"metro","note":""},
     {"type":"activity","time":"13:15","title":"Activite 3","search_query":"Activite 3 ${zone}","duration_minutes":90,"local_tip":"Conseil court","crowd_note":"Ideal apres 13h"},
-    {"type":"transit","time":"15:00","title":"Vers diner","duration_minutes":20,"from":"Q3","to":"Quartier diner","mode":"metro","note":""},
-    {"type":"meal","meal_type":"dinner","time":"15:20","title":"Diner izakaya","duration_minutes":${profile.mealDur.dinner},"quartier":"Quartier diner","suggestion":"Yakitori + biere ~2000Y","local_tip":"Comptoir face au chef"},
-    {"type":"transit","time":"16:20","title":"Retour hotel","duration_minutes":25,"from":"Quartier diner","to":"Hotel","mode":"metro","note":""},
-    {"type":"hotel_end","time":"16:45","title":"Retour hotel","duration_minutes":0}
+    {"type":"transit","time":"18:00","title":"Vers diner","duration_minutes":20,"from":"Q3","to":"Quartier diner","mode":"metro","note":""},
+    {"type":"meal","meal_type":"dinner","time":"18:20","title":"Diner izakaya","duration_minutes":${profile.mealDur.dinner},"quartier":"Quartier diner","suggestion":"Yakitori + biere ~2000Y","local_tip":"Comptoir face au chef"},
+    {"type":"transit","time":"19:40","title":"Retour hotel","duration_minutes":20,"from":"Quartier diner","to":"Hotel","mode":"metro","note":""},
+    {"type":"hotel_end","time":"20:00","title":"Retour hotel","duration_minutes":0}
   ]
 }`;
 
@@ -985,6 +996,27 @@ JSON BRUT UNIQUEMENT (pas de markdown):
                         ]
                     };
                 }
+            }
+
+            // ── Validation et correction des horaires ──────────────────────
+            if (dayParsed.blocks) {
+                const END_LIMIT = 22 * 60; // 22:00 max
+                const timeToMin = t => { const [h,m]=(t||'09:00').split(':').map(Number); return h*60+(m||0); };
+                const minToTime = m => { const hh=Math.floor(m/60)%24, mm=m%60; return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'); };
+                // Compter activités réelles
+                const actCount = dayParsed.blocks.filter(b=>b.type==='activity').length;
+                const maxAct = profile.n + 1; // +1 tolérance
+                if (actCount > maxAct) {
+                    // Garder seulement les N meilleures (supprimer les dernières)
+                    let kept = 0;
+                    dayParsed.blocks = dayParsed.blocks.filter(b => {
+                        if (b.type !== 'activity') return true;
+                        kept++;
+                        return kept <= maxAct;
+                    });
+                }
+                // Couper les blocs après 21:30
+                dayParsed.blocks = dayParsed.blocks.filter(b => timeToMin(b.time) < END_LIMIT);
             }
 
             allDays.push(dayParsed);
