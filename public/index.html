@@ -1886,21 +1886,76 @@
 
         // ── STEPS 1 & 2 : Aéroports (une page par aéroport) ───────────────
         function _obRenderAirportStep(content, footer, target) {
-            const isArr=target==='arr', cur=isArr?_ob.arrAirport:_ob.depAirport;
-            const groups=[{label:'🗼 Tokyo',items:AIRPORTS.filter(a=>a.city==='Tokyo')},{label:'🏯 Osaka / Kansai',items:AIRPORTS.filter(a=>a.city==='Osaka')},{label:'🌏 Autres villes',items:AIRPORTS.filter(a=>!['Tokyo','Osaka'].includes(a.city))}];
-            const airBtn=a=>{const sel=cur===a.code;return `<button onclick="_obPickAirport('${a.code}','${target}')" style="display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:13px;border:2px solid ${sel?'rgba(167,139,250,0.65)':'rgba(255,255,255,0.07)'};background:${sel?'rgba(124,58,237,0.18)':'rgba(255,255,255,0.03)'};cursor:pointer;text-align:left;width:100%;transition:all .2s"><span style="font-size:20px">${a.emoji}</span><div style="flex:1"><div style="font-size:13px;font-weight:800;color:${sel?'#c4b5fd':'white'}">${a.name} <span style="font-size:10px;color:rgba(255,255,255,0.28);font-weight:600">${a.code}</span></div><div style="font-size:10px;color:rgba(255,255,255,0.33);margin-top:2px">${a.tip}</div></div>${sel?'<div style="width:18px;height:18px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:6px;height:6px;border-radius:50%;background:white"></div></div>':''}</button>`;};
+            const isArr = target === 'arr', cur = isArr ? _ob.arrAirport : _ob.depAirport;
+            const groups = [
+                {label:'🗼 Tokyo',         items:AIRPORTS.filter(a=>a.city==='Tokyo')},
+                {label:'🏯 Osaka / Kansai', items:AIRPORTS.filter(a=>a.city==='Osaka')},
+                {label:'🌏 Autres villes',  items:AIRPORTS.filter(a=>!['Tokyo','Osaka'].includes(a.city))}
+            ];
 
-            content.innerHTML=`<div style="padding-top:18px;padding-bottom:8px">
-                <div style="font-size:19px;font-weight:900;color:white;margin-bottom:2px">${isArr?'🛬 Aéroport d\'arrivée':'🛫 Aéroport de départ'}</div>
-                <div style="font-size:12px;color:rgba(255,255,255,0.33);margin-bottom:16px">${isArr?'Où atterris-tu au Japon ?':'Depuis quel aéroport repars-tu ?'}</div>
-                ${!isArr&&_ob.arrAirport?`<button onclick="_obSameAirport()" style="display:flex;align-items:center;gap:10px;padding:12px 13px;width:100%;border-radius:13px;border:2px solid ${_ob.depAirport===_ob.arrAirport?'rgba(52,211,153,0.65)':'rgba(52,211,153,0.2)'};background:${_ob.depAirport===_ob.arrAirport?'rgba(52,211,153,0.12)':'rgba(52,211,153,0.04)'};cursor:pointer;text-align:left;margin-bottom:14px;transition:all .2s"><span style="font-size:20px">🔄</span><div style="flex:1"><div style="font-size:13px;font-weight:800;color:${_ob.depAirport===_ob.arrAirport?'#34d399':'rgba(52,211,153,0.75)'}">Même aéroport qu'à l'arrivée</div><div style="font-size:10px;color:rgba(255,255,255,0.33);margin-top:1px">${AIRPORTS.find(a=>a.code===_ob.arrAirport)?.name} · ${_ob.arrAirport}</div></div>${_ob.depAirport===_ob.arrAirport?'<div style="width:18px;height:18px;border-radius:50%;background:#34d399;display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:6px;height:6px;border-radius:50%;background:white"></div></div>':''}</button><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Ou choisir un autre</div>`:''}
-                <div style="display:flex;flex-direction:column;gap:12px">
-                    ${groups.map(g=>`<div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${g.label}</div><div style="display:flex;flex-direction:column;gap:5px">${g.items.map(airBtn).join('')}</div></div>`).join('')}
-                </div>
-            </div>`;
+            // Tuile compacte 2 colonnes — data attributes pour éviter les guillemets
+            const airTile = a => {
+                const sel = cur === a.code;
+                const bdr = sel ? 'rgba(167,139,250,.7)' : 'rgba(255,255,255,.07)';
+                const bg  = sel ? 'rgba(124,58,237,.2)'  : 'rgba(255,255,255,.03)';
+                const col = sel ? '#c4b5fd' : 'white';
+                return '<button data-code="'+a.code+'" data-target="'+target+'" onclick="_obPickAirport(this.dataset.code,this.dataset.target)"'+
+                    ' style="display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border-radius:12px;cursor:pointer;text-align:left;'+
+                    'border:2px solid '+bdr+';background:'+bg+';transition:all .15s">'+
+                    '<span style="font-size:22px;flex-shrink:0;line-height:1.2">'+a.emoji+'</span>'+
+                    '<div style="min-width:0;flex:1">'+
+                        '<div style="font-size:12px;font-weight:800;color:'+col+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+
+                            a.name+' <span style="font-size:9px;color:rgba(255,255,255,.3);font-weight:600">'+a.code+'</span>'+
+                        '</div>'+
+                        '<div style="font-size:9px;color:rgba(255,255,255,.3);margin-top:2px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+a.tip+'</div>'+
+                    '</div>'+
+                    (sel ? '<div style="width:14px;height:14px;border-radius:50%;background:#7c3aed;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center"><div style="width:5px;height:5px;border-radius:50%;background:white"></div></div>' : '')+
+                    '</button>';
+            };
 
-            const canNext=isArr?!!_ob.arrAirport:!!_ob.depAirport;
-            footer.innerHTML=`<div style="display:flex;gap:10px"><button onclick="_ob.step=${_ob.step-1};_obRender()" style="padding:15px 17px;background:rgba(255,255,255,0.07);border:none;border-radius:16px;color:white;font-size:19px;cursor:pointer">←</button><button onclick="_obStepAirportNext('${target}')" style="flex:1;padding:15px;background:${canNext?'linear-gradient(135deg,#7c3aed,#ec4899)':'rgba(255,255,255,0.07)'};color:${canNext?'white':'rgba(255,255,255,0.2)'};border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">Continuer →</button></div>`;
+            // Rendu grille par groupe
+            const groupsHtml = groups.map(g =>
+                '<div style="margin-bottom:10px">'+
+                '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">'+g.label+'</div>'+
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">'+
+                    g.items.map(airTile).join('')+
+                '</div></div>'
+            ).join('');
+
+            // Bouton "même aéroport" pour le départ
+            const arrName = AIRPORTS.find(a=>a.code===_ob.arrAirport)?.name || '';
+            const isSameAirport = _ob.depAirport === _ob.arrAirport;
+            const sameBtn = (!isArr && _ob.arrAirport) ?
+                '<button onclick="_obSameAirport()" '+
+                'style="display:flex;align-items:center;gap:10px;padding:10px 12px;width:100%;border-radius:12px;'+
+                'border:2px solid '+(isSameAirport?'rgba(52,211,153,.6)':'rgba(52,211,153,.2)')+';'+
+                'background:'+(isSameAirport?'rgba(52,211,153,.12)':'rgba(52,211,153,.04)')+';cursor:pointer;text-align:left;margin-bottom:12px">'+
+                '<span style="font-size:18px">&#128260;</span>'+
+                '<div style="flex:1;min-width:0">'+
+                    '<div style="font-size:13px;font-weight:800;color:'+(isSameAirport?'#34d399':'rgba(52,211,153,.75)')+'">Même aéroport qu’à l’arrivée</div>'+
+                    '<div style="font-size:10px;color:rgba(255,255,255,.33);margin-top:1px">'+arrName+' · '+_ob.arrAirport+'</div>'+
+                '</div>'+
+                (isSameAirport?'<div style="width:16px;height:16px;border-radius:50%;background:#34d399;flex-shrink:0;display:flex;align-items:center;justify-content:center"><div style="width:5px;height:5px;border-radius:50%;background:white"></div></div>':'')+
+                '</button>'+
+                '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.18);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Ou choisir un autre</div>'
+                : '';
+
+            const titleTxt    = isArr ? '&#128748; Aéroport d’arrivée' : '&#128747; Aéroport de départ';
+            const subtitleTxt = isArr ? 'Où atterris-tu au Japon ?' : 'Depuis quel aéroport repars-tu ?';
+            content.innerHTML =
+                '<div style="padding-top:16px;padding-bottom:6px">'+
+                '<div style="font-size:19px;font-weight:900;color:white;margin-bottom:2px">'+titleTxt+'</div>'+
+                '<div style="font-size:12px;color:rgba(255,255,255,.33);margin-bottom:14px">'+subtitleTxt+'</div>'+
+                sameBtn + groupsHtml +
+                '</div>';
+
+            const canNext = isArr ? !!_ob.arrAirport : !!_ob.depAirport;
+            const prevStep = _ob.step - 1;
+            footer.innerHTML =
+                '<div style="display:flex;gap:10px">'+
+                '<button onclick="_ob.step='+prevStep+';_obRender()" style="padding:15px 17px;background:rgba(255,255,255,.07);border:none;border-radius:16px;color:white;font-size:19px;cursor:pointer">&#8592;</button>'+
+                '<button data-target="'+target+'" onclick="_obStepAirportNext(this.dataset.target)" style="flex:1;padding:15px;background:'+(canNext?'linear-gradient(135deg,#7c3aed,#ec4899)':'rgba(255,255,255,.07)')+';color:'+(canNext?'white':'rgba(255,255,255,.2)')+';border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">Continuer &#8594;</button>'+
+                '</div>';
         }
 
         window._obPickAirport=function(code,target){if(target==='arr')_ob.arrAirport=code;else _ob.depAirport=code;_obRenderAirportStep(document.getElementById('ob-content'),document.getElementById('ob-footer'),target);};
