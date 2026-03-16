@@ -1845,80 +1845,167 @@
 
         // ── STEP 3 : Mode de voyage ────────────────────────────────────────
 
-        // ── STEP 2.5 : Aéroport de départ Europe + estimation arrivée ──────────
+        // ── STEP 2.5 : Aéroport de départ Europe ───────────────────────────────
+        // DOM stable — seules les sous-listes sont mises à jour, l'input ne perd jamais le focus
         function _obRenderHomeAirportStep(content, footer) {
-            const selected = _ob.homeAirport || '';
-            const search   = _ob.homeAirportSearch || '';
-
-            // Filtrer les aéroports
-            const filtered = search.trim().length > 0
-                ? HOME_AIRPORTS.filter(a => {
-                    const q = _normalizeStr(search);
-                    return _normalizeStr(a.name).includes(q) || _normalizeStr(a.code).includes(q)
-                        || (a.aliases||[]).some(al=>_normalizeStr(al).includes(q));
-                  })
-                : HOME_AIRPORTS.slice(0, 12);
-
-            // Estimation arrivée si aéroport sélectionné
-            let estimHtml = '';
-            if (selected && _ob.arrAirport) {
-                const durKey1 = selected+'-'+_ob.arrAirport;
-                const durKey2 = selected+'-NRT'; // fallback
-                const dur = FLIGHT_DURATIONS[durKey1] || FLIGHT_DURATIONS[durKey2] || FLIGHT_DURATIONS[selected+'-HND'] || 780;
-                const depDate = _ob.depDate;
-                if (depDate) {
-                    const [y,mo,dd] = depDate.split('-').map(Number);
-                    const dep = new Date(y, mo-1, dd, 10, 0); // heure départ estimée
-                    const arr = new Date(dep.getTime() + (dur + 540)*60000); // +9h décalage Japan
-                    const arrH = String(arr.getUTCHours()).padStart(2,'0');
-                    const arrM = String(arr.getUTCMinutes()).padStart(2,'0');
-                    const nextDay = arr.getUTCDate() !== dep.getUTCDate();
-                    estimHtml = '<div style="background:rgba(124,58,237,0.15);border:1px solid rgba(167,139,250,0.3);border-radius:12px;padding:10px 12px;margin-top:12px;display:flex;align-items:center;gap:10px">'+
-                        '<span style="font-size:20px">✈️</span>'+
-                        '<div><div style="font-size:12px;font-weight:800;color:white">Arrivée estimée : '+arrH+'h'+arrM+(nextDay?' (J+1)':'')+'</div>'+
-                        '<div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:1px">Vol ~'+Math.floor(dur/60)+'h'+String(dur%60).padStart(2,'0')+' depuis '+selected+'</div></div></div>';
-                    // Sauvegarder pour la bannière jour d'arrivée
-                    _ob.estimatedArrival = { hour: arr.getUTCHours(), min: arr.getUTCMinutes(), depAirport: selected };
-                }
-            }
-
             content.innerHTML =
-                '<div style="padding-top:18px;padding-bottom:8px">'+
-                '<div style="font-size:19px;font-weight:900;color:white;margin-bottom:2px">D\'où partez-vous ?</div>'+
-                '<div style="font-size:12px;color:rgba(255,255,255,.33);margin-bottom:14px">Votre aéroport de départ en Europe — pour estimer l\'heure d\'arrivée</div>'+
-                '<input id="ob-home-search" type="text" value="'+search+'"'+
-                ' placeholder="Paris, Bâle, Francfort..." '+
-                ' oninput="_ob.homeAirportSearch=this.value;_obRenderHomeAirportStep(document.getElementById(\'ob-content\'),document.getElementById(\'ob-footer\'))"'+
-                ' style="width:100%;padding:11px 14px;border-radius:14px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:white;font-size:14px;box-sizing:border-box;outline:none;margin-bottom:10px">'+
-                '<div style="display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto">'+
-                filtered.map(a =>
-                    '<button onclick="_obPickHomeAirport(\''+a.code+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:2px solid '+(selected===a.code?'rgba(167,139,250,.6)':'rgba(255,255,255,.07)')+';background:'+(selected===a.code?'rgba(124,58,237,.2)':'rgba(255,255,255,.04)')+';cursor:pointer;text-align:left">'+
-                    '<span style="font-size:16px">'+a.country+'</span>'+
-                    '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.name+'</div>'+
-                    '<div style="font-size:10px;color:rgba(255,255,255,.35)">'+a.code+' · '+a.region+'</div></div>'+
-                    (selected===a.code?'<span style="color:#a78bfa;font-size:16px">✓</span>':'')+
-                    '</button>'
-                ).join('')+
+                '<div style="padding-top:16px;padding-bottom:4px">'+
+                '<div style="font-size:19px;font-weight:900;color:white;margin-bottom:2px">D&#39;où partez-vous ?</div>'+
+                '<div style="font-size:12px;color:rgba(255,255,255,.33);margin-bottom:14px">Aéroport de départ en Europe — on calcule l&#39;heure d&#39;arrivée au Japon</div>'+
+                // Badge aéroport sélectionné
+                '<div id="ob-ha-selected" style="display:none;align-items:center;gap:10px;padding:10px 14px;'+
+                'background:rgba(124,58,237,.25);border:2px solid rgba(167,139,250,.5);border-radius:14px;margin-bottom:10px">'+
+                    '<span id="ob-ha-sel-flag" style="font-size:20px"></span>'+
+                    '<div style="flex:1;min-width:0">'+
+                        '<div id="ob-ha-sel-name" style="font-size:14px;font-weight:800;color:white"></div>'+
+                        '<div id="ob-ha-sel-sub" style="font-size:10px;color:rgba(255,255,255,.4);margin-top:1px"></div>'+
+                    '</div>'+
+                    '<button onclick="_obClearHomeAirport()" style="font-size:11px;color:rgba(255,255,255,.5);'+
+                    'background:rgba(255,255,255,.08);border:none;border-radius:8px;padding:5px 10px;cursor:pointer">✕ Changer</button>'+
                 '</div>'+
-                estimHtml+
+                // Input — jamais détruit
+                '<div style="position:relative;margin-bottom:8px">'+
+                    '<input id="ob-home-search" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"'+
+                    ' placeholder="Paris, Bâle, Francfort, LHR..."'+
+                    ' style="width:100%;padding:11px 14px 11px 40px;border-radius:14px;border:1.5px solid rgba(255,255,255,.15);'+
+                    'background:rgba(255,255,255,.07);color:white;font-size:14px;box-sizing:border-box;outline:none;-webkit-appearance:none">'+
+                    '<span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none">🔍</span>'+
+                '</div>'+
+                // Liste — mise à jour sans toucher l'input
+                '<div id="ob-ha-list" style="display:flex;flex-direction:column;gap:6px;max-height:195px;overflow-y:auto;padding-right:2px"></div>'+
+                // Estimation vol
+                '<div id="ob-ha-estim" style="margin-top:10px"></div>'+
                 '</div>';
+
+            // Attacher l'écouteur UNE SEULE FOIS sur l'input natif
+            const inp = document.getElementById('ob-home-search');
+            if (inp) {
+                inp.addEventListener('input', function() {
+                    _ob.homeAirportSearch = this.value;
+                    _obUpdateHomeAirportList();
+                });
+                // Focus sans déclencher le clavier sur iOS trop tôt
+                setTimeout(() => { if (!_ob.homeAirport) inp.focus(); }, 120);
+            }
 
             footer.innerHTML =
                 '<div style="display:flex;gap:10px">'+
                 '<button onclick="_ob.step=2;_obRender()" style="padding:15px 17px;background:rgba(255,255,255,.07);border:none;border-radius:16px;color:white;font-size:19px;cursor:pointer">←</button>'+
-                '<button onclick="_obHomeAirportNext()" style="flex:1;padding:15px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">Continuer →</button>'+
+                '<button onclick="_obHomeAirportNext()" style="flex:1;padding:15px;background:linear-gradient(135deg,#7c3aed,#ec4899);'+
+                'color:white;border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">Continuer →</button>'+
                 '</div>'+
-                '<button onclick="_obHomeAirportSkip()" style="width:100%;margin-top:8px;padding:10px;background:none;border:none;color:rgba(255,255,255,.3);font-size:12px;cursor:pointer">Passer cette étape</button>';
+                '<button onclick="_obHomeAirportSkip()" style="width:100%;margin-top:8px;padding:10px;background:none;'+
+                'border:none;color:rgba(255,255,255,.3);font-size:12px;cursor:pointer">Passer — je ne sais pas encore</button>';
 
-            // Focus auto sur le champ recherche
-            setTimeout(()=>{ const el=document.getElementById('ob-home-search'); if(el&&!selected)el.focus(); },100);
+            _obUpdateHomeAirportList();
+        }
+
+        // Met à jour la liste et le badge SANS toucher à l'input
+        function _obUpdateHomeAirportList() {
+            const selected = _ob.homeAirport || '';
+            const search   = (_ob.homeAirportSearch || '').trim();
+
+            const filtered = search.length > 0
+                ? HOME_AIRPORTS.filter(a => {
+                    const q = _normalizeStr(search);
+                    return _normalizeStr(a.name).includes(q)
+                        || _normalizeStr(a.code).includes(q)
+                        || (a.aliases||[]).some(al => _normalizeStr(al).includes(q));
+                  }).slice(0, 8)
+                : HOME_AIRPORTS.slice(0, 8);
+
+            // Badge sélectionné
+            const badgeEl = document.getElementById('ob-ha-selected');
+            if (badgeEl) {
+                if (selected) {
+                    const sel = HOME_AIRPORTS.find(a => a.code === selected);
+                    if (sel) {
+                        badgeEl.style.display = 'flex';
+                        document.getElementById('ob-ha-sel-flag').textContent = sel.country;
+                        document.getElementById('ob-ha-sel-name').textContent = sel.name;
+                        document.getElementById('ob-ha-sel-sub').textContent  = sel.code + ' · ' + sel.region;
+                    }
+                    _obUpdateEstimation(selected);
+                } else {
+                    badgeEl.style.display = 'none';
+                    const estimEl = document.getElementById('ob-ha-estim');
+                    if (estimEl) estimEl.innerHTML = '';
+                }
+            }
+
+            // Liste
+            const listEl = document.getElementById('ob-ha-list');
+            if (!listEl) return;
+            if (filtered.length === 0) {
+                listEl.innerHTML = '<div style="text-align:center;padding:14px;color:rgba(255,255,255,.3);font-size:12px">'+
+                    'Aucun résultat — essayez le code IATA (CDG, BSL, LHR...)</div>';
+                return;
+            }
+            listEl.innerHTML = filtered.map(a => {
+                const isSel = selected===a.code;
+                return '<button data-code="'+a.code+'" onclick="_obPickHomeAirport(this.dataset.code)" '+
+                    'style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;width:100%;text-align:left;cursor:pointer;'+
+                    'border:1.5px solid '+(isSel?'rgba(167,139,250,.7)':'rgba(255,255,255,.08)')+';'+
+                    'background:'+(isSel?'rgba(124,58,237,.25)':'rgba(255,255,255,.04)')+'">'+
+                    '<span style="font-size:17px;flex-shrink:0">'+a.country+'</span>'+
+                    '<div style="flex:1;min-width:0">'+
+                        '<div style="font-size:13px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.name+'</div>'+
+                        '<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:1px">'+a.code+' · '+a.region+'</div>'+
+                    '</div>'+
+                    (isSel ? '<span style="color:#a78bfa;font-size:16px;flex-shrink:0">&#10003;</span>' : '')+
+                    '</button>';
+            }).join('');
+        }
+
+        function _obUpdateEstimation(code) {
+            const estimEl = document.getElementById('ob-ha-estim');
+            if (!estimEl) return;
+            const dur = FLIGHT_DURATIONS[code+'-'+(_ob.arrAirport||'NRT')] ||
+                        FLIGHT_DURATIONS[code+'-NRT'] || FLIGHT_DURATIONS[code+'-HND'] || 780;
+            const durStr = '~'+Math.floor(dur/60)+'h'+String(dur%60).padStart(2,'0');
+            if (!_ob.depDate) {
+                estimEl.innerHTML = '<div style="background:rgba(124,58,237,.12);border:1px solid rgba(167,139,250,.25);border-radius:12px;'+
+                    'padding:9px 12px;display:flex;align-items:center;gap:8px">'+
+                    '<span style="font-size:18px">✈️</span>'+
+                    '<span style="font-size:11px;color:rgba(255,255,255,.55)">Durée de vol estimée '+durStr+' depuis '+code+'</span></div>';
+                return;
+            }
+            const [y,mo,dd] = _ob.depDate.split('-').map(Number);
+            const arrTs = new Date(y, mo-1, dd, 10, 0).getTime() + (dur + 540)*60000;
+            const arrDate = new Date(arrTs);
+            const arrH = String(arrDate.getUTCHours()).padStart(2,'0');
+            const arrM = String(arrDate.getUTCMinutes()).padStart(2,'0');
+            const nextDay = arrDate.getUTCDate() !== dd;
+            _ob.estimatedArrival = { hour: arrDate.getUTCHours(), min: arrDate.getUTCMinutes(), depAirport: code };
+            estimEl.innerHTML =
+                '<div style="background:rgba(124,58,237,.15);border:1px solid rgba(167,139,250,.35);border-radius:14px;padding:12px 14px;'+
+                'display:flex;align-items:center;gap:12px">'+
+                '<span style="font-size:24px">✈️</span>'+
+                '<div>'+
+                    '<div style="font-size:14px;font-weight:900;color:white">Arrivée estimée '+arrH+'h'+arrM+
+                    (nextDay?' <span style="font-size:11px;color:#a78bfa;font-weight:600">(lendemain)</span>':'')+
+                    '</div>'+
+                    '<div style="font-size:11px;color:rgba(255,255,255,.45);margin-top:2px">'+
+                    'Vol '+durStr+' · départ '+code+' · décalage +9h Japon</div>'+
+                '</div></div>';
         }
 
         window._obPickHomeAirport = function(code) {
             _ob.homeAirport = code;
             _ob.homeAirportSearch = '';
-            _obRenderHomeAirportStep(document.getElementById('ob-content'), document.getElementById('ob-footer'));
+            const inp = document.getElementById('ob-home-search');
+            if (inp) { inp.value = ''; inp.placeholder = 'Chercher un autre aéroport...'; }
+            _obUpdateHomeAirportList();
         };
+
+        window._obClearHomeAirport = function() {
+            _ob.homeAirport = '';
+            _ob.estimatedArrival = null;
+            const inp = document.getElementById('ob-home-search');
+            if (inp) { inp.value = ''; inp.placeholder = 'Paris, Bâle, Francfort, LHR...'; inp.focus(); }
+            _obUpdateHomeAirportList();
+        };
+
         window._obHomeAirportNext = function() {
             if (_ob.homeAirport && _ob.estimatedArrival) {
                 localStorage.setItem('japan_flight_arrival', JSON.stringify({
