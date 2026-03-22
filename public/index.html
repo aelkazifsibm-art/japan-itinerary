@@ -1581,6 +1581,8 @@
     <script>
         // ========== DONNÉES GLOBALES ==========
         let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
+        // Normaliser dayIndex en Number
+        activities = activities.map(a => ({...a, dayIndex: Number(a.dayIndex) || 0}));
         // Normalisation : dayIndex toujours Number (protection contre les anciennes données string)
         activities = activities.map(a => ({ ...a, dayIndex: Number(a.dayIndex) || 0 }));
 
@@ -1627,6 +1629,12 @@
         let selectedPlace = null;
         let iaSuggestedLocation = "";
         let stays = JSON.parse(localStorage.getItem('japan_stays_v1') || '[]');
+        // Normaliser startDay/endDay en Number (protection contre localStorage corrompu)
+        stays = stays.map(s => ({
+            ...s,
+            startDay: Number(s.startDay) || 0,
+            endDay:   Number(s.endDay)   || 0,
+        }));
         // stays[] = [{ city, hotelName, address, place, price, currency, startDay, endDay }]
         let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
         let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '[]'); // tableau, pas objet
@@ -3074,16 +3082,19 @@
                 if (rowEl) rowEl.style.borderColor = s._color;
                 if (globalEl) globalEl.textContent = 'Génération de '+s.city+' ('+(i+1)+'/'+freeStays.length+')...';
                 try {
-                    // Utiliser le vrai startDay depuis stays[] si disponible
-                    // Sinon fallback sur la somme des jours précédents
-                    const realStay = stays.find(st => st.city === s.city);
-                    const startDay = (realStay && typeof realStay.startDay === 'number')
-                        ? realStay.startDay
-                        : freeStays.slice(0,i).reduce((sum,fs)=>sum+fs.days,0);
+                    // Calculer startDay par position (index) dans freeStays
+                    // → fiable même avec doublons de ville ou variations de casse
+                    const startDay = freeStays.slice(0,i).reduce((sum,fs)=>sum+fs.days, 0);
+                    // Vérification : stays[i] doit avoir le même startDay
+                    const realStay = stays[i];
+                    if (realStay && typeof realStay.startDay === 'number' && realStay.startDay !== startDay) {
+                        console.warn('[_showWizPostGenScreen] Décalage startDay: calculé='+startDay+' vs stays['+i+']='+realStay.startDay+' — on utilise stays[i]');
+                    }
+                    const finalStartDay = (realStay && typeof realStay.startDay === 'number') ? realStay.startDay : startDay;
                     const sc = _buildProfileScore(travelerProfile);
-                    console.log('[_showWizPostGenScreen] Ville:', s.city, '| startDay:', startDay, '| nb_days:', s.days, '| realStay:', realStay?.startDay);
+                    console.log('[postGen] Séjour', i, s.city, '| startDay:', finalStartDay, '| jours:', s.days);
                     const resp = await fetch('/api/generate-program',{method:'POST',headers:{'Content-Type':'application/json'},
-                        body:JSON.stringify({zone:s.city,hotel_name:s.hotel||'',nb_days:s.days,start_day_index:startDay,
+                        body:JSON.stringify({zone:s.city,hotel_name:s.hotel||'',nb_days:s.days,start_day_index:finalStartDay,
                             intensity:sc.activitiesPerDay>=6?'intense':sc.activitiesPerDay<=3?'relax':'normal',
                             traveler_profile:{...travelerProfile,_score:sc}})});
                     const data = await resp.json();
@@ -3091,7 +3102,7 @@
                         let addedCount = 0;
                         for (const day of data.program) {
                             // day_index forcé côté serveur, mais double-vérification
-                            const dayIdx = (typeof day.day_index === 'number') ? day.day_index : startDay;
+                            const dayIdx = (typeof day.day_index === 'number') ? day.day_index : finalStartDay;
                             for (const blk of (day.blocks||[])) {
                                 if (blk.type!=='activity' && blk.type!=='meal') continue;
                                 // Validation : ignorer les blocs après 22h ou avec horaires invalides
