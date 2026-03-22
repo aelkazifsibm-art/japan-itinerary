@@ -1350,9 +1350,10 @@ JSON BRUT UNIQUEMENT (pas de markdown):
 
             // ⚠️ CRITIQUE : forcer day_index correct — ne jamais faire confiance à l'IA
             // L'IA retourne souvent day_index:0 quel que soit le jour réel
-            dayParsed.day_index = dayInfo.index;
+            // Forcer en Number pour éviter les comparaisons string vs number côté client
+            dayParsed.day_index = Number(dayInfo.index);
             if (dayParsed.blocks) {
-                dayParsed.blocks.forEach(b => { b.day_index = dayInfo.index; });
+                dayParsed.blocks.forEach(b => { b.day_index = Number(dayInfo.index); });
             }
 
             allDays.push(dayParsed);

@@ -1581,6 +1581,8 @@
     <script>
         // ========== DONNÉES GLOBALES ==========
         let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
+        // Normalisation : dayIndex toujours Number (protection contre les anciennes données string)
+        activities = activities.map(a => ({ ...a, dayIndex: Number(a.dayIndex) || 0 }));
 
         // ── Migration placeCache : invalider entrées sans photo_reference ────
         // Forcé une seule fois via flag
@@ -3072,8 +3074,14 @@
                 if (rowEl) rowEl.style.borderColor = s._color;
                 if (globalEl) globalEl.textContent = 'Génération de '+s.city+' ('+(i+1)+'/'+freeStays.length+')...';
                 try {
-                    const startDay = freeStays.slice(0,i).reduce((sum,fs)=>sum+fs.days,0);
+                    // Utiliser le vrai startDay depuis stays[] si disponible
+                    // Sinon fallback sur la somme des jours précédents
+                    const realStay = stays.find(st => st.city === s.city);
+                    const startDay = (realStay && typeof realStay.startDay === 'number')
+                        ? realStay.startDay
+                        : freeStays.slice(0,i).reduce((sum,fs)=>sum+fs.days,0);
                     const sc = _buildProfileScore(travelerProfile);
+                    console.log('[_showWizPostGenScreen] Ville:', s.city, '| startDay:', startDay, '| nb_days:', s.days, '| realStay:', realStay?.startDay);
                     const resp = await fetch('/api/generate-program',{method:'POST',headers:{'Content-Type':'application/json'},
                         body:JSON.stringify({zone:s.city,hotel_name:s.hotel||'',nb_days:s.days,start_day_index:startDay,
                             intensity:sc.activitiesPerDay>=6?'intense':sc.activitiesPerDay<=3?'relax':'normal',
@@ -3090,12 +3098,13 @@
                                 const _blkTimeMin = _timeStrToMin(blk.time||'09:00');
                                 if (_blkTimeMin >= 22*60) continue; // skip après 22h
                                 if (_blkTimeMin < 6*60)  continue; // skip avant 6h (aberrant)
-                                activities.push({id:Date.now()+Math.random(),source:'ai',dayIndex:dayIdx,time:blk.time||'09:00',time_flexible:true,title:blk.title||'',description:blk.suggestion||blk.local_tip||'',duration_minutes:Math.min(240, blk.duration_minutes||60),block_type:blk.type==='meal'?'meal':'activity',meal_type:blk.meal_type||null,local_tip:blk.local_tip||'',crowd_note:blk.crowd_note||'',place:null});
+                                activities.push({id:Date.now()+Math.random(),source:'ai',dayIndex:Number(dayIdx),time:blk.time||'09:00',time_flexible:true,title:blk.title||'',description:blk.suggestion||blk.local_tip||'',duration_minutes:Math.min(240, blk.duration_minutes||60),block_type:blk.type==='meal'?'meal':'activity',meal_type:blk.meal_type||null,local_tip:blk.local_tip||'',crowd_note:blk.crowd_note||'',place:null});
                                 addedCount++;
                             }
                         }
                         saveActivities();
                         generatedCount++;
+                        console.log('[_showWizPostGenScreen] Ajouté', addedCount, 'activités pour', s.city, '| startDay:', startDay, '| dayIndexes:', [...new Set(activities.slice(-addedCount).map(a=>a.dayIndex))]);
                         if (statusEl) { statusEl.textContent = addedCount+' activités'; statusEl.style.color='#10b981'; }
                         if (rowEl) rowEl.style.background = '#f0fdf4';
                     } else {
@@ -4335,8 +4344,9 @@
         // ========== MODAL ACTIVITÉ ==========
         // ========== CALCUL HEURE DISPONIBLE ==========
         function calculateNextAvailableTime() {
+            // Coercion Number pour éviter '0' !== 0 (string vs number)
             dayActivities = activities
-                .filter(a => a.dayIndex === currentDayIndex)
+                .filter(a => Number(a.dayIndex) === Number(currentDayIndex))
                 .sort((a, b) => a.time.localeCompare(b.time));
             
             if (dayActivities.length === 0) {
@@ -6268,7 +6278,7 @@
                     if (blk.type === 'meal') {
                         activities.push({
                             id: Date.now()+Math.random(),
-                            dayIndex: blk.day_index,
+                            dayIndex: Number(blk.day_index),
                             time: blk.time,
                             time_flexible: true,
                             title: blk.title,
@@ -6306,7 +6316,7 @@
 
                         activities.push({
                             id: Date.now()+Math.random(),
-                            dayIndex:          blk.day_index,
+                            dayIndex:          Number(blk.day_index),
                             time:              blk.time,
                             time_flexible:     true,
                             title:             resolvedTitle,
