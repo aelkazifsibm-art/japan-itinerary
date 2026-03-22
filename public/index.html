@@ -691,6 +691,19 @@
                     <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Assistant IA</span>
                 </button>
             </div>
+            <!-- Recalculer depuis maintenant -->
+            <div style="border-top:1px solid rgba(255,255,255,0.08)">
+                <button id="recalc-btn" onclick="_recalculateFromNow();toggleMoreMenu()" style="
+                    display:flex;align-items:center;gap:12px;
+                    width:100%;padding:11px 20px;
+                    background:none;border:none;cursor:pointer;text-align:left">
+                    <span style="font-size:22px">🔄</span>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:white;font-weight:800">Recalculer depuis maintenant</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Repositionne les activités restantes depuis l'heure actuelle</div>
+                    </div>
+                </button>
+            </div>
             <!-- Loterie Repas -->
             <div style="border-top:1px solid rgba(255,255,255,0.08)">
                 <button onclick="openMealLottery();toggleMoreMenu()" style="
@@ -1540,8 +1553,14 @@
         let stays = JSON.parse(localStorage.getItem('japan_stays_v1') || '[]');
         // stays[] = [{ city, hotelName, address, place, price, currency, startDay, endDay }]
         let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
-        let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '{}');
+        let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '[]'); // tableau, pas objet
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v4') || '{}');
+
+        // Lire l'heure d'arrivée estimée (sauvegardée à l'onboarding)
+        function _getFlightArrival() {
+            try { return JSON.parse(localStorage.getItem('japan_flight_arrival') || 'null'); }
+            catch(e) { return null; }
+        }
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
         const PLACE_CACHE_KEY = 'japan_place_cache_v10'
@@ -2235,13 +2254,25 @@
         };
 
         window._obHomeAirportNext = function() {
-            if (_ob.homeAirport && _ob.estimatedArrival) {
-                localStorage.setItem('japan_flight_arrival', JSON.stringify({
-                    depAirport: _ob.homeAirport,
-                    hour: _ob.estimatedArrival.hour,
-                    min:  _ob.estimatedArrival.min,
-                    flightH: Math.floor((FLIGHT_DURATIONS[_ob.homeAirport + '-NRT'] || 780) / 60) + 'h'
-                }));
+            if (_ob.homeAirport) {
+                const dur = FLIGHT_DURATIONS[_ob.homeAirport+'-NRT'] ||
+                            FLIGHT_DURATIONS[_ob.homeAirport+'-HND'] || 780;
+                const arrival = _ob.estimatedArrival || (()=>{
+                    // Calculer depuis les dates si disponibles
+                    if (_ob.depYear) {
+                        const dep = new Date(_ob.depYear, _ob.depMonth, _ob.depDay, 10, 0);
+                        const arr = new Date(dep.getTime() + (dur+540)*60000);
+                        return { hour:arr.getUTCHours(), min:arr.getUTCMinutes(), depAirport:_ob.homeAirport };
+                    }
+                    return null;
+                })();
+                if (arrival) {
+                    localStorage.setItem('japan_flight_arrival', JSON.stringify({
+                        depAirport: _ob.homeAirport,
+                        hour: arrival.hour, min: arrival.min,
+                        flightH: Math.floor(dur/60)+'h'
+                    }));
+                }
             }
             _ob.step = 3; _obRender();
         };
@@ -5746,6 +5777,17 @@
                     </select>
                 </div>
 
+                <!-- Activité Ancre (optionnel) -->
+                <div style="margin-bottom:16px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">
+                        ⚓ Activité incontournable <span style="font-size:10px;font-weight:400;color:#9ca3af">(optionnel)</span>
+                    </label>
+                    <input id="gen-anchor-input" type="text"
+                        placeholder="Ex: Fushimi Inari, Ghibli Museum, Arashiyama..."
+                        style="width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;outline:none">
+                    <div style="font-size:10px;color:#9ca3af;margin-top:4px">L'IA construira la journée autour de ce lieu comme point central</div>
+                </div>
+
                 <!-- Intensité -->
                 <div style="margin-bottom:4px">
                     <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Intensité</label>
@@ -5846,7 +5888,8 @@
                         nb_days: nbDays, start_day_index: startDay,
                         start_date: tripData?.outbound?.departureDate || null,
                         intensity, existing_activities: existing,
-                        traveler_profile: travelerProfile
+                        traveler_profile: travelerProfile,
+                        anchor_activity: document.getElementById('gen-anchor-input')?.value?.trim() || null
                     })
                 });
                 const data = await resp.json();
@@ -6384,6 +6427,7 @@
             const toResolve = activities.filter(a =>
                 (a.source === 'generated' || a.source === 'ai') &&
                 !a.place?.photo_reference &&
+                !a._resolveAttempted &&   // ← évite les boucles infinies
                 a.title &&
                 a.block_type !== 'meal' && a.meal_type == null
             );
@@ -6393,6 +6437,10 @@
                 const cityStay = getStayForDay(act.dayIndex);
                 const cityHint = cityStay?.city || '';
                 const searchQ = act.title + (cityHint ? ' ' + cityHint + ' Japan' : ' Japan');
+                // Marquer comme tentée AVANT le fetch pour éviter re-tentative infinie
+                const _ri = activities.findIndex(a => a.id === act.id);
+                if (_ri >= 0) activities[_ri]._resolveAttempted = true;
+
                 try {
                     const r = await fetch('/api/resolve-place', {
                         method: 'POST',
@@ -7614,6 +7662,9 @@
         window._lotterySelectType = function(typeId) {
             _lotteryMealType = typeId;
             _lotteryWinner = null;
+            // Reset du reel pour éviter transform résiduel
+            const reel = document.getElementById('lottery-reel');
+            if (reel) { reel.style.transition='none'; reel.style.transform='translateY(0)'; }
             _renderMealLottery();
         };
 
@@ -7719,7 +7770,7 @@
             const mealId = _lotteryMealType||'lunch';
             const foods = (typeof _getFoodForMeal === 'function')
                 ? _getFoodForMeal(city, mealId)
-                : (typeof _getFoodForCity === 'function' ? _getFoodForCity(city) : [{n:'Ramen',e:'🍜',d:'Bouillon chaud',q:'Restaurant local'}]);
+                : [{n:'Ramen',e:'🍜',d:'Bouillon chaud',q:'Restaurant local'}];
             if (!foods || !foods.length) return;
 
             const bigPool = [...foods,...foods,...foods,...foods,...foods];
@@ -7794,6 +7845,69 @@
             showAddConfirmation(_lotteryWinner.n+' ajouté 📋', mealLabels[_lotteryMealType]+' à '+slotStart, '🎰');
         };
 
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        // RECALCUL DEPUIS POSITION ACTUELLE (S3+S4 côté client)
+        // ═══════════════════════════════════════════════════════════════════
+
+        // S3 : merge sans perte des IDs complétées
+        function _mergeRecalculatedActivities(recalcResult) {
+            const updMap = new Map(
+                (recalcResult.updated_activities || []).map(a => [a.original_id || a.id, a])
+            );
+            // Mettre à jour uniquement le time des activités non-complétées
+            activities = activities.map(act => {
+                if (completedActivities.includes(act.id)) return act; // préserver les complétées
+                const updated = updMap.get(act.id);
+                if (updated) return { ...act, time: updated.time, time_flexible: true };
+                return act;
+            });
+            saveActivities();
+            renderPlanning();
+        }
+
+        // Bouton "Recalculer depuis ma position"
+        window._recalculateFromNow = async function() {
+            const btn = document.getElementById('recalc-btn');
+            if (btn) { btn.disabled=true; btn.textContent='Recalcul...'; }
+
+            const todayActs = activities.filter(a => a.dayIndex === currentDayIndex);
+            const stay = getStayForDay(currentDayIndex);
+            const city = stay?.city || '';
+            const now  = new Date();
+            const currentTime = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+
+            // S4 : envoyer complétées pour que le serveur exclue
+            const payload = {
+                activities: todayActs,
+                completed_ids: completedActivities.filter(id => todayActs.find(a=>a.id===id)),
+                current_time: currentTime,
+                zone: city,
+                traveler_profile: travelerProfile,
+            };
+
+            try {
+                const r = await fetch('/api/recalculate-day', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await r.json();
+                if (data.success) {
+                    // S3 : merge (pas replace)
+                    _mergeRecalculatedActivities(data);
+                    showAddConfirmation(
+                        'Planning recalculé depuis '+currentTime,
+                        data.anchor_note || '',
+                        '🔄'
+                    );
+                }
+            } catch(e) {
+                showAddConfirmation('Erreur réseau', 'Recalcul impossible', '⚠️');
+            } finally {
+                if (btn) { btn.disabled=false; btn.textContent='🔄 Recalculer depuis maintenant'; }
+            }
+        };
 
         function renderPlanning() {
             const myToken = ++_renderToken;
@@ -8053,6 +8167,21 @@
                 const hotelTravel = hotelKey ? (routeCache[hotelKey]?.total_minutes || 0) : 0;
                 const hotelDepart = addMinutesToTime(realTimes[0], -hotelTravel);
 
+                // Bannière heure d'arrivée si jour 0 et vol enregistré
+                const _flightArr = _getFlightArrival();
+                if (currentDayIndex === 0 && _flightArr?.hour !== undefined) {
+                    const _arrBanner = document.createElement('div');
+                    const _dkArr = document.documentElement.classList.contains('dark');
+                    _arrBanner.style.cssText = 'margin-bottom:10px;padding:10px 14px;border-radius:14px;border:1.5px solid rgba(167,139,250,.4);background:'+(_dkArr?'rgba(124,58,237,.2)':'#faf5ff')+';display:flex;align-items:center;gap:10px';
+                    const _arrH = String(_flightArr.hour).padStart(2,'0');
+                    const _arrM = String(_flightArr.min||0).padStart(2,'0');
+                    _arrBanner.innerHTML = '<span style="font-size:20px">✈️</span><div>'+
+                        '<div style="font-size:13px;font-weight:800;color:'+(_dkArr?'#c4b5fd':'#7c3aed')+'">Arrivée estimée : '+_arrH+'h'+_arrM+'</div>'+
+                        '<div style="font-size:10px;color:'+(_dkArr?'rgba(255,255,255,.45)':'#9ca3af')+'">Vol depuis '+(_flightArr.depAirport||'Europe')+' · décalage +9h Japon</div>'+
+                        '</div>';
+                    list.appendChild(_arrBanner);
+                }
+
                 const hotelCard = document.createElement('div');
                 const _dk = document.documentElement.classList.contains('dark');
                 hotelCard.className = "rounded-2xl p-4 border-2 mb-4";
@@ -8087,6 +8216,36 @@
                     _navRenderScheduled = true;
                 }
                 calculateNav(stay0.place, act0.place, hotelNavId, hotelDepart, realTimes[0]);
+
+            // ── Bloc transition Shinkansen si ville différente du jour précédent ──
+            if (currentDayIndex > 0) {
+                const prevStay = getStayForDay(currentDayIndex - 1);
+                const currStay = getStayForDay(currentDayIndex);
+                if (prevStay && currStay && prevStay.city !== currStay.city) {
+                    const SHINKANSEN_DURATIONS = {
+                        'tokyo-osaka':155,'osaka-tokyo':155,'tokyo-kyoto':140,'kyoto-tokyo':140,
+                        'tokyo-hiroshima':245,'hiroshima-tokyo':245,'osaka-hiroshima':85,'hiroshima-osaka':85,
+                        'kyoto-hiroshima':100,'hiroshima-kyoto':100,'tokyo-fukuoka':300,'fukuoka-tokyo':300,
+                        'osaka-fukuoka':150,'fukuoka-osaka':150,'tokyo-nagoya':105,'nagoya-tokyo':105,
+                        'tokyo-kanazawa':150,'kanazawa-tokyo':150,
+                    };
+                    const routeKey = (prevStay.city+'-'+currStay.city).toLowerCase().replace(/[^a-z-]/g,'');
+                    const shinkDur = SHINKANSEN_DURATIONS[routeKey] || 120;
+                    const shinkH = Math.floor(shinkDur/60), shinkM = String(shinkDur%60).padStart(2,'0');
+                    const _dkTrans = document.documentElement.classList.contains('dark');
+
+                    const transCard = document.createElement('div');
+                    transCard.style.cssText = 'margin-bottom:10px;padding:11px 14px;border-radius:14px;border:1.5px solid #bae6fd;background:'+(_dkTrans?'#0a1929':'#f0f9ff')+';display:flex;align-items:center;gap:10px';
+                    transCard.innerHTML =
+                        '<span style="font-size:22px">🚄</span>'+
+                        '<div style="flex:1">'+
+                            '<div style="font-size:13px;font-weight:800;color:'+(_dkTrans?'#38bdf8':'#0284c7')+'">Shinkansen '+prevStay.city+' → '+currStay.city+'</div>'+
+                            '<div style="font-size:10px;color:'+(_dkTrans?'rgba(255,255,255,.45)':'#9ca3af')+'">~'+shinkH+'h'+shinkM+' de trajet · prévoir +45 min logistique bagages</div>'+
+                        '</div>'+
+                        '<div style="font-size:11px;font-weight:700;color:#0284c7;text-align:right">'+shinkH+'h'+shinkM+'</div>';
+                    list.appendChild(transCard);
+                }
+            }
             } else if (stay0) {
                 // Hôtel sans place validée — carte simple
                 const hotelCard = document.createElement('div');
@@ -9762,6 +9921,8 @@
         let completedActivities = JSON.parse(localStorage.getItem('japan_completed_v1') || '[]');
 
         function initActivitySwipe(element, activityId, actTitle) {
+            if (element._swipeInit) return; // ← évite l'accumulation de listeners
+            element._swipeInit = true;
             let touchStartX = 0, touchStartY = 0;
             let touchCurrentX = 0, touchCurrentY = 0;
             let mode = null; // null | 'none' | 'longpress' | 'swipe' | 'drag'
@@ -11257,6 +11418,20 @@
         }
 
         // ── Timeline scrollable sous la barre ─────────────────────────────────
+
+        // Initialise les gestes swipe sur la carte (déjà gérés par _mapSwipePrev/Next via boutons)
+        function _initMapSwipe() {
+            // Swipe touch sur la carte pour changer d'activité
+            const mapEl = document.getElementById('map-view-container') || document.getElementById('map-container');
+            if (!mapEl || mapEl._swipeInitialized) return;
+            mapEl._swipeInitialized = true;
+            let _sx = 0;
+            mapEl.addEventListener('touchstart', e => { _sx = e.touches[0].clientX; }, { passive:true });
+            mapEl.addEventListener('touchend', e => {
+                const dx = e.changedTouches[0].clientX - _sx;
+                if (Math.abs(dx) > 60) { dx > 0 ? _mapSwipePrev() : _mapSwipeNext(); }
+            }, { passive:true });
+        }
 
         function _mapSwipePrev() {
             const geoActs = dayActivities.filter(a => getActCoords(a));

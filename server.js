@@ -860,9 +860,235 @@ Format exact: {"why_visit":"...","best_time":"...","duration_minutes":90,"crowd_
 
 // --- OPTIMISATION JOURNÉE ---
 // ── GÉNÉRATION DE PROGRAMME COMPLET ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// PIPELINE SERVEUR — 5 solutions intégrées sans conflit
+// Ordre d'exécution : S2 → S1(+S5) → S4 → S3(merge) → realTimes
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── S2 : Densité de ville + rayon pivot dynamique ─────────────────────────
+const CITY_DENSITY_MAP = {
+    // Ultra-dense : tout à 2 km, metro dense
+    ultra_dense: ['tokyo','osaka','yokohama','nagoya','fukuoka','sapporo','kobe'],
+    // Kyoto: sites dispersés sur 10+ km (Arashiyama, Fushimi, Ohara) → étendue
+    // Étendue : sites dispersés, bus/taxi nécessaires
+    etendue: ['kyoto','nara','hiroshima','kanazawa','sendai','matsumoto','nikko','kamakura','takayama'],
+    // Rurale : grands espaces, peu de transports
+    rurale: ['hakone','miyajima','beppu','yakushima','shirakawago'],
+};
+
+// Couples incontournables — bypass du rayon, transit obligatoire dans le prompt
+const INCONTOURNABLE_COUPLES = [
+    { cities:['hiroshima','miyajima'],    transit_min:40,  note:'Ferry 15min + attente, prévoir 1h aller-retour' },
+    { cities:['nara','horyuji'],          transit_min:30,  note:'Bus local depuis Nara JR, 15min' },
+    { cities:['kyoto','uji'],             transit_min:35,  note:'Keihan ou JR, 20min depuis Kyoto' },
+    { cities:['tokyo','nikko'],           transit_min:120, note:'Shinkansen+train, journée entière conseillée' },
+    { cities:['osaka','kobe'],            transit_min:25,  note:'Hankyu ou JR, 25min' },
+    { cities:['kanazawa','shirakawago'],  transit_min:75,  note:'Bus express Nohi, excursion demi-journée' },
+];
+
+function getCityDensity(zone) {
+    const z = (zone || '').toLowerCase().replace(/[^a-z]/g, '');
+    for (const [type, cities] of Object.entries(CITY_DENSITY_MAP)) {
+        if (cities.some(c => z.includes(c) || c.includes(z))) {
+            return {
+                density_type: type,
+                pivot_radius: type === 'ultra_dense' ? 2 : type === 'etendue' ? 5 : 10,
+            };
+        }
+    }
+    return { density_type: 'etendue', pivot_radius: 5 }; // fallback sûr
+}
+
+function findCouple(zone) {
+    const z = (zone || '').toLowerCase().replace(/[^a-z]/g, '');
+    return INCONTOURNABLE_COUPLES.find(c =>
+        c.cities.some(city => z.includes(city))
+    ) || null;
+}
+
+// ── S5 : Ordre de priorité des contraintes ────────────────────────────────
+// Retourne un objet de filtres pour S1 (Places Nearby) et pour le prompt
+function buildConstraints(profile, dayInfo, pivotCoords) {
+    const constraints = {
+        must_be_open_at: null,    // heure minimale d'ouverture
+        avoid_types: [],          // types Places à éviter
+        prefer_types: [],         // types Places à privilégier
+        crowd_rules: [],          // règles foule pour le prompt
+        max_transit_min: 25,      // cap transit par défaut
+        priority_order: ['horaires','cap22h','foule','pace','budget','interet'],
+    };
+
+    // P1 : Horaires d'ouverture — contrainte physique absolue
+    constraints.must_be_open_at = profile.startHour || '09:00';
+
+    // P2 : Cap 22h — calculé dans realTimes, pas ici
+
+    // P3 : Foule — horaires stricts si crowd=forte
+    if (profile.crowd_sensitivity === 'forte') {
+        constraints.crowd_rules.push('temples_before_0930');
+        constraints.crowd_rules.push('museums_avoid_1014_weekend');
+        constraints.crowd_rules.push('prefer_evening_local');
+    }
+
+    // P3b : Lundi → exclure musées (60% fermés au Japon)
+    if (dayInfo?.isMonday) {
+        constraints.avoid_types.push('museum');
+        constraints.crowd_rules.push('no_museums_monday');
+    }
+
+    // P4 : Pace → transit max
+    const transitByPace = { tranquille: 20, normal: 25, intense: 35 };
+    constraints.max_transit_min = transitByPace[profile.pace || 'normal'];
+
+    // P5 : Budget → filtrer activités payantes
+    if (profile.budget === 'econome') {
+        constraints.prefer_types.push('park','shrine','neighborhood','market');
+        constraints.avoid_types.push('amusement_park');
+    }
+
+    // P6 : Intérêts → types prioritaires (si disponibles, pas obligatoires)
+    const interestToType = {
+        culture: ['temple','shrine','museum','castle'],
+        nature: ['park','garden','mountain'],
+        gastro: ['restaurant','market','food'],
+        shopping: ['shopping_mall','store'],
+        pop: ['theme_park','arcade'],
+    };
+    const interests = profile.interests || [];
+    constraints.prefer_types.push(
+        ...interests.flatMap(i => interestToType[i] || [])
+    );
+
+    return constraints;
+}
+
+// ── S1 : Validation géographique + remplacement (embarque S5) ─────────────
+function haversineKm(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+async function validateAndFixBlocks(blocks, pivotCoords, pivotRadius, constraints, apiKey) {
+    if (!pivotCoords || !apiKey) return blocks; // pas de coords = pas de validation
+
+    const validated = [];
+    for (const blk of blocks) {
+        // Garder repas, transits, hotel_start/end — valider uniquement les activités
+        if (blk.type !== 'activity') { validated.push(blk); continue; }
+
+        const blkCoords = blk.coordinates;
+        if (!blkCoords?.lat || !blkCoords?.lng) {
+            // Pas de coords IA → on garde (sera résolu par _resolveGeneratedActivities côté client)
+            validated.push(blk); continue;
+        }
+
+        const dist = haversineKm(pivotCoords.lat, pivotCoords.lng, blkCoords.lat, blkCoords.lng);
+        if (dist <= pivotRadius) {
+            validated.push(blk); continue; // dans le rayon → OK
+        }
+
+        // Hors rayon → chercher un remplacement via Places Nearby
+        const types = (blk.tags || []).join('|') || 'tourist_attraction';
+        const avoidTypes = constraints.avoid_types || [];
+
+        try {
+            const url = new URL('https://maps.googleapis.com/maps/api/place/nearbysearch/json');
+            url.searchParams.set('location', `${pivotCoords.lat},${pivotCoords.lng}`);
+            url.searchParams.set('radius', String(pivotRadius * 1000));
+            url.searchParams.set('keyword', blk.search_query || blk.title || 'attraction touristique');
+            url.searchParams.set('language', 'fr');
+            url.searchParams.set('key', apiKey);
+
+            const resp = await fetch(url.toString()).then(r => r.json());
+            const results = (resp.results || []).filter(r =>
+                !avoidTypes.some(t => (r.types || []).includes(t)) &&
+                r.opening_hours?.open_now !== false // ouvert si info disponible
+            );
+
+            if (results.length > 0) {
+                const best = results[0];
+                // Remplacer le bloc hors-zone par le résultat nearest valide
+                validated.push({
+                    ...blk,
+                    title: best.name,
+                    search_query: best.name,
+                    coordinates: {
+                        lat: best.geometry.location.lat,
+                        lng: best.geometry.location.lng
+                    },
+                    _replaced_geo: true, // flag pour debug
+                });
+            }
+            // Si aucun résultat → supprimer silencieusement (mieux que garder une erreur)
+        } catch(e) {
+            // En cas d'erreur réseau → garder l'original (dégradé gracieux)
+            validated.push(blk);
+        }
+    }
+    return validated;
+}
+
+// ── S4 : Filtre activités complétées pour le recalcul ────────────────────
+// Retourne { toKeep: [...], anchor: { time, position } }
+function prepareRecalcPayload(activities, completedIds, currentTime, currentPosition) {
+    const completed = activities.filter(a => completedIds.includes(a.id));
+    const remaining = activities.filter(a => !completedIds.includes(a.id));
+
+    // Ancrage = fin de la dernière activité complétée OU heure actuelle
+    let anchorTime = currentTime;
+    let anchorNote = 'position GPS actuelle';
+
+    if (completed.length > 0) {
+        const lastDone = completed.sort((a,b) => a.time.localeCompare(b.time)).pop();
+        const endMin = timeToMin(lastDone.time) + (lastDone.duration_minutes || 90);
+        anchorTime = minToTime(endMin);
+        anchorNote = `fin de "${lastDone.title}"`;
+    }
+
+    return {
+        remaining_activities: remaining,   // uniquement les non-complétées
+        anchor_time: anchorTime,
+        anchor_note: anchorNote,
+        anchor_position: currentPosition,
+        completed_count: completed.length,
+    };
+}
+
+function timeToMin(t) { const [h,m]=(t||'00:00').split(':').map(Number); return h*60+m; }
+function minToTime(m) { return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+
+// ── S3 : MERGE (pas remplacement) des activités recalculées ───────────────
+// Fix du conflit S3→S4 : on ne remplace pas activities[] côté client,
+// on met à jour uniquement les times des activités non-complétées
+function mergeRecalculatedActivities(existingActivities, recalcResult, completedIds) {
+    const recalcMap = new Map(
+        (recalcResult.updated_activities || []).map(a => [a.original_id || a.id, a])
+    );
+
+    return existingActivities.map(act => {
+        // Activités complétées → ne jamais toucher
+        if (completedIds.includes(act.id)) return act;
+        // Activité recalculée → mettre à jour uniquement le time
+        const updated = recalcMap.get(act.id);
+        if (updated) {
+            return { ...act, time: updated.time, time_flexible: true };
+        }
+        return act;
+    });
+    // NOTE : on ne push() pas de nouvelles activités ici — c'est voulu.
+    // Le recalcul repositionne, il n'invente pas de nouveaux lieux.
+}
+
+// — fin pipeline solutions —
+
+
 app.post("/api/generate-program", async (req, res) => {
     try {
-        const { zone: zoneRaw, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities, traveler_profile } = req.body;
+        const { zone: zoneRaw, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities, traveler_profile, anchor_activity } = req.body;
         // Normaliser la zone : "Osaka, Préfecture d'Osaka, Japon" → "Osaka"
         // "Yao, Préfecture d'Osaka" → "Yao" (ville réelle, pas la métropole)
         const zone = zoneRaw ? zoneRaw.split(',')[0].trim() : '';
@@ -905,18 +1131,46 @@ app.post("/api/generate-program", async (req, res) => {
         const allDays = [];
         let globalSummary = '';
 
+        // S2 : densité + rayon + couple incontournable
+        const cityDensity = getCityDensity(zone);
+        const coupleInfo  = findCouple(zone);
+
+        // Détecter les transitions de villes (Shinkansen) depuis les stays côté client
+        // Note: le serveur ne connaît pas les stays, mais on peut le déduire de
+        // start_day_index + nb_days si l'appel vient d'un jour de transition
+        // Pour l'instant on laisse l'IA gérer avec la contrainte de pivot
+
         for (let di = 0; di < nb_days; di++) {
             const dayInfo = getDayInfo(di);
-            const dayNote = dayInfo.isMonday ? 'LUNDI: pas de musees, privilegier parcs/quartiers/shopping' :
-                            dayInfo.isSaturday ? 'SAMEDI: forte affluence, temples avant 9h' :
-                            dayInfo.isSunday ? 'DIMANCHE: forte affluence, familles dans les parcs' :
-                            dayInfo.isFriday ? 'VENDREDI: affluence montante apres 14h' :
+
+            // S5 : contraintes selon profil + jour
+            const constraints = buildConstraints(traveler_profile || {}, dayInfo);
+
+            const dayNote = dayInfo.isMonday ? 'LUNDI: INTERDIT musees (fermes). Parcs, quartiers, shopping, marches.' :
+                            dayInfo.isSaturday ? 'SAMEDI: forte affluence, temples OBLIGATOIREMENT avant 9h30' :
+                            dayInfo.isSunday ? 'DIMANCHE: familles dans les parcs, eviter grandes attractions 10h-15h' :
+                            dayInfo.isFriday ? 'VENDREDI: affluence montante apres 14h, privilegier matin' :
                             'Semaine: creneaux ideaux 14h-17h pour musees';
+
+            const crowdNote = constraints.crowd_rules.length > 0
+                ? 'FOULE: '+constraints.crowd_rules.join(' · ')
+                : '';
+
+            const coupleNote = coupleInfo
+                ? `EXCEPTION GEOGRAPHIQUE AUTORISEE: ${coupleInfo.cities.join('+')} sont un couple incontournable. Transit explicite: ${coupleInfo.transit_min}min. Note: ${coupleInfo.note}`
+                : '';
+
+            const anchorNote = anchor_activity
+                ? `ACTIVITE ANCRE OBLIGATOIRE: Inclure ABSOLUMENT "${anchor_activity}" dans cette journee. Construire le quartier pivot autour de ce lieu. C'est la priorite numero 1.`
+                : '';
 
             const prompt = `Expert voyages Japon. Genere 1 journee complete a ${zone} pour le ${dayInfo.name} (${dayInfo.date||'jour '+(di+1)}).
 Hotel: ${hotel_name||'centre-ville'}${hotel_address?' ('+hotel_address+')':''}
 Intensite: ${intensity||'normal'} — ${profile.n} activites culturelles
 Note jour: ${dayNote}
+${crowdNote}
+${anchorNote}
+${coupleNote}
 Transits: ${getTransitRules(zone)}
 Deja planifie (a eviter): ${existingTitles.join(', ')||'aucun'}
 
@@ -927,6 +1181,15 @@ STRUCTURE OBLIGATOIRE (respecter EXACTEMENT ces horaires):
 - lunch autour de 12h30 (${profile.mealDur.lunch}min) — restaurant local
 - dinner a ${profile.dinnerHour} (${profile.mealDur.dinner}min) — izakaya
 - hotel_end a ${profile.endHour} MAX — LA JOURNEE FINIT ICI
+
+CONTRAINTE GEOGRAPHIQUE ABSOLUE (PIVOT):
+- Choisir 1 seul quartier principal pour TOUTE la journee
+- Rayon max autour du quartier: ${cityDensity.pivot_radius} km (ville ${cityDensity.density_type})
+- Transit max entre 2 activites consecutives: ${constraints.max_transit_min} min
+- Jamais 2 quartiers distants de plus de 30 min dans la meme journee
+${coupleNote ? '- Exception autorisee: voir EXCEPTION GEOGRAPHIQUE ci-dessus' : ''}
+- Types a eviter: ${constraints.avoid_types.join(', ')||'aucun'}
+- Types preferes: ${[...new Set(constraints.prefer_types)].slice(0,5).join(', ')||'selon interets'}
 
 REGLES HORAIRES STRICTES:
 - Premiere activite entre 09:00 et 10:00
@@ -995,6 +1258,19 @@ JSON BRUT UNIQUEMENT (pas de markdown):
                             {type:'hotel_end', time:'20:30', title:'Retour hotel', duration_minutes:0}
                         ]
                     };
+                }
+            }
+
+            // ── S1 : Validation géographique + S5 filtres ──────────────────
+            if (dayParsed.blocks && hotel_address) {
+                const serverKey = process.env.GOOGLE_MAPS_SERVER_KEY || process.env.GOOGLE_PLACES_API_KEY || '';
+                // Trouver le pivot = 1er bloc activity avec coordonnées
+                const firstActWithCoords = dayParsed.blocks.find(b => b.type==='activity' && b.coordinates?.lat);
+                if (firstActWithCoords && serverKey) {
+                    const pivotCoords = firstActWithCoords.coordinates;
+                    dayParsed.blocks = await validateAndFixBlocks(
+                        dayParsed.blocks, pivotCoords, cityDensity.pivot_radius, constraints, serverKey
+                    );
                 }
             }
 
@@ -1326,6 +1602,45 @@ app.post('/api/nearby-food', async (req, res) => {
         res.json({ success:true, results });
     } catch(e) {
         res.status(500).json({ success:false, error:e.message, results:[] });
+    }
+});
+
+
+// ── Recalcul depuis position actuelle (S3+S4) ──────────────────────────────
+app.post('/api/recalculate-day', async (req, res) => {
+    try {
+        const { activities, completed_ids, current_time, anchor_note, traveler_profile, zone } = req.body;
+        if (!activities?.length) return res.json({ success:false, error:'no activities' });
+
+        // S4 : séparer complétées / restantes
+        const completedIds = completed_ids || [];
+        const { remaining_activities, anchor_time } = prepareRecalcPayload(
+            activities, completedIds, current_time || '09:00', null
+        );
+
+        if (!remaining_activities.length) {
+            return res.json({ success:true, updated_activities:[], message:'Toutes les activités sont complétées' });
+        }
+
+        // S2 : densité ville pour le contexte
+        const cityDensity = getCityDensity(zone || '');
+        // S5 : contraintes profil
+        const constraints = buildConstraints(traveler_profile || {}, {});
+
+        // Réordonner les restantes depuis l'ancrage
+        const timeToMin = t => { const [h,m]=(t||'09:00').split(':').map(Number); return h*60+(m||0); };
+        const minToTime = m => String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+
+        let cursor = timeToMin(anchor_time);
+        const updated = remaining_activities.map(act => {
+            const newTime = minToTime(Math.min(cursor, 22*60-1));
+            cursor += (act.duration_minutes || 90) + constraints.max_transit_min;
+            return { ...act, original_id: act.id, time: newTime };
+        }).filter(act => timeToMin(act.time) < 22*60);
+
+        res.json({ success:true, updated_activities: updated, anchor_time, anchor_note });
+    } catch(e) {
+        res.status(500).json({ success:false, error:e.message });
     }
 });
 
