@@ -779,6 +779,19 @@
                     </button>
                 </div>
             </div>
+            <!-- Diagnostic -->
+            <div style="border-top:1px solid rgba(255,255,255,0.08)">
+                <button onclick="_openDiag();toggleMoreMenu()" style="
+                    display:flex;align-items:center;gap:12px;
+                    width:100%;padding:11px 20px;
+                    background:none;border:none;cursor:pointer;text-align:left">
+                    <span style="font-size:20px">🔍</span>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:white;font-weight:800">Diagnostic</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Erreurs · État · Logs · Copier pour support</div>
+                    </div>
+                </button>
+            </div>
             <!-- Ligne 4 : Profil voyageur -->
             <div style="border-top:1px solid rgba(255,255,255,0.08)">
                 <button onclick="openTravelerProfile(true);toggleMoreMenu()" style="
@@ -8495,6 +8508,194 @@
             setTimeout(_setupAutoBackup, 2000);
         });
 
+
+        // ═══════════════════════════════════════════════════════════════════
+        // PANNEAU DIAGNOSTIC — récupère toutes les erreurs et l'état de l'app
+        // Ouvrir avec: window._openDiag() ou bouton dans menu Plus
+        // ═══════════════════════════════════════════════════════════════════
+
+        // Intercepter toutes les erreurs JS
+        const _diagErrors = [];
+        const _diagWarns  = [];
+        const _diagLogs   = [];
+
+        (function() {
+            const _origError = console.error.bind(console);
+            const _origWarn  = console.warn.bind(console);
+            const _origLog   = console.log.bind(console);
+
+            console.error = function(...args) {
+                _diagErrors.push({ ts: new Date().toISOString(), msg: args.map(String).join(' ') });
+                _origError(...args);
+            };
+            console.warn = function(...args) {
+                _diagWarns.push({ ts: new Date().toISOString(), msg: args.map(String).join(' ') });
+                _origWarn(...args);
+            };
+            console.log = function(...args) {
+                _diagLogs.push({ ts: new Date().toISOString(), msg: args.map(String).join(' ') });
+                if (_diagLogs.length > 100) _diagLogs.shift(); // garder 100 derniers
+                _origLog(...args);
+            };
+
+            // Erreurs JS non catchées
+            window.addEventListener('error', e => {
+                _diagErrors.push({ ts: new Date().toISOString(), msg: '[JS ERROR] ' + e.message + ' @ ' + e.filename + ':' + e.lineno });
+            });
+
+            // Promesses rejetées non catchées
+            window.addEventListener('unhandledrejection', e => {
+                _diagErrors.push({ ts: new Date().toISOString(), msg: '[PROMISE] ' + String(e.reason) });
+            });
+        })();
+
+        window._openDiag = function() {
+            // ── Collecter l'état complet ────────────────────────────────
+            const actsByDay = {};
+            (activities||[]).forEach(a => { actsByDay[a.dayIndex] = (actsByDay[a.dayIndex]||0)+1; });
+
+            const lsSize = (() => {
+                let t = 0;
+                for (const k of Object.keys(localStorage)) t += (localStorage.getItem(k)||'').length * 2;
+                return Math.round(t/1024);
+            })();
+
+            const staysInfo = (stays||[]).map(s =>
+                'J'+s.startDay+'→J'+s.endDay+' '+s.city+(s.hotelName?' ('+s.hotelName+')':'')
+            );
+
+            const diag = {
+                '── App ──': '',
+                'Version':        'My Japan Trip',
+                'Heure':          new Date().toLocaleString('fr-FR'),
+                'Jour affiché':   currentDayIndex,
+                'Total jours':    tripData?.totalDays || '?',
+                'URL':            location.href,
+                '── Données ──': '',
+                'Activités total': (activities||[]).length,
+                'Activités par jour': JSON.stringify(actsByDay),
+                'Séjours': staysInfo.join(' | ') || 'aucun',
+                'routeCache':     Object.keys(routeCache||{}).length + ' entrées',
+                'localStorage':   lsSize + ' KB',
+                'CompletedActs':  (completedActivities||[]).length,
+                '── Config ──': '',
+                'Profil':         JSON.stringify(travelerProfile||{}),
+                'Mode':           localStorage.getItem('japan_trip_mode')||'?',
+                'Dark mode':      document.documentElement.classList.contains('dark'),
+                '── Erreurs ──': '',
+                'Erreurs JS':     _diagErrors.length,
+                'Avertissements': _diagWarns.length,
+            };
+
+            // ── Construire le HTML du panneau ──────────────────────────
+            let rows = '';
+            for (const [k, v] of Object.entries(diag)) {
+                if (String(v) === '') {
+                    rows += '<div style="margin-top:10px;font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px">'+k+'</div>';
+                } else {
+                    const isError = k.includes('Erreur') && parseInt(v) > 0;
+                    rows += '<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #f3f4f6">'+
+                        '<div style="font-size:11px;color:#6b7280;min-width:140px;flex-shrink:0">'+k+'</div>'+
+                        '<div style="font-size:11px;font-weight:700;color:'+(isError?'#dc2626':'#111827')+';word-break:break-all">'+v+'</div>'+
+                        '</div>';
+                }
+            }
+
+            // Erreurs récentes
+            if (_diagErrors.length > 0) {
+                rows += '<div style="margin-top:10px;font-size:10px;font-weight:800;color:#dc2626;text-transform:uppercase">Erreurs récentes</div>';
+                _diagErrors.slice(-10).forEach(e => {
+                    rows += '<div style="margin-top:4px;padding:6px 8px;background:#fef2f2;border-radius:6px;font-size:10px;color:#b91c1c;word-break:break-all">'+
+                        '<span style="color:#9ca3af">'+e.ts.slice(11,19)+'</span> '+e.msg+'</div>';
+                });
+            }
+
+            if (_diagWarns.length > 0) {
+                rows += '<div style="margin-top:10px;font-size:10px;font-weight:800;color:#d97706;text-transform:uppercase">Avertissements récents</div>';
+                _diagWarns.slice(-5).forEach(w => {
+                    rows += '<div style="margin-top:4px;padding:6px 8px;background:#fffbeb;border-radius:6px;font-size:10px;color:#92400e;word-break:break-all">'+
+                        '<span style="color:#9ca3af">'+w.ts.slice(11,19)+'</span> '+w.msg+'</div>';
+                });
+            }
+
+            // Logs récents (utiles pour debug génération)
+            const genLogs = _diagLogs.filter(l => l.msg.includes('[') || l.msg.includes('dayIndex') || l.msg.includes('Activité'));
+            if (genLogs.length > 0) {
+                rows += '<div style="margin-top:10px;font-size:10px;font-weight:800;color:#0284c7;text-transform:uppercase">Logs génération</div>';
+                genLogs.slice(-8).forEach(l => {
+                    rows += '<div style="margin-top:4px;padding:6px 8px;background:#f0f9ff;border-radius:6px;font-size:10px;color:#0369a1;word-break:break-all">'+
+                        '<span style="color:#9ca3af">'+l.ts.slice(11,19)+'</span> '+l.msg+'</div>';
+                });
+            }
+
+            // ── Afficher l'overlay ────────────────────────────────────
+            let overlay = document.getElementById('diag-overlay');
+            if (overlay) { overlay.remove(); return; } // toggle
+
+            overlay = document.createElement('div');
+            overlay.id = 'diag-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center';
+            overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+
+            overlay.innerHTML =
+                '<div style="width:100%;max-width:480px;background:white;border-radius:20px 20px 0 0;'+
+                'padding:16px 16px max(env(safe-area-inset-bottom,16px),16px);max-height:85vh;overflow-y:auto">'+
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
+                    '<div>'+
+                        '<div style="font-size:16px;font-weight:900;color:#111827">🔍 Diagnostic</div>'+
+                        '<div style="font-size:10px;color:#9ca3af">État · Erreurs · Logs</div>'+
+                    '</div>'+
+                    '<div style="display:flex;gap:8px">'+
+                        '<button onclick="_diagCopy()" style="font-size:11px;background:#f3f4f6;border:none;border-radius:8px;padding:5px 10px;cursor:pointer;font-weight:700;color:#374151">📋 Copier</button>'+
+                        '<button onclick="_closeDiagOverlay()" '+
+                        'style="width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;cursor:pointer;font-size:13px">✕</button>'+
+                    '</div>'+
+                '</div>'+
+                '<div id="diag-content">'+rows+'</div>'+
+                '</div>';
+
+            document.body.appendChild(overlay);
+        };
+
+        // Copier le diagnostic dans le presse-papier (pour partager)
+        window._diagCopy = function() {
+            const actsByDay = {};
+            (activities||[]).forEach(a => { actsByDay[a.dayIndex] = (actsByDay[a.dayIndex]||0)+1; });
+
+            const text = [
+                '=== DIAGNOSTIC MY JAPAN TRIP ===',
+                new Date().toLocaleString('fr-FR'),
+                '',
+                'Activités: ' + (activities||[]).length,
+                'Par jour: ' + JSON.stringify(actsByDay),
+                'Jour affiché: ' + currentDayIndex,
+                'Séjours: ' + (stays||[]).length,
+                'localStorage: ' + (() => { let t=0; for(const k of Object.keys(localStorage)) t+=(localStorage.getItem(k)||'').length*2; return Math.round(t/1024); })() + ' KB',
+                '',
+                'ERREURS (' + _diagErrors.length + '):',
+                ..._diagErrors.slice(-10).map(e => e.ts.slice(11,19) + ' ' + e.msg),
+                '',
+                'WARNINGS (' + _diagWarns.length + '):',
+                ..._diagWarns.slice(-5).map(w => w.ts.slice(11,19) + ' ' + w.msg),
+                '',
+                'LOGS GEN:',
+                ..._diagLogs.filter(l => l.msg.includes('[')).slice(-8).map(l => l.ts.slice(11,19) + ' ' + l.msg),
+            ].join('\n');
+
+            navigator.clipboard.writeText(text).then(() => {
+                showAddConfirmation('Diagnostic copié !', 'Colle-le dans le chat', '📋');
+            }).catch(() => {
+                // Fallback : sélectionner le texte
+                const el = document.getElementById('diag-content');
+                if (el) {
+                    const range = document.createRange();
+                    range.selectNode(el);
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+                }
+            });
+        };
+
         function renderPlanning() {
             const myToken = ++_renderToken;
             const list = document.getElementById('planning-list');
@@ -8947,6 +9148,12 @@
                     list.appendChild(hotelNavBlock);
                 }
             }
+
+            // Variables de contexte pour la boucle d'activités
+            const _mealMode  = (travelerProfile?.meal_display) || 'complet'; // 'complet'|'discret'|'masque'
+            const _cityName0 = selectedCity || getCityForDay(currentDayIndex) || '';
+            const _dk0       = document.documentElement.classList.contains('dark');
+            const _slotRendered = new Set(); // tracker repas déjà rendus (évite doublons slot machine)
 
             for (let i = 0; i < dayActivities.length; i++) {
                 const actStored0 = activities.find(a=>a.id===dayActivities[i].id)||dayActivities[i];
