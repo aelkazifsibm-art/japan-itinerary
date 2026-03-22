@@ -3082,7 +3082,8 @@
                     if (data.success && data.program) {
                         let addedCount = 0;
                         for (const day of data.program) {
-                            const dayIdx = day.day_index ?? startDay;
+                            // day_index forcé côté serveur, mais double-vérification
+                            const dayIdx = (typeof day.day_index === 'number') ? day.day_index : startDay;
                             for (const blk of (day.blocks||[])) {
                                 if (blk.type!=='activity' && blk.type!=='meal') continue;
                                 // Validation : ignorer les blocs après 22h ou avec horaires invalides
@@ -3133,9 +3134,13 @@
 
         window._postGenGoToPlanning = function() {
             document.getElementById('wiz-postgen-overlay')?.remove();
-            renderPlanning();
             updateDayNavigation();
-            if (activities.length > 0) { const d=Math.min(...activities.map(a=>a.dayIndex)); if(typeof goToDay==='function')goToDay(d); }
+            if (activities.length > 0) {
+                const d = Math.min(...activities.map(a => a.dayIndex));
+                console.log('[postGenGoToPlanning] Activités:', activities.length, '| Premier jour:', d);
+                if (typeof goToDay === 'function') goToDay(d);
+            }
+            renderPlanning();
             setTimeout(_resolveGeneratedActivities, 1200);
         };
 
@@ -6215,10 +6220,11 @@
             }, 120000);
 
             // Collecter les blocs activity et meal
+            // FIX: day_index forcé depuis day.day_index (réel) — ne pas faire confiance au blk.day_index IA
             const actBlocks = _genProgram.flatMap(day =>
                 (day.blocks||[])
                     .filter(b => b.type==='activity' || b.type==='meal')
-                    .map(b => ({ ...b, day_index: day.day_index }))
+                    .map(b => ({ ...b, day_index: day.day_index }))  // day.day_index = correct (forcé côté serveur)
             );
             const total = actBlocks.length;
             let added = 0;
@@ -6340,7 +6346,9 @@
                 }
                 closeGenerateModal();
                 renderPlanning();
-                showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré', '🗾');
+                console.log('[_launchGenerate] Activités ajoutées:', added, '| Par jour:', 
+                (() => { const m={}; activities.forEach(a=>{m[a.dayIndex]=(m[a.dayIndex]||0)+1;}); return m; })());
+            showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré', '🗾');
                 // Résoudre en arrière-plan les lieux sans place
                 setTimeout(_resolveGeneratedActivities, 800);
             }
@@ -8469,6 +8477,13 @@
         function renderPlanning() {
             const myToken = ++_renderToken;
             const list = document.getElementById('planning-list');
+
+            // Debug : vérifier la distribution des activités par jour
+            if (activities.length > 0 && window._debugRender) {
+                const byDay = {};
+                activities.forEach(a => { byDay[a.dayIndex] = (byDay[a.dayIndex]||0)+1; });
+                console.log('[renderPlanning] Activities par jour:', byDay, '| Jour courant:', currentDayIndex);
+            }
 
             // ── Sauvegarder les imgs déjà chargées avant de vider ──────────
             list.querySelectorAll('.activity-card[data-act-id]').forEach(card => {

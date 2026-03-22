@@ -1348,6 +1348,13 @@ JSON BRUT UNIQUEMENT (pas de markdown):
                 dayParsed.blocks = dayParsed.blocks.filter(b => timeToMin(b.time) < END_LIMIT);
             }
 
+            // ⚠️ CRITIQUE : forcer day_index correct — ne jamais faire confiance à l'IA
+            // L'IA retourne souvent day_index:0 quel que soit le jour réel
+            dayParsed.day_index = dayInfo.index;
+            if (dayParsed.blocks) {
+                dayParsed.blocks.forEach(b => { b.day_index = dayInfo.index; });
+            }
+
             allDays.push(dayParsed);
             if (di === 0) globalSummary = `Programme ${nb_days} jour(s) a ${zone} — ${intensity||'normal'}`;
         }
