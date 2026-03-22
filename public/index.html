@@ -2,14 +2,6 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <!-- PWA -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#7c3aed">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Japan Trip">
-    <link rel="apple-touch-icon" href="/icons/icon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Japan Trip — Planning Intelligent</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -699,20 +691,6 @@
                     <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Assistant IA</span>
                 </button>
             </div>
-            <!-- Pépites secrètes à proximité -->
-            <div style="border-top:1px solid rgba(255,255,255,0.08)">
-                <button onclick="_showNearbyPepites();toggleMoreMenu()" style="
-                    display:flex;align-items:center;gap:12px;
-                    width:100%;padding:11px 20px;
-                    background:none;border:none;cursor:pointer;text-align:left">
-                    <span style="font-size:22px">💎</span>
-                    <div style="flex:1">
-                        <div style="font-size:12px;color:white;font-weight:800">Pépites secrètes</div>
-                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">1163 lieux off the beaten path · à moins de 10 km</div>
-                    </div>
-                    <span style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px;flex-shrink:0">SECRET</span>
-                </button>
-            </div>
             <!-- Recalculer depuis maintenant -->
             <div style="border-top:1px solid rgba(255,255,255,0.08)">
                 <button id="recalc-btn" onclick="_recalculateFromNow();toggleMoreMenu()" style="
@@ -724,6 +702,17 @@
                         <div style="font-size:12px;color:white;font-weight:800">Recalculer depuis maintenant</div>
                         <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Repositionne les activités restantes depuis l'heure actuelle</div>
                     </div>
+                </button>
+            </div>
+            <!-- Pépites secrètes -->
+            <div style="border-top:1px solid rgba(255,255,255,0.08)">
+                <button onclick="_showNearbyPepites();toggleMoreMenu()" style="display:flex;align-items:center;gap:12px;width:100%;padding:11px 20px;background:none;border:none;cursor:pointer;text-align:left">
+                    <span style="font-size:22px">💎</span>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:white;font-weight:800">Pépites secrètes</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">1162 lieux off the beaten path</div>
+                    </div>
+                    <span style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px">SECRET</span>
                 </button>
             </div>
             <!-- Loterie Repas -->
@@ -754,42 +743,6 @@
                         <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Protocole affluence · Horaires réels · Astuces locales</div>
                     </div>
                     <span style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;flex-shrink:0">IA</span>
-                </button>
-            </div>
-            <!-- Sauvegarde / Restauration -->
-            <div style="border-top:1px solid rgba(255,255,255,0.08)">
-                <div style="display:flex">
-                    <button onclick="exportTripData();toggleMoreMenu()" style="
-                        flex:1;display:flex;align-items:center;gap:8px;padding:11px 16px;
-                        background:none;border:none;border-right:1px solid rgba(255,255,255,0.08);cursor:pointer">
-                        <span style="font-size:18px">💾</span>
-                        <div style="text-align:left">
-                            <div style="font-size:11px;color:white;font-weight:800">Sauvegarder</div>
-                            <div style="font-size:9px;color:rgba(255,255,255,.4)">Export .json</div>
-                        </div>
-                    </button>
-                    <button onclick="importTripData();toggleMoreMenu()" style="
-                        flex:1;display:flex;align-items:center;gap:8px;padding:11px 16px;
-                        background:none;border:none;cursor:pointer">
-                        <span style="font-size:18px">📂</span>
-                        <div style="text-align:left">
-                            <div style="font-size:11px;color:white;font-weight:800">Restaurer</div>
-                            <div style="font-size:9px;color:rgba(255,255,255,.4)">Import .json</div>
-                        </div>
-                    </button>
-                </div>
-            </div>
-            <!-- Diagnostic -->
-            <div style="border-top:1px solid rgba(255,255,255,0.08)">
-                <button onclick="_openDiag();toggleMoreMenu()" style="
-                    display:flex;align-items:center;gap:12px;
-                    width:100%;padding:11px 20px;
-                    background:none;border:none;cursor:pointer;text-align:left">
-                    <span style="font-size:20px">🔍</span>
-                    <div style="flex:1">
-                        <div style="font-size:12px;color:white;font-weight:800">Diagnostic</div>
-                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Erreurs · État · Logs · Copier pour support</div>
-                    </div>
                 </button>
             </div>
             <!-- Ligne 4 : Profil voyageur -->
@@ -1010,21 +963,6 @@
                 </button>
 
             </div>
-            <!-- Installer l'app (PWA) — affiché seulement si disponible -->
-            <div id="pwa-install-btn" style="display:none;border-top:1px solid rgba(255,255,255,0.08)">
-                <button onclick="_installPWA();toggleMoreMenu()" style="
-                    display:flex;align-items:center;gap:12px;
-                    width:100%;padding:11px 20px;
-                    background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(236,72,153,.15));
-                    border:none;cursor:pointer;text-align:left">
-                    <span style="font-size:22px">📱</span>
-                    <div style="flex:1">
-                        <div style="font-size:12px;color:white;font-weight:800">Installer l'app</div>
-                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Ajouter à l'écran d'accueil · fonctionne hors-ligne</div>
-                    </div>
-                    <span style="background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px">PWA</span>
-                </button>
-            </div>
         </div>
     </div>
 
@@ -1044,20 +982,6 @@
             <!-- Onglet Voyage -->
             <div id="config-content-voyage" class="config-content pb-24 overflow-y-auto">
                 <div class="p-4 space-y-4">
-
-                    <!-- Widget stockage + sauvegarde -->
-                    <div style="border-radius:14px;border:1.5px solid #e5e7eb;padding:12px 14px;background:#f9fafb">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                            <div style="font-size:12px;font-weight:700;color:#374151">💾 Données du voyage</div>
-                            <button onclick="_refreshStorageWidget()" style="font-size:10px;color:#9ca3af;background:none;border:none;cursor:pointer">↻ Actualiser</button>
-                        </div>
-                        <div id="storage-widget-content" style="font-size:11px;color:#6b7280">Chargement...</div>
-                        <div style="display:flex;gap:8px;margin-top:10px">
-                            <button onclick="exportTripData()" style="flex:1;padding:8px;border-radius:10px;border:1.5px solid #e5e7eb;background:white;font-size:11px;font-weight:700;color:#374151;cursor:pointer">💾 Sauvegarder</button>
-                            <button onclick="importTripData()" style="flex:1;padding:8px;border-radius:10px;border:1.5px solid #e5e7eb;background:white;font-size:11px;font-weight:700;color:#374151;cursor:pointer">📂 Restaurer</button>
-                        </div>
-                    </div>
-
                     <div class="flex items-center justify-between">
                         <h3 class="text-base font-bold text-gray-800 uppercase tracking-wide">🏨 Séjours</h3>
                         <button onclick="openAddStay()" class="bg-purple-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-purple-600 transition-all">
@@ -1594,10 +1518,6 @@
     <script>
         // ========== DONNÉES GLOBALES ==========
         let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
-        // Normaliser dayIndex en Number
-        activities = activities.map(a => ({...a, dayIndex: Number(a.dayIndex) || 0}));
-        // Normalisation : dayIndex toujours Number (protection contre les anciennes données string)
-        activities = activities.map(a => ({ ...a, dayIndex: Number(a.dayIndex) || 0 }));
 
         // ── Migration placeCache : invalider entrées sans photo_reference ────
         // Forcé une seule fois via flag
@@ -1642,12 +1562,6 @@
         let selectedPlace = null;
         let iaSuggestedLocation = "";
         let stays = JSON.parse(localStorage.getItem('japan_stays_v1') || '[]');
-        // Normaliser startDay/endDay en Number (protection contre localStorage corrompu)
-        stays = stays.map(s => ({
-            ...s,
-            startDay: Number(s.startDay) || 0,
-            endDay:   Number(s.endDay)   || 0,
-        }));
         // stays[] = [{ city, hotelName, address, place, price, currency, startDay, endDay }]
         let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
         let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '[]'); // tableau, pas objet
@@ -3095,40 +3009,29 @@
                 if (rowEl) rowEl.style.borderColor = s._color;
                 if (globalEl) globalEl.textContent = 'Génération de '+s.city+' ('+(i+1)+'/'+freeStays.length+')...';
                 try {
-                    // Calculer startDay par position (index) dans freeStays
-                    // → fiable même avec doublons de ville ou variations de casse
-                    const startDay = freeStays.slice(0,i).reduce((sum,fs)=>sum+fs.days, 0);
-                    // Vérification : stays[i] doit avoir le même startDay
-                    const realStay = stays[i];
-                    if (realStay && typeof realStay.startDay === 'number' && realStay.startDay !== startDay) {
-                        console.warn('[_showWizPostGenScreen] Décalage startDay: calculé='+startDay+' vs stays['+i+']='+realStay.startDay+' — on utilise stays[i]');
-                    }
-                    const finalStartDay = (realStay && typeof realStay.startDay === 'number') ? realStay.startDay : startDay;
+                    const startDay = freeStays.slice(0,i).reduce((sum,fs)=>sum+fs.days,0);
                     const sc = _buildProfileScore(travelerProfile);
-                    console.log('[postGen] Séjour', i, s.city, '| startDay:', finalStartDay, '| jours:', s.days);
                     const resp = await fetch('/api/generate-program',{method:'POST',headers:{'Content-Type':'application/json'},
-                        body:JSON.stringify({zone:s.city,hotel_name:s.hotel||'',nb_days:s.days,start_day_index:finalStartDay,
+                        body:JSON.stringify({zone:s.city,hotel_name:s.hotel||'',nb_days:s.days,start_day_index:startDay,
                             intensity:sc.activitiesPerDay>=6?'intense':sc.activitiesPerDay<=3?'relax':'normal',
                             traveler_profile:{...travelerProfile,_score:sc}})});
                     const data = await resp.json();
                     if (data.success && data.program) {
                         let addedCount = 0;
                         for (const day of data.program) {
-                            // day_index forcé côté serveur, mais double-vérification
-                            const dayIdx = (typeof day.day_index === 'number') ? day.day_index : finalStartDay;
+                            const dayIdx = day.day_index ?? startDay;
                             for (const blk of (day.blocks||[])) {
                                 if (blk.type!=='activity' && blk.type!=='meal') continue;
                                 // Validation : ignorer les blocs après 22h ou avec horaires invalides
                                 const _blkTimeMin = _timeStrToMin(blk.time||'09:00');
                                 if (_blkTimeMin >= 22*60) continue; // skip après 22h
                                 if (_blkTimeMin < 6*60)  continue; // skip avant 6h (aberrant)
-                                activities.push({id:Date.now()+Math.random(),source:'ai',dayIndex:Number(dayIdx),time:blk.time||'09:00',time_flexible:true,title:blk.title||'',description:blk.suggestion||blk.local_tip||'',duration_minutes:Math.min(240, blk.duration_minutes||60),block_type:blk.type==='meal'?'meal':'activity',meal_type:blk.meal_type||null,local_tip:blk.local_tip||'',crowd_note:blk.crowd_note||'',place:null});
+                                activities.push({id:Date.now()+Math.random(),source:'ai',dayIndex:dayIdx,time:blk.time||'09:00',time_flexible:true,title:blk.title||'',description:blk.suggestion||blk.local_tip||'',duration_minutes:Math.min(240, blk.duration_minutes||60),block_type:blk.type==='meal'?'meal':'activity',meal_type:blk.meal_type||null,local_tip:blk.local_tip||'',crowd_note:blk.crowd_note||'',place:null});
                                 addedCount++;
                             }
                         }
                         saveActivities();
                         generatedCount++;
-                        console.log('[_showWizPostGenScreen] Ajouté', addedCount, 'activités pour', s.city, '| startDay:', startDay, '| dayIndexes:', [...new Set(activities.slice(-addedCount).map(a=>a.dayIndex))]);
                         if (statusEl) { statusEl.textContent = addedCount+' activités'; statusEl.style.color='#10b981'; }
                         if (rowEl) rowEl.style.background = '#f0fdf4';
                     } else {
@@ -3167,13 +3070,9 @@
 
         window._postGenGoToPlanning = function() {
             document.getElementById('wiz-postgen-overlay')?.remove();
-            updateDayNavigation();
-            if (activities.length > 0) {
-                const d = Math.min(...activities.map(a => a.dayIndex));
-                console.log('[postGenGoToPlanning] Activités:', activities.length, '| Premier jour:', d);
-                if (typeof goToDay === 'function') goToDay(d);
-            }
             renderPlanning();
+            updateDayNavigation();
+            if (activities.length > 0) { const d=Math.min(...activities.map(a=>a.dayIndex)); if(typeof goToDay==='function')goToDay(d); }
             setTimeout(_resolveGeneratedActivities, 1200);
         };
 
@@ -4368,9 +4267,8 @@
         // ========== MODAL ACTIVITÉ ==========
         // ========== CALCUL HEURE DISPONIBLE ==========
         function calculateNextAvailableTime() {
-            // Coercion Number pour éviter '0' !== 0 (string vs number)
             dayActivities = activities
-                .filter(a => Number(a.dayIndex) === Number(currentDayIndex))
+                .filter(a => a.dayIndex === currentDayIndex)
                 .sort((a, b) => a.time.localeCompare(b.time));
             
             if (dayActivities.length === 0) {
@@ -4392,7 +4290,7 @@
                 const secondLast = dayActivities[dayActivities.length - 2];
                 if (secondLast.place && lastActivity.place) {
                     if (secondLast.place?.place_id && lastActivity.place?.place_id) {
-                        const cacheKey = secondLast.place?.place_id && lastActivity.place?.place_id ? `${secondLast.place.place_id}-${lastActivity.place.place_id}` : null; if (!cacheKey) { /* pas de cache */ }
+                        const cacheKey = `${secondLast.place.place_id}-${lastActivity.place.place_id}`;
                         if (routeCache[cacheKey]) {
                             endTime.setMinutes(endTime.getMinutes() + routeCache[cacheKey].total_minutes);
                         }
@@ -5160,7 +5058,7 @@
 
                 if (prevAct.place?.place_id && act.place?.place_id) {
                     // Clé identique à celle utilisée dans calculateNav
-                    const ck = prevAct.place?.place_id && act.place?.place_id ? `${prevAct.place.place_id}-${act.place.place_id}` : null;
+                    const ck = `${prevAct.place.place_id}-${act.place.place_id}`;
                     if (routeCache[ck]) {
                         transitMin = routeCache[ck].total_minutes || 0;
                         transitMode = routeCache[ck].mode || '';
@@ -5901,29 +5799,6 @@
                     <div style="font-size:10px;color:#9ca3af;margin-top:4px">L'IA construira la journée autour de ce lieu comme point central</div>
                 </div>
 
-                <!-- Mode Explorateur — rayon pivot -->
-                <div style="margin-bottom:16px">
-                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">
-                        🗺 Rayon d'exploration
-                    </label>
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-                        ${[
-                            {id:'local',    km:2,  emoji:'🚶', label:'Local',    sub:'2 km · à pied'},
-                            {id:'standard', km:5,  emoji:'🚇', label:'Standard', sub:'5 km · métro'},
-                            {id:'aventure', km:15, emoji:'🚄', label:'Aventure', sub:'15 km · train'}
-                        ].map(it => {
-                            const sel = it.id === 'standard';
-                            return '<button onclick="_genPickExplore(\''+it.id+'\','+it.km+')" id="gen-exp-'+it.id+'" style="'+
-                                'border-radius:14px;border:2px solid '+(sel?'#7c3aed':'#e5e7eb')+';'+
-                                'background:'+(sel?'#faf5ff':'white')+';padding:10px 6px;cursor:pointer;text-align:center">'+
-                                '<div style="font-size:20px;margin-bottom:3px">'+it.emoji+'</div>'+
-                                '<div style="font-size:11px;font-weight:800;color:'+(sel?'#7c3aed':'#374151')+'">'+it.label+'</div>'+
-                                '<div style="font-size:9px;color:#9ca3af;margin-top:1px">'+it.sub+'</div>'+
-                                '</button>';
-                        }).join('')}
-                    </div>
-                </div>
-
                 <!-- Intensité -->
                 <div style="margin-bottom:4px">
                     <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Intensité</label>
@@ -5970,19 +5845,6 @@
                 b.style.color       = on?'#7c3aed':'#6b7280';
             });
         };
-
-        window._genPickExplore = function(id, km) {
-            window._genExploreRadius = km;
-            ['local','standard','aventure'].forEach(x => {
-                const b = document.getElementById('gen-exp-'+x);
-                if (!b) return;
-                const on = x === id;
-                b.style.borderColor = on ? '#7c3aed' : '#e5e7eb';
-                b.style.background  = on ? '#faf5ff' : 'white';
-                b.querySelector('div:nth-child(2)').style.color = on ? '#7c3aed' : '#374151';
-            });
-        };
-        window._genExploreRadius = 5; // défaut Standard
 
         window._genPickIntensity = function(id) {
             window._genSelectedIntensity = id;
@@ -6038,8 +5900,7 @@
                         start_date: tripData?.outbound?.departureDate || null,
                         intensity, existing_activities: existing,
                         traveler_profile: travelerProfile,
-                        anchor_activity: document.getElementById('gen-anchor-input')?.value?.trim() || null,
-                        explore_radius: window._genExploreRadius || 5
+                        anchor_activity: document.getElementById('gen-anchor-input')?.value?.trim() || null
                     })
                 });
                 const data = await resp.json();
@@ -6254,11 +6115,10 @@
             }, 120000);
 
             // Collecter les blocs activity et meal
-            // FIX: day_index forcé depuis day.day_index (réel) — ne pas faire confiance au blk.day_index IA
             const actBlocks = _genProgram.flatMap(day =>
                 (day.blocks||[])
                     .filter(b => b.type==='activity' || b.type==='meal')
-                    .map(b => ({ ...b, day_index: day.day_index }))  // day.day_index = correct (forcé côté serveur)
+                    .map(b => ({ ...b, day_index: day.day_index }))
             );
             const total = actBlocks.length;
             let added = 0;
@@ -6302,7 +6162,7 @@
                     if (blk.type === 'meal') {
                         activities.push({
                             id: Date.now()+Math.random(),
-                            dayIndex: Number(blk.day_index),
+                            dayIndex: blk.day_index,
                             time: blk.time,
                             time_flexible: true,
                             title: blk.title,
@@ -6340,7 +6200,7 @@
 
                         activities.push({
                             id: Date.now()+Math.random(),
-                            dayIndex:          Number(blk.day_index),
+                            dayIndex:          blk.day_index,
                             time:              blk.time,
                             time_flexible:     true,
                             title:             resolvedTitle,
@@ -6380,9 +6240,7 @@
                 }
                 closeGenerateModal();
                 renderPlanning();
-                console.log('[_launchGenerate] Activités ajoutées:', added, '| Par jour:', 
-                (() => { const m={}; activities.forEach(a=>{m[a.dayIndex]=(m[a.dayIndex]||0)+1;}); return m; })());
-            showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré', '🗾');
+                showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré', '🗾');
                 // Résoudre en arrière-plan les lieux sans place
                 setTimeout(_resolveGeneratedActivities, 800);
             }
@@ -8066,13 +7924,18 @@
         // ═══════════════════════════════════════════════════════════════════
         // PÉPITES SECRÈTES — lieux off the beaten path à proximité
         // ═══════════════════════════════════════════════════════════════════
+
+        window._closePepitesOverlay = function() {
+            const o = document.getElementById('pepites-overlay');
+            if (o) o.remove();
+        };
+
         window._showNearbyPepites = async function() {
             const stay = getStayForDay(currentDayIndex);
             if (!stay?.place?.lat && !stay?.place?.lng) {
-                showAddConfirmation('Position hôtel inconnue', 'Configure ton hôtel dans les séjours', '📍');
+                alert('Configure ton hôtel dans les séjours pour localiser les pépites.');
                 return;
             }
-
             let overlay = document.getElementById('pepites-overlay');
             if (!overlay) {
                 overlay = document.createElement('div');
@@ -8080,33 +7943,26 @@
                 overlay.style.cssText = 'position:fixed;inset:0;z-index:450;background:rgba(0,0,0,.65);backdrop-filter:blur(5px);display:flex;align-items:flex-end;justify-content:center';
                 document.body.appendChild(overlay);
             }
+            const _dk = document.documentElement.classList.contains('dark');
             overlay.innerHTML =
-                '<div style="width:100%;max-width:480px;background:white;border-radius:24px 24px 0 0;'+
+                '<div style="width:100%;max-width:480px;background:'+(_dk?'#1e293b':'white')+';border-radius:24px 24px 0 0;'+
                 'padding:18px 18px max(env(safe-area-inset-bottom,20px),20px);max-height:85vh;overflow-y:auto">'+
                 '<div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 14px"></div>'+
                 '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
                     '<div>'+
-                        '<div style="font-size:17px;font-weight:900;color:#111827">💎 Pépites secrètes</div>'+
-                        '<div style="font-size:11px;color:#9ca3af">Lieux off the beaten path · près de '+stay.city+'</div>'+
+                        '<div style="font-size:17px;font-weight:900;color:'+(_dk?'#f1f5f9':'#111827')+'">💎 Pépites secrètes</div>'+
+                        '<div style="font-size:11px;color:#9ca3af">Lieux off the beaten path · '+stay.city+'</div>'+
                     '</div>'+
-                    '<button onclick="document.getElementById(&quot;pepites-overlay&quot;)?.remove()" '+
-                    'style="width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;font-size:13px;cursor:pointer">✕</button>'+
+                    '<button onclick="_closePepitesOverlay()" style="width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;font-size:13px;cursor:pointer">✕</button>'+
                 '</div>'+
                 '<div id="pepites-list" style="display:flex;flex-direction:column;gap:10px">'+
-                    '<div style="text-align:center;padding:24px;color:#9ca3af">'+
-                        '<div style="font-size:28px;margin-bottom:8px">💎</div>'+
-                        '<div style="font-size:12px">Recherche en cours...</div>'+
-                    '</div>'+
+                    '<div style="text-align:center;padding:24px;color:#9ca3af"><div style="font-size:28px;margin-bottom:8px">💎</div><div style="font-size:12px">Recherche en cours...</div></div>'+
                 '</div></div>';
 
-            // Appel API
             try {
                 const r = await fetch('/api/nearby-pepites', {
                     method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({
-                        lat: stay.place.lat, lng: stay.place.lng,
-                        radius_km: 15, limit: 8
-                    })
+                    body: JSON.stringify({ lat: stay.place.lat, lng: stay.place.lng, radius_km: 15, limit: 8 })
                 });
                 const data = await r.json();
                 const listEl = document.getElementById('pepites-list');
@@ -8117,595 +7973,65 @@
                     return;
                 }
 
-
-                // Stocker les pépites et enrichir les noms en arrière-plan
-                window._pepitesData = data.pepites;
-
                 const fatigueBadge = { low:'☺ Accessible', medium:'😅 Modéré', high:'😰 Physique' };
                 const fatigueColor = { low:'#059669', medium:'#d97706', high:'#dc2626' };
+                window._pepitesData = data.pepites;
 
                 listEl.innerHTML = data.pepites.map((p, pidx) => {
-                    const mapsUrl = p.maps_url || ('https://maps.google.com/?q='+p.lat+','+p.lon);
-                    const nomDisplay = p.nom_fr || p.nom_jp || 'Lieu secret';
-                    const nomJp = (p.nom_jp && p.nom_jp !== nomDisplay)
-                        ? '<div style="font-size:10px;color:#9ca3af;margin-top:1px">'+p.nom_jp+'</div>'
-                        : '';
-                    const typeBadge = (p.type_fr && p.type_fr !== 'lieu secret')
-                        ? '<span style="background:#f3f4f6;border-radius:5px;padding:1px 5px;font-size:9px;color:#6b7280;margin-left:4px">'+p.type_fr+'</span>'
-                        : '';
+                    const nomJpHtml = (p.nom_jp && p.nom_jp !== p.nom_fr)
+                        ? '<div style="font-size:10px;color:#9ca3af;margin-top:1px">'+p.nom_jp+'</div>' : '';
+                    const typeBadge = p.type_fr && p.type_fr !== 'lieu secret'
+                        ? '<span style="background:#f3f4f6;border-radius:5px;padding:1px 5px;font-size:9px;color:#6b7280;margin-left:4px">'+p.type_fr+'</span>' : '';
                     return '<div style="border:1.5px solid #e5e7eb;border-radius:14px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">'+
                         '<span style="font-size:24px;flex-shrink:0">'+p.emoji+'</span>'+
                         '<div style="flex:1;min-width:0">'+
-                            '<div style="font-size:13px;font-weight:800;color:#111827">'+nomDisplay+typeBadge+'</div>'+
-                            nomJp+
-                            '<div style="font-size:10px;color:#9ca3af;margin-top:2px">'+
-                                p.distance_km+' km · '+p.ville+
-                                ' · <span style="color:'+fatigueColor[p.fatigue]+'">'+fatigueBadge[p.fatigue]+'</span>'+
-                            '</div>'+
+                            '<div style="font-size:13px;font-weight:800;color:#111827">'+p.nom_fr+typeBadge+'</div>'+
+                            nomJpHtml+
+                            '<div style="font-size:10px;color:#9ca3af;margin-top:2px">'+p.distance_km+' km · '+p.ville+' · <span style="color:'+fatigueColor[p.fatigue]+'">'+fatigueBadge[p.fatigue]+'</span></div>'+
                             '<div style="display:flex;gap:6px;margin-top:8px">'+
-                                '<a href="'+mapsUrl+'" target="_blank" '+
-                                'style="flex:1;padding:7px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;'+
-                                'font-size:11px;font-weight:700;color:#0284c7;text-align:center;text-decoration:none">🗺 Maps</a>'+
-                                '<button data-pidx="'+pidx+'" onclick="_addPepiteByIndex(+this.dataset.pidx)" '+
-                                'style="flex:1;padding:7px;background:linear-gradient(135deg,#f59e0b,#d97706);'+
-                                'border:none;border-radius:9px;font-size:11px;font-weight:700;color:white;cursor:pointer">+ Planning</button>'+
+                                '<a href="'+p.maps_url+'" target="_blank" style="flex:1;padding:7px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;font-size:11px;font-weight:700;color:#0284c7;text-align:center;text-decoration:none">🗺 Maps</a>'+
+                                '<button data-pidx="'+pidx+'" onclick="_addPepiteByIndex(+this.dataset.pidx)" style="flex:1;padding:7px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:9px;font-size:11px;font-weight:700;color:white;cursor:pointer">+ Planning</button>'+
                             '</div>'+
                         '</div>'+
                         '<span style="background:#fef3c7;border-radius:6px;padding:2px 6px;font-size:9px;font-weight:700;color:#92400e;flex-shrink:0">SECRET</span>'+
                         '</div>';
                 }).join('') +
-                '<div style="text-align:center;padding:8px;font-size:10px;color:#9ca3af">'+
-                    data.total_nearby + ' pépites dans un rayon de 15 km · Lieux non encore enrichis</div>';
+                '<div style="text-align:center;padding:8px;font-size:10px;color:#9ca3af">'+data.total_nearby+' lieux dans 15 km</div>';
             } catch(e) {
                 const listEl = document.getElementById('pepites-list');
                 if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#dc2626;font-size:12px">Erreur réseau</div>';
             }
         };
 
-
-        // Enrichit les noms des pépites via reverse geocoding (en arrière-plan)
-        async function _enrichPepitesNames(pepites) {
-            for (let i = 0; i < Math.min(pepites.length, 5); i++) {
-                const p = pepites[i];
-                try {
-                    const r = await fetch('/api/enrich-pepite', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ lat: p.lat, lng: p.lng })
-                    });
-                    const data = await r.json();
-                    if (data.success && data.name) {
-                        // Mettre à jour la carte dans le DOM
-                        const nameEl = document.querySelector('#pepite-name-'+i);
-                        if (nameEl) {
-                            nameEl.textContent = data.name;
-                            nameEl.style.color = '#111827';
-                        }
-                        // Stocker pour l'ajout au planning
-                        if (window._pepitesData?.[i]) {
-                            window._pepitesData[i]._enrichedName = data.name;
-                            window._pepitesData[i]._placeId = data.place_id;
-                        }
-                    }
-                } catch(e) { /* enrichissement silencieux */ }
-                // Petite pause entre requêtes
-                await new Promise(res => setTimeout(res, 300));
-            }
-        }
-
-
-        window._refreshStorageWidget = function() {
-            const el = document.getElementById('storage-widget-content');
-            if (!el) return;
-            const sizeKB = _localStorageSizeKB();
-            const acts = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]').length;
-            const stays = JSON.parse(localStorage.getItem('japan_stays_v1') || '[]').length;
-            const routes = Object.keys(JSON.parse(localStorage.getItem('japan_route_cache_v4') || '{}')).length;
-            const quota = Math.round(sizeKB / 50); // sur ~5MB
-            const barColor = sizeKB > 4000 ? '#dc2626' : sizeKB > 2000 ? '#d97706' : '#16a34a';
-            el.innerHTML =
-                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">' +
-                    '<div style="text-align:center"><div style="font-size:16px;font-weight:900;color:#111827">' + acts + '</div><div style="font-size:9px;color:#9ca3af">activités</div></div>' +
-                    '<div style="text-align:center"><div style="font-size:16px;font-weight:900;color:#111827">' + stays + '</div><div style="font-size:9px;color:#9ca3af">séjours</div></div>' +
-                    '<div style="text-align:center"><div style="font-size:16px;font-weight:900;color:#111827">' + routes + '</div><div style="font-size:9px;color:#9ca3af">trajets en cache</div></div>' +
-                '</div>' +
-                '<div style="font-size:10px;color:#6b7280;margin-bottom:4px">Stockage utilisé : ' + sizeKB + ' KB / ~5 000 KB</div>' +
-                '<div style="height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">' +
-                    '<div style="height:100%;width:' + Math.min(100, quota) + '%;background:' + barColor + ';border-radius:3px;transition:width .3s"></div>' +
-                '</div>';
-        };
-
         window._addPepiteByIndex = function(pidx) {
             const p = (window._pepitesData || [])[pidx];
-            if (p) _addPepiteToPlanning(
-                p.lat, p.lon || p.lng,
-                p.emoji, p.ville || p.region,
-                p.nom_fr || p._enrichedName,
-                p.place_id || p._placeId
-            );
-        };
-
-        window._addPepiteToPlanning = function(lat, lng, emoji, region, enrichedName, placeId) {
-            const title = enrichedName && enrichedName !== 'lieu secret'
-                ? emoji + ' ' + enrichedName
-                : emoji + ' Lieu secret · ' + (region||'Japon');
-            const act = {
+            if (!p) return;
+            const title = p.emoji + ' ' + (p.nom_fr || 'Lieu secret');
+            activities.push({
                 id: Date.now() + Math.random(),
                 source: 'manual',
                 dayIndex: currentDayIndex,
                 time: '14:00',
                 time_flexible: true,
                 title: title,
-                description: enrichedName
-                    ? 'Lieu off the beaten path découvert via les pépites secrètes'
-                    : 'Lieu insolite off the beaten path — explore et découvre !',
+                description: p.type_fr || 'Lieu off the beaten path',
                 duration_minutes: 60,
                 block_type: 'activity',
                 meal_type: null,
-                local_tip: 'Peu connu des touristes · à seulement quelques km de votre hôtel',
-                crowd_note: 'Très peu fréquenté',
-                place: { lat, lng, name: title, place_id: placeId || null }
-            };
-            activities.push(act);
+                local_tip: p.nom_jp ? 'Nom local: '+p.nom_jp : 'Lieu peu connu des touristes',
+                crowd_note: 'Peu fréquenté',
+                place: p.place_id
+                    ? { lat: p.lat, lng: p.lon, name: title, place_id: p.place_id }
+                    : { lat: p.lat, lng: p.lon, name: title, place_id: null }
+            });
             saveActivities();
-            document.getElementById('pepites-overlay')?.remove();
+            _closePepitesOverlay();
             renderPlanning();
-            showAddConfirmation('Pépite ajoutée !', emoji + ' ' + region + ' · J' + (currentDayIndex+1), '💎');
-        };
-
-
-        // ═══════════════════════════════════════════════════════════════════
-        // SCORE DE COHÉRENCE JOURNÉE
-        // Critères : timing, transits, équilibre, foule, fin raisonnable
-        // ═══════════════════════════════════════════════════════════════════
-        function _computeDayScore(acts, realTimes, cache) {
-            let total = 0, max = 0;
-            const details = [];
-
-            // 1. Fin de journée raisonnable (≤ 21h = parfait, ≤ 22h = ok)
-            max += 25;
-            const lastEnd = _timeStrToMin(realTimes[acts.length-1]) + (acts[acts.length-1].duration_minutes||90);
-            if      (lastEnd <= 20*60) { total += 25; details.push('✅ Journée bien cadrée (fin avant 20h)'); }
-            else if (lastEnd <= 21*60) { total += 20; details.push('✅ Fin de journée correcte (~21h)'); }
-            else if (lastEnd <= 22*60) { total += 10; details.push('⚠️ Fin tardive (~22h) — attention fatigue'); }
-            else                       { total +=  0; details.push('🔴 Journée trop longue (fin après 22h)'); }
-
-            // 2. Nombre d'activités vs profil
-            max += 20;
-            const profile = travelerProfile || {};
-            const ideal = profile.pace === 'tranquille' ? 2 : profile.pace === 'intense' ? 4 : 3;
-            const diff = Math.abs(acts.length - ideal);
-            if      (diff === 0) { total += 20; details.push('\u2705 Nombre d\u2019activit\u00e9s id\u00e9al ('+acts.length+')'); }
-            else if (diff === 1) { total += 14; details.push('\u26a0\ufe0f '+acts.length+' activit\u00e9s (id\u00e9al : '+ideal+' pour ton rythme)'); }
-            else                 { total +=  5; details.push('\U0001f534 '+acts.length+' activit\u00e9s \u2014 d\u00e9cal\u00e9 du profil (id\u00e9al : '+ideal+')'); }
-
-            // 3. Transits raisonnables
-            max += 30;
-            let heavyTransits = 0;
-            for (let k = 0; k < acts.length-1; k++) {
-                const a = acts[k], b = acts[k+1];
-                if (a.place?.place_id && b.place?.place_id) {
-                    const ck = a.place?.place_id && b.place?.place_id ? a.place.place_id+'-'+b.place.place_id : null;
-                    const mins = ck ? (cache[ck]?.total_minutes || 0) : 0;
-                    if (mins > 35) heavyTransits++;
-                }
-            }
-            if      (heavyTransits === 0) { total += 30; details.push('✅ Tous les trajets ≤ 35 min'); }
-            else if (heavyTransits === 1) { total += 18; details.push('⚠️ 1 trajet long — grouper les lieux proches aiderait'); }
-            else                          { total +=  5; details.push('🔴 '+heavyTransits+' trajets longs — journée épuisante'); }
-
-            // 4. Repas intégrés
-            max += 15;
-            const mealCount = acts.filter(a => a.block_type === 'meal' || a.meal_type).length;
-            if      (mealCount >= 2) { total += 15; details.push('✅ Repas bien planifiés ('+mealCount+')'); }
-            else if (mealCount === 1) { total += 8;  details.push('⚠️ 1 seul repas planifié — prévoir le dîner ?'); }
-            else                      { total +=  0; details.push('🔴 Aucun repas prévu — utilise la Loterie Repas !'); }
-
-            // 5. Départ raisonnable (pas avant 7h)
-            max += 10;
-            const firstStart = _timeStrToMin(realTimes[0]);
-            if      (firstStart >= 8*60)  { total += 10; details.push('\u2705 D\u00e9part \u00e0 l\u2019heure ('+realTimes[0]+')'); }
-            else if (firstStart >= 7*60)  { total +=  6; details.push('⚠️ Départ matinal ('+realTimes[0]+') — fatigue cumulée'); }
-            else                           { total +=  0; details.push('🔴 Départ très tôt ('+realTimes[0]+') — difficile sur la durée'); }
-
-            // 6. Respect du profil foule
-            const profile2 = travelerProfile || {};
-            if (profile2.crowd_sensitivity === 'forte') {
-                max += 10;
-                const earlyPop = acts.filter(a => {
-                    const h = _timeStrToMin(a.time||'09:00');
-                    // Sites populaires avant 9h30
-                    const isPop = (a.crowd_note||'').toLowerCase().includes('foule') ||
-                                  (a.crowd_note||'').toLowerCase().includes('monde');
-                    return isPop && h <= 9*60+30;
-                }).length;
-                const popActs = acts.filter(a => (a.crowd_note||'').toLowerCase().includes('foule')||
-                    (a.crowd_note||'').toLowerCase().includes('monde')).length;
-                if (popActs === 0 || earlyPop === popActs) {
-                    total += 10;
-                    details.push('✅ Sites populaires bien timés (avant 9h30)');
-                } else {
-                    total += 4;
-                    details.push('⚠️ Certains sites populaires sont prévus aux heures de pointe');
-                }
-            }
-
-            const pct = Math.round((total / max) * 100);
-            const summaries = [
-                pct >= 85 ? 'Journée parfaitement équilibrée' :
-                pct >= 70 ? 'Bonne journée, quelques ajustements possibles' :
-                pct >= 55 ? 'Journée chargée, surveille la fatigue' :
-                            'Revoir le planning — trop intense ou désorganisé'
-            ];
-            return { pct, summary: summaries[0], details };
-        }
-
-
-        // ═══════════════════════════════════════════════════════════════════
-        // EXPORT / IMPORT JSON — sauvegarde du voyage complet
-        // ═══════════════════════════════════════════════════════════════════
-
-        window.exportTripData = function() {
-            const data = {
-                version: 'mjt-v2',
-                exportedAt: new Date().toISOString(),
-                appName: 'My Japan Trip',
-                activities:       JSON.parse(localStorage.getItem('japan_trip_v5') || '[]'),
-                stays:            JSON.parse(localStorage.getItem('japan_stays_v1') || '[]'),
-                tripInfo:         JSON.parse(localStorage.getItem('japan_trip_info_v5') || '{}'),
-                travelerProfile:  JSON.parse(localStorage.getItem('japan_traveler_profile_v1') || '{}'),
-                completedActs:    JSON.parse(localStorage.getItem('japan_completed_v1') || '[]'),
-                budget:           JSON.parse(localStorage.getItem('japan_budget_v1') || '{}'),
-                flightArrival:    JSON.parse(localStorage.getItem('japan_flight_arrival') || 'null'),
-                dayModes:         JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}'),
-                tripMode:         localStorage.getItem('japan_trip_mode') || '',
-                routeCache:       JSON.parse(localStorage.getItem('japan_route_cache_v4') || '{}'),
-                darkMode:         localStorage.getItem('japan_dark_mode') || '',
-                originalActivities: JSON.parse(localStorage.getItem('japan_original_activities_v5') || '[]'),
-            };
-            const json   = JSON.stringify(data, null, 2);
-            const blob   = new Blob([json], { type: 'application/json' });
-            const url    = URL.createObjectURL(blob);
-            const a      = document.createElement('a');
-            const date   = new Date().toISOString().slice(0,10);
-            a.href       = url;
-            a.download   = 'my-japan-trip-' + date + '.json';
-            a.click();
-            URL.revokeObjectURL(url);
-            showAddConfirmation('Voyage sauvegardé !', 'Fichier .json téléchargé', '💾');
-        };
-
-        window.importTripData = function() {
-            const input = document.createElement('input');
-            input.type  = 'file';
-            input.accept = '.json,application/json';
-            input.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                try {
-                    const text = await file.text();
-                    const data = JSON.parse(text);
-                    if (!['mjt-v1','mjt-v2'].includes(data.version)) {
-                        alert('Fichier incompatible — seuls les exports My Japan Trip sont acceptés.');
-                        return;
-                    }
-                    // Confirmer avant d'écraser
-                    const existingActs = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]').length;
-                    if (existingActs > 0) {
-                        if (!confirm('Importer ce fichier remplacera les ' + existingActs + ' activités actuelles. Continuer ?')) return;
-                    }
-                    // Restaurer toutes les clés
-                    // Restaurer toutes les clés connues
-                    const _set = (key, val) => { if (val !== undefined && val !== null) localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val)); };
-                    _set('japan_trip_v5',              data.activities);
-                    _set('japan_stays_v1',             data.stays);
-                    _set('japan_trip_info_v5',         data.tripInfo);
-                    _set('japan_traveler_profile_v1',  data.travelerProfile);
-                    _set('japan_completed_v1',         data.completedActs);
-                    _set('japan_budget_v1',            data.budget);
-                    _set('japan_flight_arrival',       data.flightArrival);
-                    _set('japan_day_modes_v5',         data.dayModes);
-                    _set('japan_trip_mode',            data.tripMode);
-                    _set('japan_route_cache_v4',       data.routeCache);
-                    _set('japan_dark_mode',            data.darkMode);
-                    _set('japan_original_activities_v5', data.originalActivities);
-                    // Recharger l'app
-                    const nActs  = data.activities?.length || 0;
-                    const nStays = data.stays?.length || 0;
-                    const exportDate = data.exportedAt ? new Date(data.exportedAt).toLocaleDateString('fr-FR') : '';
-                    showAddConfirmation(
-                        'Voyage restauré ! ' + (exportDate ? '(export du ' + exportDate + ')' : ''),
-                        nActs + ' activités · ' + nStays + ' séjour' + (nStays > 1 ? 's' : ''),
-                        '✅'
-                    );
-                    setTimeout(() => location.reload(), 1200);
-                } catch(err) {
-                    alert('Erreur de lecture du fichier : ' + err.message);
-                }
-            };
-            input.click();
-        };
-
-
-        // ═══════════════════════════════════════════════════════════════════
-        // SAUVEGARDE AUTO + SURVEILLANCE LOCALSTORAGE
-        // ═══════════════════════════════════════════════════════════════════
-
-        // Taille totale du localStorage en KB
-        function _localStorageSizeKB() {
-            let total = 0;
-            for (const key of Object.keys(localStorage)) {
-                total += (localStorage.getItem(key) || '').length * 2; // UTF-16
-            }
-            return Math.round(total / 1024);
-        }
-
-        // Alerte si > 4 MB (limite souvent 5-10 MB selon navigateur)
-        function _checkStorageQuota() {
-            const sizeKB = _localStorageSizeKB();
-            if (sizeKB > 4000) {
-                // Afficher une alerte discrète
-                const existing = document.getElementById('storage-warning');
-                if (!existing) {
-                    const warn = document.createElement('div');
-                    warn.id = 'storage-warning';
-                    warn.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:#fef2f2;border-bottom:2px solid #fca5a5;padding:8px 16px;display:flex;align-items:center;gap:10px;font-size:12px';
-                    warn.innerHTML =
-                        '<span style="font-size:16px">⚠️</span>' +
-                        '<span style="color:#dc2626;font-weight:700">Stockage presque plein (' + Math.round(sizeKB/1024*10)/10 + ' MB) — </span>' +
-                        '<button onclick="exportTripData()" style="color:#dc2626;font-weight:800;background:none;border:none;cursor:pointer;text-decoration:underline">Sauvegarder maintenant</button>' +
-                        '<button onclick="this.parentElement.remove()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#6b7280">✕</button>';
-                    document.body.prepend(warn);
-                }
-            }
-        }
-
-        // Sauvegarde automatique silencieuse toutes les 3 minutes
-        // Stocke dans IndexedDB si disponible, sinon ignore (le JSON export manuel prime)
-        function _setupAutoBackup() {
-            // Vérifier la taille au démarrage et périodiquement
-            setTimeout(_checkStorageQuota, 3000);
-            setInterval(_checkStorageQuota, 3 * 60 * 1000);
-
-            // Sauvegarder dans sessionStorage comme backup de session
-            // (récupérable si l'utilisateur ferme/rouvre l'onglet accidentellement)
-            setInterval(() => {
-                try {
-                    const snapshot = {
-                        ts: Date.now(),
-                        activities: localStorage.getItem('japan_trip_v5'),
-                        stays:      localStorage.getItem('japan_stays_v1'),
-                    };
-                    sessionStorage.setItem('mjt_session_backup', JSON.stringify(snapshot));
-                } catch(e) { /* quota sessionStorage dépassé — silencieux */ }
-            }, 3 * 60 * 1000);
-
-            // Récupérer le backup de session si le localStorage est vide
-            // (protection contre nettoyage accidentel)
-            const mainData = localStorage.getItem('japan_trip_v5');
-            if (!mainData || mainData === '[]') {
-                try {
-                    const backup = JSON.parse(sessionStorage.getItem('mjt_session_backup') || 'null');
-                    if (backup?.activities && backup.activities !== '[]') {
-                        const ageMin = Math.round((Date.now() - backup.ts) / 60000);
-                        if (ageMin < 60) { // backup de moins d'1h
-                            const restored = confirm(
-                                'Un backup de session a été trouvé (' + ageMin + ' min ago). Restaurer les activités ?'
-                            );
-                            if (restored) {
-                                localStorage.setItem('japan_trip_v5', backup.activities);
-                                if (backup.stays) localStorage.setItem('japan_stays_v1', backup.stays);
-                                location.reload();
-                            }
-                        }
-                    }
-                } catch(e) { /* silencieux */ }
-            }
-        }
-
-        // Lancer au démarrage (après que l'app soit initialisée)
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(_setupAutoBackup, 2000);
-        });
-
-
-        // ═══════════════════════════════════════════════════════════════════
-        // PANNEAU DIAGNOSTIC — récupère toutes les erreurs et l'état de l'app
-        // Ouvrir avec: window._openDiag() ou bouton dans menu Plus
-        // ═══════════════════════════════════════════════════════════════════
-
-        // Intercepter toutes les erreurs JS
-        const _diagErrors = [];
-        const _diagWarns  = [];
-        const _diagLogs   = [];
-
-        (function() {
-            const _origError = console.error.bind(console);
-            const _origWarn  = console.warn.bind(console);
-            const _origLog   = console.log.bind(console);
-
-            console.error = function(...args) {
-                _diagErrors.push({ ts: new Date().toISOString(), msg: args.map(String).join(' ') });
-                _origError(...args);
-            };
-            console.warn = function(...args) {
-                _diagWarns.push({ ts: new Date().toISOString(), msg: args.map(String).join(' ') });
-                _origWarn(...args);
-            };
-            console.log = function(...args) {
-                _diagLogs.push({ ts: new Date().toISOString(), msg: args.map(String).join(' ') });
-                if (_diagLogs.length > 100) _diagLogs.shift(); // garder 100 derniers
-                _origLog(...args);
-            };
-
-            // Erreurs JS non catchées
-            window.addEventListener('error', e => {
-                _diagErrors.push({ ts: new Date().toISOString(), msg: '[JS ERROR] ' + e.message + ' @ ' + e.filename + ':' + e.lineno });
-            });
-
-            // Promesses rejetées non catchées
-            window.addEventListener('unhandledrejection', e => {
-                _diagErrors.push({ ts: new Date().toISOString(), msg: '[PROMISE] ' + String(e.reason) });
-            });
-        })();
-
-        window._openDiag = function() {
-            // ── Collecter l'état complet ────────────────────────────────
-            const actsByDay = {};
-            (activities||[]).forEach(a => { actsByDay[a.dayIndex] = (actsByDay[a.dayIndex]||0)+1; });
-
-            const lsSize = (() => {
-                let t = 0;
-                for (const k of Object.keys(localStorage)) t += (localStorage.getItem(k)||'').length * 2;
-                return Math.round(t/1024);
-            })();
-
-            const staysInfo = (stays||[]).map(s =>
-                'J'+s.startDay+'→J'+s.endDay+' '+s.city+(s.hotelName?' ('+s.hotelName+')':'')
-            );
-
-            const diag = {
-                '── App ──': '',
-                'Version':        'My Japan Trip',
-                'Heure':          new Date().toLocaleString('fr-FR'),
-                'Jour affiché':   currentDayIndex,
-                'Total jours':    tripData?.totalDays || '?',
-                'URL':            location.href,
-                '── Données ──': '',
-                'Activités total': (activities||[]).length,
-                'Activités par jour': JSON.stringify(actsByDay),
-                'Séjours': staysInfo.join(' | ') || 'aucun',
-                'routeCache':     Object.keys(routeCache||{}).length + ' entrées',
-                'localStorage':   lsSize + ' KB',
-                'CompletedActs':  (completedActivities||[]).length,
-                '── Config ──': '',
-                'Profil':         JSON.stringify(travelerProfile||{}),
-                'Mode':           localStorage.getItem('japan_trip_mode')||'?',
-                'Dark mode':      document.documentElement.classList.contains('dark'),
-                '── Erreurs ──': '',
-                'Erreurs JS':     _diagErrors.length,
-                'Avertissements': _diagWarns.length,
-            };
-
-            // ── Construire le HTML du panneau ──────────────────────────
-            let rows = '';
-            for (const [k, v] of Object.entries(diag)) {
-                if (String(v) === '') {
-                    rows += '<div style="margin-top:10px;font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px">'+k+'</div>';
-                } else {
-                    const isError = k.includes('Erreur') && parseInt(v) > 0;
-                    rows += '<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #f3f4f6">'+
-                        '<div style="font-size:11px;color:#6b7280;min-width:140px;flex-shrink:0">'+k+'</div>'+
-                        '<div style="font-size:11px;font-weight:700;color:'+(isError?'#dc2626':'#111827')+';word-break:break-all">'+v+'</div>'+
-                        '</div>';
-                }
-            }
-
-            // Erreurs récentes
-            if (_diagErrors.length > 0) {
-                rows += '<div style="margin-top:10px;font-size:10px;font-weight:800;color:#dc2626;text-transform:uppercase">Erreurs récentes</div>';
-                _diagErrors.slice(-10).forEach(e => {
-                    rows += '<div style="margin-top:4px;padding:6px 8px;background:#fef2f2;border-radius:6px;font-size:10px;color:#b91c1c;word-break:break-all">'+
-                        '<span style="color:#9ca3af">'+e.ts.slice(11,19)+'</span> '+e.msg+'</div>';
-                });
-            }
-
-            if (_diagWarns.length > 0) {
-                rows += '<div style="margin-top:10px;font-size:10px;font-weight:800;color:#d97706;text-transform:uppercase">Avertissements récents</div>';
-                _diagWarns.slice(-5).forEach(w => {
-                    rows += '<div style="margin-top:4px;padding:6px 8px;background:#fffbeb;border-radius:6px;font-size:10px;color:#92400e;word-break:break-all">'+
-                        '<span style="color:#9ca3af">'+w.ts.slice(11,19)+'</span> '+w.msg+'</div>';
-                });
-            }
-
-            // Logs récents (utiles pour debug génération)
-            const genLogs = _diagLogs.filter(l => l.msg.includes('[') || l.msg.includes('dayIndex') || l.msg.includes('Activité'));
-            if (genLogs.length > 0) {
-                rows += '<div style="margin-top:10px;font-size:10px;font-weight:800;color:#0284c7;text-transform:uppercase">Logs génération</div>';
-                genLogs.slice(-8).forEach(l => {
-                    rows += '<div style="margin-top:4px;padding:6px 8px;background:#f0f9ff;border-radius:6px;font-size:10px;color:#0369a1;word-break:break-all">'+
-                        '<span style="color:#9ca3af">'+l.ts.slice(11,19)+'</span> '+l.msg+'</div>';
-                });
-            }
-
-            // ── Afficher l'overlay ────────────────────────────────────
-            let overlay = document.getElementById('diag-overlay');
-            if (overlay) { overlay.remove(); return; } // toggle
-
-            overlay = document.createElement('div');
-            overlay.id = 'diag-overlay';
-            overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center';
-            overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
-
-            overlay.innerHTML =
-                '<div style="width:100%;max-width:480px;background:white;border-radius:20px 20px 0 0;'+
-                'padding:16px 16px max(env(safe-area-inset-bottom,16px),16px);max-height:85vh;overflow-y:auto">'+
-                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
-                    '<div>'+
-                        '<div style="font-size:16px;font-weight:900;color:#111827">🔍 Diagnostic</div>'+
-                        '<div style="font-size:10px;color:#9ca3af">État · Erreurs · Logs</div>'+
-                    '</div>'+
-                    '<div style="display:flex;gap:8px">'+
-                        '<button onclick="_diagCopy()" style="font-size:11px;background:#f3f4f6;border:none;border-radius:8px;padding:5px 10px;cursor:pointer;font-weight:700;color:#374151">📋 Copier</button>'+
-                        '<button onclick="_closeDiagOverlay()" '+
-                        'style="width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;cursor:pointer;font-size:13px">✕</button>'+
-                    '</div>'+
-                '</div>'+
-                '<div id="diag-content">'+rows+'</div>'+
-                '</div>';
-
-            document.body.appendChild(overlay);
-        };
-
-        // Copier le diagnostic dans le presse-papier (pour partager)
-        window._diagCopy = function() {
-            const actsByDay = {};
-            (activities||[]).forEach(a => { actsByDay[a.dayIndex] = (actsByDay[a.dayIndex]||0)+1; });
-
-            const text = [
-                '=== DIAGNOSTIC MY JAPAN TRIP ===',
-                new Date().toLocaleString('fr-FR'),
-                '',
-                'Activités: ' + (activities||[]).length,
-                'Par jour: ' + JSON.stringify(actsByDay),
-                'Jour affiché: ' + currentDayIndex,
-                'Séjours: ' + (stays||[]).length,
-                'localStorage: ' + (() => { let t=0; for(const k of Object.keys(localStorage)) t+=(localStorage.getItem(k)||'').length*2; return Math.round(t/1024); })() + ' KB',
-                '',
-                'ERREURS (' + _diagErrors.length + '):',
-                ..._diagErrors.slice(-10).map(e => e.ts.slice(11,19) + ' ' + e.msg),
-                '',
-                'WARNINGS (' + _diagWarns.length + '):',
-                ..._diagWarns.slice(-5).map(w => w.ts.slice(11,19) + ' ' + w.msg),
-                '',
-                'LOGS GEN:',
-                ..._diagLogs.filter(l => l.msg.includes('[')).slice(-8).map(l => l.ts.slice(11,19) + ' ' + l.msg),
-            ].join('\n');
-
-            navigator.clipboard.writeText(text).then(() => {
-                showAddConfirmation('Diagnostic copié !', 'Colle-le dans le chat', '📋');
-            }).catch(() => {
-                // Fallback : sélectionner le texte
-                const el = document.getElementById('diag-content');
-                if (el) {
-                    const range = document.createRange();
-                    range.selectNode(el);
-                    window.getSelection().removeAllRanges();
-                    window.getSelection().addRange(range);
-                }
-            });
         };
 
         function renderPlanning() {
             const myToken = ++_renderToken;
             const list = document.getElementById('planning-list');
-
-            // Debug : vérifier la distribution des activités par jour
-            if (activities.length > 0 && window._debugRender) {
-                const byDay = {};
-                activities.forEach(a => { byDay[a.dayIndex] = (byDay[a.dayIndex]||0)+1; });
-                console.log('[renderPlanning] Activities par jour:', byDay, '| Jour courant:', currentDayIndex);
-            }
 
             // ── Sauvegarder les imgs déjà chargées avant de vider ──────────
             list.querySelectorAll('.activity-card[data-act-id]').forEach(card => {
@@ -9061,33 +8387,16 @@
                         '</div>'+
                         '<div style="font-size:10px;color:'+(_dk?'rgba(255,255,255,.4)':'#94a3b8')+';margin-top:2px">'+
                             'Départ ~'+depTime+' · Arrivée ~'+arrTime+
+                            (isLocal?'':' · +45 min bagages/check-in')+
                         '</div>'+
                     '</div>'+
                     '<div style="text-align:right;flex-shrink:0">'+
-                        '<div style="font-size:15px;font-weight:900;color:'+(_dk?'#38bdf8':'#0284c7')+'">'+shinH+'h'+shinM+'</div>'+
+                        '<div style="font-size:15px;font-weight:900;color:'+(_dk?'#38bdf8':'#0284c7')+'">'+
+                            shinH+'h'+shinM+
+                        '</div>'+
                         '<div style="font-size:9px;color:'+(_dk?'rgba(255,255,255,.4)':'#94a3b8')+'">trajet</div>'+
                     '</div>';
                 list.appendChild(transCard);
-
-                // Bloc logistique bagages — systématique pour les longs trajets
-                if (!isLocal) {
-                    const baggageCard = document.createElement('div');
-                    baggageCard.style.cssText =
-                        'margin-bottom:8px;padding:8px 12px;border-radius:10px;'+
-                        'border:1px dashed '+(_dk?'rgba(148,163,184,.3)':'#cbd5e1')+';'+
-                        'background:'+(_dk?'rgba(30,41,59,.4)':'#f8fafc')+';'+
-                        'display:flex;align-items:center;gap:8px';
-                    baggageCard.innerHTML =
-                        '<span style="font-size:16px">🧳</span>'+
-                        '<div style="flex:1">'+
-                            '<div style="font-size:11px;font-weight:700;color:'+(_dk?'#94a3b8':'#475569')+'">Logistique bagages — +45 min</div>'+
-                            '<div style="font-size:9px;color:'+(_dk?'rgba(255,255,255,.35)':'#94a3b8')+'">'+
-                                'Consigne gare / check-in hôtel / orientation'+
-                            '</div>'+
-                        '</div>'+
-                        '<div style="font-size:10px;font-weight:700;color:'+(_dk?'#64748b':'#94a3b8')+'">~45min</div>';
-                    list.appendChild(baggageCard);
-                }
             }
 
             // ── C. Carte hôtel + bloc trajet hôtel → 1ère activité ────────
@@ -9149,11 +8458,11 @@
                 }
             }
 
-            // Variables de contexte pour la boucle d'activités
-            const _mealMode  = (travelerProfile?.meal_display) || 'complet'; // 'complet'|'discret'|'masque'
-            const _cityName0 = selectedCity || getCityForDay(currentDayIndex) || '';
-            const _dk0       = document.documentElement.classList.contains('dark');
-            const _slotRendered = new Set(); // tracker repas déjà rendus (évite doublons slot machine)
+            // Variables nécessaires dans la boucle d'activités
+            const _mealMode     = (travelerProfile?.meal_display) || 'complet';
+            const _cityName0    = selectedCity || getCityForDay(currentDayIndex) || '';
+            const _dk0          = document.documentElement.classList.contains('dark');
+            const _slotRendered = new Set();
 
             for (let i = 0; i < dayActivities.length; i++) {
                 const actStored0 = activities.find(a=>a.id===dayActivities[i].id)||dayActivities[i];
@@ -9544,39 +8853,6 @@
                     '</div>'+
                     '<span style="font-size:20px">🚄</span>';
                 list.appendChild(nightCard);
-            }
-
-            // ── Score de cohérence journée ────────────────────────────────
-            if (dayActivities.length >= 1) {
-                const score = _computeDayScore(dayActivities, realTimes, routeCache);
-                const scoreBg = score.pct >= 80 ? '#f0fdf4' : score.pct >= 55 ? '#fffbeb' : '#fef2f2';
-                const scoreColor = score.pct >= 80 ? '#15803d' : score.pct >= 55 ? '#92400e' : '#b91c1c';
-                const scoreBorder = score.pct >= 80 ? '#86efac' : score.pct >= 55 ? '#fcd34d' : '#fca5a5';
-                const scoreEmoji = score.pct >= 80 ? '✅' : score.pct >= 55 ? '⚠️' : '🔴';
-
-                const scoreCard = document.createElement('div');
-                scoreCard.style.cssText = 'margin:12px 0 6px;padding:10px 14px;border-radius:12px;'+
-                    'border:1.5px solid '+scoreBorder+';background:'+scoreBg+';'+
-                    'display:flex;align-items:center;gap:10px;cursor:pointer';
-                scoreCard.onclick = () => {
-                    const detail = document.getElementById('score-detail-'+currentDayIndex);
-                    if (detail) detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
-                };
-                scoreCard.innerHTML =
-                    '<span style="font-size:18px">'+scoreEmoji+'</span>'+
-                    '<div style="flex:1">'+
-                        '<div style="font-size:12px;font-weight:800;color:'+scoreColor+'">Cohérence journée : '+score.pct+'%</div>'+
-                        '<div style="font-size:10px;color:#9ca3af;margin-top:1px">'+score.summary+'</div>'+
-                    '</div>'+
-                    '<div style="font-size:10px;color:#9ca3af">▾ détail</div>';
-                list.appendChild(scoreCard);
-
-                const detailDiv = document.createElement('div');
-                detailDiv.id = 'score-detail-'+currentDayIndex;
-                detailDiv.style.display = 'none';
-                detailDiv.style.cssText = 'margin-bottom:10px;padding:10px 14px;border-radius:10px;background:#f9fafb;border:1px solid #e5e7eb;font-size:11px;color:#374151';
-                detailDiv.innerHTML = score.details.map(d => '<div style="margin-bottom:4px">'+d+'</div>').join('');
-                list.appendChild(detailDiv);
             }
 
             // Bouton "Optimiser ma journée" — apparaît dès 2 activités
@@ -11695,8 +10971,6 @@
         }
 
         function openConfigScreen() {
-            // Rafraîchir le widget stockage à chaque ouverture
-            setTimeout(() => { if (typeof _refreshStorageWidget === 'function') _refreshStorageWidget(); }, 100);
             document.getElementById('config-screen').classList.remove('translate-x-full');
             const wrapper = document.getElementById('fab-wrapper');
             wrapper.classList.add('active', 'revealed');
@@ -14165,37 +13439,5 @@ async function toggleMapView() {
 
 
 
-    <script>
-        // Enregistrement Service Worker PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('[PWA] SW enregistré:', reg.scope))
-                    .catch(err => console.warn('[PWA] SW échec:', err));
-            });
-        }
-
-        // Bannière "Installer l'app" sur mobile
-        let _deferredInstall = null;
-        window.addEventListener('beforeinstallprompt', e => {
-            e.preventDefault();
-            _deferredInstall = e;
-            // Afficher un bouton discret dans le menu Plus
-            const installBtn = document.getElementById('pwa-install-btn');
-            if (installBtn) installBtn.style.display = 'flex';
-        });
-
-        window._installPWA = async function() {
-            if (!_deferredInstall) return;
-            _deferredInstall.prompt();
-            const { outcome } = await _deferredInstall.userChoice;
-            if (outcome === 'accepted') {
-                showAddConfirmation('App installée !', 'My Japan Trip est sur votre écran d’accueil', '📱');
-            }
-            _deferredInstall = null;
-            const installBtn = document.getElementById('pwa-install-btn');
-            if (installBtn) installBtn.style.display = 'none';
-        };
-    </script>
 </body>
 </html>
