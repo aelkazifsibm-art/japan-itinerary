@@ -8159,212 +8159,184 @@
                     : computed;
             }
 
-            // ── 2. Heure de départ hôtel = realTimes[0] - durée trajet hôtel ─
-            const stay0 = getStayForDay(currentDayIndex);
-            const act0  = dayActivities[0];
-            if (stay0?.place && act0?.place) {
-                const hotelKey = stay0.place?.place_id && act0.place?.place_id ? `${stay0.place.place_id}-${act0.place.place_id}` : null;
-                const hotelTravel = hotelKey ? (routeCache[hotelKey]?.total_minutes || 0) : 0;
-                const hotelDepart = addMinutesToTime(realTimes[0], -hotelTravel);
+            // ══════════════════════════════════════════════════════════════
+            // SECTION 2 : Blocs de contexte en tête de journée
+            // Ordre logique :
+            //   A. Bannière vol arrivée (jour 0 seulement)
+            //   B. Bloc Shinkansen si changement de ville depuis hier
+            //   C. Carte hôtel + trajet hôtel → 1ère activité
+            // ══════════════════════════════════════════════════════════════
 
-                // Bannière heure d'arrivée si jour 0 et vol enregistré
-                const _flightArr = _getFlightArrival();
-                if (currentDayIndex === 0 && _flightArr?.hour !== undefined) {
-                    const _arrBanner = document.createElement('div');
-                    const _dkArr = document.documentElement.classList.contains('dark');
-                    _arrBanner.style.cssText = 'margin-bottom:10px;padding:10px 14px;border-radius:14px;border:1.5px solid rgba(167,139,250,.4);background:'+(_dkArr?'rgba(124,58,237,.2)':'#faf5ff')+';display:flex;align-items:center;gap:10px';
-                    const _arrH = String(_flightArr.hour).padStart(2,'0');
-                    const _arrM = String(_flightArr.min||0).padStart(2,'0');
-                    _arrBanner.innerHTML = '<span style="font-size:20px">✈️</span><div>'+
-                        '<div style="font-size:13px;font-weight:800;color:'+(_dkArr?'#c4b5fd':'#7c3aed')+'">Arrivée estimée : '+_arrH+'h'+_arrM+'</div>'+
-                        '<div style="font-size:10px;color:'+(_dkArr?'rgba(255,255,255,.45)':'#9ca3af')+'">Vol depuis '+(_flightArr.depAirport||'Europe')+' · décalage +9h Japon</div>'+
-                        '</div>';
-                    list.appendChild(_arrBanner);
+            const stay0   = getStayForDay(currentDayIndex);
+            const act0    = dayActivities[0];
+            const prevStay = currentDayIndex > 0 ? getStayForDay(currentDayIndex - 1) : null;
+            const _dk = document.documentElement.classList.contains('dark');
+
+            // ── A. Bannière vol d'arrivée (J0 uniquement) ─────────────────
+            const _flightArr = _getFlightArrival();
+            if (currentDayIndex === 0 && _flightArr?.hour !== undefined) {
+                const _arrBanner = document.createElement('div');
+                _arrBanner.style.cssText = 'margin-bottom:10px;padding:10px 14px;border-radius:14px;'+
+                    'border:1.5px solid rgba(167,139,250,.4);'+
+                    'background:'+(_dk?'rgba(124,58,237,.2)':'#faf5ff')+';'+
+                    'display:flex;align-items:center;gap:10px';
+                const _arrH = String(_flightArr.hour).padStart(2,'0');
+                const _arrM = String(_flightArr.min||0).padStart(2,'0');
+                _arrBanner.innerHTML =
+                    '<span style="font-size:20px">✈️</span><div>'+
+                    '<div style="font-size:13px;font-weight:800;color:'+(_dk?'#c4b5fd':'#7c3aed')+'">'+
+                        'Arrivée estimée : '+_arrH+'h'+_arrM+
+                    '</div>'+
+                    '<div style="font-size:10px;color:'+(_dk?'rgba(255,255,255,.45)':'#9ca3af')+'">'+
+                        'Vol depuis '+(_flightArr.depAirport||'Europe')+' · décalage +9h Japon'+
+                    '</div></div>';
+                list.appendChild(_arrBanner);
+            }
+
+            // ── B. Shinkansen : ville change depuis hier → bloc en tête de journée ─
+            // Logique : la transition se FAIT la veille au soir.
+            // Ex: J1=Tokyo, J2=Osaka → le Shinkansen apparaît en tête de J2
+            // avec l'heure de départ estimée (fin dernière activité J1 + marge)
+            const SHINKANSEN_DATA = {
+                'tokyo-osaka':    {min:155, line:'Tokaido Shinkansen', via:'Nagoya'},
+                'osaka-tokyo':    {min:155, line:'Tokaido Shinkansen', via:'Nagoya'},
+                'tokyo-kyoto':    {min:140, line:'Tokaido Shinkansen', via:'Shin-Yokohama'},
+                'kyoto-tokyo':    {min:140, line:'Tokaido Shinkansen', via:'Shin-Yokohama'},
+                'kyoto-osaka':    {min:15,  line:'JR Kyoto Line', via:'trajet local'},
+                'osaka-kyoto':    {min:15,  line:'JR Kyoto Line', via:'trajet local'},
+                'tokyo-hiroshima':{min:245, line:'Tokaido/Sanyo Shinkansen', via:'Osaka'},
+                'hiroshima-tokyo':{min:245, line:'Sanyo/Tokaido Shinkansen', via:'Osaka'},
+                'osaka-hiroshima':{min:85,  line:'Sanyo Shinkansen', via:'Himeji'},
+                'hiroshima-osaka':{min:85,  line:'Sanyo Shinkansen', via:'Himeji'},
+                'kyoto-hiroshima':{min:100, line:'Sanyo Shinkansen', via:'Osaka'},
+                'hiroshima-kyoto':{min:100, line:'Sanyo Shinkansen', via:'Osaka'},
+                'tokyo-fukuoka':  {min:300, line:'Tokaido/Sanyo Shinkansen', via:'Osaka'},
+                'fukuoka-tokyo':  {min:300, line:'Sanyo/Tokaido Shinkansen', via:'Osaka'},
+                'osaka-fukuoka':  {min:150, line:'Sanyo Shinkansen', via:'Himeji'},
+                'fukuoka-osaka':  {min:150, line:'Sanyo Shinkansen', via:'Himeji'},
+                'tokyo-nagoya':   {min:105, line:'Tokaido Shinkansen', via:'Shin-Yokohama'},
+                'nagoya-tokyo':   {min:105, line:'Tokaido Shinkansen', via:'Shin-Yokohama'},
+                'tokyo-kanazawa': {min:150, line:'Hokuriku Shinkansen', via:'Nagano'},
+                'kanazawa-tokyo': {min:150, line:'Hokuriku Shinkansen', via:'Nagano'},
+                'osaka-nara':     {min:45,  line:'Kintetsu Nara Line', via:'trajet local'},
+                'nara-osaka':     {min:45,  line:'Kintetsu Nara Line', via:'trajet local'},
+                'kyoto-nara':     {min:45,  line:'Kintetsu/JR Nara Line', via:'trajet local'},
+                'nara-kyoto':     {min:45,  line:'Kintetsu/JR Nara Line', via:'trajet local'},
+                'osaka-kobe':     {min:25,  line:'Hankyu/JR', via:'trajet local'},
+                'kobe-osaka':     {min:25,  line:'Hankyu/JR', via:'trajet local'},
+                'hiroshima-miyajima':{min:40, line:'JR + Ferry', via:'Miyajimaguchi'},
+                'miyajima-hiroshima':{min:40, line:'Ferry + JR', via:'Miyajimaguchi'},
+                'tokyo-nikko':    {min:130, line:'Tobu Nikko Line', via:'Asakusa'},
+                'nikko-tokyo':    {min:130, line:'Tobu Nikko Line', via:'Asakusa'},
+            };
+
+            if (prevStay && stay0 && prevStay.city !== stay0.city) {
+                const routeKey = (prevStay.city+'-'+stay0.city).toLowerCase()
+                    .replace(/[àáâ]/g,'a').replace(/[éèê]/g,'e').replace(/\s+/g,'-').replace(/[^a-z-]/g,'');
+                const shinData = SHINKANSEN_DATA[routeKey];
+                const shinMin  = shinData?.min || 120;
+                const shinH    = Math.floor(shinMin/60);
+                const shinM    = String(shinMin%60).padStart(2,'0');
+                const isLocal  = shinMin <= 60;
+
+                // Estimer heure de départ : fin des activités J-1 + 30 min (marge gare)
+                const j1Acts = activities.filter(a => a.dayIndex === currentDayIndex-1)
+                                         .sort((a,b)=>a.time.localeCompare(b.time));
+                let depTime = '19:00'; // défaut
+                if (j1Acts.length > 0) {
+                    const lastJ1 = j1Acts[j1Acts.length-1];
+                    depTime = addMinutesToTime(lastJ1.time, (lastJ1.duration_minutes||90) + 30);
                 }
+                const arrTime = addMinutesToTime(depTime, shinMin + 45); // +45 min logistique arrivée
+
+                const transCard = document.createElement('div');
+                transCard.style.cssText =
+                    'margin-bottom:12px;padding:12px 14px;border-radius:14px;'+
+                    'border:2px solid '+(_dk?'rgba(56,189,248,.35)':'#bae6fd')+';'+
+                    'background:'+(_dk?'rgba(8,47,73,.6)':'#f0f9ff')+';'+
+                    'display:flex;align-items:center;gap:12px';
+                transCard.innerHTML =
+                    '<span style="font-size:26px">'+(isLocal?'🚃':'🚄')+'</span>'+
+                    '<div style="flex:1;min-width:0">'+
+                        '<div style="font-size:13px;font-weight:900;color:'+(_dk?'#38bdf8':'#0369a1')+'">'+
+                            prevStay.city+' → '+stay0.city+
+                        '</div>'+
+                        '<div style="font-size:10px;color:'+(_dk?'rgba(255,255,255,.5)':'#64748b')+';margin-top:2px">'+
+                            (shinData?.line||'Train')+
+                            (shinData?.via?' · via '+shinData.via:'')+
+                        '</div>'+
+                        '<div style="font-size:10px;color:'+(_dk?'rgba(255,255,255,.4)':'#94a3b8')+';margin-top:2px">'+
+                            'Départ ~'+depTime+' · Arrivée ~'+arrTime+
+                            (isLocal?'':' · +45 min bagages/check-in')+
+                        '</div>'+
+                    '</div>'+
+                    '<div style="text-align:right;flex-shrink:0">'+
+                        '<div style="font-size:15px;font-weight:900;color:'+(_dk?'#38bdf8':'#0284c7')+'">'+
+                            shinH+'h'+shinM+
+                        '</div>'+
+                        '<div style="font-size:9px;color:'+(_dk?'rgba(255,255,255,.4)':'#94a3b8')+'">trajet</div>'+
+                    '</div>';
+                list.appendChild(transCard);
+            }
+
+            // ── C. Carte hôtel + bloc trajet hôtel → 1ère activité ────────
+            // Fonctionne même si act0.place est null (fallback sans trajet)
+            if (stay0) {
+                const hotelDepart = (stay0.place?.place_id && act0?.place?.place_id)
+                    ? addMinutesToTime(realTimes[0], -(routeCache[stay0.place.place_id+'-'+act0.place.place_id]?.total_minutes || 0))
+                    : realTimes[0];
 
                 const hotelCard = document.createElement('div');
-                const _dk = document.documentElement.classList.contains('dark');
-                hotelCard.className = "rounded-2xl p-4 border-2 mb-4";
+                hotelCard.className = 'rounded-2xl p-4 border-2 mb-3';
                 hotelCard.style.cssText = _dk
-                    ? "background:#1c1209;border-color:#c2410c60"
-                    : "background:linear-gradient(to right,#fed7aa,#fecdd3);border-color:#fb923c80";
-                hotelCard.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <div class="text-2xl">🏨</div>
-                            <div>
-                                <div class="font-bold text-sm" style="color:${_dk?'#f1f5f9':'#1f2937'}">${stay0.hotelName || 'Hôtel'}</div>
-                                <div class="text-xs" style="color:${_dk?'#94a3b8':'#6b7280'}">Point de départ</div>
-                            </div>
-                        </div>
-                        ${hotelTravel > 0 ? `<div class="text-xs font-bold" style="color:${_dk?'#fb923c':'#ea580c'}">Départ ${hotelDepart}</div>` : ''}
-                    </div>
-                `;
+                    ? 'background:#1c1209;border-color:#c2410c60'
+                    : 'background:linear-gradient(to right,#fed7aa,#fecdd3);border-color:#fb923c80';
+                hotelCard.innerHTML =
+                    '<div style="display:flex;align-items:center;justify-content:space-between">'+
+                    '<div style="display:flex;align-items:center;gap:10px">'+
+                        '<div style="font-size:22px">🏨</div>'+
+                        '<div>'+
+                            '<div style="font-size:13px;font-weight:800;color:'+(_dk?'#f1f5f9':'#1f2937')+'">'+
+                                (stay0.hotelName||'Hôtel')+
+                            '</div>'+
+                            '<div style="font-size:10px;color:'+(_dk?'#94a3b8':'#6b7280')+'">Point de départ · '+stay0.city+'</div>'+
+                        '</div>'+
+                    '</div>'+
+                    '<div style="font-size:11px;font-weight:700;color:'+(_dk?'#fb923c':'#ea580c')+'">'+
+                        'Départ '+hotelDepart+
+                    '</div>'+
+                    '</div>';
                 list.appendChild(hotelCard);
 
-                const hotelNavId    = `nav-hotel-${act0.id}`;
+                // Bloc trajet hôtel → 1ère activité
+                // Toujours afficher quelque chose, même sans place_id
+                const hotelNavId = 'nav-hotel-'+( act0?.id || 'first');
                 const hotelNavBlock = document.createElement('div');
                 hotelNavBlock.id        = hotelNavId;
-                hotelNavBlock.className = "nav-travel-block mx-4 mb-3 relative z-10";
-                hotelNavBlock.innerHTML = `<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)">
-                    <span style="font-size:13px">🏨</span>
-                    <span class="font-black text-white animate-pulse" style="font-size:12px">Calcul trajet hôtel…</span>
-                </div>`;
-                list.appendChild(hotelNavBlock);
-                if (!window._navRerender) {
-                    _navPending++;
-                    _navRenderScheduled = true;
-                }
-                calculateNav(stay0.place, act0.place, hotelNavId, hotelDepart, realTimes[0]);
+                hotelNavBlock.className = 'nav-travel-block mx-4 mb-3 relative z-10';
 
-            // ── Bloc transition Shinkansen si ville différente du jour précédent ──
-            if (currentDayIndex > 0) {
-                const prevStay = getStayForDay(currentDayIndex - 1);
-                const currStay = getStayForDay(currentDayIndex);
-                if (prevStay && currStay && prevStay.city !== currStay.city) {
-                    const SHINKANSEN_DURATIONS = {
-                        'tokyo-osaka':155,'osaka-tokyo':155,'tokyo-kyoto':140,'kyoto-tokyo':140,
-                        'tokyo-hiroshima':245,'hiroshima-tokyo':245,'osaka-hiroshima':85,'hiroshima-osaka':85,
-                        'kyoto-hiroshima':100,'hiroshima-kyoto':100,'tokyo-fukuoka':300,'fukuoka-tokyo':300,
-                        'osaka-fukuoka':150,'fukuoka-osaka':150,'tokyo-nagoya':105,'nagoya-tokyo':105,
-                        'tokyo-kanazawa':150,'kanazawa-tokyo':150,
-                    };
-                    const routeKey = (prevStay.city+'-'+currStay.city).toLowerCase().replace(/[^a-z-]/g,'');
-                    const shinkDur = SHINKANSEN_DURATIONS[routeKey] || 120;
-                    const shinkH = Math.floor(shinkDur/60), shinkM = String(shinkDur%60).padStart(2,'0');
-                    const _dkTrans = document.documentElement.classList.contains('dark');
-
-                    const transCard = document.createElement('div');
-                    transCard.style.cssText = 'margin-bottom:10px;padding:11px 14px;border-radius:14px;border:1.5px solid #bae6fd;background:'+(_dkTrans?'#0a1929':'#f0f9ff')+';display:flex;align-items:center;gap:10px';
-                    transCard.innerHTML =
-                        '<span style="font-size:22px">🚄</span>'+
-                        '<div style="flex:1">'+
-                            '<div style="font-size:13px;font-weight:800;color:'+(_dkTrans?'#38bdf8':'#0284c7')+'">Shinkansen '+prevStay.city+' → '+currStay.city+'</div>'+
-                            '<div style="font-size:10px;color:'+(_dkTrans?'rgba(255,255,255,.45)':'#9ca3af')+'">~'+shinkH+'h'+shinkM+' de trajet · prévoir +45 min logistique bagages</div>'+
-                        '</div>'+
-                        '<div style="font-size:11px;font-weight:700;color:#0284c7;text-align:right">'+shinkH+'h'+shinkM+'</div>';
-                    list.appendChild(transCard);
+                if (stay0.place?.place_id && act0?.place?.place_id) {
+                    // Calcul réel via Google Routes
+                    hotelNavBlock.innerHTML =
+                        '<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)">'+
+                        '<span style="font-size:13px">🏨</span>'+
+                        '<span class="font-black text-white animate-pulse" style="font-size:12px">Calcul trajet hôtel…</span>'+
+                        '</div>';
+                    list.appendChild(hotelNavBlock);
+                    if (!window._navRerender) { _navPending++; _navRenderScheduled = true; }
+                    calculateNav(stay0.place, act0.place, hotelNavId, hotelDepart, realTimes[0]);
+                } else {
+                    // Fallback : estimation par défaut (hôtel en centre-ville)
+                    const estMin = prevStay && prevStay.city !== stay0?.city ? 30 : 15;
+                    hotelNavBlock.innerHTML =
+                        '<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)">'+
+                        '<span style="font-size:14px">🏨</span>'+
+                        '<span class="font-black text-white" style="font-size:14px">~'+estMin+' min</span>'+
+                        '<span style="font-size:11px;color:rgba(255,255,255,.7)"> · Depuis l’hôtel</span>'+
+                        '</div>';
+                    list.appendChild(hotelNavBlock);
                 }
             }
-            } else if (stay0) {
-                // Hôtel sans place validée — carte simple
-                const hotelCard = document.createElement('div');
-                hotelCard.className = "bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-4 border-2 border-orange-200 mb-4";
-                hotelCard.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <div class="text-2xl">🏨</div>
-                        <div>
-                            <div class="font-bold text-sm">${stay0.hotelName || 'Hôtel'}</div>
-                            <div class="text-xs" style="color:var(--budget-sub,#6b7280)">Point de départ</div>
-                        </div>
-                    </div>
-                `;
-                list.appendChild(hotelCard);
-            }
-
-            // ── 3. Enrichissement des activités sans horaires/prix ───────────
-            dayActivities.forEach(act => {
-                if (act.place?.place_id) {
-                    const cached = getPlaceCache(act.place.place_id);
-                    const needsEnrich = act.place.opening_hours === undefined || act.place.opening_hours === null
-                                        || act.place.price_level === undefined || act.place.price_level === null
-                                        || act.place.rating_source !== 'google'; // re-fetch si note pas encore depuis Google
-                    if (needsEnrich && !cached) {
-                        enrichActivityPlace(act);
-                    } else if (cached && needsEnrich) {
-                        // Appliquer le cache immédiatement sans appel réseau
-                        const idx = activities.findIndex(a => a.id === act.id);
-                        if (idx >= 0) {
-                            activities[idx].place = { ...activities[idx].place, ...cached };
-                            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
-                            // Debounce pour afficher les données mises à jour
-                            clearTimeout(window._enrichRenderTimer);
-                            window._enrichRenderTimer = setTimeout(() => renderPlanning(), 600);
-                        }
-                    }
-                }
-            });
-
-            // ── 3b. Score géographique journée ─────────────────────────────
-            {
-                const geoActs = dayActivities.filter(a => a.place?.lat && a.place?.lng);
-                if (geoActs.length >= 2) {
-                    // Calculer distance totale approximative (Haversine)
-                    let totalKm = 0;
-                    for (let gi = 0; gi < geoActs.length - 1; gi++) {
-                        const a = geoActs[gi], b = geoActs[gi+1];
-                        const R = 6371;
-                        const dLat = (b.place.lat - a.place.lat) * Math.PI / 180;
-                        const dLng = (b.place.lng - a.place.lng) * Math.PI / 180;
-                        const h = Math.sin(dLat/2)**2 + Math.cos(a.place.lat*Math.PI/180) * Math.cos(b.place.lat*Math.PI/180) * Math.sin(dLng/2)**2;
-                        totalKm += R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
-                    }
-                    const dk = document.documentElement.classList.contains('dark');
-                    const isCompact = totalKm < 5;
-                    const isMed = totalKm < 12;
-                    const scoreColor = isCompact ? '#16a34a' : isMed ? '#d97706' : '#dc2626';
-                    const scoreIcon  = isCompact ? '🟢' : isMed ? '🟡' : '🔴';
-                    const scoreLabel = isCompact ? 'Journée compacte' : isMed ? 'Journée modérée' : 'Journée étalée';
-                    const scoreDesc  = totalKm.toFixed(1) + ' km · ' + geoActs.length + ' lieux';
-                    // Météo inline dans la barre score
-                    const _dayWeather = _getWeatherForDay ? _getWeatherForDay(currentDayIndex) : null;
-                    const weatherInline = _dayWeather
-                        ? (_dayWeather.rain_probability >= 70 ? '🌧️' : _dayWeather.rain_probability >= 40 ? '🌦️' : _dayWeather.rain_probability >= 20 ? '⛅' : '☀️') + ' ' + _dayWeather.temp_max + '°'
-                        : null;
-
-                    const geoBar = document.createElement('div');
-                    geoBar.style.cssText = `margin:0 16px 12px;padding:10px 14px;border-radius:14px;display:flex;align-items:center;gap:10px;cursor:pointer;` +
-                        (dk ? 'background:#1e293b;border:1px solid #334155' : 'background:#f8fafc;border:1px solid #e2e8f0');
-                    geoBar.onclick = () => toggleMapView();
-                    // Score faisabilité : ajouter temps trajet + conflits depuis routeCache
-                    let totalTravelMin = 0;
-                    let conflicts = 0;
-                    const sortedActs = dayActivities.slice().sort((a,b) => a.time.localeCompare(b.time));
-                    for (let _i = 0; _i < sortedActs.length - 1; _i++) {
-                        const _a = sortedActs[_i], _b = sortedActs[_i+1];
-                        const _ck = Object.keys(routeCache).find(k => k.includes(String(_a.id)) && k.includes(String(_b.id)));
-                        if (_ck) {
-                            totalTravelMin += routeCache[_ck].total_minutes || 0;
-                            // Conflit : fin de _a + trajet > début de _b
-                            const [hA, mA] = _a.time.split(':').map(Number);
-                            const endA = hA * 60 + mA + (_a.duration_minutes || 90) + (routeCache[_ck].total_minutes || 0);
-                            const [hB, mB] = _b.time.split(':').map(Number);
-                            if (endA > hB * 60 + mB) conflicts++;
-                        }
-                    }
-                    const travelLabel = totalTravelMin > 0
-                        ? (totalTravelMin >= 60 ? Math.floor(totalTravelMin/60)+'h'+String(totalTravelMin%60).padStart(2,'0')+'min trajet' : totalTravelMin+'min trajet')
-                        : '';
-                    const feasIcon  = conflicts === 0 ? '✅' : conflicts === 1 ? '⚠️' : '❌';
-                    const feasLabel = conflicts === 0 ? 'Planning faisable' : conflicts === 1 ? 'Planning serré' : conflicts + ' conflits horaires';
-                    const feasColor = conflicts === 0 ? '#16a34a' : conflicts === 1 ? '#d97706' : '#dc2626';
-
-                    geoBar.innerHTML =
-                        '<div style="display:flex;flex-direction:column;gap:4px;flex:1">' +
-                            '<div style="display:flex;align-items:center;gap:8px">' +
-                                '<span style="font-size:15px">' + scoreIcon + '</span>' +
-                                '<span style="font-size:12px;font-weight:700;color:' + scoreColor + '">' + scoreLabel + '</span>' +
-                                '<span style="font-size:11px;color:' + (dk?'#64748b':'#94a3b8') + '">·</span>' +
-                                '<span style="font-size:11px;color:' + (dk?'#94a3b8':'#6b7280') + '">' + scoreDesc + '</span>' +
-                            '</div>' +
-                            '<div style="display:flex;align-items:center;gap:8px">' +
-                                '<span style="font-size:14px">' + feasIcon + '</span>' +
-                                '<span style="font-size:11px;font-weight:700;color:' + feasColor + '">' + feasLabel + '</span>' +
-                                (travelLabel ? '<span style="font-size:10px;color:' + (dk?'#64748b':'#9ca3af') + '">· ' + travelLabel + '</span>' : '') +
-                                (weatherInline ? '<span style="font-size:11px;font-weight:700;margin-left:auto">' + weatherInline + '</span>' : '') +
-                            '</div>' +
-                        '</div>' +
-                        '<div style="font-size:11px;font-weight:600;color:#7c3aed;opacity:0.8;flex-shrink:0">Carte →</div>';
-                    list.appendChild(geoBar);
-                }
-            }
-
-            // ── 4. Rendu de chaque activité ──────────────────────────────────
-            const _mealMode  = travelerProfile.meal_display || 'complet';
-            const _cityStay0 = getStayForDay(currentDayIndex);
-            const _cityName0 = _cityStay0?.city || '';
-            const _dk0       = document.documentElement.classList.contains('dark');
-            const _slotRendered = new Set();
 
             for (let i = 0; i < dayActivities.length; i++) {
                 const actStored0 = activities.find(a=>a.id===dayActivities[i].id)||dayActivities[i];
@@ -8596,32 +8568,165 @@
                     }
                 }
 
-                // Bloc trajet entre act[i] et act[i+1]
+                // ── Bloc trajet entre act[i] et act[i+1] ─────────────────
+                // Affiché TOUJOURS (avec estimation si pas de place_id)
                 if (i < dayActivities.length - 1) {
                     const nextAct = dayActivities[i + 1];
-                    if (act.place && nextAct.place) {
-                        const navId    = `nav-${act.id}-${nextAct.id}`;
-                        const navBlock = document.createElement('div');
-                        navBlock.id        = navId;
-                        navBlock.className = "nav-travel-block mx-4 my-1 relative z-10";
-                        navBlock.dataset.fromId = act.id;
-                        navBlock.dataset.toId   = nextAct.id;
-                        navBlock.innerHTML = `
-                            <div class="nav-info-pill">
-                                <span class="animate-pulse text-xs text-white/70">Calcul…</span>
-                            </div>
-                        `;
-                        list.appendChild(navBlock);
-                        // dep = fin de visite act[i]   arr = arrivée act[i+1]
-                        if (!window._navRerender) {
-                            _navPending++;
-                            _navRenderScheduled = true;
-                            calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i + 1]);
+                    const navId   = 'nav-'+act.id+'-'+nextAct.id;
+                    const navBlock = document.createElement('div');
+                    navBlock.id             = navId;
+                    navBlock.className      = 'nav-travel-block mx-4 my-1 relative z-10';
+                    navBlock.dataset.fromId = act.id;
+                    navBlock.dataset.toId   = nextAct.id;
+
+                    const hasFromPlace = act.place?.place_id;
+                    const hasToPlace   = nextAct.place?.place_id;
+
+                    if (hasFromPlace && hasToPlace) {
+                        // ── Cas nominal : calcul réel Google Routes ───────────
+                        const cacheKey = act.place.place_id+'-'+nextAct.place.place_id;
+                        if (routeCache[cacheKey]) {
+                            // Déjà en cache → afficher immédiatement
+                            navBlock.innerHTML = '<div class="nav-info-pill"><span class="animate-pulse text-xs text-white/70">…</span></div>';
+                            list.appendChild(navBlock);
+                            renderNavBlock(navBlock, routeCache[cacheKey], leaveTime, realTimes[i+1]);
                         } else {
-                            calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i + 1]);
+                            navBlock.innerHTML = '<div class="nav-info-pill"><span class="animate-pulse text-xs text-white/70">Calcul trajet…</span></div>';
+                            list.appendChild(navBlock);
+                            if (!window._navRerender) { _navPending++; _navRenderScheduled = true; }
+                            calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i+1]);
                         }
+                    } else {
+                        // ── Fallback : estimation sans place_id ───────────────
+                        // Heuristique basée sur la densité de ville
+                        const _cityDens = typeof getCityDensity === 'function'
+                            ? getCityDensity(getCityForDay(currentDayIndex)||'').density_type
+                            : 'etendue';
+                        const estMin = _cityDens === 'ultra_dense' ? 12
+                                     : _cityDens === 'rurale'      ? 25
+                                     :                               18;
+                        const pillColor = estMin >= 20
+                            ? 'linear-gradient(135deg,#d97706,#b45309)'
+                            : 'linear-gradient(135deg,#16a34a,#15803d)';
+                        navBlock.innerHTML =
+                            '<div class="nav-info-pill" style="background:'+pillColor+';opacity:0.82">'+
+                            '<span style="font-size:14px">🚶</span>'+
+                            '<span class="font-black text-white" style="font-size:13px">~'+estMin+' min</span>'+
+                            '<span style="font-size:10px;color:rgba(255,255,255,.6)"> · estimé</span>'+
+                            '</div>';
+                        list.appendChild(navBlock);
                     }
                 }
+            }
+
+            // ── Bloc retour hôtel fin de journée ─────────────────────────────
+            // Toujours affiché : dernière activité → hôtel
+            if (stay0 && dayActivities.length > 0) {
+                const lastActFin = dayActivities[dayActivities.length - 1];
+                const lastLeave  = addMinutesToTime(
+                    realTimes[dayActivities.length - 1],
+                    Math.min(360, lastActFin.duration_minutes || 90)
+                );
+                const retNavId    = 'nav-return-hotel-day'+currentDayIndex;
+                const retNavBlock = document.createElement('div');
+                retNavBlock.id        = retNavId;
+                retNavBlock.className = 'nav-travel-block mx-4 mt-1 mb-2 relative z-10';
+
+                if (stay0.place?.place_id && lastActFin.place?.place_id) {
+                    // Calcul réel
+                    const retCacheKey = lastActFin.place.place_id+'-'+stay0.place.place_id;
+                    if (routeCache[retCacheKey]) {
+                        retNavBlock.innerHTML = '<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)"><span style="font-size:13px">🏨</span><span>…</span></div>';
+                        list.appendChild(retNavBlock);
+                        renderNavBlock(retNavBlock, routeCache[retCacheKey], lastLeave, null);
+                    } else {
+                        retNavBlock.innerHTML =
+                            '<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)">'+
+                            '<span style="font-size:13px">🏨</span>'+
+                            '<span class="font-black text-white animate-pulse" style="font-size:12px">Retour hôtel…</span>'+
+                            '</div>';
+                        list.appendChild(retNavBlock);
+                        if (!window._navRerender) { _navPending++; _navRenderScheduled = true; }
+                        calculateNav(lastActFin.place, stay0.place, retNavId, lastLeave, null);
+                    }
+                } else {
+                    // Fallback estimé
+                    const _dkRet = document.documentElement.classList.contains('dark');
+                    const retMin = 20;
+                    const retArr = addMinutesToTime(lastLeave, retMin);
+                    retNavBlock.innerHTML =
+                        '<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c);opacity:0.85">'+
+                        '<span style="font-size:13px">🏨</span>'+
+                        '<span class="font-black text-white" style="font-size:13px">~'+retMin+' min</span>'+
+                        '<span style="font-size:11px;color:rgba(255,255,255,.7)"> · Retour hôtel · '+retArr+'</span>'+
+                        '</div>';
+                    list.appendChild(retNavBlock);
+                }
+
+                // Carte hôtel de retour (compact)
+                const retHotelCard = document.createElement('div');
+                const _dkRH = document.documentElement.classList.contains('dark');
+                retHotelCard.style.cssText =
+                    'margin:4px 0 8px;padding:9px 14px;border-radius:12px;'+
+                    'border:1.5px solid '+(_dkRH?'#c2410c40':'#fed7aa')+';'+
+                    'background:'+(_dkRH?'rgba(28,18,9,.5)':'rgba(255,237,213,.6)')+';'+
+                    'display:flex;align-items:center;gap:8px';
+                retHotelCard.innerHTML =
+                    '<span style="font-size:18px">🏨</span>'+
+                    '<span style="font-size:12px;font-weight:700;color:'+(_dkRH?'#fed7aa':'#9a3412')+'">'+
+                        (stay0.hotelName||'Hôtel')+' · Fin de journée'+
+                    '</span>';
+                list.appendChild(retHotelCard);
+            }
+
+            // ── Bloc "Nuit + départ" si demain = autre ville ────────────────
+            const tomorrowStay = getStayForDay(currentDayIndex + 1);
+            if (tomorrowStay && stay0 && tomorrowStay.city !== stay0.city) {
+                const _dkEnd = document.documentElement.classList.contains('dark');
+
+                // Heure de fin estimée = dernière activité + durée
+                const lastAct = dayActivities[dayActivities.length-1];
+                const endTime = addMinutesToTime(
+                    realTimes[dayActivities.length-1],
+                    lastAct.duration_minutes||90
+                );
+
+                const nightCard = document.createElement('div');
+                nightCard.style.cssText =
+                    'margin:16px 0 8px;padding:12px 14px;border-radius:14px;'+
+                    'border:1.5px solid '+(_dkEnd?'rgba(148,163,184,.2)':'#e2e8f0')+';'+
+                    'background:'+(_dkEnd?'rgba(15,23,42,.6)':'#f8fafc')+';'+
+                    'display:flex;align-items:center;gap:12px';
+
+                const routeKey2 = (stay0.city+'-'+tomorrowStay.city).toLowerCase()
+                    .replace(/[^\w-]/g,'').replace(/\s+/g,'-');
+                const SHINKANSEN_DATA2 = {
+                    'tokyo-osaka':155,'osaka-tokyo':155,'tokyo-kyoto':140,'kyoto-tokyo':140,
+                    'kyoto-osaka':15,'osaka-kyoto':15,'tokyo-hiroshima':245,'hiroshima-tokyo':245,
+                    'osaka-hiroshima':85,'hiroshima-osaka':85,'tokyo-fukuoka':300,'fukuoka-tokyo':300,
+                    'osaka-fukuoka':150,'fukuoka-osaka':150,'tokyo-nagoya':105,'nagoya-tokyo':105,
+                    'tokyo-kanazawa':150,'kanazawa-tokyo':150,'osaka-nara':45,'nara-osaka':45,
+                    'kyoto-nara':45,'nara-kyoto':45,'osaka-kobe':25,'kobe-osaka':25,
+                };
+                const shinMin2 = SHINKANSEN_DATA2[routeKey2] || 120;
+                const shinH2   = Math.floor(shinMin2/60);
+                const shinM2   = String(shinMin2%60).padStart(2,'0');
+                // Heure de départ conseillée = fin J + 30 min de marge gare
+                const depAdvised = addMinutesToTime(endTime, 30);
+
+                nightCard.innerHTML =
+                    '<span style="font-size:22px">🌙</span>'+
+                    '<div style="flex:1;min-width:0">'+
+                        '<div style="font-size:13px;font-weight:900;color:'+(_dkEnd?'#cbd5e1':'#334155')+'">'+
+                            'Nuit à '+stay0.city+' · Départ demain vers '+tomorrowStay.city+
+                        '</div>'+
+                        '<div style="font-size:10px;color:'+(_dkEnd?'rgba(255,255,255,.4)':'#94a3b8')+';margin-top:3px">'+
+                            'Shinkansen recommandé ~'+depAdvised+
+                            ' · Trajet '+shinH2+'h'+(shinM2!=='00'?shinM2:'')+
+                        '</div>'+
+                    '</div>'+
+                    '<span style="font-size:20px">🚄</span>';
+                list.appendChild(nightCard);
             }
 
             // Bouton "Optimiser ma journée" — apparaît dès 2 activités
@@ -9225,6 +9330,7 @@
 
         function renderNavBlock(el, data, departureTime, arrivalTime) {
             if (!data || !data.total_minutes) return;
+            // Si arrivalTime non fourni (ex: retour hôtel), le calculer depuis departure
             const arrival = arrivalTime || (departureTime ? addMinutesToTime(departureTime, data.total_minutes) : null);
             const hasWalk = (data.walk_from_min > 0 || data.walk_to_min > 0);
             const hasTransit = data.transit_min > 0;
@@ -9247,6 +9353,11 @@
                 ? Math.floor(totalMin/60) + 'h' + (totalMin%60 ? String(totalMin%60).padStart(2,'0') : '')
                 : totalMin + ' min';
 
+            // Affichage des heures dep→arr
+            const timeStr = (departureTime && arrival)
+                ? '<span style="font-size:10px;color:rgba(255,255,255,.55);margin-left:auto">'+departureTime+' → '+arrival+'</span>'
+                : (arrival ? '<span style="font-size:10px;color:rgba(255,255,255,.55);margin-left:auto">arr. '+arrival+'</span>' : '');
+
             const pill = el.querySelector('.nav-info-pill');
             if (pill) {
                 pill.style.background = pillColor;
@@ -9256,7 +9367,7 @@
                     '<span style="font-size:15px">' + modeIcon + '</span>' +
                     '<span class="font-black text-white" style="font-size:14px">' + durStr + '</span>' +
                     '<span class="text-white/70" style="font-size:11px"> · ' + modeLabel + '</span>' +
-                    '<span style="margin-left:auto;font-size:11px;opacity:0.6">🗺</span>';
+                    timeStr;
             }
 
 
