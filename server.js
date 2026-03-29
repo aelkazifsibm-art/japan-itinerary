@@ -1325,9 +1325,16 @@ app.post("/api/resolve-place", async (req, res) => {
         const query = search_query || title;
         if (!query) return res.json({ success: false, error: "query manquant" });
 
+        // Cache serveur RAM — évite de refaire le même appel API pour le même lieu
+        const _cacheKey = query.toLowerCase().trim().slice(0, 80);
+        if (!global._resolvePlaceCache) global._resolvePlaceCache = new Map();
+        if (global._resolvePlaceCache.has(_cacheKey)) {
+            return res.json(global._resolvePlaceCache.get(_cacheKey));
+        }
+
         const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
 
-        // ── Étape 1 : TextSearch (7s max) ─────────────────────────────────
+        // ── TextSearch → récupère place_id + données de base ─────────────
         const searchUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
         searchUrl.searchParams.set("query", query);
         searchUrl.searchParams.set("language", "fr");
@@ -1344,7 +1351,8 @@ app.post("/api/resolve-place", async (req, res) => {
 
         if (!first) return res.json({ success: false, error: "Lieu non trouvé: " + query });
 
-        // ── Étape 2 : Details (6s max) — optionnel, fallback sur textsearch ─
+        // ── Details — champs essentiels pour horaires/prix/photo ─────────────
+        // Timeout réduit à 4s (au lieu de 6s) — si ça échoue on a quand même le base
         let place = null;
         try {
             const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
@@ -1352,13 +1360,13 @@ app.post("/api/resolve-place", async (req, res) => {
             detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types,rating,user_ratings_total,photos,website");
             detailsUrl.searchParams.set("language", "fr");
             detailsUrl.searchParams.set("key", serverKey);
-            const detailsRes = await fetchJson(detailsUrl.toString(), {}, 6000);
+            const detailsRes = await fetchJson(detailsUrl.toString(), {}, 4000);
             place = detailsRes.json?.result || null;
         } catch(e) {
             console.warn("[resolve-place] details timeout, fallback textsearch:", query);
         }
 
-        // Fallback : construire depuis le résultat textsearch si details a échoué
+        // Fallback : données textsearch (sans opening_hours — sera enrichi par enrichActivityPlace)
         if (!place) {
             place = {
                 place_id: first.place_id,
@@ -1376,7 +1384,7 @@ app.post("/api/resolve-place", async (req, res) => {
 
         const photo = place.photos?.[0]?.photo_reference || null;
 
-        res.json({
+        const result = {
             success: true,
             place: {
                 place_id: place.place_id,
@@ -1393,7 +1401,12 @@ app.post("/api/resolve-place", async (req, res) => {
                 website: place.website || null,
                 rating_source: 'google'
             }
-        });
+        };
+        // Stocker en cache RAM (max 500 entrées)
+        if (global._resolvePlaceCache.size < 500) {
+            global._resolvePlaceCache.set(_cacheKey, result);
+        }
+        res.json(result);
     } catch(e) {
         console.error("[resolve-place] error:", e.message);
         res.json({ success: false, error: e.message });

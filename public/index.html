@@ -1566,6 +1566,7 @@
         let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
         let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '[]'); // tableau, pas objet
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v4') || '{}');
+        let completedActivities = JSON.parse(localStorage.getItem('japan_completed_v1') || '[]');
 
         // Lire l'heure d'arrivée estimée (sauvegardée à l'onboarding)
         function _getFlightArrival() {
@@ -3070,10 +3071,22 @@
 
         window._postGenGoToPlanning = function() {
             document.getElementById('wiz-postgen-overlay')?.remove();
-            renderPlanning();
-            updateDayNavigation();
-            if (activities.length > 0) { const d=Math.min(...activities.map(a=>a.dayIndex)); if(typeof goToDay==='function')goToDay(d); }
-            setTimeout(_resolveGeneratedActivities, 1200);
+            // Switcher vers l'onglet planning
+            if (typeof switchTab === 'function') switchTab('route');
+            if (activities.length > 0) {
+                const firstDay = Math.min(...activities.map(a => a.dayIndex));
+                if (typeof goToDay === 'function') {
+                    goToDay(firstDay);
+                } else {
+                    currentDayIndex = firstDay;
+                    updateDayNavigation();
+                    renderPlanning();
+                }
+            } else {
+                renderPlanning();
+            }
+            setTimeout(_resolveGeneratedActivities, 800);
+            setTimeout(_enrichAllPendingActivities, 1500);
         };
 
         window._openWizardWithStays = function() {
@@ -3633,6 +3646,15 @@
                 updateCitySelector();
                 renderPlanning();
             }
+        }
+
+        function goToDay(dayIdx) {
+            if (!tripData) return;
+            const idx = Math.max(0, Math.min(tripData.totalDays - 1, dayIdx));
+            currentDayIndex = idx;
+            updateDayNavigation();
+            updateCitySelector();
+            renderPlanning();
         }
 
         function showDayPicker() {
@@ -6239,10 +6261,11 @@
                     console.error('Erreur sauvegarde:', e);
                 }
                 closeGenerateModal();
+                if (typeof switchTab === 'function') switchTab('route');
                 renderPlanning();
                 showAddConfirmation(`${added} activités ajoutées !`, 'Programme généré', '🗾');
-                // Résoudre en arrière-plan les lieux sans place
                 setTimeout(_resolveGeneratedActivities, 800);
+                setTimeout(_enrichAllPendingActivities, 1500);
             }
         }
 
@@ -6434,6 +6457,41 @@
         let _renderToken = 0;
 
         // Résoudre les activités générées sans lieu (lancé au chargement)
+
+        // Enrichit toutes les activités avec place_id mais sans infos complètes
+        // Appelé après _resolveGeneratedActivities
+        async function _enrichAllPendingActivities() {
+            const toEnrich = activities.filter(a =>
+                a.place?.place_id &&
+                !a.place?.opening_hours &&
+                (a.place?.price_level === null || a.place?.price_level === undefined) &&
+                a.block_type !== 'meal' && !a.meal_type &&
+                !a._enrichPending
+            );
+            if (!toEnrich.length) return;
+            console.log('[enrich] Enrichissement de', toEnrich.length, 'activités...');
+
+            // Marquer toutes comme en cours
+            toEnrich.forEach(act => {
+                const i = activities.findIndex(a => a.id === act.id);
+                if (i >= 0) activities[i]._enrichPending = true;
+            });
+
+            // Enrichir en parallèle par lots de 3 (évite de surcharger le serveur)
+            const BATCH = 3;
+            for (let i = 0; i < toEnrich.length; i += BATCH) {
+                const batch = toEnrich.slice(i, i + BATCH);
+                await Promise.all(batch.map(act => enrichActivityPlace(act).catch(() => {})));
+                await new Promise(r => setTimeout(r, 300));
+            }
+
+            // Notification discrète quand tout est chargé
+            const enriched = activities.filter(a => a.place?.opening_hours || a.place?.price_level !== null && a.place?.price_level !== undefined).length;
+            if (enriched > 0) {
+                console.log('[enrich] ✅', enriched, 'activités enrichies');
+            }
+        }
+
         async function _resolveGeneratedActivities() {
             const toResolve = activities.filter(a =>
                 (a.source === 'generated' || a.source === 'ai') &&
@@ -6466,11 +6524,13 @@
                             if (d.place.name && d.place.name.length < 60) activities[i].title = d.place.name;
                         }
                     }
-                } catch(e) { /* continue */ }
-                await new Promise(r => setTimeout(r, 350));
+                } catch(e) { console.warn('[resolve]', e.message); }
+                await new Promise(r => setTimeout(r, 150)); // réduit 350→150ms
             }
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
             renderPlanning();
+            // Enrichir les détails manquants (horaires, prix)
+            setTimeout(_enrichAllPendingActivities, 600);
         }
 
         // Map persistant : actId → {imgEl, photoRef} — survit aux re-renders
@@ -8029,6 +8089,17 @@
             renderPlanning();
         };
 
+
+        // Densité de ville pour estimation trajets (miroir de la version serveur)
+        function getCityDensity(city) {
+            const c = (city || '').toLowerCase().trim();
+            const ULTRA = ['tokyo','osaka','yokohama','nagoya','fukuoka','sapporo','kobe'];
+            const RURAL = ['hakone','miyajima','beppu','yakushima','shirakawago','nikko','takayama','kamakura'];
+            if (ULTRA.some(u => c.includes(u))) return { density_type:'ultra_dense', pivot_radius:2 };
+            if (RURAL.some(r => c.includes(r))) return { density_type:'rurale', pivot_radius:10 };
+            return { density_type:'etendue', pivot_radius:5 };
+        }
+
         function renderPlanning() {
             const myToken = ++_renderToken;
             const list = document.getElementById('planning-list');
@@ -8745,6 +8816,21 @@
                 }
             }
 
+            // ── Enrichissement auto des activités sans infos complètes ─────────
+            // Déclenché en arrière-plan après le render pour mettre à jour prix/horaires
+            const _needEnrich = dayActivities.filter(a =>
+                a.place?.place_id &&
+                !a.place?.opening_hours &&
+                !a._enrichPending
+            );
+            if (_needEnrich.length > 0 && !window._navRerender) {
+                _needEnrich.forEach(a => {
+                    const _ai = activities.findIndex(x => x.id === a.id);
+                    if (_ai >= 0) activities[_ai]._enrichPending = true;
+                });
+                setTimeout(_enrichAllPendingActivities, 300);
+            }
+
             // ── Bloc retour hôtel fin de journée ─────────────────────────────
             // Toujours affiché : dernière activité → hôtel
             if (stay0 && dayActivities.length > 0) {
@@ -9132,6 +9218,10 @@
             const BASE = 'flex items-center gap-1.5 rounded-xl text-[10px] font-bold py-1.5 px-2 flex-1 min-w-0 cursor-pointer transition-all active:scale-95 border';
             const dk = document.documentElement.classList.contains('dark');
             if (!place || !place.opening_hours || !place.opening_hours.length) {
+                // place_id connu mais horaires pas encore chargés
+                if (place?.place_id && !place?.opening_hours) {
+                    return `<div class="${BASE} bg-gray-50 text-gray-400 border-gray-100 gap-1"><span class="text-[10px] animate-pulse">⏳ Chargement...</span></div>`;
+                }
                 // Cas repas : afficher le type de repas plutôt que N/D
                 if (act && (act.block_type === 'meal' || act.meal_type)) {
                     const mealLabels = { breakfast:'☕ Petit-déj', lunch:'🍜 Déjeuner', dinner:'🍶 Dîner' };
@@ -9177,6 +9267,10 @@
             const BASE = 'flex flex-col items-center justify-center rounded-xl py-1.5 px-2 min-w-[52px] transition-all active:scale-95 cursor-pointer border';
             const dk = document.documentElement.classList.contains('dark');
             if (!place || (place.price_level === null || place.price_level === undefined)) {
+                // place_id connu mais prix pas encore chargé → indicateur
+                if (place?.place_id && !place?.opening_hours) {
+                    return `<div class="${BASE} bg-gray-50 text-gray-400 border-gray-100 flex-col"><span class="text-[9px] animate-pulse">⏳</span></div>`;
+                }
                 // Cas repas : afficher une estimation de prix selon le type
                 if (act && (act.block_type === 'meal' || act.meal_type)) {
                     const mealPrices = { breakfast:'~300¥', lunch:'~900¥', dinner:'~2000¥' };
@@ -9666,6 +9760,10 @@
         }
 
         async function showActivityInfo(activity) {
+            // Déclencher enrichissement si données manquantes
+            if (activity.place?.place_id && !activity.place?.opening_hours) {
+                enrichActivityPlace(activity).catch(() => {});
+            }
             const modal = document.getElementById('activity-info-modal');
             const titleEl = document.getElementById('info-modal-title');
             const content = document.getElementById('info-modal-content');
@@ -10155,7 +10253,6 @@
         let swipeStartX = 0;
         let swipeStartY = 0;
         let swipeElement = null;
-        let completedActivities = JSON.parse(localStorage.getItem('japan_completed_v1') || '[]');
 
         function initActivitySwipe(element, activityId, actTitle) {
             if (element._swipeInit) return; // ← évite l'accumulation de listeners
