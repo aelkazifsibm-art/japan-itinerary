@@ -686,9 +686,48 @@
                     <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Budget</span>
                 </button>
                 <!-- 6. Assistant IA -->
-                <button onclick="openAiPlanner();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 8px;background:transparent;border:none;cursor:pointer">
+                <button onclick="openAiPlanner();toggleMoreMenu()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 8px;background:transparent;border:none;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.06)">
                     <span style="font-size:24px">🤖</span>
                     <span style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:700">Assistant IA</span>
+                </button>
+            </div>
+            <!-- Recalculer depuis maintenant -->
+            <div style="border-top:1px solid rgba(255,255,255,0.08)">
+                <button id="recalc-btn" onclick="_recalculateFromNow();toggleMoreMenu()" style="
+                    display:flex;align-items:center;gap:12px;
+                    width:100%;padding:11px 20px;
+                    background:none;border:none;cursor:pointer;text-align:left">
+                    <span style="font-size:22px">🔄</span>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:white;font-weight:800">Recalculer depuis maintenant</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Repositionne les activités restantes depuis l'heure actuelle</div>
+                    </div>
+                </button>
+            </div>
+            <!-- Pépites secrètes -->
+            <div style="border-top:1px solid rgba(255,255,255,0.08)">
+                <button onclick="_showNearbyPepites();toggleMoreMenu()" style="display:flex;align-items:center;gap:12px;width:100%;padding:11px 20px;background:none;border:none;cursor:pointer;text-align:left">
+                    <span style="font-size:22px">💎</span>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:white;font-weight:800">Pépites secrètes</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">1162 lieux off the beaten path · à moins de 10 km</div>
+                    </div>
+                    <span style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px">SECRET</span>
+                </button>
+            </div>
+            <!-- Loterie Repas -->
+            <div style="border-top:1px solid rgba(255,255,255,0.08)">
+                <button onclick="openMealLottery();toggleMoreMenu()" style="
+                    display:flex;align-items:center;gap:12px;
+                    width:100%;padding:13px 20px;
+                    background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(236,72,153,0.12));
+                    border:none;cursor:pointer;text-align:left">
+                    <span style="font-size:24px">🎰</span>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:white;font-weight:800">Loterie Repas</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px">Petit-déj · Midi · Soir · Snack — tirage aléatoire</div>
+                    </div>
+                    <span style="background:linear-gradient(135deg,#f59e0b,#ec4899);color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;flex-shrink:0">🎲</span>
                 </button>
             </div>
             <!-- Ligne 3 : Génération programme IA -->
@@ -892,6 +931,18 @@
         </div>
     </div>
 
+    <!-- Bouton flottant Loterie Repas -->
+    <div id="meal-lottery-fab" class="fixed hidden" style="bottom:72px;right:14px;z-index:60">
+        <button onclick="openMealLottery()" style="
+            width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
+            background:linear-gradient(135deg,#f59e0b,#ec4899);
+            box-shadow:0 4px 16px rgba(245,158,11,.45);
+            display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">
+            <span style="font-size:22px;line-height:1">🎰</span>
+            <span style="font-size:7px;color:white;font-weight:800;letter-spacing:.02em">REPAS</span>
+        </button>
+    </div>
+
     <div id="day-navigation" class="fixed bottom-0 left-0 right-0 bg-white shadow-2xl z-50 hidden border-t-2 border-gray-100">
         <div class="max-w-md mx-auto">
             <div class="flex items-center bg-gradient-to-r from-purple-500 to-pink-500 text-white" style="height:64px">
@@ -1092,7 +1143,7 @@
             </div>
 
             <!-- Onglet Réglages -->
-            <div id="config-content-reglages" class="config-content hidden p-4 space-y-3">
+            <div id="config-content-reglages" class="config-content hidden p-4 space-y-3 overflow-y-auto pb-28">
                 <div class="text-center mb-4">
                     <h3 class="text-lg font-bold text-gray-800">⚙️ Réglages</h3>
                 </div>
@@ -1115,7 +1166,55 @@
                     </div>
                     <p class="text-xs text-gray-400">🚧 Fonctionnalité en développement</p>
                 </div>
-                <div class="mt-6 pt-6 border-t-2 border-gray-200">
+                <!-- ─── Section Développeur ─── -->
+                <div class="mt-3 pt-4 border-t-2 border-gray-200">
+                    <div class="flex items-center gap-2 mb-3 px-1">
+                        <span style="font-size:18px">🛠️</span>
+                        <span class="text-sm font-bold text-gray-700">Développeur</span>
+                    </div>
+
+                    <!-- État snapshot — rempli par _devRefreshState() -->
+                    <div id="dev-state-content" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 13px;font-size:11px;color:#334155;font-family:monospace;line-height:1.7;margin-bottom:10px">
+                        Ouvre cet onglet pour voir l'état des données...
+                    </div>
+
+                    <!-- 4 boutons actions -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+                        <button onclick="_devRefreshActivities()" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;font-size:11px;font-weight:700;color:#1d4ed8;cursor:pointer">
+                            <span style="font-size:20px">🔄</span>Ré-enrichir
+                        </button>
+                        <button onclick="_devRefreshAll()" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;font-size:11px;font-weight:700;color:#15803d;cursor:pointer">
+                            <span style="font-size:20px">⚡</span>Tout recalculer
+                        </button>
+                        <button onclick="_devFixDayIndex()" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:12px;font-size:11px;font-weight:700;color:#7c3aed;cursor:pointer">
+                            <span style="font-size:20px">🔧</span>Fix dayIndex
+                        </button>
+                        <button onclick="_devClearCache()" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;font-size:11px;font-weight:700;color:#c2410c;cursor:pointer">
+                            <span style="font-size:20px">🗑️</span>Vider cache
+                        </button>
+                    </div>
+
+                    <!-- Console erreurs fond noir -->
+                    <div style="background:#0f172a;border-radius:12px;padding:12px 14px;margin-bottom:10px">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                            <span style="font-size:11px;font-weight:800;color:#94a3b8">🔴 Erreurs capturées</span>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span id="dev-error-count" style="background:#dc2626;color:white;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px;min-width:18px;text-align:center">0</span>
+                                <button onclick="_devClearErrors()" style="font-size:10px;color:#64748b;background:none;border:none;cursor:pointer">Effacer</button>
+                            </div>
+                        </div>
+                        <div id="dev-errors-list" style="max-height:110px;overflow-y:auto;font-size:10px;font-family:monospace;color:#94a3b8;line-height:1.6">
+                            <span style="color:#475569;font-style:italic">Aucune erreur ✅</span>
+                        </div>
+                    </div>
+
+                    <!-- Bouton rapport -->
+                    <button onclick="_devCopyReport()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;border-radius:12px;font-size:13px;font-weight:800;color:white;cursor:pointer;margin-bottom:8px">
+                        📋 Copier rapport pour Claude
+                    </button>
+                </div>
+
+                <div class="mt-2 pt-4 border-t-2 border-gray-200">
                     <div class="text-xs font-bold text-gray-500 mb-3 uppercase">⚠️ Zone de danger</div>
                     <button onclick="confirmResetAll()" class="w-full bg-red-50 text-red-600 py-4 rounded-xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2 border-2 border-red-200">
                         🔄 Réinitialiser tout le voyage
@@ -1467,6 +1566,8 @@
     <script>
         // ========== DONNÉES GLOBALES ==========
         let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
+        // Normaliser dayIndex en Number — JSON.parse retourne parfois des strings
+        activities = activities.map(a => ({ ...a, dayIndex: Number(a.dayIndex) || 0 }));
 
         // ── Migration placeCache : invalider entrées sans photo_reference ────
         // Forcé une seule fois via flag
@@ -1513,8 +1614,14 @@
         let stays = JSON.parse(localStorage.getItem('japan_stays_v1') || '[]');
         // stays[] = [{ city, hotelName, address, place, price, currency, startDay, endDay }]
         let dayModes = JSON.parse(localStorage.getItem('japan_day_modes_v5') || '{}');
-        let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '{}');
+        let originalActivities = JSON.parse(localStorage.getItem('japan_original_activities_v5') || '[]'); // tableau, pas objet
         let routeCache = JSON.parse(localStorage.getItem('japan_route_cache_v4') || '{}');
+
+        // Lire l'heure d'arrivée estimée (sauvegardée à l'onboarding)
+        function _getFlightArrival() {
+            try { return JSON.parse(localStorage.getItem('japan_flight_arrival') || 'null'); }
+            catch(e) { return null; }
+        }
 
         // Cache des infos lieu (horaires, prix, types) — TTL 7 jours
         const PLACE_CACHE_KEY = 'japan_place_cache_v10'
@@ -1692,8 +1799,7 @@
             const c=document.getElementById('ob-content'), f=document.getElementById('ob-footer');
             c.scrollTop=0;
             if(_ob.step===0) _obRenderStep0(c,f);
-            else if(_ob.step===1) _obRenderAirportStep(c,f,'arr');
-            else if(_ob.step===2) _obRenderAirportStep(c,f,'dep');
+            else if(_ob.step===1) _obRenderAirportsBothStep(c,f);
             else if(_ob.step===2.5) _obRenderHomeAirportStep(c,f);
             else if(_ob.step===3) _obRenderStep3(c,f);
             else if(_ob.step===4) _obRenderStep4(c,f);
@@ -1717,7 +1823,8 @@
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.32);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">🛫 Départ vers le Japon</div>
-                    <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+                    <!-- Date + heure -->
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px">
                         <button onclick="_obOpenCal('dep')" style="background:rgba(255,255,255,0.05);border:1.5px solid ${_ob.depYear?'rgba(167,139,250,0.55)':'rgba(255,255,255,0.09)'};border-radius:14px;padding:12px 14px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px">
                             <span style="font-size:17px">📅</span>
                             <div>
@@ -1730,6 +1837,42 @@
                             <span style="font-size:13px;font-weight:800;color:white">${dH}:${dM}</span>
                         </button>
                     </div>
+                    <!-- Aéroport de départ -->
+                    <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.22);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">✈️ Aéroport de départ</div>
+                    ${(()=>{
+                        const sel = _ob.homeAirport || '';
+                        const selAirport = sel ? MAIN_AIRPORTS.find(a=>a.code===sel) || HOME_AIRPORTS.find(a=>a.code===sel) : null;
+                        // Si aéroport sélectionné → afficher badge compact + lien "changer"
+                        if (selAirport) {
+                            const flag = selAirport.flag || selAirport.country || '✈️';
+                            const name = selAirport.city || selAirport.name || sel;
+                            const sub  = selAirport.sub || selAirport.region || '';
+                            return '<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:rgba(124,58,237,.22);border:1.5px solid rgba(167,139,250,.55);border-radius:12px">' +
+                                '<span style="font-size:18px">' + flag + '</span>' +
+                                '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</div>' +
+                                '<div style="font-size:9px;color:rgba(255,255,255,.4)">' + sel + (sub?' · '+sub:'') + '</div></div>' +
+                                '<button onclick="_ob.homeAirport=\'\';_obRenderStep0(document.getElementById(\'ob-content\'),document.getElementById(\'ob-footer\'))" ' +
+                                'style="font-size:10px;color:rgba(255,255,255,.45);background:rgba(255,255,255,.08);border:none;border-radius:7px;padding:4px 8px;cursor:pointer;flex-shrink:0">Changer</button>' +
+                                '</div>';
+                        }
+                        // Sinon → grille de tuiles compacte
+                        return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">' +
+                            MAIN_AIRPORTS.map(a =>
+                                '<button data-code="' + a.code + '" onclick="_ob.homeAirport=this.dataset.code;_obRenderStep0(document.getElementById(\'ob-content\'),document.getElementById(\'ob-footer\'))" ' +
+                                'style="display:flex;align-items:center;gap:6px;padding:7px 9px;border-radius:10px;cursor:pointer;text-align:left;' +
+                                'border:1.5px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04)">' +
+                                '<span style="font-size:16px;flex-shrink:0">' + a.flag + '</span>' +
+                                '<div style="min-width:0">' +
+                                    '<div style="font-size:11px;font-weight:800;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.city + '</div>' +
+                                    '<div style="font-size:9px;color:rgba(255,255,255,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.code + '</div>' +
+                                '</div></button>'
+                            ).join('') +
+                            '</div>' +
+                            '<input id="ob-dep-airport-input" type="text" autocomplete="off" placeholder="Autre aéroport (code IATA)..." ' +
+                            'oninput="_obDepAirportSearch(this.value)" ' +
+                            'style="width:100%;margin-top:6px;padding:8px 12px;border-radius:10px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:white;font-size:12px;box-sizing:border-box;outline:none;-webkit-appearance:none">' +
+                            '<div id="ob-dep-airport-sugg" style="margin-top:4px;display:flex;flex-direction:column;gap:4px"></div>';
+                    })()}
                 </div>
                 <div>
                     <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.32);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">🛬 Retour depuis le Japon</div>
@@ -1816,121 +1959,385 @@
         window._obTimeAdj=function(unit,delta){const hEl=document.getElementById('ob-time-h'),mEl=document.getElementById('ob-time-m');let h=parseInt(hEl.textContent),m=parseInt(mEl.textContent);if(unit==='h')h=(h+delta+24)%24;if(unit==='m')m=((m+delta)%60+60)%60;hEl.textContent=String(h).padStart(2,'0');mEl.textContent=String(m).padStart(2,'0');if(_obTimeTarget==='dep'){_ob.depHour=h;_ob.depMin=m;}else{_ob.retHour=h;_ob.retMin=m;}};
         window._obTimeQuick=function(h,m){const hEl=document.getElementById('ob-time-h'),mEl=document.getElementById('ob-time-m');if(hEl)hEl.textContent=String(h).padStart(2,'0');if(mEl)mEl.textContent=String(m).padStart(2,'0');if(_obTimeTarget==='dep'){_ob.depHour=h;_ob.depMin=m;}else{_ob.retHour=h;_ob.retMin=m;}};
 
-        function _obCalcDays(){if(!(_ob.depYear&&_ob.retYear))return 0;return Math.max(0,Math.round((new Date(_ob.retYear,_ob.retMonth,_ob.retDay)-new Date(_ob.depYear,_ob.depMonth,_ob.depDay))/86400000)+1);}
+        // Recherche aéroport libre dans step 0
+        window._obDepAirportSearch = function(val) {
+            const suggEl = document.getElementById('ob-dep-airport-sugg');
+            if (!suggEl) return;
+            const q = _normalizeStr(val || '');
+            if (!q) { suggEl.innerHTML = ''; return; }
+            const results = HOME_AIRPORTS.filter(a =>
+                !MAIN_AIRPORTS.find(m => m.code === a.code) &&
+                (_normalizeStr(a.name).includes(q) || _normalizeStr(a.code).includes(q) ||
+                 (a.aliases||[]).some(al => _normalizeStr(al).includes(q)))
+            ).slice(0, 4);
+            if (!results.length) {
+                suggEl.innerHTML = '<div style="font-size:10px;color:rgba(255,255,255,.3);padding:4px">Aucun résultat — essayez le code IATA</div>';
+                return;
+            }
+            suggEl.innerHTML = results.map(a =>
+                '<button data-code="' + a.code + '" onclick="_ob.homeAirport=this.dataset.code;_obRenderStep0(document.getElementById(\'ob-content\'),document.getElementById(\'ob-footer\'))" '+
+                'style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:9px;'+
+                'border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);cursor:pointer;text-align:left;width:100%">'+
+                '<span style="font-size:14px">' + a.country + '</span>'+
+                '<div style="flex:1;min-width:0">'+
+                    '<div style="font-size:11px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.name + '</div>'+
+                    '<div style="font-size:9px;color:rgba(255,255,255,.35)">' + a.code + '</div>'+
+                '</div></button>'
+            ).join('');
+        };
+
+                function _obCalcDays(){if(!(_ob.depYear&&_ob.retYear))return 0;return Math.max(0,Math.round((new Date(_ob.retYear,_ob.retMonth,_ob.retDay)-new Date(_ob.depYear,_ob.depMonth,_ob.depDay))/86400000)+1);}
 
         window._obStep0Next=function(){if(!_ob.depYear||!_ob.retYear||_obCalcDays()<1)return;_ob.step=1;_obRender();};
 
         // ── STEPS 1 & 2 : Aéroports (une page par aéroport) ───────────────
-        function _obRenderAirportStep(content, footer, target) {
-            const isArr=target==='arr', cur=isArr?_ob.arrAirport:_ob.depAirport;
-            const groups=[{label:'🗼 Tokyo',items:AIRPORTS.filter(a=>a.city==='Tokyo')},{label:'🏯 Osaka / Kansai',items:AIRPORTS.filter(a=>a.city==='Osaka')},{label:'🌏 Autres villes',items:AIRPORTS.filter(a=>!['Tokyo','Osaka'].includes(a.city))}];
-            const airBtn=a=>{const sel=cur===a.code;return `<button onclick="_obPickAirport('${a.code}','${target}')" style="display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:13px;border:2px solid ${sel?'rgba(167,139,250,0.65)':'rgba(255,255,255,0.07)'};background:${sel?'rgba(124,58,237,0.18)':'rgba(255,255,255,0.03)'};cursor:pointer;text-align:left;width:100%;transition:all .2s"><span style="font-size:20px">${a.emoji}</span><div style="flex:1"><div style="font-size:13px;font-weight:800;color:${sel?'#c4b5fd':'white'}">${a.name} <span style="font-size:10px;color:rgba(255,255,255,0.28);font-weight:600">${a.code}</span></div><div style="font-size:10px;color:rgba(255,255,255,0.33);margin-top:2px">${a.tip}</div></div>${sel?'<div style="width:18px;height:18px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:6px;height:6px;border-radius:50%;background:white"></div></div>':''}</button>`;};
+        // ── Étape aéroports fusionnée : arrivée + départ sur la même page ──
+        function _obRenderAirportsBothStep(content, footer) {
+            const groups = [
+                {label:'🗼 Tokyo',         items:AIRPORTS.filter(a=>a.city==='Tokyo')},
+                {label:'🏯 Osaka / Kansai', items:AIRPORTS.filter(a=>a.city==='Osaka')},
+                {label:'🌏 Autres villes',  items:AIRPORTS.filter(a=>!['Tokyo','Osaka'].includes(a.city))}
+            ];
 
-            content.innerHTML=`<div style="padding-top:18px;padding-bottom:8px">
-                <div style="font-size:19px;font-weight:900;color:white;margin-bottom:2px">${isArr?'🛬 Aéroport d\'arrivée':'🛫 Aéroport de départ'}</div>
-                <div style="font-size:12px;color:rgba(255,255,255,0.33);margin-bottom:16px">${isArr?'Où atterris-tu au Japon ?':'Depuis quel aéroport repars-tu ?'}</div>
-                ${!isArr&&_ob.arrAirport?`<button onclick="_obSameAirport()" style="display:flex;align-items:center;gap:10px;padding:12px 13px;width:100%;border-radius:13px;border:2px solid ${_ob.depAirport===_ob.arrAirport?'rgba(52,211,153,0.65)':'rgba(52,211,153,0.2)'};background:${_ob.depAirport===_ob.arrAirport?'rgba(52,211,153,0.12)':'rgba(52,211,153,0.04)'};cursor:pointer;text-align:left;margin-bottom:14px;transition:all .2s"><span style="font-size:20px">🔄</span><div style="flex:1"><div style="font-size:13px;font-weight:800;color:${_ob.depAirport===_ob.arrAirport?'#34d399':'rgba(52,211,153,0.75)'}">Même aéroport qu'à l'arrivée</div><div style="font-size:10px;color:rgba(255,255,255,0.33);margin-top:1px">${AIRPORTS.find(a=>a.code===_ob.arrAirport)?.name} · ${_ob.arrAirport}</div></div>${_ob.depAirport===_ob.arrAirport?'<div style="width:18px;height:18px;border-radius:50%;background:#34d399;display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:6px;height:6px;border-radius:50%;background:white"></div></div>':''}</button><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Ou choisir un autre</div>`:''}
-                <div style="display:flex;flex-direction:column;gap:12px">
-                    ${groups.map(g=>`<div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${g.label}</div><div style="display:flex;flex-direction:column;gap:5px">${g.items.map(airBtn).join('')}</div></div>`).join('')}
-                </div>
-            </div>`;
+            // Tuile pour un target donné
+            const airTile = (a, target) => {
+                const cur = target==='arr' ? _ob.arrAirport : _ob.depAirport;
+                const sel = cur === a.code;
+                const bdr = sel ? (target==='arr'?'rgba(167,139,250,.75)':'rgba(52,211,153,.7)') : 'rgba(255,255,255,.07)';
+                const bg  = sel ? (target==='arr'?'rgba(124,58,237,.22)':'rgba(52,211,153,.15)') : 'rgba(255,255,255,.03)';
+                const col = sel ? (target==='arr'?'#c4b5fd':'#6ee7b7') : 'white';
+                return '<button data-code="'+a.code+'" data-target="'+target+'" onclick="_obPickAirport(this.dataset.code,this.dataset.target)"'+
+                    ' style="display:flex;align-items:flex-start;gap:7px;padding:8px 9px;border-radius:11px;cursor:pointer;text-align:left;'+
+                    'border:2px solid '+bdr+';background:'+bg+';transition:all .15s">'+
+                    '<span style="font-size:19px;flex-shrink:0;line-height:1.2">'+a.emoji+'</span>'+
+                    '<div style="min-width:0;flex:1">'+
+                        '<div style="font-size:11px;font-weight:800;color:'+col+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+
+                            a.name+' <span style="font-size:9px;color:rgba(255,255,255,.3);font-weight:600">'+a.code+'</span>'+
+                        '</div>'+
+                        '<div style="font-size:8px;color:rgba(255,255,255,.28);margin-top:1px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+a.tip+'</div>'+
+                    '</div>'+
+                    (sel ? '<div style="width:12px;height:12px;border-radius:50%;background:'+(target==='arr'?'#7c3aed':'#34d399')+';flex-shrink:0;margin-top:3px"></div>' : '')+
+                    '</button>';
+            };
 
-            const canNext=isArr?!!_ob.arrAirport:!!_ob.depAirport;
-            footer.innerHTML=`<div style="display:flex;gap:10px"><button onclick="_ob.step=${_ob.step-1};_obRender()" style="padding:15px 17px;background:rgba(255,255,255,0.07);border:none;border-radius:16px;color:white;font-size:19px;cursor:pointer">←</button><button onclick="_obStepAirportNext('${target}')" style="flex:1;padding:15px;background:${canNext?'linear-gradient(135deg,#7c3aed,#ec4899)':'rgba(255,255,255,0.07)'};color:${canNext?'white':'rgba(255,255,255,0.2)'};border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">Continuer →</button></div>`;
-        }
+            // Grille pour un target
+            const buildGrid = target => groups.map(g =>
+                '<div style="margin-bottom:8px">'+
+                '<div style="font-size:8px;font-weight:700;color:rgba(255,255,255,.2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">'+g.label+'</div>'+
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">'+
+                    g.items.map(a => airTile(a, target)).join('')+
+                '</div></div>'
+            ).join('');
 
-        window._obPickAirport=function(code,target){if(target==='arr')_ob.arrAirport=code;else _ob.depAirport=code;_obRenderAirportStep(document.getElementById('ob-content'),document.getElementById('ob-footer'),target);};
-        window._obSameAirport=function(){_ob.depAirport=_ob.arrAirport;_obRenderAirportStep(document.getElementById('ob-content'),document.getElementById('ob-footer'),'dep');};
-        window._obStepAirportNext=function(target){const ok=target==='arr'?!!_ob.arrAirport:!!_ob.depAirport;if(!ok)return;if(target==='dep'){_ob.step=2.5;}else{_ob.step++;}  _obRender();};
+            // Badge si sélectionné
+            const badge = (target) => {
+                const code = target==='arr' ? _ob.arrAirport : _ob.depAirport;
+                if (!code) return '';
+                const ap = AIRPORTS.find(a=>a.code===code);
+                if (!ap) return '';
+                const isArr = target==='arr';
+                const col = isArr ? '#c4b5fd' : '#6ee7b7';
+                const bg  = isArr ? 'rgba(124,58,237,.15)' : 'rgba(52,211,153,.12)';
+                const bdr = isArr ? 'rgba(167,139,250,.4)' : 'rgba(52,211,153,.35)';
+                return '<div style="display:flex;align-items:center;gap:8px;padding:8px 11px;background:'+bg+';border:1.5px solid '+bdr+';border-radius:11px;margin-bottom:6px">'+
+                    '<span style="font-size:18px">'+ap.emoji+'</span>'+
+                    '<div style="flex:1;min-width:0">'+
+                        '<div style="font-size:12px;font-weight:800;color:'+col+'">'+ap.name+'</div>'+
+                        '<div style="font-size:9px;color:rgba(255,255,255,.35)">'+ap.code+' · '+ap.tip+'</div>'+
+                    '</div>'+
+                    '<button onclick="_obClearAirport(this)" data-target="'+target+'"'+
+                    ' style="font-size:10px;color:rgba(255,255,255,.4);background:rgba(255,255,255,.08);border:none;border-radius:7px;padding:4px 8px;cursor:pointer">Changer</button>'+
+                    '</div>';
+            };
 
-        // ── STEP 3 : Mode de voyage ────────────────────────────────────────
+            // Bouton "même aéroport"
+            const sameBtn = _ob.arrAirport ?
+                '<button onclick="_obSameAirport()" '+
+                'style="display:flex;align-items:center;gap:8px;padding:8px 11px;width:100%;border-radius:11px;'+
+                'border:2px solid '+(_ob.depAirport===_ob.arrAirport?'rgba(52,211,153,.6)':'rgba(52,211,153,.25)')+';'+
+                'background:'+(_ob.depAirport===_ob.arrAirport?'rgba(52,211,153,.12)':'rgba(52,211,153,.04)')+';cursor:pointer;text-align:left;margin-bottom:6px">'+
+                '<span style="font-size:16px">&#128260;</span>'+
+                '<div style="flex:1;min-width:0">'+
+                    '<div style="font-size:12px;font-weight:800;color:'+(_ob.depAirport===_ob.arrAirport?'#34d399':'rgba(52,211,153,.8)')+'">Même aéroport qu’à l’arrivée</div>'+
+                    '<div style="font-size:9px;color:rgba(255,255,255,.3)">'+(_ob.arrAirport||'')+'</div>'+
+                '</div>'+
+                (_ob.depAirport===_ob.arrAirport?'<div style="width:12px;height:12px;border-radius:50%;background:#34d399;flex-shrink:0"></div>':'')+
+                '</button>' : '';
 
-        // ── STEP 2.5 : Aéroport de départ Europe + estimation arrivée ──────────
-        function _obRenderHomeAirportStep(content, footer) {
-            const selected = _ob.homeAirport || '';
-            const search   = _ob.homeAirportSearch || '';
-
-            // Filtrer les aéroports
-            const filtered = search.trim().length > 0
-                ? HOME_AIRPORTS.filter(a => {
-                    const q = _normalizeStr(search);
-                    return _normalizeStr(a.name).includes(q) || _normalizeStr(a.code).includes(q)
-                        || (a.aliases||[]).some(al=>_normalizeStr(al).includes(q));
-                  })
-                : HOME_AIRPORTS.slice(0, 12);
-
-            // Estimation arrivée si aéroport sélectionné
-            let estimHtml = '';
-            if (selected && _ob.arrAirport) {
-                const durKey1 = selected+'-'+_ob.arrAirport;
-                const durKey2 = selected+'-NRT'; // fallback
-                const dur = FLIGHT_DURATIONS[durKey1] || FLIGHT_DURATIONS[durKey2] || FLIGHT_DURATIONS[selected+'-HND'] || 780;
-                const depDate = _ob.depDate;
-                if (depDate) {
-                    const [y,mo,dd] = depDate.split('-').map(Number);
-                    const dep = new Date(y, mo-1, dd, 10, 0); // heure départ estimée
-                    const arr = new Date(dep.getTime() + (dur + 540)*60000); // +9h décalage Japan
-                    const arrH = String(arr.getUTCHours()).padStart(2,'0');
-                    const arrM = String(arr.getUTCMinutes()).padStart(2,'0');
-                    const nextDay = arr.getUTCDate() !== dep.getUTCDate();
-                    estimHtml = '<div style="background:rgba(124,58,237,0.15);border:1px solid rgba(167,139,250,0.3);border-radius:12px;padding:10px 12px;margin-top:12px;display:flex;align-items:center;gap:10px">'+
-                        '<span style="font-size:20px">✈️</span>'+
-                        '<div><div style="font-size:12px;font-weight:800;color:white">Arrivée estimée : '+arrH+'h'+arrM+(nextDay?' (J+1)':'')+'</div>'+
-                        '<div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:1px">Vol ~'+Math.floor(dur/60)+'h'+String(dur%60).padStart(2,'0')+' depuis '+selected+'</div></div></div>';
-                    // Sauvegarder pour la bannière jour d'arrivée
-                    _ob.estimatedArrival = { hour: arr.getUTCHours(), min: arr.getUTCMinutes(), depAirport: selected };
-                }
-            }
+            const canNext = !!_ob.arrAirport && !!_ob.depAirport;
 
             content.innerHTML =
-                '<div style="padding-top:18px;padding-bottom:8px">'+
-                '<div style="font-size:19px;font-weight:900;color:white;margin-bottom:2px">D\'où partez-vous ?</div>'+
-                '<div style="font-size:12px;color:rgba(255,255,255,.33);margin-bottom:14px">Votre aéroport de départ en Europe — pour estimer l\'heure d\'arrivée</div>'+
-                '<input id="ob-home-search" type="text" value="'+search+'"'+
-                ' placeholder="Paris, Bâle, Francfort..." '+
-                ' oninput="_ob.homeAirportSearch=this.value;_obRenderHomeAirportStep(document.getElementById(\'ob-content\'),document.getElementById(\'ob-footer\'))"'+
-                ' style="width:100%;padding:11px 14px;border-radius:14px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:white;font-size:14px;box-sizing:border-box;outline:none;margin-bottom:10px">'+
-                '<div style="display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto">'+
-                filtered.map(a =>
-                    '<button onclick="_obPickHomeAirport(\''+a.code+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:2px solid '+(selected===a.code?'rgba(167,139,250,.6)':'rgba(255,255,255,.07)')+';background:'+(selected===a.code?'rgba(124,58,237,.2)':'rgba(255,255,255,.04)')+';cursor:pointer;text-align:left">'+
-                    '<span style="font-size:16px">'+a.country+'</span>'+
-                    '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.name+'</div>'+
-                    '<div style="font-size:10px;color:rgba(255,255,255,.35)">'+a.code+' · '+a.region+'</div></div>'+
-                    (selected===a.code?'<span style="color:#a78bfa;font-size:16px">✓</span>':'')+
-                    '</button>'
-                ).join('')+
-                '</div>'+
-                estimHtml+
+                '<div style="padding-top:14px;padding-bottom:4px">'+
+                '<div style="font-size:18px;font-weight:900;color:white;margin-bottom:2px">&#9992; Aéroports Japon</div>'+
+                '<div style="font-size:11px;color:rgba(255,255,255,.33);margin-bottom:14px">Sélectionne l’arrivée et le départ</div>'+
+
+                // ── Section Arrivée ──
+                '<div style="font-size:10px;font-weight:700;color:rgba(167,139,250,.8);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px">&#128748; Atterrissage</div>'+
+                (_ob.arrAirport ? badge('arr') : buildGrid('arr'))+
+
+                // Séparateur
+                '<div style="height:1px;background:rgba(255,255,255,.07);margin:10px 0"></div>'+
+
+                // ── Section Départ ──
+                '<div style="font-size:10px;font-weight:700;color:rgba(52,211,153,.8);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px">&#128747; Décollage retour</div>'+
+                (_ob.depAirport ? badge('dep') : sameBtn + buildGrid('dep'))+
                 '</div>';
 
             footer.innerHTML =
                 '<div style="display:flex;gap:10px">'+
-                '<button onclick="_ob.step=2;_obRender()" style="padding:15px 17px;background:rgba(255,255,255,.07);border:none;border-radius:16px;color:white;font-size:19px;cursor:pointer">←</button>'+
-                '<button onclick="_obHomeAirportNext()" style="flex:1;padding:15px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer">Continuer →</button>'+
-                '</div>'+
-                '<button onclick="_obHomeAirportSkip()" style="width:100%;margin-top:8px;padding:10px;background:none;border:none;color:rgba(255,255,255,.3);font-size:12px;cursor:pointer">Passer cette étape</button>';
+                '<button onclick="_ob.step=0;_obRender()" style="padding:14px 16px;background:rgba(255,255,255,.07);border:none;border-radius:16px;color:white;font-size:18px;cursor:pointer">&#8592;</button>'+
+                '<button onclick="_obStepAirportNext()" style="flex:1;padding:14px;background:'+(canNext?'linear-gradient(135deg,#7c3aed,#ec4899)':'rgba(255,255,255,.07)')+';color:'+(canNext?'white':'rgba(255,255,255,.2)')+';border:none;border-radius:16px;font-size:14px;font-weight:900;cursor:pointer">'+
+                (canNext?'Continuer →':'Sélectionne les 2 aéroports')+
+                '</button></div>';
+        }
 
-            // Focus auto sur le champ recherche
-            setTimeout(()=>{ const el=document.getElementById('ob-home-search'); if(el&&!selected)el.focus(); },100);
+
+        window._obClearAirport=function(btn){
+            const t=btn.dataset.target;
+            if(t==='arr') _ob.arrAirport=''; else _ob.depAirport='';
+            _obRenderAirportsBothStep(document.getElementById('ob-content'),document.getElementById('ob-footer'));
+        };
+                window._obPickAirport=function(code,target){if(target==='arr')_ob.arrAirport=code;else _ob.depAirport=code;_obRenderAirportsBothStep(document.getElementById('ob-content'),document.getElementById('ob-footer'));};
+        window._obSameAirport=function(){_ob.depAirport=_ob.arrAirport;_obRenderAirportsBothStep(document.getElementById('ob-content'),document.getElementById('ob-footer'));};
+        window._obStepAirportNext=function(target){
+            // Combined step: both airports required
+            if(!_ob.arrAirport||!_ob.depAirport) return;
+            _ob.step = _ob.homeAirport ? 3 : 2.5;
+            _obRender();
+        };
+
+        // ── STEP 3 : Mode de voyage ────────────────────────────────────────
+
+        // ── STEP 2.5 : Aéroport de départ Europe ───────────────────────────────
+        // Aéroports principaux vers le Japon — tuiles sans scroll
+        const MAIN_AIRPORTS = [
+            {code:'CDG', flag:'🇫🇷', city:'Paris',     sub:'Charles-de-Gaulle'},
+            {code:'BSL', flag:'🇫🇷', city:'Bâle',      sub:'Mulhouse EuroAirport'},
+            {code:'LYS', flag:'🇫🇷', city:'Lyon',      sub:'Saint-Exupéry'},
+            {code:'AMS', flag:'🇳🇱', city:'Amsterdam', sub:'Schiphol'},
+            {code:'FRA', flag:'🇩🇪', city:'Frankfurt', sub:'Main'},
+            {code:'MUC', flag:'🇩🇪', city:'Munich',    sub:'Munich Airport'},
+            {code:'ZRH', flag:'🇨🇭', city:'Zurich',    sub:'Kloten'},
+            {code:'LHR', flag:'🇬🇧', city:'Londres',   sub:'Heathrow'},
+            {code:'BRU', flag:'🇧🇪', city:'Bruxelles', sub:'Zaventem'},
+            {code:'HEL', flag:'🇫🇮', city:'Helsinki',  sub:'Vantaa (Finnair)'},
+        ];
+
+        function _obRenderHomeAirportStep(content, footer) {
+            content.innerHTML =
+                '<div style="padding-top:14px;padding-bottom:4px">' +
+                // Titre
+                '<div style="font-size:18px;font-weight:900;color:white;margin-bottom:3px">D&#39;où partez-vous ?</div>' +
+                '<div style="font-size:11px;color:rgba(255,255,255,.35);margin-bottom:14px">Sélectionnez votre aéroport pour estimer l&#39;heure d&#39;arrivée</div>' +
+
+                // Badge sélectionné (caché par défaut)
+                '<div id="ob-ha-selected" style="display:none;align-items:center;gap:10px;padding:10px 14px;' +
+                'background:rgba(124,58,237,.3);border:2px solid rgba(167,139,250,.6);border-radius:14px;margin-bottom:12px">' +
+                    '<span id="ob-ha-sel-flag" style="font-size:22px"></span>' +
+                    '<div style="flex:1;min-width:0">' +
+                        '<div id="ob-ha-sel-name" style="font-size:15px;font-weight:900;color:white"></div>' +
+                        '<div id="ob-ha-sel-sub"  style="font-size:10px;color:rgba(255,255,255,.4);margin-top:1px"></div>' +
+                    '</div>' +
+                    '<button onclick="_obClearHomeAirport()" style="font-size:11px;color:rgba(255,255,255,.5);' +
+                    'background:rgba(255,255,255,.1);border:none;border-radius:8px;padding:5px 10px;cursor:pointer">Changer</button>' +
+                '</div>' +
+
+                // Estimation vol
+                '<div id="ob-ha-estim" style="margin-bottom:10px"></div>' +
+
+                // Grille de tuiles — 2 colonnes
+                '<div id="ob-ha-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px"></div>' +
+
+                // Séparateur "Autre aéroport"
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">' +
+                    '<div style="flex:1;height:1px;background:rgba(255,255,255,.1)"></div>' +
+                    '<span style="font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap">Autre aéroport</span>' +
+                    '<div style="flex:1;height:1px;background:rgba(255,255,255,.1)"></div>' +
+                '</div>' +
+
+                // Champ saisie libre — DOM stable, jamais détruit
+                '<div style="position:relative">' +
+                    '<input id="ob-home-search" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"' +
+                    ' placeholder="Code IATA ou ville (ex: ORY, Madrid...)"' +
+                    ' style="width:100%;padding:10px 14px 10px 38px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);' +
+                    'background:rgba(255,255,255,.06);color:white;font-size:13px;box-sizing:border-box;outline:none;-webkit-appearance:none">' +
+                    '<span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none">🔍</span>' +
+                '</div>' +
+                // Suggestions du champ libre
+                '<div id="ob-ha-suggestions" style="margin-top:6px;display:flex;flex-direction:column;gap:5px"></div>' +
+                '</div>';
+
+            // Listener sur l'input — UNE SEULE FOIS, jamais recréé
+            const inp = document.getElementById('ob-home-search');
+            if (inp) {
+                inp.addEventListener('input', function() {
+                    _ob.homeAirportSearch = this.value;
+                    _obUpdateHomeAirportSuggestions();
+                });
+            }
+
+            footer.innerHTML =
+                '<div style="display:flex;gap:10px">' +
+                '<button onclick="_ob.step=2;_obRender()" style="padding:14px 16px;background:rgba(255,255,255,.07);border:none;border-radius:16px;color:white;font-size:18px;cursor:pointer">←</button>' +
+                '<button onclick="_obHomeAirportNext()" style="flex:1;padding:14px;background:linear-gradient(135deg,#7c3aed,#ec4899);' +
+                'color:white;border:none;border-radius:16px;font-size:14px;font-weight:900;cursor:pointer">Continuer →</button>' +
+                '</div>' +
+                '<button onclick="_obHomeAirportSkip()" style="width:100%;margin-top:7px;padding:9px;background:none;' +
+                'border:none;color:rgba(255,255,255,.25);font-size:11px;cursor:pointer">Passer cette étape</button>';
+
+            _obRenderHomeAirportGrid();
+        }
+
+        // Grille des tuiles principales — re-render quand sélection change
+        function _obRenderHomeAirportGrid() {
+            const grid = document.getElementById('ob-ha-grid');
+            if (!grid) return;
+            const selected = _ob.homeAirport || '';
+            grid.innerHTML = MAIN_AIRPORTS.map(a => {
+                const isSel = selected === a.code;
+                return '<button data-code="' + a.code + '" onclick="_obPickHomeAirport(this.dataset.code)" ' +
+                    'style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;cursor:pointer;text-align:left;' +
+                    'border:2px solid ' + (isSel ? 'rgba(167,139,250,.8)' : 'rgba(255,255,255,.09)') + ';' +
+                    'background:' + (isSel ? 'rgba(124,58,237,.3)' : 'rgba(255,255,255,.04)') + ';' +
+                    'transition:all .15s">' +
+                    '<span style="font-size:20px;flex-shrink:0">' + a.flag + '</span>' +
+                    '<div style="min-width:0">' +
+                        '<div style="font-size:12px;font-weight:800;color:' + (isSel ? '#c4b5fd' : 'white') + ';' +
+                        'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.city + '</div>' +
+                        '<div style="font-size:9px;color:rgba(255,255,255,.35);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.code + ' · ' + a.sub + '</div>' +
+                    '</div>' +
+                    (isSel ? '<span style="margin-left:auto;color:#a78bfa;font-size:14px;flex-shrink:0">✓</span>' : '') +
+                    '</button>';
+            }).join('');
+
+            // Badge + estimation si sélectionné
+            _obUpdateHomeAirportBadge();
+        }
+
+        function _obUpdateHomeAirportBadge() {
+            const selected = _ob.homeAirport || '';
+            const badgeEl  = document.getElementById('ob-ha-selected');
+            if (!badgeEl) return;
+            if (!selected) {
+                badgeEl.style.display = 'none';
+                const estimEl = document.getElementById('ob-ha-estim');
+                if (estimEl) estimEl.innerHTML = '';
+                return;
+            }
+            // Chercher dans MAIN_AIRPORTS puis HOME_AIRPORTS
+            const airport = MAIN_AIRPORTS.find(a => a.code === selected) ||
+                            HOME_AIRPORTS.find(a => a.code === selected);
+            if (airport) {
+                badgeEl.style.display = 'flex';
+                document.getElementById('ob-ha-sel-flag').textContent = airport.flag || airport.country || '✈️';
+                document.getElementById('ob-ha-sel-name').textContent = airport.city || airport.name;
+                document.getElementById('ob-ha-sel-sub').textContent  = airport.code + (airport.sub ? ' · ' + airport.sub : airport.region ? ' · ' + airport.region : '');
+            }
+            _obUpdateEstimation(selected);
+        }
+
+        // Suggestions pour le champ libre — sans toucher à l'input
+        function _obUpdateHomeAirportSuggestions() {
+            const suggEl = document.getElementById('ob-ha-suggestions');
+            if (!suggEl) return;
+            const search = (_ob.homeAirportSearch || '').trim();
+            if (!search) { suggEl.innerHTML = ''; return; }
+            const q = _normalizeStr(search);
+            const results = HOME_AIRPORTS.filter(a =>
+                !MAIN_AIRPORTS.find(m => m.code === a.code) && // exclure ceux déjà dans la grille
+                (_normalizeStr(a.name).includes(q) || _normalizeStr(a.code).includes(q) ||
+                 (a.aliases||[]).some(al => _normalizeStr(al).includes(q)))
+            ).slice(0, 4);
+            if (!results.length) {
+                suggEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,.3);padding:6px 4px">Aucun résultat — essayez le code IATA (ex: MAD, FCO)</div>';
+                return;
+            }
+            suggEl.innerHTML = results.map(a =>
+                '<button data-code="' + a.code + '" onclick="_obPickHomeAirport(this.dataset.code)" ' +
+                'style="display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:11px;' +
+                'border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);cursor:pointer;text-align:left;width:100%">' +
+                '<span style="font-size:16px">' + a.country + '</span>' +
+                '<div style="flex:1;min-width:0">' +
+                    '<div style="font-size:12px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.name + '</div>' +
+                    '<div style="font-size:10px;color:rgba(255,255,255,.35)">' + a.code + ' · ' + a.region + '</div>' +
+                '</div></button>'
+            ).join('');
+        }
+
+        function _obUpdateEstimation(code) {
+            const estimEl = document.getElementById('ob-ha-estim');
+            if (!estimEl) return;
+            const dur = FLIGHT_DURATIONS[code + '-' + (_ob.arrAirport || 'NRT')] ||
+                        FLIGHT_DURATIONS[code + '-NRT'] || FLIGHT_DURATIONS[code + '-HND'] || 780;
+            const durH   = Math.floor(dur/60);
+            const durM   = String(dur % 60).padStart(2, '0');
+            const durStr = '~' + durH + 'h' + durM;
+            if (!_ob.depDate) {
+                estimEl.innerHTML = '<div style="background:rgba(124,58,237,.12);border:1px solid rgba(167,139,250,.2);' +
+                    'border-radius:11px;padding:8px 12px;display:flex;align-items:center;gap:8px">' +
+                    '<span>✈️</span><span style="font-size:11px;color:rgba(255,255,255,.5)">Durée de vol estimée ' + durStr + ' depuis ' + code + '</span></div>';
+                return;
+            }
+            const [y,mo,dd] = _ob.depDate.split('-').map(Number);
+            const arrTs     = new Date(y, mo-1, dd, 10, 0).getTime() + (dur + 540) * 60000;
+            const arrDate   = new Date(arrTs);
+            const arrH      = String(arrDate.getUTCHours()).padStart(2,'0');
+            const arrM2     = String(arrDate.getUTCMinutes()).padStart(2,'0');
+            const nextDay   = arrDate.getUTCDate() !== dd;
+            _ob.estimatedArrival = { hour: arrDate.getUTCHours(), min: arrDate.getUTCMinutes(), depAirport: code };
+            estimEl.innerHTML =
+                '<div style="background:rgba(124,58,237,.18);border:1px solid rgba(167,139,250,.4);border-radius:12px;' +
+                'padding:10px 14px;display:flex;align-items:center;gap:10px">' +
+                '<span style="font-size:22px">✈️</span>' +
+                '<div>' +
+                    '<div style="font-size:13px;font-weight:900;color:white">Arrivée estimée ' + arrH + 'h' + arrM2 +
+                    (nextDay ? ' <span style="font-size:10px;color:#a78bfa;font-weight:600">(lendemain)</span>' : '') + '</div>' +
+                    '<div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:2px">Vol ' + durStr + ' · départ ' + code + ' · +9h Japon</div>' +
+                '</div></div>';
         }
 
         window._obPickHomeAirport = function(code) {
             _ob.homeAirport = code;
             _ob.homeAirportSearch = '';
-            _obRenderHomeAirportStep(document.getElementById('ob-content'), document.getElementById('ob-footer'));
+            const inp = document.getElementById('ob-home-search');
+            if (inp) inp.value = '';
+            const suggEl = document.getElementById('ob-ha-suggestions');
+            if (suggEl) suggEl.innerHTML = '';
+            _obRenderHomeAirportGrid();
         };
+
+        window._obClearHomeAirport = function() {
+            _ob.homeAirport = '';
+            _ob.estimatedArrival = null;
+            _obRenderHomeAirportGrid();
+            const inp = document.getElementById('ob-home-search');
+            if (inp) { inp.value = ''; inp.focus(); }
+        };
+
         window._obHomeAirportNext = function() {
-            if (_ob.homeAirport && _ob.estimatedArrival) {
-                localStorage.setItem('japan_flight_arrival', JSON.stringify({
-                    depAirport: _ob.homeAirport,
-                    hour: _ob.estimatedArrival.hour,
-                    min:  _ob.estimatedArrival.min,
-                    flightH: Math.floor((FLIGHT_DURATIONS[_ob.homeAirport+'-NRT']||780)/60)+'h'
-                }));
+            if (_ob.homeAirport) {
+                const dur = FLIGHT_DURATIONS[_ob.homeAirport+'-NRT'] ||
+                            FLIGHT_DURATIONS[_ob.homeAirport+'-HND'] || 780;
+                const arrival = _ob.estimatedArrival || (()=>{
+                    // Calculer depuis les dates si disponibles
+                    if (_ob.depYear) {
+                        const dep = new Date(_ob.depYear, _ob.depMonth, _ob.depDay, 10, 0);
+                        const arr = new Date(dep.getTime() + (dur+540)*60000);
+                        return { hour:arr.getUTCHours(), min:arr.getUTCMinutes(), depAirport:_ob.homeAirport };
+                    }
+                    return null;
+                })();
+                if (arrival) {
+                    localStorage.setItem('japan_flight_arrival', JSON.stringify({
+                        depAirport: _ob.homeAirport,
+                        hour: arrival.hour, min: arrival.min,
+                        flightH: Math.floor(dur/60)+'h'
+                    }));
+                }
             }
             _ob.step = 3; _obRender();
         };
-        window._obHomeAirportSkip = function() { _ob.step=3; _obRender(); };
+        window._obHomeAirportSkip = function() { _ob.step = 3; _obRender(); };
 
 
         function _obRenderStep3(content, footer) {
@@ -2661,11 +3068,15 @@
                     const data = await resp.json();
                     if (data.success && data.program) {
                         let addedCount = 0;
-                        for (const day of data.program) {
+                        for (const day of (data.program||[]).filter(d => d != null)) {
                             const dayIdx = day.day_index ?? startDay;
                             for (const blk of (day.blocks||[])) {
                                 if (blk.type!=='activity' && blk.type!=='meal') continue;
-                                activities.push({id:Date.now()+Math.random(),source:'ai',dayIndex:dayIdx,time:blk.time||'09:00',time_flexible:true,title:blk.title||'',description:blk.suggestion||blk.local_tip||'',duration_minutes:blk.duration_minutes||60,block_type:blk.type==='meal'?'meal':'activity',meal_type:blk.meal_type||null,local_tip:blk.local_tip||'',crowd_note:blk.crowd_note||'',place:null});
+                                // Validation : ignorer les blocs après 22h ou avec horaires invalides
+                                const _blkTimeMin = _timeStrToMin(blk.time||'09:00');
+                                if (_blkTimeMin >= 22*60) continue; // skip après 22h
+                                if (_blkTimeMin < 6*60)  continue; // skip avant 6h (aberrant)
+                                activities.push({id:Date.now()+Math.random(),source:'ai',dayIndex:dayIdx,time:blk.time||'09:00',time_flexible:true,title:blk.title||'',description:blk.suggestion||blk.local_tip||'',duration_minutes:Math.min(240, blk.duration_minutes||60),block_type:blk.type==='meal'?'meal':'activity',meal_type:blk.meal_type||null,local_tip:blk.local_tip||'',crowd_note:blk.crowd_note||'',place:null});
                                 addedCount++;
                             }
                         }
@@ -2676,7 +3087,7 @@
                     } else {
                         if (statusEl) { statusEl.textContent = 'A compléter'; statusEl.style.color='#f59e0b'; }
                     }
-                } catch(e) { if (statusEl) { statusEl.textContent = 'Erreur réseau'; statusEl.style.color='#ef4444'; } }
+                } catch(e) { console.error('[postGen] erreur:', e.message, e); if (statusEl) { statusEl.textContent = 'Erreur: '+e.message.slice(0,30); statusEl.style.color='#ef4444'; } }
                 if (i < freeStays.length-1) await new Promise(r=>setTimeout(r,600));
             }
             const globalEl2 = document.getElementById('postgen-global-status');
@@ -3191,6 +3602,7 @@
             document.getElementById('main-header').classList.remove('hidden');
             document.getElementById('planning-list').classList.remove('hidden');
             document.getElementById('day-navigation').classList.remove('hidden');
+            document.getElementById('meal-lottery-fab')?.classList.remove('hidden');
             document.body.classList.add('nav-visible');
             showFAB();
             
@@ -3296,6 +3708,7 @@
         }
 
         function saveActivities() {
+            activities = activities.map(a => ({ ...a, dayIndex: Number(a.dayIndex) || 0 }));
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
         }
 
@@ -3906,8 +4319,8 @@
         // ========== CALCUL HEURE DISPONIBLE ==========
         function calculateNextAvailableTime() {
             dayActivities = activities
-                .filter(a => a.dayIndex === currentDayIndex)
-                .sort((a, b) => a.time.localeCompare(b.time));
+                .filter(a => Number(a.dayIndex) === Number(currentDayIndex))
+                .sort((a, b) => (a.time||'00:00').localeCompare(b.time||'00:00'));
             
             if (dayActivities.length === 0) {
                 return "09:00";
@@ -5426,6 +5839,17 @@
                     </select>
                 </div>
 
+                <!-- Activité Ancre (optionnel) -->
+                <div style="margin-bottom:16px">
+                    <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">
+                        ⚓ Activité incontournable <span style="font-size:10px;font-weight:400;color:#9ca3af">(optionnel)</span>
+                    </label>
+                    <input id="gen-anchor-input" type="text"
+                        placeholder="Ex: Fushimi Inari, Ghibli Museum, Arashiyama..."
+                        style="width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;outline:none">
+                    <div style="font-size:10px;color:#9ca3af;margin-top:4px">L'IA construira la journée autour de ce lieu comme point central</div>
+                </div>
+
                 <!-- Intensité -->
                 <div style="margin-bottom:4px">
                     <label style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Intensité</label>
@@ -5526,7 +5950,8 @@
                         nb_days: nbDays, start_day_index: startDay,
                         start_date: tripData?.outbound?.departureDate || null,
                         intensity, existing_activities: existing,
-                        traveler_profile: travelerProfile
+                        traveler_profile: travelerProfile,
+                        anchor_activity: document.getElementById('gen-anchor-input')?.value?.trim() || null
                     })
                 });
                 const data = await resp.json();
@@ -6064,6 +6489,7 @@
             const toResolve = activities.filter(a =>
                 (a.source === 'generated' || a.source === 'ai') &&
                 !a.place?.photo_reference &&
+                !a._resolveAttempted &&   // ← évite les boucles infinies
                 a.title &&
                 a.block_type !== 'meal' && a.meal_type == null
             );
@@ -6073,6 +6499,10 @@
                 const cityStay = getStayForDay(act.dayIndex);
                 const cityHint = cityStay?.city || '';
                 const searchQ = act.title + (cityHint ? ' ' + cityHint + ' Japan' : ' Japan');
+                // Marquer comme tentée AVANT le fetch pour éviter re-tentative infinie
+                const _ri = activities.findIndex(a => a.id === act.id);
+                if (_ri >= 0) activities[_ri]._resolveAttempted = true;
+
                 try {
                     const r = await fetch('/api/resolve-place', {
                         method: 'POST',
@@ -7105,6 +7535,722 @@
             showAddConfirmation(place.name+' ajouté au planning', mealLabels[mealType]+' à '+mealTime, '&#128203;');
         };
 
+
+        // ═══════════════════════════════════════════════════════════════════
+        // LOTERIE REPAS — Tuile dédiée accessible depuis partout
+        // ═══════════════════════════════════════════════════════════════════
+
+        const MEAL_TYPES = [
+            { id:'breakfast', emoji:'☕', label:'Petit-déjeuner', color:'#f59e0b', colorLight:'#fef3c7', hint:'Dès 7h — konbini, kissaten ou salon de thé' },
+            { id:'lunch',     emoji:'🍱', label:'Déjeuner',      color:'#10b981', colorLight:'#d1fae5', hint:'Autour de 12h-13h30 — teishoku ou marché' },
+            { id:'dinner',    emoji:'🏮', label:'Dîner',         color:'#7c3aed', colorLight:'#ede9fe', hint:'18h30-20h — izakaya ou restaurant' },
+            { id:'snack',     emoji:'🍡', label:'Snack',         color:'#ec4899', colorLight:'#fce7f3', hint:'À toute heure — street food, mochi, manjū' },
+            { id:'takeaway',  emoji:'🥡', label:'À emporter',    color:'#3b82f6', colorLight:'#dbeafe', hint:'Onigiri, bento, konbini — parfait en déplacement' },
+            { id:'other',     emoji:'🍵', label:'Autre',         color:'#6b7280', colorLight:'#f3f4f6', hint:'Café, dessert, glace, spécialité locale…' },
+        ];
+
+        let _lotteryMealType = null;
+        let _lotteryWinner   = null;
+
+        // ── Ouvrir la loterie ─────────────────────────────────────────────
+        window.openMealLottery = function(preselect) {
+            _lotteryMealType = preselect || null;
+            _lotteryWinner   = null;
+            let overlay = document.getElementById('meal-lottery-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'meal-lottery-overlay';
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:450;background:rgba(0,0,0,.65);backdrop-filter:blur(5px);display:flex;align-items:flex-end;justify-content:center';
+                document.body.appendChild(overlay);
+            }
+            _renderMealLottery();
+        };
+
+        function _renderMealLottery() {
+            const overlay = document.getElementById('meal-lottery-overlay');
+            if (!overlay) return;
+            const mt = _lotteryMealType ? MEAL_TYPES.find(m=>m.id===_lotteryMealType) : null;
+
+            // ── Contexte planning du jour ──────────────────────────────────
+            const todayActs = activities
+                .filter(a => a.dayIndex===currentDayIndex && a.block_type!=='meal' && a.meal_type==null)
+                .sort((a,b) => a.time.localeCompare(b.time));
+            const stay = getStayForDay(currentDayIndex);
+            const city = stay?.city || '';
+            const profile = travelerProfile;
+
+            // Prochaine activité = première activité après maintenant (ou la première si pas de filtre)
+            const nowMin = _timeStrToMin(new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0'));
+            const nextAct = todayActs.find(a => _timeStrToMin(a.time) > nowMin) || todayActs[0];
+            const prevAct = todayActs.filter(a => _timeStrToMin(a.time) <= nowMin).pop();
+
+            // Calcul du créneau disponible
+            const slotStart = prevAct
+                ? addMinutesToTime(prevAct.time, prevAct.duration_minutes||90)
+                : (mt ? (mt.id==='breakfast'?'08:00':mt.id==='lunch'?'12:30':mt.id==='dinner'?'19:00':'12:00') : '12:00');
+            const slotDur = mt ? (mt.id==='breakfast'?25:mt.id==='lunch'?50:mt.id==='dinner'?65:20) : 30;
+            const slotEnd = addMinutesToTime(slotStart, slotDur);
+
+            // Message de bienveillance selon profil
+            let wisdomMsg = '';
+            if (nextAct) {
+                const nextMin  = _timeStrToMin(nextAct.time);
+                const slotMin  = _timeStrToMin(slotStart);
+                const gapMin   = nextMin - slotMin - slotDur;
+                const actName  = (nextAct.title||'').slice(0,28);
+                const crowd    = profile.crowd_sensitivity;
+                const pace     = profile.pace;
+                const wake     = profile.wake_time;
+
+                // Ton : amical + bienveillant + légèrement expert local
+                if (crowd === 'forte' && nextMin <= 9*60) {
+                    wisdomMsg = '🌅 Petit conseil de connaisseur : tu arrives à '+actName+' à '+nextAct.time+', c\'est la fenêtre magique avant les bus de touristes. Les Japonais eux-mêmes évitent cette heure — toi tu en profites.';
+                } else if (crowd === 'forte' && nextMin <= 10*60) {
+                    wisdomMsg = '🌿 Bonne idée de viser '+nextAct.time+' pour '+actName+'. Dès 10h30, l\'affluence triple sur ce type de site. Mange vite et profite tôt !';
+                } else if (crowd === 'forte') {
+                    wisdomMsg = '💡 Tu as dit que les foules te pèsent — bien vu d\'avoir prévu '+actName+' à '+nextAct.time+'. '+(gapMin>0?gapMin+' min pour ce repas, c\'est parfait.':'Garde le timing, ça vaut le coup.')+' Les guides locaux recommandent exactement cet horaire.';
+                } else if (pace === 'tranquille' && gapMin >= 45) {
+                    wisdomMsg = '😊 Avec un rythme tranquille comme le tien, ce repas est une vraie pause méritée. Tu as '+(gapMin>0?gapMin+' bonnes minutes':' du temps')+' avant '+actName+' à '+nextAct.time+'. Prends le temps de savourer !';
+                } else if (pace === 'tranquille') {
+                    wisdomMsg = '😌 Pas de stress — '+actName+' n\'est qu\'à '+nextAct.time+'. Un repas serein s\'impose, tu es en voyage pas en sprint.';
+                } else if (pace === 'intense' && gapMin < 20) {
+                    wisdomMsg = '⚡ Planning chargé oblige : vise '+slotDur+' min chrono pour ce repas. '+actName+' à '+nextAct.time+', ça ne se reporte pas facilement. Un konbini ou un stand de rue, c\'est parfois le meilleur repas de la journée !';
+                } else if (pace === 'intense') {
+                    wisdomMsg = '🏃 Tu aimes l\'intensité — '+gapMin+' min avant '+actName+' à '+nextAct.time+', c\'est suffisant pour manger local et bien. Les Japonais eux-mêmes déjeunent en 20 min, c\'est un art.';
+                } else if (gapMin < 0) {
+                    wisdomMsg = '⚠️ Attention, '+actName+' est prévu à '+nextAct.time+' et le créneau est déjà dépassé — pense à décaler ou à opter pour un repas rapide à emporter.';
+                } else if (gapMin < 15) {
+                    wisdomMsg = '⏱ Créneau un peu juste avant '+actName+' à '+nextAct.time+'. Un onigiri du konbini ou un takoyaki en marchant, c\'est le reflexe local par excellence — et honnêtement délicieux.';
+                } else if (gapMin >= 60) {
+                    wisdomMsg = '✨ Tu as '+gapMin+' min devant toi avant '+actName+' à '+nextAct.time+'. C\'est le luxe parfait pour t\'asseoir, commander sans stress et observer la vie du quartier.';
+                } else {
+                    wisdomMsg = '👌 '+gapMin+' min avant '+actName+' à '+nextAct.time+' — c\'est exactement le bon timing pour un repas local sans se précipiter.';
+                }
+            }
+
+            // ── Rendu HTML ─────────────────────────────────────────────────
+            overlay.innerHTML =
+                '<div style="width:100%;max-width:480px;background:white;border-radius:24px 24px 0 0;'+
+                'padding:18px 18px max(env(safe-area-inset-bottom,20px),20px);max-height:92vh;overflow-y:auto">' +
+
+                // Handle + titre
+                '<div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 14px"></div>' +
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">' +
+                    '<span style="font-size:24px">🎰</span>' +
+                    '<div>' +
+                        '<div style="font-size:17px;font-weight:900;color:#111827">Loterie Repas</div>' +
+                        '<div style="font-size:11px;color:#9ca3af">Laisse le hasard choisir ta spécialité</div>' +
+                    '</div>' +
+                    '<button onclick="document.getElementById(\'meal-lottery-overlay\')?.remove()" '+
+                    'style="margin-left:auto;width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;font-size:13px;cursor:pointer;color:#6b7280">✕</button>' +
+                '</div>' +
+
+                // Sélecteur type de repas
+                '<div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:14px">Pour quel repas ?</div>' +
+                '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px">' +
+                MEAL_TYPES.map(m => {
+                    const sel = _lotteryMealType === m.id;
+                    return '<button onclick="_lotterySelectType(\''+m.id+'\')" '+
+                        'style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;border-radius:12px;cursor:pointer;'+
+                        'border:2px solid '+(sel?m.color:'#f3f4f6')+';background:'+(sel?m.colorLight:'white')+'">'+
+                        '<span style="font-size:20px">'+m.emoji+'</span>'+
+                        '<span style="font-size:10px;font-weight:800;color:'+(sel?m.color:'#374151')+'">'+m.label+'</span>'+
+                        '</button>';
+                }).join('') +
+                '</div>' +
+
+                // Hint du type sélectionné
+                (mt ? '<div style="font-size:11px;color:#6b7280;font-style:italic;margin-bottom:14px;padding:8px 12px;background:#f9fafb;border-radius:10px">'+mt.hint+'</div>' : '') +
+
+                // Message de bienveillance profil
+                (wisdomMsg ? '<div style="display:flex;gap:9px;padding:10px 12px;background:linear-gradient(135deg,#faf5ff,#fdf2f8);border:1.5px solid #e9d5ff;border-radius:12px;margin-bottom:14px">'+
+                    '<span style="font-size:16px;flex-shrink:0">💜</span>'+
+                    '<div style="font-size:11px;color:#6d28d9;line-height:1.5;font-weight:600">'+wisdomMsg+'</div>'+
+                    '</div>' : '') +
+
+                // Créneau suggéré
+                (mt && todayActs.length > 0 ?
+                    '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:11px;margin-bottom:14px">'+
+                    '<span style="font-size:14px">🕐</span>'+
+                    '<div style="flex:1"><div style="font-size:11px;font-weight:800;color:#15803d">Créneau suggéré : '+slotStart+' → '+slotEnd+'</div>'+
+                    (nextAct?'<div style="font-size:9px;color:#6b7280">Avant : '+nextAct.title.slice(0,25)+' à '+nextAct.time+'</div>':'')+
+                    '</div></div>' : '') +
+
+                // Zone slot machine
+                '<div id="lottery-slot-zone">' +
+                    (_lotteryMealType && !_lotteryWinner ?
+                        // État initial avec tirette
+                        '<div style="border:2px solid #fcd34d;border-radius:14px;background:#fffbeb;overflow:hidden">' +
+                            '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px 6px;border-bottom:1px solid #fde68a">' +
+                                '<span style="font-size:14px">'+mt.emoji+'</span>'+
+                                '<span style="font-size:11px;font-weight:800;color:#92400e">'+mt.label.toUpperCase()+' · Spécialité de '+(city||'la région')+'</span>'+
+                            '</div>'+
+                            // Reel
+                            '<div style="height:52px;overflow:hidden;position:relative;background:white;margin:8px 10px;border-radius:8px;border:1.5px solid #fde68a">' +
+                                '<div id="lottery-reel" style="position:absolute;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;height:52px">'+
+                                    '<span style="font-size:18px">'+mt.emoji+'</span>'+
+                                    '<span style="font-size:13px;font-weight:700;color:#b45309;font-style:italic">👉 Glisse pour découvrir...</span>'+
+                                '</div>'+
+                            '</div>'+
+                            // Tirette
+                            '<div style="padding:4px 10px 10px" id="lottery-slider-wrap">'+
+                                '<div style="position:relative;height:38px;background:linear-gradient(90deg,#fde68a,#fcd34d);border-radius:19px;cursor:grab;box-shadow:inset 0 1px 3px rgba(0,0,0,.1)" id="lottery-track">'+
+                                    '<div style="position:absolute;inset:0;display:flex;align-items:center;padding:0 20px 0 50px;pointer-events:none">'+
+                                        '<span style="font-size:10px;color:#92400e;font-weight:700;white-space:nowrap">👉 Glisse pour un tirage aléatoire</span>'+
+                                    '</div>'+
+                                    '<div id="lottery-thumb" style="position:absolute;left:4px;top:4px;width:30px;height:30px;border-radius:50%;'+
+                                    'background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 2px 8px rgba(0,0,0,.3);'+
+                                    'display:flex;align-items:center;justify-content:center;font-size:16px;cursor:grab;touch-action:pan-y;user-select:none;z-index:2">🎰</div>'+
+                                '</div>'+
+                            '</div>'+
+                        '</div>'
+                        :
+                        // Pas encore de type sélectionné
+                        (!_lotteryMealType ?
+                            '<div style="text-align:center;padding:24px;color:#9ca3af"><div style="font-size:32px;margin-bottom:8px">👆</div><div style="font-size:12px;font-weight:700">Choisis un type de repas ci-dessus</div></div>'
+                            : '')
+                    ) +
+                    // Résultat si gagnant
+                    (_lotteryWinner ? _buildLotteryResult(mt, slotStart, slotEnd, city, nextAct) : '') +
+                '</div>' +
+                '</div>';
+
+            // Init tirette si type sélectionné et pas encore de gagnant
+            if (_lotteryMealType && !_lotteryWinner) {
+                setTimeout(_initLotterySlider, 80);
+            }
+        }
+
+        window._lotterySelectType = function(typeId) {
+            _lotteryMealType = typeId;
+            _lotteryWinner = null;
+            // Reset du reel pour éviter transform résiduel
+            const reel = document.getElementById('lottery-reel');
+            if (reel) { reel.style.transition='none'; reel.style.transform='translateY(0)'; }
+            _renderMealLottery();
+        };
+
+        function _buildLotteryResult(mt, slotStart, slotEnd, city, nextAct) {
+            const w = _lotteryWinner;
+            if (!w) return '';
+            const mapsUrl = 'https://maps.google.com/?q='+encodeURIComponent(w.n+' '+city+' Japan');
+            return '<div style="border:2px solid '+(mt?mt.color:'#f59e0b')+';border-radius:14px;overflow:hidden">' +
+                '<div style="background:'+(mt?mt.colorLight:'#fef3c7')+';padding:12px 14px">' +
+                    '<div style="font-size:16px;font-weight:900;color:#111827;margin-bottom:3px">'+w.e+' '+w.n+'</div>' +
+                    '<div style="font-size:11px;color:#6b7280;line-height:1.45;margin-bottom:6px">'+w.d+'</div>' +
+                    '<span style="font-size:10px;background:rgba(0,0,0,.08);padding:3px 8px;border-radius:8px;font-weight:700;color:#374151">📍 '+w.q+'</span>' +
+                '</div>' +
+                '<div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px">' +
+                    // Créneau + prochaine activité
+                    '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f0fdf4;border-radius:9px">' +
+                        '<span style="font-size:14px">🕐</span>' +
+                        '<div>' +
+                            '<div style="font-size:11px;font-weight:800;color:#15803d">'+slotStart+' → '+slotEnd+'</div>' +
+                            (nextAct?'<div style="font-size:9px;color:#6b7280">Prochaine : '+nextAct.title.slice(0,28)+' à '+nextAct.time+'</div>':'')+
+                        '</div>' +
+                    '</div>' +
+                    // Boutons action
+                    '<div style="display:flex;gap:7px">' +
+                        '<button onclick="_lotteryMealType=_lotteryMealType;_lotteryWinner=null;_renderMealLottery()" '+
+                        'style="flex:1;padding:9px;border:1.5px solid #e5e7eb;background:white;border-radius:10px;font-size:11px;font-weight:700;color:#6b7280;cursor:pointer">🔄 Relancer</button>' +
+                        '<button onclick="_findNearbyResto(\''+w.n.replace(/'/g,"&#39;")+'\',\''+city+'\',\''+(_lotteryMealType||'lunch')+'\')" '+
+                        'style="flex:1;padding:9px;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;font-size:11px;font-weight:700;color:#0284c7;cursor:pointer">🔍 Resto proche</button>' +
+                        '<button onclick="_addLotteryToPlanning()" '+
+                        'style="flex:2;padding:9px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;border:none;border-radius:10px;font-size:11px;font-weight:800;cursor:pointer">📋 Ajouter au planning</button>' +
+                    '</div>' +
+                '</div>' +
+                '</div>';
+        }
+
+        function _initLotterySlider() {
+            const track = document.getElementById('lottery-track');
+            const thumb = document.getElementById('lottery-thumb');
+            const reel  = document.getElementById('lottery-reel');
+            if (!track || !thumb) return;
+            const ITEM_H = 52;
+            let dragging=false, startX=0, thumbX=0, trackW=0;
+            const getX = e => e.touches ? e.touches[0].clientX : e.clientX;
+
+            function onStart(e) {
+                trackW = track.offsetWidth - 38;
+                dragging=true; startX=getX(e)-thumbX;
+                thumb.style.cursor='grabbing';
+                e.stopPropagation();
+            }
+            function onMove(e) {
+                if (!dragging) return;
+                e.preventDefault(); e.stopPropagation();
+                const tw = trackW>0?trackW:(track.offsetWidth-38);
+                const x = Math.max(0, Math.min(tw, getX(e)-startX));
+                thumbX=x; thumb.style.left=(4+x)+'px';
+                const pct = x/tw;
+                if (reel) reel.innerHTML = '<span style="font-size:18px">🎰</span>'+
+                    '<span style="font-size:13px;font-weight:700;color:#b45309;font-style:italic">'+(pct>0.55?'🔥 Lâche !':'Encore...')+'</span>';
+            }
+            function onEnd(e) {
+                if (!dragging) return;
+                dragging=false; e.stopPropagation();
+                thumb.style.cursor='grab';
+                const tw = trackW>0?trackW:(track.offsetWidth-38);
+                const pct = thumbX/tw;
+                if (pct > 0.60) {
+                    cleanListeners();
+                    // Lancer le spin
+                    const sliderWrap = document.getElementById('lottery-slider-wrap');
+                    if (sliderWrap) sliderWrap.style.opacity='0.3';
+                    _runLotterySpin();
+                } else {
+                    thumb.style.transition='left .25s ease';
+                    thumb.style.left='4px'; thumbX=0;
+                    setTimeout(()=>{thumb.style.transition='';},250);
+                    if (reel) reel.innerHTML = '<span style="font-size:18px">🎰</span>'+
+                        '<span style="font-size:13px;font-weight:700;color:#b45309;font-style:italic">👉 Glisse pour découvrir...</span>';
+                }
+            }
+            function cleanListeners() {
+                thumb.removeEventListener('mousedown',onStart);
+                thumb.removeEventListener('touchstart',onStart);
+                document.removeEventListener('mousemove',onMove);
+                document.removeEventListener('touchmove',onMove);
+                document.removeEventListener('mouseup',onEnd);
+                document.removeEventListener('touchend',onEnd);
+            }
+            thumb.addEventListener('mousedown',onStart);
+            thumb.addEventListener('touchstart',onStart,{passive:false});
+            document.addEventListener('mousemove',onMove,{passive:false});
+            document.addEventListener('touchmove',onMove,{passive:false});
+            document.addEventListener('mouseup',onEnd);
+            document.addEventListener('touchend',onEnd);
+        }
+
+        function _runLotterySpin() {
+            const reel = document.getElementById('lottery-reel');
+            if (!reel) return;
+            const stay = getStayForDay(currentDayIndex);
+            const city = stay?.city || '';
+            // Breakfast = BREAKFAST_SPECIALTIES, sinon LUNCH ou DINNER selon type
+            const mealId = _lotteryMealType||'lunch';
+            const foods = (typeof _getFoodForMeal === 'function')
+                ? _getFoodForMeal(city, mealId)
+                : [{n:'Ramen',e:'🍜',d:'Bouillon chaud',q:'Restaurant local'}];
+            if (!foods || !foods.length) return;
+
+            const bigPool = [...foods,...foods,...foods,...foods,...foods];
+            const winIdx  = Math.floor(Math.random()*foods.length);
+            const winner  = foods[winIdx];
+            const landingIdx = foods.length*2+winIdx;
+            const ITEM_H = 52;
+            const landingY = landingIdx*ITEM_H;
+
+            reel.innerHTML = bigPool.map(f=>
+                '<div style="height:'+ITEM_H+'px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;pointer-events:none;flex-shrink:0">'+
+                '<span style="font-size:24px">'+f.e+'</span>'+
+                '<span style="font-size:13px;font-weight:900;color:#92400e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">'+f.n+'</span>'+
+                '</div>'
+            ).join('');
+
+            // Position container to scroll vertically
+            reel.style.cssText = 'position:absolute;width:100%;will-change:transform;display:flex;flex-direction:column;';
+
+            const DURATION = 2200;
+            const startTime = performance.now();
+            function easeInOutCubic(t) { return t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; }
+            function animate(now) {
+                const t = Math.min(1,(now-startTime)/DURATION);
+                reel.style.transform = 'translateY(-'+(easeInOutCubic(t)*landingY).toFixed(1)+'px)';
+                if (t<1) { requestAnimationFrame(animate); return; }
+                reel.style.transition='transform .3s ease-out';
+                reel.style.transform='translateY(-'+landingY+'px)';
+                setTimeout(()=>{
+                    _lotteryWinner = winner;
+                    _renderMealLottery();
+                }, 350);
+            }
+            requestAnimationFrame(animate);
+        }
+
+        window._addLotteryToPlanning = function() {
+            if (!_lotteryWinner || !_lotteryMealType) return;
+            const stay = getStayForDay(currentDayIndex);
+            const city = stay?.city || '';
+            const mt   = MEAL_TYPES.find(m=>m.id===_lotteryMealType);
+            const mealLabels = { breakfast:'Petit-déjeuner', lunch:'Déjeuner', dinner:'Dîner', snack:'Snack', takeaway:'À emporter', other:'Repas' };
+
+            // Calculer le créneau
+            const todayActs = activities.filter(a=>a.dayIndex===currentDayIndex).sort((a,b)=>a.time.localeCompare(b.time));
+            const nowMin = _timeStrToMin(new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0'));
+            const prevAct = todayActs.filter(a=>_timeStrToMin(a.time)<=nowMin).pop();
+            const slotStart = prevAct
+                ? addMinutesToTime(prevAct.time, prevAct.duration_minutes||90)
+                : (_lotteryMealType==='breakfast'?'08:00':_lotteryMealType==='dinner'?'19:00':'12:30');
+            const slotDur = _lotteryMealType==='breakfast'?25:_lotteryMealType==='dinner'?65:45;
+
+            const newAct = {
+                id: Date.now()+Math.random(),
+                source: 'manual',
+                dayIndex: currentDayIndex,
+                time: slotStart,
+                time_flexible: true,
+                title: mealLabels[_lotteryMealType]||'Repas',
+                description: _lotteryWinner.n + ' — ' + _lotteryWinner.d,
+                duration_minutes: slotDur,
+                block_type: 'meal',
+                meal_type: _lotteryMealType,
+                local_tip: _lotteryWinner.q || '',
+                crowd_note: '',
+                place: null,
+            };
+            activities.push(newAct);
+            saveActivities();
+            document.getElementById('meal-lottery-overlay')?.remove();
+            renderPlanning();
+            showAddConfirmation(_lotteryWinner.n+' ajouté 📋', mealLabels[_lotteryMealType]+' à '+slotStart, '🎰');
+        };
+
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        // RECALCUL DEPUIS POSITION ACTUELLE (S3+S4 côté client)
+        // ═══════════════════════════════════════════════════════════════════
+
+        // S3 : merge sans perte des IDs complétées
+        function _mergeRecalculatedActivities(recalcResult) {
+            const updMap = new Map(
+                (recalcResult.updated_activities || []).map(a => [a.original_id || a.id, a])
+            );
+            // Mettre à jour uniquement le time des activités non-complétées
+            activities = activities.map(act => {
+                if (completedActivities.includes(act.id)) return act; // préserver les complétées
+                const updated = updMap.get(act.id);
+                if (updated) return { ...act, time: updated.time, time_flexible: true };
+                return act;
+            });
+            saveActivities();
+            renderPlanning();
+        }
+
+        // Bouton "Recalculer depuis ma position"
+        window._recalculateFromNow = async function() {
+            const btn = document.getElementById('recalc-btn');
+            if (btn) { btn.disabled=true; btn.textContent='Recalcul...'; }
+
+            const todayActs = activities.filter(a => a.dayIndex === currentDayIndex);
+            const stay = getStayForDay(currentDayIndex);
+            const city = stay?.city || '';
+            const now  = new Date();
+            const currentTime = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+
+            // S4 : envoyer complétées pour que le serveur exclue
+            const payload = {
+                activities: todayActs,
+                completed_ids: completedActivities.filter(id => todayActs.find(a=>a.id===id)),
+                current_time: currentTime,
+                zone: city,
+                traveler_profile: travelerProfile,
+            };
+
+            try {
+                const r = await fetch('/api/recalculate-day', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await r.json();
+                if (data.success) {
+                    // S3 : merge (pas replace)
+                    _mergeRecalculatedActivities(data);
+                    showAddConfirmation(
+                        'Planning recalculé depuis '+currentTime,
+                        data.anchor_note || '',
+                        '🔄'
+                    );
+                }
+            } catch(e) {
+                showAddConfirmation('Erreur réseau', 'Recalcul impossible', '⚠️');
+            } finally {
+                if (btn) { btn.disabled=false; btn.textContent='🔄 Recalculer depuis maintenant'; }
+            }
+        };
+
+
+        // ═══════════════════════════════════════════════════════════
+        // PÉPITES SECRÈTES
+        // ═══════════════════════════════════════════════════════════
+        window._closePepitesOverlay = function() {
+            document.getElementById('pepites-overlay')?.remove();
+        };
+
+        window._showNearbyPepites = async function() {
+            const stay = getStayForDay(currentDayIndex);
+            if (!stay?.place?.lat && !stay?.place?.lng) {
+                alert('Configure ton hôtel dans les séjours pour localiser les pépites.');
+                return;
+            }
+            let overlay = document.getElementById('pepites-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'pepites-overlay';
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:450;background:rgba(0,0,0,.65);backdrop-filter:blur(5px);display:flex;align-items:flex-end;justify-content:center';
+                document.body.appendChild(overlay);
+            }
+            const _dk = document.documentElement.classList.contains('dark');
+            const bg = _dk ? '#1e293b' : 'white';
+            overlay.innerHTML =
+                '<div style="width:100%;max-width:480px;background:'+bg+';border-radius:24px 24px 0 0;padding:18px 18px max(env(safe-area-inset-bottom,20px),20px);max-height:85vh;overflow-y:auto">'+
+                '<div style="width:32px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 14px"></div>'+
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
+                    '<div>'+
+                        '<div style="font-size:17px;font-weight:900;color:'+(_dk?'#f1f5f9':'#111827')+'">💎 Pépites secrètes</div>'+
+                        '<div style="font-size:11px;color:#9ca3af">Lieux off the beaten path · '+stay.city+'</div>'+
+                    '</div>'+
+                    '<button onclick="_closePepitesOverlay()" style="width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;font-size:13px;cursor:pointer">✕</button>'+
+                '</div>'+
+                '<div id="pepites-list"><div style="text-align:center;padding:24px;color:#9ca3af"><div style="font-size:28px;margin-bottom:8px">💎</div><div style="font-size:12px">Recherche en cours...</div></div></div>'+
+                '</div>';
+
+            try {
+                const r = await fetch('/api/nearby-pepites', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ lat: stay.place.lat, lng: stay.place.lng, radius_km: 15, limit: 8 })
+                });
+                const data = await r.json();
+                const listEl = document.getElementById('pepites-list');
+                if (!listEl) return;
+                if (!data.success || !data.pepites?.length) {
+                    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px">Aucune pépite trouvée dans ce rayon</div>';
+                    return;
+                }
+                const fBadge = { low:'😊 Accessible', medium:'😅 Modéré', high:'😰 Physique' };
+                const fColor = { low:'#059669', medium:'#d97706', high:'#dc2626' };
+                window._pepitesData = data.pepites;
+                listEl.innerHTML = data.pepites.map((p, pidx) => {
+                    const jp = (p.nom_jp && p.nom_jp !== p.nom_fr) ? '<div style="font-size:10px;color:#9ca3af;margin-top:1px">'+p.nom_jp+'</div>' : '';
+                    const tb = p.type_fr && p.type_fr !== 'lieu secret' ? '<span style="background:#f3f4f6;border-radius:5px;padding:1px 5px;font-size:9px;color:#6b7280;margin-left:4px">'+p.type_fr+'</span>' : '';
+                    return '<div style="border:1.5px solid #e5e7eb;border-radius:14px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">'+
+                        '<span style="font-size:24px;flex-shrink:0">'+p.emoji+'</span>'+
+                        '<div style="flex:1;min-width:0">'+
+                            '<div style="font-size:13px;font-weight:800;color:#111827">'+p.nom_fr+tb+'</div>'+
+                            jp+
+                            '<div style="font-size:10px;color:#9ca3af;margin-top:2px">'+p.distance_km+' km · '+p.ville+' · <span style="color:'+fColor[p.fatigue]+'">'+fBadge[p.fatigue]+'</span></div>'+
+                            '<div style="display:flex;gap:6px;margin-top:8px">'+
+                                '<a href="'+p.maps_url+'" target="_blank" style="flex:1;padding:7px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;font-size:11px;font-weight:700;color:#0284c7;text-align:center;text-decoration:none">🗺 Maps</a>'+
+                                '<button data-pidx="'+pidx+'" onclick="_addPepiteByIndex(+this.dataset.pidx)" style="flex:1;padding:7px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:9px;font-size:11px;font-weight:700;color:white;cursor:pointer">+ Planning</button>'+
+                            '</div>'+
+                        '</div>'+
+                        '<span style="background:#fef3c7;border-radius:6px;padding:2px 6px;font-size:9px;font-weight:700;color:#92400e;flex-shrink:0">SECRET</span>'+
+                        '</div>';
+                }).join('') + '<div style="text-align:center;padding:8px;font-size:10px;color:#9ca3af">'+data.total_nearby+' lieux dans 15 km</div>';
+            } catch(e) {
+                const listEl = document.getElementById('pepites-list');
+                if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#dc2626;font-size:12px">Erreur réseau</div>';
+            }
+        };
+
+        window._addPepiteByIndex = function(pidx) {
+            const p = (window._pepitesData||[])[pidx];
+            if (!p) return;
+            const title = p.emoji + ' ' + p.nom_fr;
+            activities.push({
+                id: Date.now()+Math.random(), source:'manual',
+                dayIndex: Number(currentDayIndex), time:'14:00', time_flexible:true,
+                title: title, description: p.type_fr||'Lieu off the beaten path',
+                duration_minutes: 60, block_type:'activity', meal_type:null,
+                local_tip: p.nom_jp ? 'Nom local: '+p.nom_jp : 'Peu connu des touristes',
+                crowd_note:'Peu fréquenté',
+                place: p.place_id ? {lat:p.lat,lng:p.lon,name:title,place_id:p.place_id} : {lat:p.lat,lng:p.lon,name:title,place_id:null}
+            });
+            saveActivities();
+            _closePepitesOverlay();
+            renderPlanning();
+        };
+
+
+        // ═══════════════════════════════════════════════════════════
+        // PANNEAU DÉVELOPPEUR — capture erreurs + actions debug
+        // ═══════════════════════════════════════════════════════════
+
+        // Capture auto des erreurs console dès le chargement
+        const _devErrors = [];
+        (function() {
+            const _origErr  = console.error.bind(console);
+            const _origWarn = console.warn.bind(console);
+            console.error = function(...args) {
+                const msg = args.map(a => typeof a==='object' ? JSON.stringify(a).slice(0,200) : String(a)).join(' ');
+                _devErrors.push({ type:'error', ts: new Date().toLocaleTimeString('fr-FR'), msg: msg.slice(0,300) });
+                _devUpdateErrorUI();
+                _origErr(...args);
+            };
+            console.warn = function(...args) {
+                const msg = args.map(a => typeof a==='object' ? JSON.stringify(a).slice(0,200) : String(a)).join(' ');
+                _devErrors.push({ type:'warn', ts: new Date().toLocaleTimeString('fr-FR'), msg: msg.slice(0,300) });
+                _devUpdateErrorUI();
+                _origWarn(...args);
+            };
+            window.addEventListener('error', e => {
+                _devErrors.push({ type:'error', ts: new Date().toLocaleTimeString('fr-FR'), msg: (e.message||'JS error') + ' @ L'+(e.lineno||'?') });
+                _devUpdateErrorUI();
+            });
+            window.addEventListener('unhandledrejection', e => {
+                _devErrors.push({ type:'error', ts: new Date().toLocaleTimeString('fr-FR'), msg: 'Promise: '+String(e.reason).slice(0,200) });
+                _devUpdateErrorUI();
+            });
+        })();
+
+        function _devUpdateErrorUI() {
+            const countEl = document.getElementById('dev-error-count');
+            const listEl  = document.getElementById('dev-errors-list');
+            if (!countEl || !listEl) return;
+            countEl.textContent = _devErrors.length;
+            countEl.style.background = _devErrors.length > 0 ? '#dc2626' : '#16a34a';
+            if (_devErrors.length === 0) {
+                listEl.innerHTML = '<span style="color:#475569;font-style:italic">Aucune erreur ✅</span>';
+            } else {
+                listEl.innerHTML = _devErrors.slice().reverse().slice(0,20).map(e =>
+                    '<div style="margin-bottom:3px;padding:2px 0;border-bottom:1px solid #1e293b">'+
+                    '<span style="color:'+(e.type==='error'?'#f87171':'#fb923c')+'">['+e.ts+'] </span>'+
+                    '<span style="color:#e2e8f0">'+e.msg.replace(/</g,'&lt;')+'</span></div>'
+                ).join('');
+            }
+        }
+
+        function _devRefreshState() {
+            const el = document.getElementById('dev-state-content');
+            if (!el) return;
+            const byDay = {};
+            (activities||[]).forEach(a => { const d=Number(a.dayIndex); byDay[d]=(byDay[d]||0)+1; });
+            const withPlace = (activities||[]).filter(a => a.place?.place_id).length;
+            const withHours = (activities||[]).filter(a => a.place?.opening_hours).length;
+            let lsKB = 0;
+            try { lsKB = Math.round([...Object.keys(localStorage)].reduce((t,k)=>t+(localStorage.getItem(k)||'').length*2,0)/1024); } catch(e){}
+            el.innerHTML =
+                '📍 <b style="color:#7c3aed">'+(activities||[]).length+' activités</b> · Jour J'+(currentDayIndex||0)+'<br>'+
+                'Par jour: '+JSON.stringify(byDay)+'<br>'+
+                'place_id: '+withPlace+' · horaires: '+withHours+'<br>'+
+                'localStorage: '+lsKB+' KB · cache: '+Object.keys(routeCache||{}).length+' routes<br>'+
+                'Séjours: '+(stays||[]).length;
+        }
+
+        window._devRefreshActivities = async function() {
+            // Réinitialiser tous les flags de blocage
+            (activities||[]).forEach(a => { delete a._enrichPending; delete a._resolveAttempted; });
+            // Réinitialiser les compteurs de retry
+            try { if (typeof _enrichRetries!=='undefined') Object.keys(_enrichRetries).forEach(k=>delete _enrichRetries[k]); } catch(e){}
+            try { if (typeof _enrichingIds!=='undefined') _enrichingIds.clear(); } catch(e){}
+            showAddConfirmation('Ré-enrichissement lancé...', '', '🔄');
+            await _resolveGeneratedActivities();
+            await _enrichAllPendingActivities();
+            _devRefreshState();
+            showAddConfirmation('Enrichissement terminé', (activities||[]).filter(a=>a.place?.opening_hours).length+' avec horaires', '✅');
+        };
+
+        window._devRefreshAll = function() {
+            (activities||[]).forEach(a => { delete a._enrichPending; delete a._resolveAttempted; });
+            try { if (typeof _enrichingIds!=='undefined') _enrichingIds.clear(); } catch(e){}
+            if (typeof _navPending!=='undefined') _navPending = 0;
+            window._navRerender = false;
+            renderPlanning();
+            setTimeout(_resolveGeneratedActivities, 500);
+            setTimeout(_enrichAllPendingActivities, 1500);
+            _devRefreshState();
+            showAddConfirmation('Recalcul lancé', 'Trajets + horaires + résolution', '⚡');
+        };
+
+        window._devFixDayIndex = function() {
+            let fixed = 0;
+            activities = (activities||[]).map(a => {
+                const n = Number(a.dayIndex);
+                if (a.dayIndex !== n) { fixed++; return {...a, dayIndex: isNaN(n)?0:n}; }
+                return a;
+            });
+            saveActivities();
+            renderPlanning();
+            _devRefreshState();
+            showAddConfirmation('dayIndex normalisé', fixed+' corrigée(s)', '🔧');
+        };
+
+        window._devClearCache = function() {
+            localStorage.removeItem('japan_route_cache_v4');
+            if (typeof routeCache!=='undefined') { Object.keys(routeCache).forEach(k=>delete routeCache[k]); }
+            localStorage.removeItem('japan_place_cache_v10');
+            showAddConfirmation('Cache vidé', 'Routes + lieux supprimés', '🗑️');
+        };
+
+        window._devClearErrors = function() {
+            _devErrors.length = 0;
+            _devUpdateErrorUI();
+        };
+
+        window._devCopyReport = function() {
+            const byDay = {};
+            (activities||[]).forEach(a => { const d=Number(a.dayIndex); byDay[d]=(byDay[d]||0)+1; });
+            const report = [
+                '=== MY JAPAN TRIP — RAPPORT DEBUG ===',
+                new Date().toLocaleString('fr-FR'),
+                '',
+                '── DONNÉES ──',
+                'Activités: '+(activities||[]).length+' | Jour: J'+(currentDayIndex||0),
+                'Par jour: '+JSON.stringify(byDay),
+                'place_id: '+(activities||[]).filter(a=>a.place?.place_id).length,
+                'Horaires: '+(activities||[]).filter(a=>a.place?.opening_hours).length,
+                'Séjours: '+(stays||[]).length,
+                '',
+                '── ERREURS ('+_devErrors.length+') ──',
+                ..._devErrors.slice(-15).map(e=>'['+e.ts+'] '+e.type.toUpperCase()+': '+e.msg),
+                _devErrors.length===0 ? 'Aucune erreur' : '',
+                '',
+                '── ACTIVITÉS JOUR J'+(currentDayIndex||0)+' ──',
+                ...(activities||[])
+                    .filter(a=>Number(a.dayIndex)===Number(currentDayIndex))
+                    .sort((a,b)=>(a.time||'').localeCompare(b.time||''))
+                    .map(a=>a.time+' | '+a.title+(a.place?.place_id?' [✓place]':' [×place]')+(a.place?.opening_hours?' [✓hrs]':'')),
+            ].join('\n');
+
+            navigator.clipboard.writeText(report)
+                .then(()=>showAddConfirmation('Rapport copié !', 'Colle dans le chat Claude', '📋'))
+                .catch(()=>{
+                    const ta=document.createElement('textarea');
+                    ta.value=report;
+                    ta.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;font-size:10px;font-family:monospace;background:#0f172a;color:#e2e8f0;padding:16px;box-sizing:border-box';
+                    ta.onclick=()=>ta.select();
+                    document.body.appendChild(ta);
+                    const btn=document.createElement('button');
+                    btn.textContent='✕ Fermer';
+                    btn.style.cssText='position:fixed;top:8px;right:8px;z-index:10000;background:#dc2626;color:white;border:none;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer';
+                    btn.onclick=()=>{ta.remove();btn.remove();};
+                    document.body.appendChild(btn);
+                });
+        };
+
+        // Auto-refresh quand on ouvre l'onglet Réglages
+        const _origSwitchConfigTab = typeof switchConfigTab === 'function' ? switchConfigTab : null;
+
+
+        // Enrichit toutes les activités qui ont un place_id mais pas d'horaires
+        async function _enrichAllPendingActivities() {
+            const toEnrich = (activities||[]).filter(a =>
+                a.place?.place_id && !a.place?.opening_hours &&
+                a.block_type !== 'meal' && !a.meal_type
+            );
+            if (!toEnrich.length) return;
+            console.log('[enrich]', toEnrich.length, 'activités à enrichir');
+            const BATCH = 3;
+            for (let i = 0; i < toEnrich.length; i += BATCH) {
+                const batch = toEnrich.slice(i, i + BATCH);
+                await Promise.all(batch.map(act => enrichActivityPlace(act).catch(()=>{})));
+                await new Promise(r => setTimeout(r, 300));
+            }
+            saveActivities();
+            renderPlanning();
+        }
+
+
+        function goToDay(dayIdx) {
+            if (!tripData) return;
+            currentDayIndex = Math.max(0, Math.min(tripData.totalDays-1, dayIdx));
+            if (typeof updateDayNavigation === 'function') updateDayNavigation();
+            if (typeof updateCitySelector === 'function') updateCitySelector();
+            renderPlanning();
+        }
+
         function renderPlanning() {
             const myToken = ++_renderToken;
             const list = document.getElementById('planning-list');
@@ -7332,182 +8478,212 @@
             const realTimes = new Array(dayActivities.length);
             realTimes[0] = dayActivities[0].time; // ancrage
 
+            const DAY_END_MIN  = 22 * 60; // 22h00 = limite absolue affichage
+            const DAY_WARN_MIN = 21 * 60; // 21h00 = seuil avertissement
+
             for (let k = 1; k < dayActivities.length; k++) {
                 const prev    = dayActivities[k - 1];
                 const curr    = dayActivities[k];
-                // Durée cohérente : visit_duration prioritaire, puis duration_minutes, puis 90
-                const _pd = prev.place?.visit_duration || prev.duration_minutes || 90;
-                const prevDur = Math.min(480, Math.max(15, parseInt(_pd) || 90));
+                const _pd     = prev.place?.visit_duration || prev.duration_minutes || 90;
+                const prevDur = Math.min(360, Math.max(15, parseInt(_pd) || 90));
                 const prevEnd = addMinutesToTime(realTimes[k - 1], prevDur);
                 let   travel  = 0;
                 if (prev.place?.place_id && curr.place?.place_id) {
-                    const ck = `${prev.place.place_id}-${curr.place.place_id}`;
+                    const ck = prev.place.place_id + '-' + curr.place.place_id;
                     const rawTravel = routeCache[ck]?.total_minutes || 0;
-                    travel = Math.min(180, Math.max(0, parseInt(rawTravel) || 0));
+                    travel = Math.min(120, Math.max(0, parseInt(rawTravel) || 0));
                 }
-                realTimes[k] = addMinutesToTime(prevEnd, travel);
+                // Cap : si l'activité commencerait après 22h, on arrête le calcul à 22h
+                const computed = addMinutesToTime(prevEnd, travel);
+                const computedMin = _timeStrToMin(computed);
+                realTimes[k] = computedMin >= DAY_END_MIN
+                    ? _minToTimeStr(Math.min(computedMin, DAY_END_MIN))
+                    : computed;
             }
 
-            // ── 2. Heure de départ hôtel = realTimes[0] - durée trajet hôtel ─
-            const stay0 = getStayForDay(currentDayIndex);
-            const act0  = dayActivities[0];
-            if (stay0?.place && act0?.place) {
-                const hotelKey = stay0.place?.place_id && act0.place?.place_id ? `${stay0.place.place_id}-${act0.place.place_id}` : null;
-                const hotelTravel = hotelKey ? (routeCache[hotelKey]?.total_minutes || 0) : 0;
-                const hotelDepart = addMinutesToTime(realTimes[0], -hotelTravel);
+            // ══════════════════════════════════════════════════════════════
+            // SECTION 2 : Blocs de contexte en tête de journée
+            // Ordre logique :
+            //   A. Bannière vol arrivée (jour 0 seulement)
+            //   B. Bloc Shinkansen si changement de ville depuis hier
+            //   C. Carte hôtel + trajet hôtel → 1ère activité
+            // ══════════════════════════════════════════════════════════════
+
+            const stay0   = getStayForDay(currentDayIndex);
+            const act0    = dayActivities[0];
+            const prevStay = currentDayIndex > 0 ? getStayForDay(currentDayIndex - 1) : null;
+            const _dk = document.documentElement.classList.contains('dark');
+
+            // ── A. Bannière vol d'arrivée (J0 uniquement) ─────────────────
+            const _flightArr = _getFlightArrival();
+            if (currentDayIndex === 0 && _flightArr?.hour !== undefined) {
+                const _arrBanner = document.createElement('div');
+                _arrBanner.style.cssText = 'margin-bottom:10px;padding:10px 14px;border-radius:14px;'+
+                    'border:1.5px solid rgba(167,139,250,.4);'+
+                    'background:'+(_dk?'rgba(124,58,237,.2)':'#faf5ff')+';'+
+                    'display:flex;align-items:center;gap:10px';
+                const _arrH = String(_flightArr.hour).padStart(2,'0');
+                const _arrM = String(_flightArr.min||0).padStart(2,'0');
+                _arrBanner.innerHTML =
+                    '<span style="font-size:20px">✈️</span><div>'+
+                    '<div style="font-size:13px;font-weight:800;color:'+(_dk?'#c4b5fd':'#7c3aed')+'">'+
+                        'Arrivée estimée : '+_arrH+'h'+_arrM+
+                    '</div>'+
+                    '<div style="font-size:10px;color:'+(_dk?'rgba(255,255,255,.45)':'#9ca3af')+'">'+
+                        'Vol depuis '+(_flightArr.depAirport||'Europe')+' · décalage +9h Japon'+
+                    '</div></div>';
+                list.appendChild(_arrBanner);
+            }
+
+            // ── B. Shinkansen : ville change depuis hier → bloc en tête de journée ─
+            // Logique : la transition se FAIT la veille au soir.
+            // Ex: J1=Tokyo, J2=Osaka → le Shinkansen apparaît en tête de J2
+            // avec l'heure de départ estimée (fin dernière activité J1 + marge)
+            const SHINKANSEN_DATA = {
+                'tokyo-osaka':    {min:155, line:'Tokaido Shinkansen', via:'Nagoya'},
+                'osaka-tokyo':    {min:155, line:'Tokaido Shinkansen', via:'Nagoya'},
+                'tokyo-kyoto':    {min:140, line:'Tokaido Shinkansen', via:'Shin-Yokohama'},
+                'kyoto-tokyo':    {min:140, line:'Tokaido Shinkansen', via:'Shin-Yokohama'},
+                'kyoto-osaka':    {min:15,  line:'JR Kyoto Line', via:'trajet local'},
+                'osaka-kyoto':    {min:15,  line:'JR Kyoto Line', via:'trajet local'},
+                'tokyo-hiroshima':{min:245, line:'Tokaido/Sanyo Shinkansen', via:'Osaka'},
+                'hiroshima-tokyo':{min:245, line:'Sanyo/Tokaido Shinkansen', via:'Osaka'},
+                'osaka-hiroshima':{min:85,  line:'Sanyo Shinkansen', via:'Himeji'},
+                'hiroshima-osaka':{min:85,  line:'Sanyo Shinkansen', via:'Himeji'},
+                'kyoto-hiroshima':{min:100, line:'Sanyo Shinkansen', via:'Osaka'},
+                'hiroshima-kyoto':{min:100, line:'Sanyo Shinkansen', via:'Osaka'},
+                'tokyo-fukuoka':  {min:300, line:'Tokaido/Sanyo Shinkansen', via:'Osaka'},
+                'fukuoka-tokyo':  {min:300, line:'Sanyo/Tokaido Shinkansen', via:'Osaka'},
+                'osaka-fukuoka':  {min:150, line:'Sanyo Shinkansen', via:'Himeji'},
+                'fukuoka-osaka':  {min:150, line:'Sanyo Shinkansen', via:'Himeji'},
+                'tokyo-nagoya':   {min:105, line:'Tokaido Shinkansen', via:'Shin-Yokohama'},
+                'nagoya-tokyo':   {min:105, line:'Tokaido Shinkansen', via:'Shin-Yokohama'},
+                'tokyo-kanazawa': {min:150, line:'Hokuriku Shinkansen', via:'Nagano'},
+                'kanazawa-tokyo': {min:150, line:'Hokuriku Shinkansen', via:'Nagano'},
+                'osaka-nara':     {min:45,  line:'Kintetsu Nara Line', via:'trajet local'},
+                'nara-osaka':     {min:45,  line:'Kintetsu Nara Line', via:'trajet local'},
+                'kyoto-nara':     {min:45,  line:'Kintetsu/JR Nara Line', via:'trajet local'},
+                'nara-kyoto':     {min:45,  line:'Kintetsu/JR Nara Line', via:'trajet local'},
+                'osaka-kobe':     {min:25,  line:'Hankyu/JR', via:'trajet local'},
+                'kobe-osaka':     {min:25,  line:'Hankyu/JR', via:'trajet local'},
+                'hiroshima-miyajima':{min:40, line:'JR + Ferry', via:'Miyajimaguchi'},
+                'miyajima-hiroshima':{min:40, line:'Ferry + JR', via:'Miyajimaguchi'},
+                'tokyo-nikko':    {min:130, line:'Tobu Nikko Line', via:'Asakusa'},
+                'nikko-tokyo':    {min:130, line:'Tobu Nikko Line', via:'Asakusa'},
+            };
+
+            if (prevStay && stay0 && prevStay.city !== stay0.city) {
+                const routeKey = (prevStay.city+'-'+stay0.city).toLowerCase()
+                    .replace(/[àáâ]/g,'a').replace(/[éèê]/g,'e').replace(/\s+/g,'-').replace(/[^a-z-]/g,'');
+                const shinData = SHINKANSEN_DATA[routeKey];
+                const shinMin  = shinData?.min || 120;
+                const shinH    = Math.floor(shinMin/60);
+                const shinM    = String(shinMin%60).padStart(2,'0');
+                const isLocal  = shinMin <= 60;
+
+                // Estimer heure de départ : fin des activités J-1 + 30 min (marge gare)
+                const j1Acts = activities.filter(a => a.dayIndex === currentDayIndex-1)
+                                         .sort((a,b)=>a.time.localeCompare(b.time));
+                let depTime = '19:00'; // défaut
+                if (j1Acts.length > 0) {
+                    const lastJ1 = j1Acts[j1Acts.length-1];
+                    depTime = addMinutesToTime(lastJ1.time, (lastJ1.duration_minutes||90) + 30);
+                }
+                const arrTime = addMinutesToTime(depTime, shinMin + 45); // +45 min logistique arrivée
+
+                const transCard = document.createElement('div');
+                transCard.style.cssText =
+                    'margin-bottom:12px;padding:12px 14px;border-radius:14px;'+
+                    'border:2px solid '+(_dk?'rgba(56,189,248,.35)':'#bae6fd')+';'+
+                    'background:'+(_dk?'rgba(8,47,73,.6)':'#f0f9ff')+';'+
+                    'display:flex;align-items:center;gap:12px';
+                transCard.innerHTML =
+                    '<span style="font-size:26px">'+(isLocal?'🚃':'🚄')+'</span>'+
+                    '<div style="flex:1;min-width:0">'+
+                        '<div style="font-size:13px;font-weight:900;color:'+(_dk?'#38bdf8':'#0369a1')+'">'+
+                            prevStay.city+' → '+stay0.city+
+                        '</div>'+
+                        '<div style="font-size:10px;color:'+(_dk?'rgba(255,255,255,.5)':'#64748b')+';margin-top:2px">'+
+                            (shinData?.line||'Train')+
+                            (shinData?.via?' · via '+shinData.via:'')+
+                        '</div>'+
+                        '<div style="font-size:10px;color:'+(_dk?'rgba(255,255,255,.4)':'#94a3b8')+';margin-top:2px">'+
+                            'Départ ~'+depTime+' · Arrivée ~'+arrTime+
+                            (isLocal?'':' · +45 min bagages/check-in')+
+                        '</div>'+
+                    '</div>'+
+                    '<div style="text-align:right;flex-shrink:0">'+
+                        '<div style="font-size:15px;font-weight:900;color:'+(_dk?'#38bdf8':'#0284c7')+'">'+
+                            shinH+'h'+shinM+
+                        '</div>'+
+                        '<div style="font-size:9px;color:'+(_dk?'rgba(255,255,255,.4)':'#94a3b8')+'">trajet</div>'+
+                    '</div>';
+                list.appendChild(transCard);
+            }
+
+            // ── C. Carte hôtel + bloc trajet hôtel → 1ère activité ────────
+            // Fonctionne même si act0.place est null (fallback sans trajet)
+            if (stay0) {
+                const hotelDepart = (stay0.place?.place_id && act0?.place?.place_id)
+                    ? addMinutesToTime(realTimes[0], -(routeCache[stay0.place.place_id+'-'+act0.place.place_id]?.total_minutes || 0))
+                    : realTimes[0];
 
                 const hotelCard = document.createElement('div');
-                const _dk = document.documentElement.classList.contains('dark');
-                hotelCard.className = "rounded-2xl p-4 border-2 mb-4";
+                hotelCard.className = 'rounded-2xl p-4 border-2 mb-3';
                 hotelCard.style.cssText = _dk
-                    ? "background:#1c1209;border-color:#c2410c60"
-                    : "background:linear-gradient(to right,#fed7aa,#fecdd3);border-color:#fb923c80";
-                hotelCard.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <div class="text-2xl">🏨</div>
-                            <div>
-                                <div class="font-bold text-sm" style="color:${_dk?'#f1f5f9':'#1f2937'}">${stay0.hotelName || 'Hôtel'}</div>
-                                <div class="text-xs" style="color:${_dk?'#94a3b8':'#6b7280'}">Point de départ</div>
-                            </div>
-                        </div>
-                        ${hotelTravel > 0 ? `<div class="text-xs font-bold" style="color:${_dk?'#fb923c':'#ea580c'}">Départ ${hotelDepart}</div>` : ''}
-                    </div>
-                `;
+                    ? 'background:#1c1209;border-color:#c2410c60'
+                    : 'background:linear-gradient(to right,#fed7aa,#fecdd3);border-color:#fb923c80';
+                hotelCard.innerHTML =
+                    '<div style="display:flex;align-items:center;justify-content:space-between">'+
+                    '<div style="display:flex;align-items:center;gap:10px">'+
+                        '<div style="font-size:22px">🏨</div>'+
+                        '<div>'+
+                            '<div style="font-size:13px;font-weight:800;color:'+(_dk?'#f1f5f9':'#1f2937')+'">'+
+                                (stay0.hotelName||'Hôtel')+
+                            '</div>'+
+                            '<div style="font-size:10px;color:'+(_dk?'#94a3b8':'#6b7280')+'">Point de départ · '+stay0.city+'</div>'+
+                        '</div>'+
+                    '</div>'+
+                    '<div style="font-size:11px;font-weight:700;color:'+(_dk?'#fb923c':'#ea580c')+'">'+
+                        'Départ '+hotelDepart+
+                    '</div>'+
+                    '</div>';
                 list.appendChild(hotelCard);
 
-                const hotelNavId    = `nav-hotel-${act0.id}`;
+                // Bloc trajet hôtel → 1ère activité
+                // Toujours afficher quelque chose, même sans place_id
+                const hotelNavId = 'nav-hotel-'+( act0?.id || 'first');
                 const hotelNavBlock = document.createElement('div');
                 hotelNavBlock.id        = hotelNavId;
-                hotelNavBlock.className = "nav-travel-block mx-4 mb-3 relative z-10";
-                hotelNavBlock.innerHTML = `<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)">
-                    <span style="font-size:13px">🏨</span>
-                    <span class="font-black text-white animate-pulse" style="font-size:12px">Calcul trajet hôtel…</span>
-                </div>`;
-                list.appendChild(hotelNavBlock);
-                if (!window._navRerender) {
-                    _navPending++;
-                    _navRenderScheduled = true;
-                }
-                calculateNav(stay0.place, act0.place, hotelNavId, hotelDepart, realTimes[0]);
-            } else if (stay0) {
-                // Hôtel sans place validée — carte simple
-                const hotelCard = document.createElement('div');
-                hotelCard.className = "bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-4 border-2 border-orange-200 mb-4";
-                hotelCard.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <div class="text-2xl">🏨</div>
-                        <div>
-                            <div class="font-bold text-sm">${stay0.hotelName || 'Hôtel'}</div>
-                            <div class="text-xs" style="color:var(--budget-sub,#6b7280)">Point de départ</div>
-                        </div>
-                    </div>
-                `;
-                list.appendChild(hotelCard);
-            }
+                hotelNavBlock.className = 'nav-travel-block mx-4 mb-3 relative z-10';
 
-            // ── 3. Enrichissement des activités sans horaires/prix ───────────
-            dayActivities.forEach(act => {
-                if (act.place?.place_id) {
-                    const cached = getPlaceCache(act.place.place_id);
-                    const needsEnrich = act.place.opening_hours === undefined || act.place.opening_hours === null
-                                        || act.place.price_level === undefined || act.place.price_level === null
-                                        || act.place.rating_source !== 'google'; // re-fetch si note pas encore depuis Google
-                    if (needsEnrich && !cached) {
-                        enrichActivityPlace(act);
-                    } else if (cached && needsEnrich) {
-                        // Appliquer le cache immédiatement sans appel réseau
-                        const idx = activities.findIndex(a => a.id === act.id);
-                        if (idx >= 0) {
-                            activities[idx].place = { ...activities[idx].place, ...cached };
-                            localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
-                            // Debounce pour afficher les données mises à jour
-                            clearTimeout(window._enrichRenderTimer);
-                            window._enrichRenderTimer = setTimeout(() => renderPlanning(), 600);
-                        }
-                    }
-                }
-            });
-
-            // ── 3b. Score géographique journée ─────────────────────────────
-            {
-                const geoActs = dayActivities.filter(a => a.place?.lat && a.place?.lng);
-                if (geoActs.length >= 2) {
-                    // Calculer distance totale approximative (Haversine)
-                    let totalKm = 0;
-                    for (let gi = 0; gi < geoActs.length - 1; gi++) {
-                        const a = geoActs[gi], b = geoActs[gi+1];
-                        const R = 6371;
-                        const dLat = (b.place.lat - a.place.lat) * Math.PI / 180;
-                        const dLng = (b.place.lng - a.place.lng) * Math.PI / 180;
-                        const h = Math.sin(dLat/2)**2 + Math.cos(a.place.lat*Math.PI/180) * Math.cos(b.place.lat*Math.PI/180) * Math.sin(dLng/2)**2;
-                        totalKm += R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
-                    }
-                    const dk = document.documentElement.classList.contains('dark');
-                    const isCompact = totalKm < 5;
-                    const isMed = totalKm < 12;
-                    const scoreColor = isCompact ? '#16a34a' : isMed ? '#d97706' : '#dc2626';
-                    const scoreIcon  = isCompact ? '🟢' : isMed ? '🟡' : '🔴';
-                    const scoreLabel = isCompact ? 'Journée compacte' : isMed ? 'Journée modérée' : 'Journée étalée';
-                    const scoreDesc  = totalKm.toFixed(1) + ' km · ' + geoActs.length + ' lieux';
-                    // Météo inline dans la barre score
-                    const _dayWeather = _getWeatherForDay ? _getWeatherForDay(currentDayIndex) : null;
-                    const weatherInline = _dayWeather
-                        ? (_dayWeather.rain_probability >= 70 ? '🌧️' : _dayWeather.rain_probability >= 40 ? '🌦️' : _dayWeather.rain_probability >= 20 ? '⛅' : '☀️') + ' ' + _dayWeather.temp_max + '°'
-                        : null;
-
-                    const geoBar = document.createElement('div');
-                    geoBar.style.cssText = `margin:0 16px 12px;padding:10px 14px;border-radius:14px;display:flex;align-items:center;gap:10px;cursor:pointer;` +
-                        (dk ? 'background:#1e293b;border:1px solid #334155' : 'background:#f8fafc;border:1px solid #e2e8f0');
-                    geoBar.onclick = () => toggleMapView();
-                    // Score faisabilité : ajouter temps trajet + conflits depuis routeCache
-                    let totalTravelMin = 0;
-                    let conflicts = 0;
-                    const sortedActs = dayActivities.slice().sort((a,b) => a.time.localeCompare(b.time));
-                    for (let _i = 0; _i < sortedActs.length - 1; _i++) {
-                        const _a = sortedActs[_i], _b = sortedActs[_i+1];
-                        const _ck = Object.keys(routeCache).find(k => k.includes(String(_a.id)) && k.includes(String(_b.id)));
-                        if (_ck) {
-                            totalTravelMin += routeCache[_ck].total_minutes || 0;
-                            // Conflit : fin de _a + trajet > début de _b
-                            const [hA, mA] = _a.time.split(':').map(Number);
-                            const endA = hA * 60 + mA + (_a.duration_minutes || 90) + (routeCache[_ck].total_minutes || 0);
-                            const [hB, mB] = _b.time.split(':').map(Number);
-                            if (endA > hB * 60 + mB) conflicts++;
-                        }
-                    }
-                    const travelLabel = totalTravelMin > 0
-                        ? (totalTravelMin >= 60 ? Math.floor(totalTravelMin/60)+'h'+String(totalTravelMin%60).padStart(2,'0')+'min trajet' : totalTravelMin+'min trajet')
-                        : '';
-                    const feasIcon  = conflicts === 0 ? '✅' : conflicts === 1 ? '⚠️' : '❌';
-                    const feasLabel = conflicts === 0 ? 'Planning faisable' : conflicts === 1 ? 'Planning serré' : conflicts + ' conflits horaires';
-                    const feasColor = conflicts === 0 ? '#16a34a' : conflicts === 1 ? '#d97706' : '#dc2626';
-
-                    geoBar.innerHTML =
-                        '<div style="display:flex;flex-direction:column;gap:4px;flex:1">' +
-                            '<div style="display:flex;align-items:center;gap:8px">' +
-                                '<span style="font-size:15px">' + scoreIcon + '</span>' +
-                                '<span style="font-size:12px;font-weight:700;color:' + scoreColor + '">' + scoreLabel + '</span>' +
-                                '<span style="font-size:11px;color:' + (dk?'#64748b':'#94a3b8') + '">·</span>' +
-                                '<span style="font-size:11px;color:' + (dk?'#94a3b8':'#6b7280') + '">' + scoreDesc + '</span>' +
-                            '</div>' +
-                            '<div style="display:flex;align-items:center;gap:8px">' +
-                                '<span style="font-size:14px">' + feasIcon + '</span>' +
-                                '<span style="font-size:11px;font-weight:700;color:' + feasColor + '">' + feasLabel + '</span>' +
-                                (travelLabel ? '<span style="font-size:10px;color:' + (dk?'#64748b':'#9ca3af') + '">· ' + travelLabel + '</span>' : '') +
-                                (weatherInline ? '<span style="font-size:11px;font-weight:700;margin-left:auto">' + weatherInline + '</span>' : '') +
-                            '</div>' +
-                        '</div>' +
-                        '<div style="font-size:11px;font-weight:600;color:#7c3aed;opacity:0.8;flex-shrink:0">Carte →</div>';
-                    list.appendChild(geoBar);
+                if (stay0.place?.place_id && act0?.place?.place_id) {
+                    // Calcul réel via Google Routes
+                    hotelNavBlock.innerHTML =
+                        '<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)">'+
+                        '<span style="font-size:13px">🏨</span>'+
+                        '<span class="font-black text-white animate-pulse" style="font-size:12px">Calcul trajet hôtel…</span>'+
+                        '</div>';
+                    list.appendChild(hotelNavBlock);
+                    if (!window._navRerender) { _navPending++; _navRenderScheduled = true; }
+                    calculateNav(stay0.place, act0.place, hotelNavId, hotelDepart, realTimes[0]);
+                } else {
+                    // Fallback : estimation par défaut (hôtel en centre-ville)
+                    const estMin = prevStay && prevStay.city !== stay0?.city ? 30 : 15;
+                    hotelNavBlock.innerHTML =
+                        '<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)">'+
+                        '<span style="font-size:14px">🏨</span>'+
+                        '<span class="font-black text-white" style="font-size:14px">~'+estMin+' min</span>'+
+                        '<span style="font-size:11px;color:rgba(255,255,255,.7)"> · Depuis l’hôtel</span>'+
+                        '</div>';
+                    list.appendChild(hotelNavBlock);
                 }
             }
 
-            // ── 4. Rendu de chaque activité ──────────────────────────────────
-            const _mealMode  = travelerProfile.meal_display || 'complet';
-            const _cityStay0 = getStayForDay(currentDayIndex);
-            const _cityName0 = _cityStay0?.city || '';
-            const _dk0       = document.documentElement.classList.contains('dark');
+            // Variables de contexte (doivent être déclarées AVANT la boucle)
+            const _mealMode     = (travelerProfile?.meal_display) || 'complet';
+            const _cityName0    = selectedCity || getCityForDay(currentDayIndex) || '';
+            const _dk0          = document.documentElement.classList.contains('dark');
             const _slotRendered = new Set();
 
             for (let i = 0; i < dayActivities.length; i++) {
@@ -7584,6 +8760,12 @@
                 // Alerte horaires : activité fermée à l'heure prévue
                 const hoursAlert = act.place?.opening_hours?.length
                     ? _checkActivityOpenAt(act, arriveTime)
+                    : null;
+                // Alerte journée surchargée : activité après 22h
+                const lateAlert = _timeStrToMin(arriveTime) >= 22*60
+                    ? { level:'error', msg:'Après 22h — journée surchargée, simplifie le programme' }
+                    : _timeStrToMin(arriveTime) >= 21*60
+                    ? { level:'warning', msg:'Après 21h — journée très chargée' }
                     : null;
                 const card = document.createElement('div');
                 const isCompleted = completedActivities.includes(act.id);
@@ -7678,17 +8860,17 @@
                             </a>` : `<div class="flex-1" style="background:${theme.timelineBg}"></div>`}
                         </div>
                     </div>
-                    ${(fatigueBanner || weatherBanner || hoursAlert) ? `
+                    ${(fatigueBanner || weatherBanner || hoursAlert || lateAlert) ? `
                     <div style="border-top:1px solid ${hoursAlert ? (hoursAlert.level==='error'?'#fee2e2':'#fef3c7') : (fatigueBanner||weatherBanner).bg}">
-                        ${hoursAlert ? `<div class="flex items-center justify-between gap-2 px-3 py-2" style="background:${hoursAlert.level==='error'?'#fef2f2':'#fffbeb'}">
+                        ${(hoursAlert||lateAlert) ? `<div class="flex items-center justify-between gap-2 px-3 py-2" style="background:${(hoursAlert||lateAlert).level==='error'?'#fef2f2':'#fffbeb'}">
                             <div class="flex items-center gap-2">
-                                <span style="font-size:13px">${hoursAlert.level==='error'?'🔴':'🟡'}</span>
-                                <span style="font-size:11px;font-weight:700;color:${hoursAlert.level==='error'?'#dc2626':'#92400e'}">${hoursAlert.msg}</span>
+                                <span style="font-size:13px">${(hoursAlert||lateAlert).level==='error'?'🔴':'🟡'}</span>
+                                <span style="font-size:11px;font-weight:700;color:${(hoursAlert||lateAlert).level==='error'?'#dc2626':'#92400e'}">${(hoursAlert||lateAlert).msg}</span>
                             </div>
-                            <button onclick="event.stopPropagation();_findSimilarOpenPlace(activities.find(a=>a.id=='${act.id}'),'${arriveTime}')"
+                            ${hoursAlert ? `<button onclick="event.stopPropagation();_findSimilarOpenPlace(activities.find(a=>a.id=='${act.id}'),'${arriveTime}')"
                                 style="flex-shrink:0;font-size:10px;font-weight:700;color:white;background:${hoursAlert.level==='error'?'#dc2626':'#d97706'};border:none;border-radius:8px;padding:4px 8px;cursor:pointer">
                                 ${hoursAlert.level==='error'?'Trouver un lieu ouvert':'Voir options'}
-                            </button>
+                            </button>` : ''}
                         </div>` : ''}
                         ${fatigueBanner ? `<div class="flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold" style="background:${fatigueBanner.bg};color:${fatigueBanner.color}">
                             <span>${fatigueBanner.icon}</span><span>${fatigueBanner.label}</span>
@@ -7734,32 +8916,179 @@
                     }
                 }
 
-                // Bloc trajet entre act[i] et act[i+1]
+                // ── Bloc trajet entre act[i] et act[i+1] ─────────────────
+                // Affiché TOUJOURS (avec estimation si pas de place_id)
                 if (i < dayActivities.length - 1) {
                     const nextAct = dayActivities[i + 1];
-                    if (act.place && nextAct.place) {
-                        const navId    = `nav-${act.id}-${nextAct.id}`;
-                        const navBlock = document.createElement('div');
-                        navBlock.id        = navId;
-                        navBlock.className = "nav-travel-block mx-4 my-1 relative z-10";
-                        navBlock.dataset.fromId = act.id;
-                        navBlock.dataset.toId   = nextAct.id;
-                        navBlock.innerHTML = `
-                            <div class="nav-info-pill">
-                                <span class="animate-pulse text-xs text-white/70">Calcul…</span>
-                            </div>
-                        `;
-                        list.appendChild(navBlock);
-                        // dep = fin de visite act[i]   arr = arrivée act[i+1]
-                        if (!window._navRerender) {
-                            _navPending++;
-                            _navRenderScheduled = true;
-                            calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i + 1]);
+                    const navId   = 'nav-'+act.id+'-'+nextAct.id;
+                    const navBlock = document.createElement('div');
+                    navBlock.id             = navId;
+                    navBlock.className      = 'nav-travel-block mx-4 my-1 relative z-10';
+                    navBlock.dataset.fromId = act.id;
+                    navBlock.dataset.toId   = nextAct.id;
+
+                    const hasFromPlace = act.place?.place_id;
+                    const hasToPlace   = nextAct.place?.place_id;
+
+                    if (hasFromPlace && hasToPlace) {
+                        // ── Cas nominal : calcul réel Google Routes ───────────
+                        const cacheKey = act.place.place_id+'-'+nextAct.place.place_id;
+                        if (routeCache[cacheKey]) {
+                            // Déjà en cache → afficher immédiatement
+                            navBlock.innerHTML = '<div class="nav-info-pill"><span class="animate-pulse text-xs text-white/70">…</span></div>';
+                            list.appendChild(navBlock);
+                            renderNavBlock(navBlock, routeCache[cacheKey], leaveTime, realTimes[i+1]);
                         } else {
-                            calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i + 1]);
+                            navBlock.innerHTML = '<div class="nav-info-pill"><span class="animate-pulse text-xs text-white/70">Calcul trajet…</span></div>';
+                            list.appendChild(navBlock);
+                            if (!window._navRerender) { _navPending++; _navRenderScheduled = true; }
+                            calculateNav(act.place, nextAct.place, navId, leaveTime, realTimes[i+1]);
                         }
+                    } else {
+                        // ── Fallback : estimation sans place_id ───────────────
+                        // Heuristique basée sur la densité de ville
+                        const _cityDens = typeof getCityDensity === 'function'
+                            ? getCityDensity(getCityForDay(currentDayIndex)||'').density_type
+                            : 'etendue';
+                        const estMin = _cityDens === 'ultra_dense' ? 12
+                                     : _cityDens === 'rurale'      ? 25
+                                     :                               18;
+                        const pillColor = estMin >= 20
+                            ? 'linear-gradient(135deg,#d97706,#b45309)'
+                            : 'linear-gradient(135deg,#16a34a,#15803d)';
+                        navBlock.innerHTML =
+                            '<div class="nav-info-pill" style="background:'+pillColor+';opacity:0.82">'+
+                            '<span style="font-size:14px">🚶</span>'+
+                            '<span class="font-black text-white" style="font-size:13px">~'+estMin+' min</span>'+
+                            '<span style="font-size:10px;color:rgba(255,255,255,.6)"> · estimé</span>'+
+                            '</div>';
+                        list.appendChild(navBlock);
                     }
                 }
+            }
+
+            // ── Enrichissement auto en arrière-plan ─────────────────────
+            if (!window._navRerender) {
+                const _noPlace = dayActivities.filter(a =>
+                    !a.place?.place_id && (a.source==='generated'||a.source==='ai') &&
+                    !a._resolveAttempted && a.block_type !== 'meal'
+                );
+                if (_noPlace.length > 0) setTimeout(_resolveGeneratedActivities, 600);
+
+                const _noHours = dayActivities.filter(a =>
+                    a.place?.place_id && !a.place?.opening_hours
+                );
+                if (_noHours.length > 0) setTimeout(_enrichAllPendingActivities, 1000);
+            }
+
+            // ── Bloc retour hôtel fin de journée ─────────────────────────────
+            // Toujours affiché : dernière activité → hôtel
+            if (stay0 && dayActivities.length > 0) {
+                const lastActFin = dayActivities[dayActivities.length - 1];
+                const lastLeave  = addMinutesToTime(
+                    realTimes[dayActivities.length - 1],
+                    Math.min(360, lastActFin.duration_minutes || 90)
+                );
+                const retNavId    = 'nav-return-hotel-day'+currentDayIndex;
+                const retNavBlock = document.createElement('div');
+                retNavBlock.id        = retNavId;
+                retNavBlock.className = 'nav-travel-block mx-4 mt-1 mb-2 relative z-10';
+
+                if (stay0.place?.place_id && lastActFin.place?.place_id) {
+                    // Calcul réel
+                    const retCacheKey = lastActFin.place.place_id+'-'+stay0.place.place_id;
+                    if (routeCache[retCacheKey]) {
+                        retNavBlock.innerHTML = '<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)"><span style="font-size:13px">🏨</span><span>…</span></div>';
+                        list.appendChild(retNavBlock);
+                        renderNavBlock(retNavBlock, routeCache[retCacheKey], lastLeave, null);
+                    } else {
+                        retNavBlock.innerHTML =
+                            '<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c)">'+
+                            '<span style="font-size:13px">🏨</span>'+
+                            '<span class="font-black text-white animate-pulse" style="font-size:12px">Retour hôtel…</span>'+
+                            '</div>';
+                        list.appendChild(retNavBlock);
+                        if (!window._navRerender) { _navPending++; _navRenderScheduled = true; }
+                        calculateNav(lastActFin.place, stay0.place, retNavId, lastLeave, null);
+                    }
+                } else {
+                    // Fallback estimé
+                    const _dkRet = document.documentElement.classList.contains('dark');
+                    const retMin = 20;
+                    const retArr = addMinutesToTime(lastLeave, retMin);
+                    retNavBlock.innerHTML =
+                        '<div class="nav-info-pill" style="background:linear-gradient(135deg,#f97316,#ea580c);opacity:0.85">'+
+                        '<span style="font-size:13px">🏨</span>'+
+                        '<span class="font-black text-white" style="font-size:13px">~'+retMin+' min</span>'+
+                        '<span style="font-size:11px;color:rgba(255,255,255,.7)"> · Retour hôtel · '+retArr+'</span>'+
+                        '</div>';
+                    list.appendChild(retNavBlock);
+                }
+
+                // Carte hôtel de retour (compact)
+                const retHotelCard = document.createElement('div');
+                const _dkRH = document.documentElement.classList.contains('dark');
+                retHotelCard.style.cssText =
+                    'margin:4px 0 8px;padding:9px 14px;border-radius:12px;'+
+                    'border:1.5px solid '+(_dkRH?'#c2410c40':'#fed7aa')+';'+
+                    'background:'+(_dkRH?'rgba(28,18,9,.5)':'rgba(255,237,213,.6)')+';'+
+                    'display:flex;align-items:center;gap:8px';
+                retHotelCard.innerHTML =
+                    '<span style="font-size:18px">🏨</span>'+
+                    '<span style="font-size:12px;font-weight:700;color:'+(_dkRH?'#fed7aa':'#9a3412')+'">'+
+                        (stay0.hotelName||'Hôtel')+' · Fin de journée'+
+                    '</span>';
+                list.appendChild(retHotelCard);
+            }
+
+            // ── Bloc "Nuit + départ" si demain = autre ville ────────────────
+            const tomorrowStay = getStayForDay(currentDayIndex + 1);
+            if (tomorrowStay && stay0 && tomorrowStay.city !== stay0.city) {
+                const _dkEnd = document.documentElement.classList.contains('dark');
+
+                // Heure de fin estimée = dernière activité + durée
+                const lastAct = dayActivities[dayActivities.length-1];
+                const endTime = addMinutesToTime(
+                    realTimes[dayActivities.length-1],
+                    lastAct.duration_minutes||90
+                );
+
+                const nightCard = document.createElement('div');
+                nightCard.style.cssText =
+                    'margin:16px 0 8px;padding:12px 14px;border-radius:14px;'+
+                    'border:1.5px solid '+(_dkEnd?'rgba(148,163,184,.2)':'#e2e8f0')+';'+
+                    'background:'+(_dkEnd?'rgba(15,23,42,.6)':'#f8fafc')+';'+
+                    'display:flex;align-items:center;gap:12px';
+
+                const routeKey2 = (stay0.city+'-'+tomorrowStay.city).toLowerCase()
+                    .replace(/[^\w-]/g,'').replace(/\s+/g,'-');
+                const SHINKANSEN_DATA2 = {
+                    'tokyo-osaka':155,'osaka-tokyo':155,'tokyo-kyoto':140,'kyoto-tokyo':140,
+                    'kyoto-osaka':15,'osaka-kyoto':15,'tokyo-hiroshima':245,'hiroshima-tokyo':245,
+                    'osaka-hiroshima':85,'hiroshima-osaka':85,'tokyo-fukuoka':300,'fukuoka-tokyo':300,
+                    'osaka-fukuoka':150,'fukuoka-osaka':150,'tokyo-nagoya':105,'nagoya-tokyo':105,
+                    'tokyo-kanazawa':150,'kanazawa-tokyo':150,'osaka-nara':45,'nara-osaka':45,
+                    'kyoto-nara':45,'nara-kyoto':45,'osaka-kobe':25,'kobe-osaka':25,
+                };
+                const shinMin2 = SHINKANSEN_DATA2[routeKey2] || 120;
+                const shinH2   = Math.floor(shinMin2/60);
+                const shinM2   = String(shinMin2%60).padStart(2,'0');
+                // Heure de départ conseillée = fin J + 30 min de marge gare
+                const depAdvised = addMinutesToTime(endTime, 30);
+
+                nightCard.innerHTML =
+                    '<span style="font-size:22px">🌙</span>'+
+                    '<div style="flex:1;min-width:0">'+
+                        '<div style="font-size:13px;font-weight:900;color:'+(_dkEnd?'#cbd5e1':'#334155')+'">'+
+                            'Nuit à '+stay0.city+' · Départ demain vers '+tomorrowStay.city+
+                        '</div>'+
+                        '<div style="font-size:10px;color:'+(_dkEnd?'rgba(255,255,255,.4)':'#94a3b8')+';margin-top:3px">'+
+                            'Shinkansen recommandé ~'+depAdvised+
+                            ' · Trajet '+shinH2+'h'+(shinM2!=='00'?shinM2:'')+
+                        '</div>'+
+                    '</div>'+
+                    '<span style="font-size:20px">🚄</span>';
+                list.appendChild(nightCard);
             }
 
             // Bouton "Optimiser ma journée" — apparaît dès 2 activités
@@ -8363,6 +9692,7 @@
 
         function renderNavBlock(el, data, departureTime, arrivalTime) {
             if (!data || !data.total_minutes) return;
+            // Si arrivalTime non fourni (ex: retour hôtel), le calculer depuis departure
             const arrival = arrivalTime || (departureTime ? addMinutesToTime(departureTime, data.total_minutes) : null);
             const hasWalk = (data.walk_from_min > 0 || data.walk_to_min > 0);
             const hasTransit = data.transit_min > 0;
@@ -8385,6 +9715,11 @@
                 ? Math.floor(totalMin/60) + 'h' + (totalMin%60 ? String(totalMin%60).padStart(2,'0') : '')
                 : totalMin + ' min';
 
+            // Affichage des heures dep→arr
+            const timeStr = (departureTime && arrival)
+                ? '<span style="font-size:10px;color:rgba(255,255,255,.55);margin-left:auto">'+departureTime+' → '+arrival+'</span>'
+                : (arrival ? '<span style="font-size:10px;color:rgba(255,255,255,.55);margin-left:auto">arr. '+arrival+'</span>' : '');
+
             const pill = el.querySelector('.nav-info-pill');
             if (pill) {
                 pill.style.background = pillColor;
@@ -8394,7 +9729,7 @@
                     '<span style="font-size:15px">' + modeIcon + '</span>' +
                     '<span class="font-black text-white" style="font-size:14px">' + durStr + '</span>' +
                     '<span class="text-white/70" style="font-size:11px"> · ' + modeLabel + '</span>' +
-                    '<span style="margin-left:auto;font-size:11px;opacity:0.6">🗺</span>';
+                    timeStr;
             }
 
 
@@ -9059,6 +10394,8 @@
         let completedActivities = JSON.parse(localStorage.getItem('japan_completed_v1') || '[]');
 
         function initActivitySwipe(element, activityId, actTitle) {
+            if (element._swipeInit) return; // ← évite l'accumulation de listeners
+            element._swipeInit = true;
             let touchStartX = 0, touchStartY = 0;
             let touchCurrentX = 0, touchCurrentY = 0;
             let mode = null; // null | 'none' | 'longpress' | 'swipe' | 'drag'
@@ -9924,6 +11261,13 @@
         }
 
         function switchConfigTab(tabName) {
+            // Auto-refresh panneau dev quand on ouvre Réglages
+            if (tabName === 'reglages') {
+                setTimeout(function() {
+                    if (typeof _devRefreshState === 'function') _devRefreshState();
+                    if (typeof _devUpdateErrorUI === 'function') _devUpdateErrorUI();
+                }, 80);
+            }
             document.querySelectorAll('.config-content').forEach(c => c.classList.add('hidden'));
             document.querySelectorAll('.config-tab-bottom').forEach(b => {
                 b.classList.remove('text-purple-600', 'border-purple-600');
@@ -10554,6 +11898,20 @@
         }
 
         // ── Timeline scrollable sous la barre ─────────────────────────────────
+
+        // Initialise les gestes swipe sur la carte (déjà gérés par _mapSwipePrev/Next via boutons)
+        function _initMapSwipe() {
+            // Swipe touch sur la carte pour changer d'activité
+            const mapEl = document.getElementById('map-view-container') || document.getElementById('map-container');
+            if (!mapEl || mapEl._swipeInitialized) return;
+            mapEl._swipeInitialized = true;
+            let _sx = 0;
+            mapEl.addEventListener('touchstart', e => { _sx = e.touches[0].clientX; }, { passive:true });
+            mapEl.addEventListener('touchend', e => {
+                const dx = e.changedTouches[0].clientX - _sx;
+                if (Math.abs(dx) > 60) { dx > 0 ? _mapSwipePrev() : _mapSwipeNext(); }
+            }, { passive:true });
+        }
 
         function _mapSwipePrev() {
             const geoActs = dayActivities.filter(a => getActCoords(a));
