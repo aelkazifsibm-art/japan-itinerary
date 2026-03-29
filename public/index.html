@@ -6570,18 +6570,10 @@
             const toEnrich = activities.filter(a =>
                 a.place?.place_id &&
                 !a.place?.opening_hours &&
-                (a.place?.price_level === null || a.place?.price_level === undefined) &&
-                a.block_type !== 'meal' && !a.meal_type &&
-                !a._enrichPending
+                a.block_type !== 'meal' && !a.meal_type
             );
             if (!toEnrich.length) return;
             console.log('[enrich] Enrichissement de', toEnrich.length, 'activités...');
-
-            // Marquer toutes comme en cours
-            toEnrich.forEach(act => {
-                const i = activities.findIndex(a => a.id === act.id);
-                if (i >= 0) activities[i]._enrichPending = true;
-            });
 
             // Enrichir en parallèle par lots de 3 (évite de surcharger le serveur)
             const BATCH = 3;
@@ -8283,13 +8275,14 @@
 
         window._devRefreshActivities = async function() {
             showAddConfirmation('Ré-enrichissement lancé', 'Récupération horaires + prix...', '🔄');
-            // Réinitialiser les flags _enrichPending pour forcer le ré-enrichissement
+            // Réinitialiser TOUS les flags de blocage
             activities.forEach(a => {
-                if (a.place?.place_id) {
-                    delete a._enrichPending;
-                    delete a._resolveAttempted;
-                }
+                delete a._enrichPending;
+                delete a._resolveAttempted;
             });
+            // Réinitialiser les compteurs de retry
+            Object.keys(_enrichRetries || {}).forEach(k => delete _enrichRetries[k]);
+            _enrichingIds.clear();
             await _enrichAllPendingActivities();
             _devRefreshState();
             showAddConfirmation('Enrichissement terminé', activities.filter(a=>a.place?.opening_hours).length + ' activités avec horaires', '✅');
@@ -9135,18 +9128,20 @@
             }
 
             // ── Enrichissement auto des activités sans infos complètes ─────────
-            // Déclenché en arrière-plan après le render pour mettre à jour prix/horaires
+            // Activités sans place_id → résoudre
+            const _needResolve = dayActivities.filter(a =>
+                !a.place?.place_id && (a.source === 'generated' || a.source === 'ai') &&
+                !a._resolveAttempted && a.block_type !== 'meal'
+            );
+            if (_needResolve.length > 0 && !window._navRerender) {
+                setTimeout(_resolveGeneratedActivities, 500);
+            }
+            // Activités avec place_id mais sans horaires → enrichir
             const _needEnrich = dayActivities.filter(a =>
-                a.place?.place_id &&
-                !a.place?.opening_hours &&
-                !a._enrichPending
+                a.place?.place_id && !a.place?.opening_hours
             );
             if (_needEnrich.length > 0 && !window._navRerender) {
-                _needEnrich.forEach(a => {
-                    const _ai = activities.findIndex(x => x.id === a.id);
-                    if (_ai >= 0) activities[_ai]._enrichPending = true;
-                });
-                setTimeout(_enrichAllPendingActivities, 300);
+                setTimeout(_enrichAllPendingActivities, 800);
             }
 
             // ── Bloc retour hôtel fin de journée ─────────────────────────────
@@ -9288,7 +9283,7 @@
         const _enrichingIds = new Set();
         // Compteur de tentatives pour éviter les retries infinis
         const _enrichRetries = {};
-        const MAX_ENRICH_RETRIES = 2;
+        const MAX_ENRICH_RETRIES = 3;
 
         // Enrichit une activité avec horaires/prix depuis Google Places si manquants
         async function enrichActivityPlace(act) {
@@ -11442,8 +11437,7 @@
         function switchConfigTab(tabName) {
             // Actualiser le panneau dev quand on ouvre Réglages
             if (tabName === 'reglages') {
-                setTimeout(_devRefreshState, 50);
-                setTimeout(_devUpdateErrorUI, 50);
+                setTimeout(() => { _devRefreshState(); _devUpdateErrorUI(); }, 100);
             }
             document.querySelectorAll('.config-content').forEach(c => c.classList.add('hidden'));
             document.querySelectorAll('.config-tab-bottom').forEach(b => {
