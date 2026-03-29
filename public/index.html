@@ -759,8 +759,62 @@
                     <span style="font-size:11px;color:rgba(255,255,255,0.3)">&#x276F;</span>
                 </button>
             </div>
-        </div>
-    </div>
+
+            <!-- ── Section Développeur ─────────────────────────────────── -->
+            <div style="border-top:1px solid rgba(255,255,255,0.08)">
+                <button onclick="_toggleDevInMenu()" style="display:flex;align-items:center;gap:12px;width:100%;padding:11px 20px;background:none;border:none;cursor:pointer;text-align:left">
+                    <span style="font-size:20px">🛠️</span>
+                    <div style="flex:1">
+                        <div style="font-size:12px;color:rgba(255,255,255,0.7);font-weight:800">Développeur</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:1px">Debug · Erreurs · Rapport</div>
+                    </div>
+                    <span id="dev-menu-arrow" style="font-size:11px;color:rgba(255,255,255,0.3);transition:transform .2s">▸</span>
+                </button>
+
+                <!-- Panneau développeur dépliable -->
+                <div id="dev-menu-panel" style="display:none;padding:0 14px 14px">
+
+                    <!-- État snapshot -->
+                    <div id="dev-menu-state" style="background:#0f172a;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:10px;color:#94a3b8;font-family:monospace;line-height:1.6">
+                        Tap pour actualiser…
+                    </div>
+
+                    <!-- Boutons actions -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+                        <button onclick="_devRefreshActivities()" style="padding:9px 6px;background:rgba(29,78,216,0.25);border:1px solid rgba(96,165,250,0.3);border-radius:10px;font-size:10px;font-weight:800;color:#93c5fd;cursor:pointer">
+                            🔄 Ré-enrichir
+                        </button>
+                        <button onclick="_devRefreshAll()" style="padding:9px 6px;background:rgba(21,128,61,0.25);border:1px solid rgba(74,222,128,0.3);border-radius:10px;font-size:10px;font-weight:800;color:#86efac;cursor:pointer">
+                            ⚡ Tout recalculer
+                        </button>
+                        <button onclick="_devFixDayIndex()" style="padding:9px 6px;background:rgba(124,58,237,0.25);border:1px solid rgba(167,139,250,0.3);border-radius:10px;font-size:10px;font-weight:800;color:#c4b5fd;cursor:pointer">
+                            🔧 Fix dayIndex
+                        </button>
+                        <button onclick="_devClearCache()" style="padding:9px 6px;background:rgba(194,65,12,0.25);border:1px solid rgba(251,146,60,0.3);border-radius:10px;font-size:10px;font-weight:800;color:#fdba74;cursor:pointer">
+                            🗑️ Vider cache
+                        </button>
+                    </div>
+
+                    <!-- Console erreurs -->
+                    <div style="background:#020617;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                            <span style="font-size:10px;font-weight:800;color:#475569">🔴 Erreurs</span>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span id="dev-error-count" style="background:#dc2626;color:white;font-size:9px;font-weight:800;padding:1px 6px;border-radius:6px;min-width:16px;text-align:center">0</span>
+                                <button onclick="_devClearErrors()" style="font-size:9px;color:#475569;background:none;border:none;cursor:pointer;padding:0">Effacer</button>
+                            </div>
+                        </div>
+                        <div id="dev-errors-list" style="max-height:100px;overflow-y:auto;font-size:9px;font-family:monospace;color:#64748b;line-height:1.5">
+                            <span style="font-style:italic">Aucune erreur ✅</span>
+                        </div>
+                    </div>
+
+                    <!-- Rapport -->
+                    <button onclick="_devCopyReport()" style="width:100%;padding:10px;background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;border-radius:10px;font-size:11px;font-weight:800;color:white;cursor:pointer">
+                        📋 Copier rapport complet
+                    </button>
+                </div>
+            </div>
     </div>
 
     <!-- ══ MODALE "JE SUIS PERDU" ══════════════════════════════════ -->
@@ -8342,6 +8396,36 @@
                 });
         };
 
+
+        window._toggleDevInMenu = function() {
+            const panel = document.getElementById('dev-menu-panel');
+            const arrow = document.getElementById('dev-menu-arrow');
+            if (!panel) return;
+            const isOpen = panel.style.display !== 'none';
+            panel.style.display = isOpen ? 'none' : 'block';
+            if (arrow) arrow.style.transform = isOpen ? '' : 'rotate(90deg)';
+            if (!isOpen) {
+                _devRefreshMenuState();
+                _devUpdateErrorUI();
+            }
+        };
+
+        function _devRefreshMenuState() {
+            const el = document.getElementById('dev-menu-state');
+            if (!el) return;
+            const byDay = {};
+            activities.forEach(a => { const d = Number(a.dayIndex); byDay[d] = (byDay[d]||0)+1; });
+            const withPlace = activities.filter(a => a.place?.place_id).length;
+            const withHours = activities.filter(a => a.place?.opening_hours).length;
+            const lsKB = Math.round([...Object.keys(localStorage)].reduce((t,k) => t + (localStorage.getItem(k)||'').length * 2, 0) / 1024);
+            el.innerHTML =
+                '<b style="color:#7c3aed">📊 ' + activities.length + ' activités</b> — Jour ' + currentDayIndex + '<br>' +
+                'Par jour: ' + JSON.stringify(byDay) + '<br>' +
+                'place_id: ' + withPlace + '/' + activities.length +
+                ' · horaires: ' + withHours + '<br>' +
+                'localStorage: ' + lsKB + ' KB · cache: ' + Object.keys(routeCache||{}).length + ' routes';
+        }
+
         function renderPlanning() {
             const myToken = ++_renderToken;
             const list = document.getElementById('planning-list');
@@ -13582,6 +13666,13 @@ async function toggleMapView() {
         // ═══════════════════════════════════════════════════════
         function toggleMoreMenu() {
             const menu = document.getElementById('more-menu');
+            // Refermer le panel dev quand on ferme le menu
+            const dp = document.getElementById('dev-menu-panel');
+            const da = document.getElementById('dev-menu-arrow');
+            if (dp && !menu?.classList.contains('hidden')) {
+                dp.style.display = 'none';
+                if (da) da.style.transform = '';
+            }
             if (!menu) return;
             const isHidden = menu.classList.contains('hidden');
             if (isHidden) {
