@@ -1166,7 +1166,63 @@
                     </div>
                     <p class="text-xs text-gray-400">🚧 Fonctionnalité en développement</p>
                 </div>
-                <div class="mt-6 pt-6 border-t-2 border-gray-200">
+                <!-- ── Section Développeur ── -->
+                <div class="mt-4 pt-4 border-t-2 border-gray-200">
+                    <button onclick="_toggleDevPanel()" class="w-full flex items-center justify-between py-2 px-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🛠️</span>
+                            <span class="text-sm font-bold text-gray-600">Mode Développeur</span>
+                        </div>
+                        <span id="dev-panel-arrow" class="text-gray-400 text-sm transition-transform">▸</span>
+                    </button>
+
+                    <div id="dev-panel" class="hidden mt-2 space-y-2">
+
+                        <!-- État des données -->
+                        <div id="dev-state-box" style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:11px;color:#374151;font-family:monospace">
+                            <div style="font-weight:800;margin-bottom:6px;color:#7c3aed">📊 État</div>
+                            <div id="dev-state-content">—</div>
+                        </div>
+
+                        <!-- Actions rapides -->
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                            <button onclick="_devRefreshActivities()" style="padding:9px 6px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;font-size:11px;font-weight:700;color:#1d4ed8;cursor:pointer">
+                                🔄 Ré-enrichir
+                            </button>
+                            <button onclick="_devRefreshAll()" style="padding:9px 6px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;font-size:11px;font-weight:700;color:#15803d;cursor:pointer">
+                                ⚡ Tout recalculer
+                            </button>
+                            <button onclick="_devFixDayIndex()" style="padding:9px 6px;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:10px;font-size:11px;font-weight:700;color:#7c3aed;cursor:pointer">
+                                🔧 Fix dayIndex
+                            </button>
+                            <button onclick="_devClearCache()" style="padding:9px 6px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;font-size:11px;font-weight:700;color:#c2410c;cursor:pointer">
+                                🗑️ Vider cache
+                            </button>
+                        </div>
+
+                        <!-- Console erreurs -->
+                        <div style="background:#0f172a;border-radius:12px;padding:12px 14px">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                                <div style="font-size:11px;font-weight:800;color:#94a3b8">🔴 Erreurs capturées</div>
+                                <div style="display:flex;gap:6px">
+                                    <span id="dev-error-count" style="background:#dc2626;color:white;font-size:9px;font-weight:800;padding:1px 6px;border-radius:8px">0</span>
+                                    <button onclick="_devClearErrors()" style="font-size:9px;color:#64748b;background:none;border:none;cursor:pointer">Effacer</button>
+                                </div>
+                            </div>
+                            <div id="dev-errors-list" style="max-height:140px;overflow-y:auto;font-size:10px;font-family:monospace;color:#94a3b8;line-height:1.5">
+                                <div style="color:#475569;font-style:italic">Aucune erreur — tout va bien ✅</div>
+                            </div>
+                        </div>
+
+                        <!-- Bouton copier rapport -->
+                        <button onclick="_devCopyReport()" style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;border-radius:12px;font-size:12px;font-weight:800;color:white;cursor:pointer;letter-spacing:0.3px">
+                            📋 Copier rapport complet
+                        </button>
+
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t-2 border-gray-200">
                     <div class="text-xs font-bold text-gray-500 mb-3 uppercase">⚠️ Zone de danger</div>
                     <button onclick="confirmResetAll()" class="w-full bg-red-50 text-red-600 py-4 rounded-xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2 border-2 border-red-200">
                         🔄 Réinitialiser tout le voyage
@@ -1518,6 +1574,8 @@
     <script>
         // ========== DONNÉES GLOBALES ==========
         let activities = JSON.parse(localStorage.getItem('japan_trip_v5') || '[]');
+        // Normaliser dayIndex en Number — JSON.parse peut retourner des strings
+        activities = activities.map(a => ({ ...a, dayIndex: typeof a.dayIndex === 'number' ? a.dayIndex : (parseInt(a.dayIndex) || 0) }));
 
         // ── Migration placeCache : invalider entrées sans photo_reference ────
         // Forcé une seule fois via flag
@@ -3027,7 +3085,7 @@
                                 const _blkTimeMin = _timeStrToMin(blk.time||'09:00');
                                 if (_blkTimeMin >= 22*60) continue; // skip après 22h
                                 if (_blkTimeMin < 6*60)  continue; // skip avant 6h (aberrant)
-                                activities.push({id:Date.now()+Math.random(),source:'ai',dayIndex:dayIdx,time:blk.time||'09:00',time_flexible:true,title:blk.title||'',description:blk.suggestion||blk.local_tip||'',duration_minutes:Math.min(240, blk.duration_minutes||60),block_type:blk.type==='meal'?'meal':'activity',meal_type:blk.meal_type||null,local_tip:blk.local_tip||'',crowd_note:blk.crowd_note||'',place:null});
+                                activities.push({id:Date.now()+Math.random(),source:'ai',dayIndex:Number(dayIdx),time:blk.time||'09:00',time_flexible:true,title:blk.title||'',description:blk.suggestion||blk.local_tip||'',duration_minutes:Math.min(240, blk.duration_minutes||60),block_type:blk.type==='meal'?'meal':'activity',meal_type:blk.meal_type||null,local_tip:blk.local_tip||'',crowd_note:blk.crowd_note||'',place:null});
                                 addedCount++;
                             }
                         }
@@ -3680,6 +3738,8 @@
         }
 
         function saveActivities() {
+            // Normaliser dayIndex en Number avant sauvegarde
+            activities = activities.map(a => ({ ...a, dayIndex: Number(a.dayIndex) || 0 }));
             localStorage.setItem('japan_trip_v5', JSON.stringify(activities));
         }
 
@@ -4290,8 +4350,8 @@
         // ========== CALCUL HEURE DISPONIBLE ==========
         function calculateNextAvailableTime() {
             dayActivities = activities
-                .filter(a => a.dayIndex === currentDayIndex)
-                .sort((a, b) => a.time.localeCompare(b.time));
+                .filter(a => Number(a.dayIndex) === Number(currentDayIndex))
+                .sort((a, b) => (a.time||'00:00').localeCompare(b.time||'00:00'));
             
             if (dayActivities.length === 0) {
                 return "09:00";
@@ -6184,7 +6244,7 @@
                     if (blk.type === 'meal') {
                         activities.push({
                             id: Date.now()+Math.random(),
-                            dayIndex: blk.day_index,
+                            dayIndex: Number(blk.day_index),
                             time: blk.time,
                             time_flexible: true,
                             title: blk.title,
@@ -8099,6 +8159,188 @@
             if (RURAL.some(r => c.includes(r))) return { density_type:'rurale', pivot_radius:10 };
             return { density_type:'etendue', pivot_radius:5 };
         }
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SECTION DÉVELOPPEUR — capture erreurs + actions debug
+        // ═══════════════════════════════════════════════════════════════════
+
+        // Capture automatique console.error et window.onerror
+        const _devErrors = [];
+        (function() {
+            const _origErr = console.error.bind(console);
+            const _origWarn = console.warn.bind(console);
+            console.error = function(...args) {
+                const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a).slice(0,200) : String(a)).join(' ');
+                _devErrors.push({ type:'error', ts: new Date().toLocaleTimeString('fr-FR'), msg: msg.slice(0,300) });
+                _devUpdateErrorUI();
+                _origErr(...args);
+            };
+            console.warn = function(...args) {
+                const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a).slice(0,200) : String(a)).join(' ');
+                _devErrors.push({ type:'warn', ts: new Date().toLocaleTimeString('fr-FR'), msg: msg.slice(0,300) });
+                _devUpdateErrorUI();
+                _origWarn(...args);
+            };
+            window.addEventListener('error', e => {
+                _devErrors.push({ type:'error', ts: new Date().toLocaleTimeString('fr-FR'), msg: e.message + ' @ L'+e.lineno });
+                _devUpdateErrorUI();
+            });
+            window.addEventListener('unhandledrejection', e => {
+                _devErrors.push({ type:'error', ts: new Date().toLocaleTimeString('fr-FR'), msg: 'Promise: ' + String(e.reason).slice(0,200) });
+                _devUpdateErrorUI();
+            });
+        })();
+
+        function _devUpdateErrorUI() {
+            const countEl = document.getElementById('dev-error-count');
+            const listEl  = document.getElementById('dev-errors-list');
+            if (!countEl || !listEl) return;
+            const errors = _devErrors.slice(-20);
+            countEl.textContent = _devErrors.length;
+            countEl.style.background = _devErrors.length > 0 ? '#dc2626' : '#16a34a';
+            if (errors.length === 0) {
+                listEl.innerHTML = '<div style="color:#475569;font-style:italic">Aucune erreur — tout va bien ✅</div>';
+            } else {
+                listEl.innerHTML = errors.slice().reverse().map(e =>
+                    '<div style="margin-bottom:4px;padding:3px 0;border-bottom:1px solid #1e293b">' +
+                    '<span style="color:' + (e.type==='error'?'#f87171':'#fb923c') + '">[' + e.ts + '] </span>' +
+                    '<span style="color:#e2e8f0">' + e.msg.replace(/</g,'&lt;') + '</span></div>'
+                ).join('');
+            }
+        }
+
+        function _devRefreshState() {
+            const el = document.getElementById('dev-state-content');
+            if (!el) return;
+            const byDay = {};
+            activities.forEach(a => { const d = Number(a.dayIndex); byDay[d] = (byDay[d]||0)+1; });
+            const withPlace = activities.filter(a => a.place?.place_id).length;
+            const withHours = activities.filter(a => a.place?.opening_hours).length;
+            const lsKB = Math.round([...Object.keys(localStorage)].reduce((t,k)=>t+(localStorage.getItem(k)||'').length*2,0)/1024);
+            el.innerHTML =
+                '<div>📍 Activités: <b>' + activities.length + '</b> | Jour actuel: <b>' + currentDayIndex + '</b></div>' +
+                '<div>📅 Par jour: <b>' + JSON.stringify(byDay) + '</b></div>' +
+                '<div>🏠 Avec place_id: <b>' + withPlace + '</b> | Avec horaires: <b>' + withHours + '</b></div>' +
+                '<div>💾 localStorage: <b>' + lsKB + ' KB</b> | Séjours: <b>' + stays.length + '</b></div>' +
+                '<div>🔄 Route cache: <b>' + Object.keys(routeCache||{}).length + '</b> entrées</div>';
+        }
+
+        function _toggleDevPanel() {
+            const panel = document.getElementById('dev-panel');
+            const arrow = document.getElementById('dev-panel-arrow');
+            if (!panel) return;
+            const open = panel.classList.toggle('hidden');
+            if (arrow) arrow.textContent = open ? '▸' : '▾';
+            if (!open) { _devRefreshState(); _devUpdateErrorUI(); }
+        }
+
+        window._devRefreshActivities = async function() {
+            showAddConfirmation('Ré-enrichissement lancé', 'Récupération horaires + prix...', '🔄');
+            // Réinitialiser les flags _enrichPending pour forcer le ré-enrichissement
+            activities.forEach(a => {
+                if (a.place?.place_id) {
+                    delete a._enrichPending;
+                    delete a._resolveAttempted;
+                }
+            });
+            await _enrichAllPendingActivities();
+            _devRefreshState();
+            showAddConfirmation('Enrichissement terminé', activities.filter(a=>a.place?.opening_hours).length + ' activités avec horaires', '✅');
+        };
+
+        window._devRefreshAll = function() {
+            // Relancer la résolution + enrichissement + recalcul trajets
+            activities.forEach(a => {
+                delete a._enrichPending;
+                delete a._resolveAttempted;
+            });
+            window._navRerender = false;
+            _navPending = 0;
+            _navRenderScheduled = false;
+            renderPlanning();
+            setTimeout(() => _resolveGeneratedActivities(), 500);
+            setTimeout(() => _enrichAllPendingActivities(), 1500);
+            _devRefreshState();
+            showAddConfirmation('Recalcul lancé', 'Trajets + horaires + résolution lieux', '⚡');
+        };
+
+        window._devFixDayIndex = function() {
+            let fixed = 0;
+            activities = activities.map(a => {
+                const n = Number(a.dayIndex);
+                if (isNaN(n)) { fixed++; return { ...a, dayIndex: 0 }; }
+                if (a.dayIndex !== n) { fixed++; return { ...a, dayIndex: n }; }
+                return a;
+            });
+            saveActivities();
+            renderPlanning();
+            _devRefreshState();
+            showAddConfirmation('dayIndex normalisé', fixed + ' activité(s) corrigée(s)', '🔧');
+        };
+
+        window._devClearCache = function() {
+            localStorage.removeItem('japan_route_cache_v4');
+            routeCache = {};
+            localStorage.removeItem('japan_place_cache_v10');
+            if (typeof placeCache !== 'undefined') Object.keys(placeCache).forEach(k => delete placeCache[k]);
+            showAddConfirmation('Cache vidé', 'Route cache + place cache supprimés', '🗑️');
+        };
+
+        window._devClearErrors = function() {
+            _devErrors.length = 0;
+            _devUpdateErrorUI();
+        };
+
+        window._devCopyReport = function() {
+            const byDay = {};
+            activities.forEach(a => { const d = Number(a.dayIndex); byDay[d] = (byDay[d]||0)+1; });
+            const withPlace = activities.filter(a => a.place?.place_id).length;
+            const withHours = activities.filter(a => a.place?.opening_hours).length;
+            const lsKB = Math.round([...Object.keys(localStorage)].reduce((t,k)=>t+(localStorage.getItem(k)||'').length*2,0)/1024);
+
+            const report = [
+                '=== MY JAPAN TRIP — RAPPORT DEBUG ===',
+                new Date().toLocaleString('fr-FR'),
+                '',
+                '── DONNÉES ──',
+                'Activités total: ' + activities.length,
+                'Par jour: ' + JSON.stringify(byDay),
+                'Jour affiché: ' + currentDayIndex,
+                'Avec place_id: ' + withPlace + '/' + activities.length,
+                'Avec horaires: ' + withHours + '/' + activities.length,
+                'Séjours: ' + stays.length,
+                'localStorage: ' + lsKB + ' KB',
+                'Route cache: ' + Object.keys(routeCache||{}).length + ' entrées',
+                '',
+                '── ERREURS (' + _devErrors.length + ') ──',
+                ..._devErrors.slice(-15).map(e => '[' + e.ts + '] ' + e.type.toUpperCase() + ': ' + e.msg),
+                _devErrors.length === 0 ? 'Aucune erreur' : '',
+                '',
+                '── ACTIVITÉS JOUR COURANT ──',
+                ...activities
+                    .filter(a => Number(a.dayIndex) === Number(currentDayIndex))
+                    .sort((a,b) => (a.time||'').localeCompare(b.time||''))
+                    .map(a => a.time + ' | ' + a.title + (a.place?.place_id ? ' [✓place]' : ' [×place]') + (a.place?.opening_hours ? ' [✓hours]' : '')),
+            ].join('\n');
+
+            navigator.clipboard.writeText(report)
+                .then(() => showAddConfirmation('Rapport copié !', 'Colle-le dans le chat Claude', '📋'))
+                .catch(() => {
+                    // Fallback : textarea sélectionnable
+                    const ta = document.createElement('textarea');
+                    ta.value = report;
+                    ta.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;font-size:11px;font-family:monospace;background:#0f172a;color:#e2e8f0;padding:16px;box-sizing:border-box';
+                    ta.onclick = () => ta.select();
+                    document.body.appendChild(ta);
+                    ta.select();
+                    const close = document.createElement('button');
+                    close.textContent = '✕ Fermer';
+                    close.style.cssText = 'position:fixed;top:8px;right:8px;z-index:10000;background:#dc2626;color:white;border:none;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer';
+                    close.onclick = () => { ta.remove(); close.remove(); };
+                    document.body.appendChild(close);
+                });
+        };
 
         function renderPlanning() {
             const myToken = ++_renderToken;
