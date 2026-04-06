@@ -1,115 +1,11 @@
 import express from 'express';
+import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
-
-// ── Helper Anthropic Claude ─────────────────────────────────────────────────
-// ── Convertir le profil voyageur en contexte pour les prompts IA ─────────────
-function buildProfileContext(profile) {
-    if (!profile) return '';
-    const typeMap = { solo:'voyage solo', couple:'voyage en couple', famille:'voyage en famille', amis:'voyage entre amis', groupe:'voyage en groupe' };
-    const intMap  = {
-        culture:'temples/sanctuaires/quartiers historiques/châteaux',
-        art:"musées d'art moderne/TeamLab/galeries contemporaines",
-        nature:'parcs/jardins/forêts/nature',
-        gastro:'marchés alimentaires/cours de cuisine/street food/restaurants typiques',
-        shopping:'boutiques locales/vintage/artisanat',
-        pop:'Akihabara/anime/manga/arcades/pop culture',
-        wellness:'onsen/jardins zen/temples calmes/promenades',
-        adventure:'randonnées/vélo/activités sportives',
-        experiences:'cérémonie du thé/calligraphie/poterie/cours de cuisine',
-        musees:'musées nationaux/musées de site/musées thématiques/expositions'
-    };
-    const budgetMap = { econome:'budget serré (konbini, < 1000¥, entrées gratuites prioritaires)', modere:'budget modéré (restaurants 1000–3000¥)', confortable:'budget confortable (restaurants et expériences premium OK)', luxe:'budget luxe (ryokan, gastronomique, exclusif)' };
-    const constMap  = { mobility:'accessibilité PMR obligatoire', vegetarien:'options végétariennes', vegan:'options végétaliennes', halal:'options halal', noalcool:'sans alcool', nogluten:'sans gluten', enfants:'adapté aux jeunes enfants' };
-
-    const parts = [];
-    if (profile.travel_type) parts.push('Type: ' + (typeMap[profile.travel_type]||profile.travel_type));
-
-    // Utiliser interests_order si disponible (1er intérêt = priorité maximale)
-    const orderedInterests = profile.interests_order?.length ? profile.interests_order : (profile.interests || []);
-    if (orderedInterests.length) {
-        const mapped = orderedInterests.map((i,idx) => `${idx===0?'[PRIORITÉ HAUTE] ':''}${intMap[i]||i}`);
-        parts.push("Centres intérêt (par ordre de préférence): " + mapped.join(' | '));
-        parts.push("→ OBLIGATION: 1er intérêt prioritaire dans 40% des activités. Alterner les autres. Max 1 activité du même type par demi-journée.");
-    }
-
-    if (profile.budget) parts.push('Budget: ' + (budgetMap[profile.budget]||profile.budget));
-    if (profile.constraints?.length) parts.push('Contraintes: ' + profile.constraints.map(c => constMap[c]||c).join(', '));
-    if (profile.custom_constraint) parts.push('Contrainte spéciale: ' + profile.custom_constraint);
-
-    // Nouveaux critères de rythme
-    const sc = profile._score;
-    if (sc) {
-        parts.push(`Rythme: ${sc.activitiesPerDay} activités max/jour`);
-        parts.push(`Heure début journée: ${sc.dayStartHour}h00`);
-        if (sc.avoidCrowdedSlots) parts.push('Sensibilité foules forte → privilégier visites tôt matin (avant 9h) ou fin de journée (après 17h) pour sites touristiques');
-    } else {
-        if (profile.pace === 'tranquille') parts.push('Rythme: max 3 activités/jour — journées aérées, temps de pause');
-        if (profile.pace === 'intense')    parts.push('Rythme: 6–7 activités/jour — journées bien remplies');
-        if (profile.wake_time === 'tot')   parts.push('Départ dès 7h — peut accéder aux sites avant la foule');
-        if (profile.wake_time === 'tard')  parts.push('Départ vers 10h — éviter activités matinales obligatoires');
-        if (profile.crowd_sensitivity === 'forte') parts.push('Évite les foules → créneaux tôt matin ou après 17h pour Fushimi Inari, Arashiyama, etc.');
-    }
-
-    if (!parts.length) return '';
-    return '\n=== PROFIL VOYAGEUR (OBLIGATOIRE À RESPECTER) ===\n' + parts.join('\n') + '\n=== FIN PROFIL ===\n';
-}
-
-
-// ── Nettoyage robuste du JSON IA ─────────────────────────────────────────────
-function sanitizeJson(text) {
-    let j = text.trim();
-    j = j.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-    j = j.replace(/[""]/g, '"').replace(/['']/g, "'");
-    j = j.replace(/,\s*([}\]])/g, '$1');
-    const m = j.match(/\{[\s\S]*\}/);
-    if (m) j = m[0];
-    try { JSON.parse(j); } catch(e) {
-        const lastComma = j.lastIndexOf(',');
-        const trimmed = j.slice(0, lastComma > 0 ? lastComma : j.length);
-        let work = trimmed;
-        const openB = (work.match(/\[/g)||[]).length - (work.match(/\]/g)||[]).length;
-        const openC = (work.match(/\{/g)||[]).length - (work.match(/\}/g)||[]).length;
-        for (let i=0; i<openB; i++) work += ']';
-        for (let i=0; i<openC; i++) work += '}';
-        work = work.replace(/,\s*([}\]])/g, '$1');
-        try { JSON.parse(work); j = work; } catch(e2) { /* garder j original */ }
-    }
-    return j;
-}
-
-async function anthropicChat(systemPrompt, userMessage, maxTokens = 400) {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error('Clé ANTHROPIC_API_KEY manquante dans .env');
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: maxTokens,
-            system: systemPrompt,
-            messages: [{ role: 'user', content: userMessage }]
-        })
-    });
-    const data = await r.json();
-    if (!r.ok) {
-        const errMsg = data.error?.message || JSON.stringify(data);
-        console.error('[Anthropic] Erreur API:', errMsg);
-        throw new Error(errMsg);
-    }
-    const text = data.content?.[0]?.text || '';
-    // Nettoyer les backticks markdown que le modèle peut inclure dans les JSON
-    return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
-}
-
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -120,7 +16,7 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
-// IA : appel direct Anthropic Claude via fetch
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ── Cache suggestion-preview (mémoire serveur) ────────────────────────────
 // Clé : nom normalisé de l'activité → évite les appels OpenAI répétés
@@ -154,19 +50,10 @@ function mustEnv(name) {
     return v;
 }
 
-async function fetchJson(url, options, timeoutMs = 9000) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    try {
-        const r = await fetch(url, { ...options, signal: ctrl.signal });
-        clearTimeout(timer);
-        const j = await r.json().catch(() => ({}));
-        return { ok: r.ok, status: r.status, json: j };
-    } catch(e) {
-        clearTimeout(timer);
-        if (e.name === 'AbortError') throw new Error('Timeout Google Places (' + timeoutMs + 'ms)');
-        throw e;
-    }
+async function fetchJson(url, options) {
+    const r = await fetch(url, options);
+    const j = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, json: j };
 }
 
 /**
@@ -217,15 +104,25 @@ app.post("/api/normalize-text", async (req, res) => {
         const { text } = req.body;
         if (!text) return res.status(400).json({ error: "Texte manquant" });
 
-        const completionText = await anthropicChat(
-            `Tu es un expert en voyages au Japon. Réponds UNIQUEMENT avec du JSON brut valide, SANS backticks, SANS markdown, SANS texte avant ou après.\nFormat exact: {"title_clean":"Nom Propre — description courte","suggested_location":"Nom du lieu, Ville, Japan"}`,
-            text, 200
-        );
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                { 
+                    role: "system", 
+                    content: `Tu es un expert en voyages au Japon. 
+                    Normalise l'entrée utilisateur pour en faire un titre propre et suggérer un lieu Google Maps.
+                    Format JSON strict :
+                    {
+                        "title_clean": "Nom Propre — description courte",
+                        "suggested_location": "Nom du lieu, Ville, Japan"
+                    }`
+                },
+                { role: "user", content: text }
+            ],
+            response_format: { type: "json_object" }
+        });
 
-        let parsedNorm;
-        try { parsedNorm = JSON.parse(completionText); }
-        catch(e) { parsedNorm = { title_clean: text, suggested_location: text + ", Japan" }; }
-        res.json(parsedNorm);
+        res.json(JSON.parse(completion.choices[0].message.content));
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -283,12 +180,32 @@ app.get("/api/places/details", async (req, res) => {
         if (needsHours || needsPrice) {
             try {
                 const tokyoTime = new Date().toLocaleString('fr-FR', {timeZone: 'Asia/Tokyo'});
-                const aiResText = await anthropicChat(
-                    "Tu es un assistant de voyage expert au Japon. Cherche en mémoire les infos pratiques sur ce lieu japonais et réponds UNIQUEMENT en JSON valide.",
-                    `Infos pour : "${p.name}", ${p.formatted_address || "Japon"}. Heure à Tokyo : ${tokyoTime}.\nIMPORTANT: prix ENTRÉE DIRECTE (pas visites guidées). Sources: site officiel, Japan-guide.com.\nRéponds UNIQUEMENT avec ce JSON :\n{\n  "opening_hours": ["Lundi: 06:00 - 17:00", ...] ou null,\n  "open_now": true/false/null,\n  "price_level": 0 si gratuit, 1 si <1000¥, 2 si 1000-2000¥, 3 si 2000-4000¥, 4 si >4000¥, null si inconnu,\n  "price_detail": "ex: 800¥ adulte" ou null,\n  "price_eur": 5.00 ou null,\n  "visit_duration": 90 ou null,\n  "booking_url": "https://..." ou null,\n  "booking_required": true/false\n}`,
-                    600
-                );
-                const raw = aiResText?.trim();
+                const aiRes = await openai.chat.completions.create({
+                    model: "gpt-4o-search-preview",
+                    max_tokens: 600,
+                    messages: [{
+                        role: "system",
+                        content: "Tu es un assistant de voyage expert au Japon. Cherche sur le web (Google, Viator, TripAdvisor, site officiel) puis réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour."
+                    }, {
+                        role: "user",
+                        content: `Recherche sur le web les infos pour : "${p.name}", ${p.formatted_address}.
+Heure actuelle à Tokyo : ${tokyoTime}.
+IMPORTANT: cherche le prix d'ENTRÉE DIRECTE (billet d'entrée officiel), PAS les visites guidées.
+Sources prioritaires : site officiel, Japan-guide.com, Klook, Voyagin, GetYourGuide.
+Réponds UNIQUEMENT avec ce JSON (pas de texte autour) :
+{
+  "opening_hours": ["Lundi: 06:00 - 17:00", ...] ou null,
+  "open_now": true/false/null,
+  "price_level": 0 si gratuit, 1 si <1000¥, 2 si 1000-2000¥, 3 si 2000-4000¥, 4 si >4000¥, null si inconnu,
+  "price_detail": "ex: 800¥ adulte, 400¥ enfant" ou null,
+  "price_eur": 5.00 (prix adulte entrée directe en euros) ou null,
+  "visit_duration": 90 (durée typique en minutes) ou null,
+  "booking_url": "https://..." (URL directe billet officiel ou Klook/Voyagin si disponible) ou null,
+  "booking_required": true si réservation nécessaire, false si entrée libre/sans réservation
+}`
+                    }]
+                });
+                const raw = aiRes.choices[0]?.message?.content?.trim();
                 const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
                 if (needsHours && parsed.opening_hours) opening_hours = parsed.opening_hours;
                 if (parsed.open_now !== undefined && open_now === null) open_now = parsed.open_now;
@@ -424,7 +341,12 @@ app.post('/api/route', async (req, res) => {
         }
 
         // Trajet avec transit — demander à l'IA la durée du segment en transports
-        const aiRouteText = await anthropicChat(`Tu es un expert des transports en commun au Japon (Tokyo, Kyoto, Osaka...).
+        const aiRoute = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                {
+                    role: "system",
+                    content: `Tu es un expert des transports en commun au Japon (Tokyo, Kyoto, Osaka...).
 On connait déjà les segments de marche. Tu dois UNIQUEMENT estimer la durée du trajet en transports entre deux stations.
 
 Données :
@@ -444,10 +366,14 @@ Réponds UNIQUEMENT avec ce JSON :
   "transit_min": <int>,
   "mode": "metro|train|bus",
   "line_hint": "ex: Ginza Line direction Shibuya"
-}`, `De "${bestFrom?.name}" à "${bestTo?.name}" pour aller de ${from_place.name} à ${to_place.name}.`, 400);
+}`
+                },
+                { role: "user", content: `De "${bestFrom?.name}" à "${bestTo?.name}" pour aller de ${from_place.name} à ${to_place.name}.` }
+            ],
+            response_format: { type: "json_object" }
+        });
 
-
-        const r = JSON.parse(aiRouteText);
+        const r = JSON.parse(aiRoute.choices[0].message.content);
 
         // Calcul arithmétique — serveur est maître du total
         transit = Math.max(1, parseInt(r.transit_min) || Math.round(distKm * 3));
@@ -489,35 +415,53 @@ app.get("/api/health", async (req, res) => {
 // --- INFOS ACTIVITÉ AVEC IA ---
 app.post("/api/activity-info", async (req, res) => {
     try {
-        const { place_name, place_address, visit_time, traveler_profile: tp_info } = req.body;
-        const profileCtxInfo = buildProfileContext(tp_info);
+        const { place_name, place_address, visit_time } = req.body;
         
         if (!place_name) {
             return res.status(400).json({ error: "Nom du lieu manquant" });
         }
 
-        const completionText = await anthropicChat(
-            `Tu es un expert du tourisme au Japon. Réponds UNIQUEMENT avec un objet JSON valide, SANS markdown, SANS backticks, SANS texte autour.
-Format exact attendu :
-{"why_visit":"...","history_detail":"...","cultural_context":"...","crowd_level":"low|medium|high","best_times":["09:00-10:00"],"rules":["Règle 1"],"tips":"...","local_tip":"...","nearby_food":"..."}`,
-            `${profileCtxInfo}Lieu: ${place_name}${place_address ? ", " + place_address : ""}. Heure de visite prévue: ${visit_time || "journée"}.`,
-            600
-        );
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                { 
+                    role: "system", 
+                    content: `Tu es un expert du tourisme au Japon.
+                    Analyse le lieu et fournis des informations pratiques + un paragraphe de présentation.
+                    Format JSON strict :
+                    {
+                        "why_visit": "Paragraphe de 3-4 phrases : histoire, contexte culturel japonais, pourquoi ce lieu est incontournable.",
+                        "history_detail": "2-3 phrases sur l'histoire et l'anecdote la plus fascinante de ce lieu.",
+                        "cultural_context": "1-2 phrases sur la signification culturelle ou religieuse au Japon.",
+                        "crowd_level": "low|medium|high",
+                        "best_times": ["09:00-10:00", "15:00-16:00"],
+                        "rules": ["Règle 1", "Règle 2"],
+                        "tips": "Conseil pratique pour profiter au mieux",
+                        "local_tip": "Un conseil de local ou une astuce peu connue des touristes.",
+                        "nearby_food": "Un plat ou restaurant typique à essayer dans le quartier."
+                    }`
+                },
+                { 
+                    role: "user", 
+                    content: `Lieu: ${place_name}
+                    Adresse: ${place_address || 'Non spécifiée'}
+                    Heure de visite prévue: ${visit_time || 'Non spécifiée'}
+                    
+                    Donne-moi:
+                    1. Un résumé enrichi (histoire, contexte culturel, pourquoi visiter)
+                    2. L'anecdote historique la plus fascinante sur ce lieu
+                    3. La signification culturelle ou religieuse
+                    4. Le niveau d'affluence à cette heure (low/medium/high)
+                    5. Les meilleures heures pour éviter la foule (2-3 créneaux)
+                    6. Les règles importantes (dress code, photos, comportement)
+                    7. Un conseil pratique + un conseil de local peu connu
+                    8. Un plat ou resto typique à essayer nearby`
+                }
+            ],
+            response_format: { type: "json_object" }
+        });
 
-        let info;
-        try {
-            info = JSON.parse(completionText);
-        } catch(parseErr) {
-            console.error('[activity-info] JSON.parse error:', parseErr.message, '| raw:', completionText.slice(0, 200));
-            // Fallback: construire un objet minimal depuis le texte brut
-            info = {
-                why_visit: `${place_name} est un lieu incontournable au Japon, riche en histoire et en culture.`,
-                history_detail: '', cultural_context: '',
-                crowd_level: 'medium', best_times: ['09:00-11:00', '15:00-17:00'],
-                rules: [], tips: 'Arrivez tôt pour éviter la foule.',
-                local_tip: '', nearby_food: ''
-            };
-        }
+        const info = JSON.parse(completion.choices[0].message.content);
         res.json({ success: true, info });
 
     } catch (e) {
@@ -532,110 +476,40 @@ app.post('/api/ai-planner', async (req, res) => {
         const { message, context } = req.body;
         if (!message) return res.status(400).json({ error: 'Message manquant' });
 
-        const apiKey = process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) return res.status(500).json({ success: false, error: 'Clé ANTHROPIC_API_KEY manquante dans .env' });
-
-        const dayActsSummary = (context.dayActivities || []).map(a =>
-            `- id:${a.id} "${a.title}" à ${a.time} (${a.duration_minutes||90}min) — ${a.place?.name || 'lieu ?'}`
-        ).join('\n') || '(aucune activité)';
-
-        const allDaysSummary = (context.allDays || []).map((d, i) =>
-            `Jour ${i+1} [dayIndex:${i}]: ${d.label || ''} — ${d.count||0} activité(s)`
-        ).join('\n') || '';
-
         const systemPrompt = `Tu es un assistant de voyage expert au Japon, intégré dans une app de planification.
-Tu peux VRAIMENT modifier le planning : ajouter, déplacer, supprimer des activités.
+Tu as accès au programme complet du voyage.
 
-PROGRAMME COMPLET :
-${allDaysSummary}
+Programme actuel (Jour ${context.dayIndex + 1}/${context.totalDays}) :
+${JSON.stringify(context.dayActivities?.map(a => ({
+    time: a.time,
+    title: a.title,
+    duration: a.duration_minutes,
+    place: a.place?.name
+})) || [], null, 2)}
 
-JOUR ACTUEL (Jour ${(context.dayIndex||0)+1}, dayIndex:${context.dayIndex||0}) :
-${dayActsSummary}
+Informations voyage :
+- Destination(s) : ${context.cities?.join(', ') || 'Japon'}
+- Durée totale : ${context.totalDays} jours
+- Activités ce jour : ${context.dayActivities?.length || 0}
+- Temps de trajet total estimé aujourd'hui : ${context.totalTravelMin || 0} min
 
-Ville(s) visitée(s) : ${context.cities?.join(', ') || context.city || 'Japon'}
-Durée totale : ${context.totalDays||1} jour(s)
+Réponds en français, de façon concise et directe (max 3-4 phrases).
+Si tu proposes d'ajouter/déplacer des activités, sois précis sur l'heure et le nom.
+Tu peux suggérer des lieux japonais spécifiques avec leur nom en japonais.`;
 
-INSTRUCTIONS :
-- Réponds TOUJOURS avec un JSON valide, SANS backticks.
-- Format : {"reply":"message en français max 4 phrases","actions":[...]}
-- Actions possibles :
-  * Ajouter : {"type":"add","dayIndex":N,"title":"Nom lieu","search_query":"Nom lieu Ville Japan","time":"HH:MM","duration_minutes":N,"note":"conseil court"}
-  * Déplacer : {"type":"move","activity_id":N,"new_time":"HH:MM"}
-  * Supprimer : {"type":"remove","activity_id":N}
-  * Rien : actions:[]
-- Si l'utilisateur dit "oui" ou confirme, EXECUTE les actions proposées dans le message précédent.
-- Si l'utilisateur demande d'ajouter des activités sur un autre jour, utilise le bon dayIndex.
-- Propose max 3 activités à la fois.
-- Utilise des lieux japonais réels avec leur nom en japonais entre parenthèses.
-- Ne promets JAMAIS d'ajouter si tu ne mets pas l'action correspondante dans "actions".`;
-
-        const history = (context.history || []).slice(-8).map(m => ({
-            role: m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.content
-        }));
-
-        const r = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 800,
-                system: systemPrompt,
-                messages: [...history, { role: 'user', content: message }]
-            })
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                { role: 'system', content: systemPrompt },
+                ...((context.history || []).slice(-6)), // max 6 messages d'historique
+                { role: 'user', content: message }
+            ],
+            max_tokens: 400,
+            temperature: 0.7
         });
 
-        const data = await r.json();
-        if (!r.ok) return res.status(500).json({ success: false, error: data.error?.message || 'Erreur Anthropic' });
-
-        const raw = data.content?.[0]?.text || '{}';
-        let parsed;
-        try {
-            parsed = JSON.parse(sanitizeJson(raw));
-        } catch(e) {
-            // Fallback : texte pur sans actions
-            parsed = { reply: raw.replace(/\{[\s\S]*\}/g, '').trim() || raw, actions: [] };
-        }
-
-        // ── Résoudre les lieux via Google Places pour chaque action "add" ──
-        const serverKey = process.env.GOOGLE_MAPS_SERVER_KEY;
-        const resolvedActions = [];
-        for (const action of (parsed.actions || [])) {
-            if (action.type === 'add' && serverKey) {
-                try {
-                    const query = action.search_query || action.title;
-                    const searchUrl = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
-                    searchUrl.searchParams.set('query', query);
-                    searchUrl.searchParams.set('language', 'fr');
-                    searchUrl.searchParams.set('key', serverKey);
-                    const placesRes = await fetchJson(searchUrl.toString(), {}, 6000);
-                    const first = placesRes.json?.results?.[0];
-                    if (first) {
-                        action.place = {
-                            place_id: first.place_id,
-                            name: first.name,
-                            formatted_address: first.formatted_address,
-                            lat: first.geometry?.location?.lat,
-                            lng: first.geometry?.location?.lng,
-                            types: first.types || [],
-                            rating: first.rating || null,
-                            user_ratings_total: first.user_ratings_total || 0,
-                            photo_reference: first.photos?.[0]?.photo_reference || null,
-                            rating_source: 'google'
-                        };
-                    }
-                } catch(e) {
-                    console.warn('[ai-planner] place resolve failed:', e.message);
-                }
-            }
-            resolvedActions.push(action);
-        }
-
-        res.json({ success: true, reply: parsed.reply || '', actions: resolvedActions });
+        const reply = completion.choices[0].message.content;
+        res.json({ success: true, reply });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
@@ -708,7 +582,12 @@ app.post("/api/quick-add-activity", async (req, res) => {
         const { description, day_index, time_flexible, fixed_time } = req.body;
         
         // Analyser avec l'IA
-        const completionText = await anthropicChat(`Tu es un expert du tourisme au Japon. Analyse l'activité et retourne un JSON:
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                {
+                    role: "system",
+                    content: `Tu es un expert du tourisme au Japon. Analyse l'activité et retourne un JSON:
 {
   "title": "Titre propre de l'activité",
   "description": "Description courte (1 phrase)",
@@ -717,16 +596,18 @@ app.post("/api/quick-add-activity", async (req, res) => {
   "duration_minutes": 90,
   "duration_reason": "Raison courte ex: temple + jardins nécessitent 1h30 min"
 }
-Pour duration_minutes: base-toi sur les recommandations réelles (TripAdvisor, guides). Ex: Senso-ji=90min, Tsukiji=60min, Fushimi Inari=150min, musée=120min, marché=45min.`, `Activité: "${description}"\n\nCrée une activité structurée avec la durée de visite recommandée.`, 400);
+Pour duration_minutes: base-toi sur les recommandations réelles (TripAdvisor, guides). Ex: Senso-ji=90min, Tsukiji=60min, Fushimi Inari=150min, musée=120min, marché=45min.`
+                },
+                {
+                    role: "user",
+                    content: `Activité: "${description}"\n\nCrée une activité structurée avec la durée de visite recommandée.`
+                }
+            ],
+            response_format: { type: "json_object" }
+        });
 
-
-        let parsed;
-        try { parsed = JSON.parse(completionText); }
-        catch(e) {
-            console.error('[activity-analyze] JSON.parse error:', e.message, '| raw:', completionText.slice(0,200));
-            parsed = { title: description, description: '', search_query: description + ' Japan', suggested_time: '10:00', duration_minutes: 90, duration_reason: '' };
-        }
-
+        const parsed = JSON.parse(completion.choices[0].message.content);
+        
         // Rechercher le lieu sur Google Places
         const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
         const searchUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
@@ -802,20 +683,39 @@ app.post("/api/suggestion-preview", async (req, res) => {
             .map(a => `${a.time} - ${a.title}`)
             .join('\n') || 'Aucune activité planifiée';
 
-        const completionText = await anthropicChat(
-            `Tu es un expert du tourisme au Japon. Réponds UNIQUEMENT avec du JSON brut valide, SANS backticks, SANS markdown, SANS texte avant ou après.
-Format exact: {"why_visit":"...","best_time":"...","duration_minutes":90,"crowd_level":"low|medium|high","price_eur":null,"tips":"...","energy_level":"légère|modérée|intense"}`,
-            `Activité : "${name}" (${query})`,
-            400
-        );
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                {
+                    role: "system",
+                    content: `Tu es un expert du tourisme au Japon, passionné et enthousiaste. 
+Tu connais parfaitement les horaires, l'affluence touristique, les meilleures conditions de visite.
+Réponds UNIQUEMENT en JSON valide, sans markdown.`
+                },
+                {
+                    role: "user",
+                    content: `Activité : "${name}" (${query})
+Activités déjà planifiées ce jour :
+${activitiesContext}
 
-        let preview;
-        try {
-            preview = JSON.parse(completionText);
-        } catch(e) {
-            console.error('[suggestion-preview] JSON.parse error:', e.message, '| raw:', completionText.slice(0,200));
-            preview = { why_visit: `${name} est un lieu incontournable.`, best_time: '09:00', duration_minutes: 90, crowd_level: 'medium', price_eur: null, tips: '', energy_level: 'modérée' };
-        }
+Génère une fiche de présentation avec :
+{
+  "hook": "1-2 phrases poétiques/immersives qui donnent vraiment envie de visiter (max 120 caractères)",
+  "best_time": "HH:MM",
+  "best_time_reason": "Pourquoi c'est le meilleur moment (max 80 caractères, ex: Avant l'afflux de 10h, lumière dorée)",
+  "avoid_time": "Plage à éviter (ex: 10h-13h)",
+  "avoid_reason": "Pourquoi éviter (max 60 caractères)",
+  "duration": "Durée recommandée lisible (ex: 1h30)",
+  "duration_minutes": 90,
+  "tip": "1 conseil insider court et précis (max 80 caractères)",
+  "intensity": "balade|exploration|randonnée"
+}`
+                }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        const preview = JSON.parse(completion.choices[0].message.content);
 
         // Rechercher le lieu sur Google Places pour avoir le place_id
         const serverKey = process.env.GOOGLE_MAPS_SERVER_KEY;
@@ -859,234 +759,9 @@ Format exact: {"why_visit":"...","best_time":"...","duration_minutes":90,"crowd_
 });
 
 // --- OPTIMISATION JOURNÉE ---
-// ── GÉNÉRATION DE PROGRAMME COMPLET ─────────────────────────────────────────
-app.post("/api/generate-program", async (req, res) => {
-    try {
-        const { zone: zoneRaw, hotel_name, hotel_address, nb_days, start_day_index, start_date, intensity, existing_activities, traveler_profile } = req.body;
-        // Normaliser la zone : "Osaka, Préfecture d'Osaka, Japon" → "Osaka"
-        // "Yao, Préfecture d'Osaka" → "Yao" (ville réelle, pas la métropole)
-        const zone = zoneRaw ? zoneRaw.split(',')[0].trim() : '';
-        const profileCtx = buildProfileContext(traveler_profile);
-        if (!zone || !nb_days) return res.status(400).json({ success: false, error: 'Zone et nb_days requis' });
-
-        const dayNames = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-        const intensityProfiles = {
-            relax:   { n: 2, mealDur: {breakfast:25,lunch:55,dinner:70}, startHour:'08:30' },
-            normal:  { n: 3, mealDur: {breakfast:20,lunch:45,dinner:60}, startHour:'08:00' },
-            intense: { n: 4, mealDur: {breakfast:15,lunch:35,dinner:55}, startHour:'07:30' }
-        };
-        const profile = intensityProfiles[intensity||'normal'];
-        const existingTitles = (existing_activities||[]).map(a=>(a.title||'').toLowerCase()).slice(0,10);
-
-        // Règles transit selon zone
-        const getTransitRules = (z) => {
-            const zl = z.toLowerCase();
-            if (zl.includes('tokyo')) return 'Tokyo: meme quartier=12min marche, adjacent=20min metro, eloigne=35min metro, heure pointe +12min';
-            if (zl.includes('kyoto')) return 'Kyoto: centre=15min, Arashiyama=30min JR, Fushimi=15min Keihan, Nara=45min Kintetsu';
-            return 'Calculer transit realiste point a point selon distance';
-        };
-
-        const getDayInfo = (i) => {
-            const dayIdx = (start_day_index||0) + i;
-            if (!start_date) return { index: dayIdx, name: 'Jour '+(i+1), isWeekend:false, isMonday:false, isFriday:false };
-            // Parse en local (évite le décalage UTC)
-            const [y,mo,dd] = start_date.split('T')[0].split('-').map(Number);
-            const d = new Date(y, mo-1, dd);
-            d.setDate(d.getDate() + dayIdx);
-            const dow = d.getDay();
-            return { index: dayIdx, name: dayNames[dow], isWeekend: dow===0||dow===6,
-                     isMonday: dow===1, isFriday: dow===5, isSaturday: dow===6, isSunday: dow===0,
-                     date: d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) };
-        };
-
-        // ── Génération jour par jour pour éviter troncature JSON ──────────────
-        const allDays = [];
-        let globalSummary = '';
-
-        for (let di = 0; di < nb_days; di++) {
-            const dayInfo = getDayInfo(di);
-            const dayNote = dayInfo.isMonday ? 'LUNDI: pas de musees, privilegier parcs/quartiers/shopping' :
-                            dayInfo.isSaturday ? 'SAMEDI: forte affluence, temples avant 9h' :
-                            dayInfo.isSunday ? 'DIMANCHE: forte affluence, familles dans les parcs' :
-                            dayInfo.isFriday ? 'VENDREDI: affluence montante apres 14h' :
-                            'Semaine: creneaux ideaux 14h-17h pour musees';
-
-            const prompt = `Expert voyages Japon. Genere 1 journee complete a ${zone} pour le ${dayInfo.name} (${dayInfo.date||'jour '+(di+1)}).
-Hotel: ${hotel_name||'centre-ville'}${hotel_address?' ('+hotel_address+')':''}
-Intensite: ${intensity||'normal'} — ${profile.n} activites culturelles
-Note jour: ${dayNote}
-Transits: ${getTransitRules(zone)}
-Deja planifie (a eviter): ${existingTitles.join(', ')||'aucun'}
-
-STRUCTURE OBLIGATOIRE:
-- hotel_start a ${profile.startHour}
-- breakfast konbini/kissaten (${profile.mealDur.breakfast}min)
-- transit + activity x${profile.n} avec transit entre chaque
-- lunch teishoku local (${profile.mealDur.lunch}min)
-- transit + activity suite
-- transit + dinner izakaya (${profile.mealDur.dinner}min)
-- hotel_end avant 22h
-
-${profileCtx}
-REGLES:
-- Grouper les activites par quartier (min de transit)
-- Jamais 2 temples consecutifs
-- 1 activite hors-touristes minimum
-- Titres courts (max 30 chars)
-- Notes courtes (max 60 chars)
-
-JSON BRUT UNIQUEMENT (pas de markdown):
-{
-  "day_index": ${dayInfo.index},
-  "day_label": "Quartier1 & Quartier2",
-  "quartiers": ["Q1","Q2"],
-  "blocks": [
-    {"type":"hotel_start","time":"08:00","title":"Depart hotel","duration_minutes":0},
-    {"type":"transit","time":"08:00","title":"Hotel vers Q1","duration_minutes":20,"from":"Hotel","to":"Q1","mode":"metro","note":"Ligne X"},
-    {"type":"meal","meal_type":"breakfast","time":"08:20","title":"Konbini 7-Eleven","duration_minutes":15,"quartier":"Q1","suggestion":"Onigiri + cafe ~300Y","local_tip":"Manger devant le temple"},
-    {"type":"transit","time":"08:35","title":"Marche vers A1","duration_minutes":5,"from":"Konbini","to":"A1","mode":"walk","note":""},
-    {"type":"activity","time":"08:40","title":"Activite 1","search_query":"Activite 1 ${zone}","duration_minutes":80,"local_tip":"Conseil court","crowd_note":"Peu de monde avant 9h"},
-    {"type":"transit","time":"10:00","title":"Metro vers Q2","duration_minutes":20,"from":"Q1","to":"Q2","mode":"metro","note":""},
-    {"type":"activity","time":"10:20","title":"Activite 2","search_query":"Activite 2 ${zone}","duration_minutes":100,"local_tip":"Conseil court","crowd_note":""},
-    {"type":"transit","time":"12:00","title":"Vers restaurant","duration_minutes":10,"from":"Q2","to":"Resto","mode":"walk","note":""},
-    {"type":"meal","meal_type":"lunch","time":"12:10","title":"Dejeuner teishoku","duration_minutes":${profile.mealDur.lunch},"quartier":"Q2","suggestion":"Teishoku poisson+riz ~900Y","local_tip":"Eviter les rues principales"},
-    {"type":"transit","time":"13:00","title":"Vers Q3","duration_minutes":15,"from":"Q2","to":"Q3","mode":"metro","note":""},
-    {"type":"activity","time":"13:15","title":"Activite 3","search_query":"Activite 3 ${zone}","duration_minutes":90,"local_tip":"Conseil court","crowd_note":"Ideal apres 13h"},
-    {"type":"transit","time":"15:00","title":"Vers diner","duration_minutes":20,"from":"Q3","to":"Quartier diner","mode":"metro","note":""},
-    {"type":"meal","meal_type":"dinner","time":"15:20","title":"Diner izakaya","duration_minutes":${profile.mealDur.dinner},"quartier":"Quartier diner","suggestion":"Yakitori + biere ~2000Y","local_tip":"Comptoir face au chef"},
-    {"type":"transit","time":"16:20","title":"Retour hotel","duration_minutes":25,"from":"Quartier diner","to":"Hotel","mode":"metro","note":""},
-    {"type":"hotel_end","time":"16:45","title":"Retour hotel","duration_minutes":0}
-  ]
-}`;
-
-            const raw = await anthropicChat(
-                "Expert voyages Japon. Reponds UNIQUEMENT avec le JSON demande, SANS backticks, SANS texte avant ou apres. Utilise uniquement des guillemets doubles. Titres et notes en francais.",
-                prompt, 3000
-            );
-
-            let dayParsed;
-            try { dayParsed = JSON.parse(raw); }
-            catch(e) {
-                try { dayParsed = JSON.parse(sanitizeJson(raw)); }
-                catch(e2) {
-                    console.error(`Jour ${di+1} JSON invalide:`, e2.message, raw.slice(0,200));
-                    // Fallback minimal pour ce jour
-                    dayParsed = {
-                        day_index: dayInfo.index,
-                        day_label: zone,
-                        quartiers: [zone],
-                        blocks: [
-                            {type:'hotel_start', time: profile.startHour, title:'Depart hotel', duration_minutes:0},
-                            {type:'activity', time:'09:00', title:`Exploration ${zone}`, search_query:`tourist attractions ${zone}`, duration_minutes:180, local_tip:'Journee libre', crowd_note:''},
-                            {type:'meal', meal_type:'lunch', time:'12:00', title:'Dejeuner local', duration_minutes:45, quartier:zone, suggestion:'Restaurant de quartier', local_tip:''},
-                            {type:'activity', time:'14:00', title:`${zone} centre`, search_query:`${zone} center attractions`, duration_minutes:120, local_tip:'', crowd_note:''},
-                            {type:'meal', meal_type:'dinner', time:'19:00', title:'Diner izakaya', duration_minutes:60, quartier:zone, suggestion:'Izakaya local', local_tip:''},
-                            {type:'hotel_end', time:'20:30', title:'Retour hotel', duration_minutes:0}
-                        ]
-                    };
-                }
-            }
-
-            allDays.push(dayParsed);
-            if (di === 0) globalSummary = `Programme ${nb_days} jour(s) a ${zone} — ${intensity||'normal'}`;
-        }
-
-        res.json({ success: true, program: allDays, summary: globalSummary });
-
-    } catch(e) {
-        console.error('generate-program error:', e);
-        res.status(500).json({ success: false, error: e.message });
-    }
-});
-
-
-// ── RÉSOLUTION PLACE DIRECTE (sans IA, pour generate-program) ───────────────
-app.post("/api/resolve-place", async (req, res) => {
-    try {
-        const { search_query, title } = req.body;
-        const query = search_query || title;
-        if (!query) return res.json({ success: false, error: "query manquant" });
-
-        const serverKey = mustEnv("GOOGLE_MAPS_SERVER_KEY");
-
-        // ── Étape 1 : TextSearch (7s max) ─────────────────────────────────
-        const searchUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
-        searchUrl.searchParams.set("query", query);
-        searchUrl.searchParams.set("language", "fr");
-        searchUrl.searchParams.set("key", serverKey);
-
-        let first;
-        try {
-            const placesRes = await fetchJson(searchUrl.toString(), {}, 7000);
-            first = placesRes.json?.results?.[0];
-        } catch(e) {
-            console.warn("[resolve-place] textsearch timeout:", query);
-            return res.json({ success: false, error: "Timeout recherche" });
-        }
-
-        if (!first) return res.json({ success: false, error: "Lieu non trouvé: " + query });
-
-        // ── Étape 2 : Details (6s max) — optionnel, fallback sur textsearch ─
-        let place = null;
-        try {
-            const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
-            detailsUrl.searchParams.set("place_id", first.place_id);
-            detailsUrl.searchParams.set("fields", "place_id,name,formatted_address,geometry,opening_hours,price_level,types,rating,user_ratings_total,photos,website");
-            detailsUrl.searchParams.set("language", "fr");
-            detailsUrl.searchParams.set("key", serverKey);
-            const detailsRes = await fetchJson(detailsUrl.toString(), {}, 6000);
-            place = detailsRes.json?.result || null;
-        } catch(e) {
-            console.warn("[resolve-place] details timeout, fallback textsearch:", query);
-        }
-
-        // Fallback : construire depuis le résultat textsearch si details a échoué
-        if (!place) {
-            place = {
-                place_id: first.place_id,
-                name: first.name,
-                formatted_address: first.formatted_address,
-                geometry: first.geometry,
-                types: first.types || [],
-                rating: first.rating || null,
-                user_ratings_total: first.user_ratings_total || 0,
-                photos: first.photos || [],
-                price_level: first.price_level ?? null,
-                opening_hours: null
-            };
-        }
-
-        const photo = place.photos?.[0]?.photo_reference || null;
-
-        res.json({
-            success: true,
-            place: {
-                place_id: place.place_id,
-                name: place.name,
-                formatted_address: place.formatted_address,
-                lat: place.geometry?.location?.lat,
-                lng: place.geometry?.location?.lng,
-                opening_hours: place.opening_hours?.weekday_text || null,
-                price_level: place.price_level ?? null,
-                types: place.types || [],
-                rating: place.rating || null,
-                user_ratings_total: place.user_ratings_total || 0,
-                photo_reference: photo,
-                website: place.website || null,
-                rating_source: 'google'
-            }
-        });
-    } catch(e) {
-        console.error("[resolve-place] error:", e.message);
-        res.json({ success: false, error: e.message });
-    }
-});
-
-
 app.post("/api/optimize-day", async (req, res) => {
     try {
-        const { activities, day_index, hotel, traveler_profile: tp_opt } = req.body;
-        const profileCtxOpt = buildProfileContext(tp_opt);
+        const { activities, day_index, hotel } = req.body;
 
         const validActivities = activities.filter(a => a.place && a.place.name);
         if (validActivities.length === 0) {
@@ -1102,68 +777,53 @@ app.post("/api/optimize-day", async (req, res) => {
             is_flexible: a.time_flexible !== false
         }));
 
-        const dayDate = (() => {
-            try {
-                const d = new Date(req.body.start_date || Date.now());
-                d.setDate(d.getDate() + (day_index || 0));
-                return d;
-            } catch(e) { return new Date(); }
-        })();
-        const dayOfWeek = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'][dayDate.getDay()];
-        const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
-        const fatigueMode = req.body.fatigue_mode || false;
-        const weatherMode = req.body.weather_mode || false;
+        const prompt = `Tu es un expert en planification d'itinéraires au Japon. Crée un planning de journée optimal et humain.
 
-        // ── Prompt ultra-compact pour éviter la troncature JSON ──────────────
-        const actListStr = activitiesContext.map(a =>
-            '- id:' + a.id + ' "' + a.title + '" (' + a.place + ') a ' + a.current_time
-        ).join('\n');
-        const contexte = dayOfWeek
-            + (isWeekend ? ' (weekend, affluence élevée)' : ' (semaine)')
-            + (fatigueMode ? ' | Mode fatigue: reduire intensite, pause apres-midi' : '')
-            + (weatherMode ? ' | Privilegier activites couvertes' : '')
-            + (hotelName ? ' | Depart: ' + hotelName : '');
-        const regles = 'Grouper par quartier, respecter horaires (musees fermes lundi), marges 15-25min, durees: temple 60-90min, musee 90-150min, resto 45min.'
-            + (isWeekend ? ' Weekend: temples avant 9h ou apres 16h.' : '')
-            + (fatigueMode ? ' Fatigue: -20% durees, pause 45min apres 13h.' : '');
-        const prompt = 'Optimise cette journee au Japon. Reponds UNIQUEMENT en JSON brut valide.\n'
-            + profileCtxOpt + '\n'
-            + 'Contexte: ' + contexte + '\n\n'
-            + 'Activites:\n' + actListStr + '\n\n'
-            + regles + '\n\n'
-            + 'REPONSE: JSON brut, ' + validActivities.length + ' objets dans optimized_activities.\n'
-            + 'Format: {"optimized_activities":[{"id":NUM,"time":"HH:MM","duration_minutes":NUM,"breathing_after_minutes":NUM,"breathing_reason":"txt","reason":"txt","local_tip":"txt","time_changed":BOOL}],"day_summary":"txt","energy_level":"txt","warnings":[]}\n'
-            + 'IMPORTANT: Inclure TOUTES les ' + validActivities.length + ' activites. Textes courts (<60 chars).\n';
+Activités:
+${JSON.stringify(activitiesContext, null, 2)}
 
-        const completionText = await anthropicChat(
-            "Expert Japon. JSON brut uniquement, SANS backticks ni markdown.",
-            prompt, 4000);
+${hotelName ? `Point de départ: ${hotelName}` : ''}
 
-        let result;
-        try {
-            result = JSON.parse(sanitizeJson(completionText));
-        } catch(parseErr) {
-            // Tentative de réparation : extraire le tableau optimized_activities même si JSON tronqué
-            const arrMatch = completionText.match(/"optimized_activities"\s*:\s*(\[[\s\S]*)/);
-            if (arrMatch) {
-                try {
-                    let partial = arrMatch[1];
-                    // Fermer le tableau et l'objet si tronqué
-                    const openBrackets = (partial.match(/\[/g)||[]).length - (partial.match(/\]/g)||[]).length;
-                    const openBraces  = (partial.match(/\{/g)||[]).length - (partial.match(/\}/g)||[]).length;
-                    for (let i=0; i<openBraces; i++) partial += '}';
-                    for (let i=0; i<openBrackets; i++) partial += ']';
-                    const repaired = `{"optimized_activities":${sanitizeJson(partial)},"day_summary":"","energy_level":"modérée","warnings":[]}`;
-                    result = JSON.parse(repaired);
-                    console.warn('[optimize-day] JSON réparé après troncature');
-                } catch(e2) {
-                    throw new Error(`JSON invalide : ${parseErr.message}`);
-                }
-            } else {
-                throw new Error(`JSON invalide : ${parseErr.message}`);
-            }
-        }
-        if (!result?.optimized_activities) throw new Error('Structure JSON inattendue');
+RÈGLES:
+1. Respecter les vrais horaires d'ouverture
+2. Éviter les pics d'affluence touristique
+3. Optimiser l'ordre géographique pour minimiser les trajets
+4. Ne JAMAIS changer is_flexible:false
+5. Marges de respiration INTELLIGENTES (temps de flâner, se perdre, souffler):
+   - Lieux proches: 15-20min
+   - Lieux éloignés: 30-45min
+   - Après marché/repas: 20min
+   - Après site intense/randonnée: 30min
+6. Journée réaliste: début 08h-09h, fin avant 21h
+7. Activités physiques le matin, culturelles/légères l'après-midi
+
+JSON de réponse:
+{
+  "optimized_activities": [
+    {
+      "id": 123,
+      "time": "09:00",
+      "duration_minutes": 90,
+      "breathing_after_minutes": 20,
+      "breathing_reason": "Flâner dans les ruelles avant de reprendre",
+      "reason": "Ouverture à 8h30, lumière dorée et peu de monde",
+      "time_changed": true
+    }
+  ],
+  "day_summary": "Une journée fluide entre marchés animés et temples apaisants",
+  "energy_level": "modérée"
+}`;
+
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                { role: "system", content: "Expert tourisme Japon. Réponds UNIQUEMENT en JSON valide." },
+                { role: "user", content: prompt }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        const result = JSON.parse(completion.choices[0].message.content);
 
         const optimizedWithFullData = result.optimized_activities.map(opt => {
             const original = validActivities.find(a => a.id === opt.id);
@@ -1191,32 +851,6 @@ app.post("/api/optimize-day", async (req, res) => {
 
     } catch (e) {
         console.error("optimize-day error:", e);
-        // ── Fallback : retourner les activités non-modifiées plutôt que d'échouer ──
-        // Permet au client d'afficher un mode édition pour que l'utilisateur reprenne
-        const { activities } = req.body || {};
-        const validFallback = (activities || []).filter(a => a.place && a.place.name);
-        if (validFallback.length > 0) {
-            console.warn('[optimize-day] Fallback: retour activités originales non optimisées');
-            return res.json({
-                success: false,
-                partial: true,
-                error: e.message,
-                optimized_activities: validFallback.map(a => ({
-                    id: a.id,
-                    time: a.time,
-                    title: a.title,
-                    description: a.description || '',
-                    place: a.place,
-                    reason: '',
-                    breathing_after_minutes: 0,
-                    breathing_reason: '',
-                    duration_minutes: a.duration_minutes || 60,
-                    time_changed: false
-                })),
-                day_summary: '',
-                energy_level: ''
-            });
-        }
         res.status(500).json({ success: false, error: e.message });
     }
 });
